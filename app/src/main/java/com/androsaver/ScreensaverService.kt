@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.service.dreams.DreamService
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
@@ -55,7 +56,7 @@ class ScreensaverService : DreamService() {
         isInteractive = false
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        binding = DreamLayoutBinding.inflate(layoutInflater)
+        binding = DreamLayoutBinding.inflate(LayoutInflater.from(this))
         setContentView(binding.root)
 
         binding.imageView1.alpha = 1f
