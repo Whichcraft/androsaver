@@ -3,7 +3,7 @@
     <style name="Theme.AndroSaver" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorPrimaryDark">@color/purple_700</item>
-        <item name="colorAccent">@color/teal_200</item>
+        <item name="colorAccent">@color/purple_500</item>
     </style>
 
     <color name="purple_200">#FFBB86FC</color>
