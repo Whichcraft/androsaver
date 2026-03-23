@@ -28,6 +28,22 @@
         <item>1800000</item>
     </string-array>
 
+    <string-array name="transition_speed_entries">
+        <item>1 second</item>
+        <item>2 seconds</item>
+        <item>3 seconds</item>
+        <item>4 seconds</item>
+        <item>5 seconds</item>
+    </string-array>
+
+    <string-array name="transition_speed_values">
+        <item>1000</item>
+        <item>2000</item>
+        <item>3000</item>
+        <item>4000</item>
+        <item>5000</item>
+    </string-array>
+
     <string-array name="transition_entries">
         <item>Crossfade</item>
         <item>Fade to Black</item>

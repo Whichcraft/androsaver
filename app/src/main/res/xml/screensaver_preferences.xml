@@ -38,6 +38,14 @@
             android:summary="%s" />
 
         <ListPreference
+            android:key="transition_speed"
+            android:title="Transition Speed"
+            android:entries="@array/transition_speed_entries"
+            android:entryValues="@array/transition_speed_values"
+            android:defaultValue="1500"
+            android:summary="%s" />
+
+        <ListPreference
             android:key="transition_effect"
             android:title="Transition Effect"
             android:entries="@array/transition_entries"

@@ -40,7 +40,6 @@ class ScreensaverService : DreamService() {
 
     companion object {
         private const val TAG = "AndroSaver"
-        private const val TRANSITION_MS = 1500L
         private val RANDOM_EFFECTS = listOf(
             "crossfade", "fade_black", "slide_left", "slide_right", "zoom_in", "zoom_out"
         )
@@ -180,6 +179,10 @@ class ScreensaverService : DreamService() {
     // Transition effects
     // -------------------------------------------------------------------------
 
+    private val transitionMs: Long get() =
+        PreferenceManager.getDefaultSharedPreferences(this)
+            .getString(Prefs.TRANSITION_SPEED, "1500")?.toLongOrNull() ?: 1500L
+
     private fun applyTransition(incoming: ImageView, outgoing: ImageView, effect: String) {
         // Bring the incoming view on top so all effects can freely manipulate both views
         incoming.bringToFront()
@@ -210,14 +213,14 @@ class ScreensaverService : DreamService() {
     /** Fade out old image while fading in new image simultaneously. */
     private fun crossfade(incoming: ImageView, outgoing: ImageView) {
         incoming.alpha = 0f
-        incoming.animate().alpha(1f).setDuration(TRANSITION_MS).setListener(null).start()
-        outgoing.animate().alpha(0f).setDuration(TRANSITION_MS)
+        incoming.animate().alpha(1f).setDuration(transitionMs).setListener(null).start()
+        outgoing.animate().alpha(0f).setDuration(transitionMs)
             .setListener(resetOnEnd(outgoing)).start()
     }
 
     /** Old image fades to black, then new image fades in from black. */
     private fun fadeBlack(incoming: ImageView, outgoing: ImageView) {
-        val half = TRANSITION_MS / 2
+        val half = transitionMs / 2
         incoming.alpha = 0f
         outgoing.animate().alpha(0f).setDuration(half)
             .setListener(object : AnimatorListenerAdapter() {
@@ -237,8 +240,8 @@ class ScreensaverService : DreamService() {
 
         incoming.alpha = 1f
         incoming.translationX = inStart
-        incoming.animate().translationX(0f).setDuration(TRANSITION_MS).setListener(null).start()
-        outgoing.animate().translationX(outEnd).setDuration(TRANSITION_MS)
+        incoming.animate().translationX(0f).setDuration(transitionMs).setListener(null).start()
+        outgoing.animate().translationX(outEnd).setDuration(transitionMs)
             .setListener(resetOnEnd(outgoing)).start()
     }
 
@@ -247,16 +250,16 @@ class ScreensaverService : DreamService() {
         incoming.alpha = 0f
         incoming.scaleX = 0.85f
         incoming.scaleY = 0.85f
-        incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(TRANSITION_MS).setListener(null).start()
-        outgoing.animate().alpha(0f).setDuration(TRANSITION_MS)
+        incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(transitionMs).setListener(null).start()
+        outgoing.animate().alpha(0f).setDuration(transitionMs)
             .setListener(resetOnEnd(outgoing)).start()
     }
 
     /** Old image scales out and fades while new image fades in. */
     private fun zoomOut(incoming: ImageView, outgoing: ImageView) {
         incoming.alpha = 0f
-        incoming.animate().alpha(1f).setDuration(TRANSITION_MS).setListener(null).start()
-        outgoing.animate().alpha(0f).scaleX(1.15f).scaleY(1.15f).setDuration(TRANSITION_MS)
+        incoming.animate().alpha(1f).setDuration(transitionMs).setListener(null).start()
+        outgoing.animate().alpha(0f).scaleX(1.15f).scaleY(1.15f).setDuration(transitionMs)
             .setListener(resetOnEnd(outgoing)).start()
     }
 
