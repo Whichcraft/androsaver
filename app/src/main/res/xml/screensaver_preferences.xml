@@ -37,6 +37,14 @@
             android:defaultValue="10000"
             android:summary="%s" />
 
+        <ListPreference
+            android:key="transition_effect"
+            android:title="Transition Effect"
+            android:entries="@array/transition_entries"
+            android:entryValues="@array/transition_values"
+            android:defaultValue="crossfade"
+            android:summary="%s" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

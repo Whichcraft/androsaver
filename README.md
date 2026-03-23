@@ -7,8 +7,8 @@ An Android TV screensaver app for the Huawei TV Stick (and any Android TV device
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
 - Both sources can be active simultaneously; images are shuffled together
-- Smooth crossfade transitions between images
-- Configurable time per image (5 s – 5 min)
+- Six transition effects: **Crossfade**, **Fade to Black**, **Slide Left**, **Slide Right**, **Zoom In**, **Zoom Out**, plus a **Random** mode
+- Configurable time per image (5 s – 30 min)
 - Registered as a system Dream Service — appears in Android TV's screensaver settings
 
 ## Requirements
