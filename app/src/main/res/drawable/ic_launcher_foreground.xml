@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AndroSaver icon: a TV/monitor displaying a night-sky landscape
+    Canvas: 108×108dp — safe zone: 18–90
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ── Monitor frame drop shadow ─────────────────────────────── -->
+    <path
+        android:pathData="M22,20 L86,20 Q93,20 93,27 L93,78 Q93,85 86,85 L22,85 Q15,85 15,78 L15,27 Q15,20 22,20 Z"
+        android:fillColor="#000000"
+        android:fillAlpha="0.22"/>
+
+    <!-- ── Monitor frame body (light silver-blue) ─────────────────── -->
+    <path
+        android:pathData="M20,18 L88,18 Q94,18 94,24 L94,77 Q94,83 88,83 L20,83 Q14,83 14,77 L14,24 Q14,18 20,18 Z"
+        android:fillColor="#D8DEF2"/>
+
+    <!-- ── Screen (deep-space gradient sky) ───────────────────────── -->
+    <path
+        android:pathData="M20,24 L88,24 L88,77 L20,77 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="20" android:startY="24"
+                android:endX="20"   android:endY="77"
+                android:type="linear">
+                <item android:offset="0"   android:color="#08103E"/>
+                <item android:offset="0.6" android:color="#0C1F60"/>
+                <item android:offset="1"   android:color="#061428"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── Aurora band — purple/violet ───────────────────────────── -->
+    <path
+        android:pathData="M20,37 C30,32 42,44 54,36 C66,28 78,42 88,35
+                          L88,43 C78,50 66,36 54,44 C42,52 30,40 20,45 Z"
+        android:fillColor="#7C4DFF"
+        android:fillAlpha="0.28"/>
+
+    <!-- ── Aurora band — teal/cyan ────────────────────────────────── -->
+    <path
+        android:pathData="M20,42 C32,37 44,51 56,43 C68,35 80,49 88,42
+                          L88,50 C80,57 68,43 56,51 C44,59 32,45 20,52 Z"
+        android:fillColor="#1DE9B6"
+        android:fillAlpha="0.35"/>
+
+    <!-- ── Moon soft glow ─────────────────────────────────────────── -->
+    <path
+        android:pathData="M68,28 m-13,0 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0"
+        android:fillColor="#FFF9C4"
+        android:fillAlpha="0.18"/>
+
+    <!-- ── Moon ───────────────────────────────────────────────────── -->
+    <path
+        android:pathData="M68,28 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0"
+        android:fillColor="#FFE57F"/>
+
+    <!-- ── Stars ──────────────────────────────────────────────────── -->
+    <!-- large -->
+    <path android:pathData="M29,26 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0"
+          android:fillColor="#FFFFFF" android:fillAlpha="0.95"/>
+    <!-- medium -->
+    <path android:pathData="M40,23 m-1.4,0 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0"
+          android:fillColor="#FFFFFF" android:fillAlpha="0.80"/>
+    <path android:pathData="M51,29 m-1.6,0 a1.6,1.6 0 1,0 3.2,0 a1.6,1.6 0 1,0 -3.2,0"
+          android:fillColor="#FFFFFF" android:fillAlpha="0.88"/>
+    <!-- small -->
+    <path android:pathData="M35,34 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0"
+          android:fillColor="#FFFFFF" android:fillAlpha="0.65"/>
+    <path android:pathData="M45,30 m-0.8,0 a0.8,0.8 0 1,0 1.6,0 a0.8,0.8 0 1,0 -1.6,0"
+          android:fillColor="#FFFFFF" android:fillAlpha="0.55"/>
+    <path android:pathData="M58,25 m-0.9,0 a0.9,0.9 0 1,0 1.8,0 a0.9,0.9 0 1,0 -1.8,0"
+          android:fillColor="#FFFFFF" android:fillAlpha="0.60"/>
+
+    <!-- ── Back mountain (blue-dark) ──────────────────────────────── -->
+    <path
+        android:pathData="M20,77 L43,42 L66,77 Z"
+        android:fillColor="#101F3A"/>
+
+    <!-- ── Front mountain (near black) ───────────────────────────── -->
+    <path
+        android:pathData="M52,77 L72,46 L88,77 Z"
+        android:fillColor="#07101C"/>
+
+    <!-- ── Horizon ground strip ───────────────────────────────────── -->
+    <path
+        android:pathData="M20,72 L88,72 L88,77 L20,77 Z"
+        android:fillColor="#05100A"/>
+
+    <!-- ── Stand neck ─────────────────────────────────────────────── -->
+    <path
+        android:pathData="M51,83 L57,83 L57,90 L51,90 Z"
+        android:fillColor="#B0BEC5"/>
+
+    <!-- ── Stand base ─────────────────────────────────────────────── -->
+    <path
+        android:pathData="M37,90 L71,90 Q73,90 73,92 L73,94 Q73,96 71,96 L37,96 Q35,96 35,94 L35,92 Q35,90 37,90 Z"
+        android:fillColor="#90A4AE"/>
+
+</vector>
