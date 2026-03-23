@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="Image Sources">
+
+        <SwitchPreferenceCompat
+            android:key="source_google_drive"
+            android:title="Google Drive"
+            android:summary="Fetch images from your Google Drive" />
+
+        <Preference
+            android:key="google_drive_setup"
+            android:title="Google Drive Setup"
+            android:icon="@android:drawable/ic_menu_upload" />
+
+        <SwitchPreferenceCompat
+            android:key="source_synology"
+            android:title="Synology NAS"
+            android:summary="Fetch images from a Synology NAS" />
+
+        <Preference
+            android:key="synology_setup"
+            android:title="Synology NAS Setup"
+            android:summary="Configure host, credentials, and folder"
+            android:icon="@android:drawable/ic_menu_manage" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Slideshow">
+
+        <ListPreference
+            android:key="transition_duration"
+            android:title="Time per Image"
+            android:entries="@array/duration_entries"
+            android:entryValues="@array/duration_values"
+            android:defaultValue="10000"
+            android:summary="%s" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

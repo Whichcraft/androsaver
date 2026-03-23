@@ -1,0 +1,23 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.keystore
+!debug.keystore
+*.jks
+
+# Android Studio navigates to these files for some activities
+.navigation/
+
+# Derived files
+app/build/
+.idea/
+
+# Google Services
+google-services.json

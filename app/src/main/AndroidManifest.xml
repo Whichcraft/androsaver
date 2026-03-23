@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.AndroSaver">
+
+        <!-- Screensaver / Dream Service -->
+        <service
+            android:name=".ScreensaverService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/dream_info" />
+        </service>
+
+        <!-- Main settings activity (TV launcher entry point) -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true"
+            android:label="@string/settings_title">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Google Drive OAuth setup -->
+        <activity
+            android:name=".GoogleDriveSetupActivity"
+            android:exported="false"
+            android:label="@string/google_drive_setup_title" />
+
+        <!-- Google Device Auth flow -->
+        <activity
+            android:name=".GoogleAuthActivity"
+            android:exported="false"
+            android:label="@string/google_auth_title" />
+
+        <!-- Synology NAS setup -->
+        <activity
+            android:name=".SynologySetupActivity"
+            android:exported="false"
+            android:label="@string/synology_setup_title" />
+
+    </application>
+
+</manifest>

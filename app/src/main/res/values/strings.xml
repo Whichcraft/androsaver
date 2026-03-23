@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AndroSaver</string>
+    <string name="settings_title">AndroSaver Settings</string>
+
+    <!-- Screensaver status -->
+    <string name="loading_images">Loading images…</string>
+    <string name="no_sources_configured">No image sources configured.\nOpen the Settings app to configure AndroSaver.</string>
+    <string name="no_images_found">No images found in configured sources.</string>
+
+    <!-- Activity titles -->
+    <string name="google_drive_setup_title">Google Drive Setup</string>
+    <string name="google_auth_title">Authorize Google Drive</string>
+    <string name="synology_setup_title">Synology NAS Setup</string>
+
+    <!-- Google Drive setup -->
+    <string name="google_drive_setup_instructions">To connect Google Drive, you need a Google Cloud OAuth 2.0 client ID configured as \"TV and Limited Input Devices\". Enable the Google Drive API in your project, then enter the credentials below.</string>
+    <string name="oauth_client_id">OAuth Client ID</string>
+    <string name="client_id_hint">Enter your OAuth 2.0 client ID</string>
+    <string name="oauth_client_secret">OAuth Client Secret</string>
+    <string name="client_secret_hint">Enter your OAuth 2.0 client secret</string>
+    <string name="google_drive_folder_id">Folder ID (optional)</string>
+    <string name="folder_id_hint">Leave empty for root / My Drive</string>
+    <string name="authorize_google_drive">Authorize with Google</string>
+    <string name="revoke_authorization">Revoke Authorization</string>
+    <string name="auth_revoked">Authorization revoked</string>
+    <string name="client_id_required">Client ID and Client Secret are required</string>
+    <string name="google_drive_authorized">✓ Authorized</string>
+    <string name="google_drive_not_authorized">Not authorized — tap to set up</string>
+
+    <!-- Google auth flow -->
+    <string name="requesting_device_code">Requesting device code…</string>
+    <string name="auth_visit_label">On another device, visit:</string>
+    <string name="auth_enter_code_label">Enter this code:</string>
+    <string name="waiting_for_authorization">Waiting for you to authorize on another device…</string>
+    <string name="auth_success">Authorization successful! Returning to settings…</string>
+    <string name="auth_expired">Authorization code expired. Please try again.</string>
+    <string name="auth_error">Error: %s</string>
+    <string name="auth_failed_check_client_id">Failed to get device code. Check your Client ID and make sure the Google Drive API is enabled.</string>
+
+    <!-- Synology setup -->
+    <string name="nas_host_label">NAS Host / IP Address</string>
+    <string name="nas_host_hint">e.g. 192.168.1.100 or nas.local</string>
+    <string name="nas_port_label">Port</string>
+    <string name="nas_port_hint">5000 (HTTP) or 5001 (HTTPS)</string>
+    <string name="nas_use_https">Use HTTPS</string>
+    <string name="nas_username_label">Username</string>
+    <string name="nas_username_hint">Synology DSM username</string>
+    <string name="nas_password_label">Password</string>
+    <string name="nas_password_hint">Synology DSM password</string>
+    <string name="nas_folder_label">Image Folder Path</string>
+    <string name="nas_folder_hint">e.g. /photos or /homes/user/Pictures</string>
+
+    <!-- Connection test -->
+    <string name="testing_connection">Testing connection…</string>
+    <string name="connection_success">Connected! Found %d images.</string>
+    <string name="connection_success_no_images">Connected, but no images found in the specified folder.</string>
+    <string name="connection_failed">Connection failed: %s</string>
+
+    <!-- Common -->
+    <string name="settings_saved">Settings saved</string>
+    <string name="save">Save</string>
+    <string name="test_connection">Test Connection</string>
+</resources>
