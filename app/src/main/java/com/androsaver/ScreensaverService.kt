@@ -156,7 +156,10 @@ class ScreensaverService : DreamService() {
 
         Glide.with(this)
             .load(glideUrl)
-            .into(object : CustomTarget<Drawable>() {
+            .into(object : CustomTarget<Drawable>(
+                binding.imageView1.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels,
+                binding.imageView1.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+            ) {
                 override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
                     incoming.setImageDrawable(resource)
                     val effect = PreferenceManager.getDefaultSharedPreferences(this@ScreensaverService)
@@ -170,7 +173,7 @@ class ScreensaverService : DreamService() {
 
                 override fun onLoadFailed(errorDrawable: Drawable?) {
                     Log.w(TAG, "Failed to load: ${item.url}")
-                    showNextImage()
+                    handler.post { showNextImage() }
                 }
             })
     }
