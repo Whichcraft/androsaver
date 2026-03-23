@@ -11,6 +11,19 @@ An Android TV screensaver app for the Huawei TV Stick (and any Android TV device
 - Configurable time per image (5 s – 30 min)
 - Registered as a system Dream Service — appears in Android TV's screensaver settings
 
+## Installation
+
+The easiest way to install on an Amazon Fire TV or Android TV device is via the [Downloader app](https://www.aftvnews.com/downloader/):
+
+| Release | Downloader code | Short URL |
+|---------|----------------|-----------|
+| v1.0    | `4414059`      | [aftv.news/4414059](https://aftv.news/4414059) |
+| Beta    | `6643418`      | [aftv.news/6643418](https://aftv.news/6643418) |
+
+1. Install **Downloader** from the Amazon Appstore or Google Play.
+2. Open Downloader and enter the code (or short URL) for the version you want.
+3. Follow the on-screen prompts to install the APK.
+
 ## Requirements
 
 - Android 5.0+ (API 21)
