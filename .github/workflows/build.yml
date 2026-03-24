@@ -58,3 +58,45 @@ jobs:
           prerelease: false
           make_latest: true
           files: app/build/outputs/apk/release/androsaver.apk
+
+  bundle-playstore:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Checkout playstore branch
+        uses: actions/checkout@v4
+        with:
+          ref: playstore
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/androsaver.jks
+
+      - name: Build release AAB
+        env:
+          KEYSTORE_PATH: androsaver.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew bundleRelease
+
+      - name: Rename AAB
+        run: mv app/build/outputs/bundle/release/*.aab app/build/outputs/bundle/release/androsaver.aab
+
+      - name: Publish AAB to playstore-stable release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: playstore-stable
+          name: Playstore Stable
+          prerelease: false
+          make_latest: false
+          files: app/build/outputs/bundle/release/androsaver.aab
