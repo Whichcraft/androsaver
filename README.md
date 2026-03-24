@@ -18,7 +18,7 @@ The easiest way to install on an Amazon Fire TV or Android TV device is via the 
 
 | Release | Downloader code | Short URL |
 |---------|----------------|-----------|
-| Stable  | `7195123`      | [aftv.news/7195123](https://aftv.news/7195123) |
+| Stable  | `7582483`      | [aftv.news/7582483](https://aftv.news/7582483) |
 | Dev     | `9149021`      | [aftv.news/9149021](https://aftv.news/9149021) *(includes debug info)* |
 
 1. Install **Downloader** from the Amazon Appstore or Google Play.
