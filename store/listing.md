@@ -7,7 +7,7 @@ AndroSaver
 
 ## Short description (≤80 chars)
 ```
-Photo slideshow screensaver from Google Drive or your Synology NAS.
+Photo slideshow screensaver for TV from Google Drive or your Synology NAS.
 ```
 
 ## Full description (≤4000 chars)
