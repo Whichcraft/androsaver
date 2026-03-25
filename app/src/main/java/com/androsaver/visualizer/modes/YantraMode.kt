@@ -64,7 +64,7 @@ class YantraMode : BaseMode() {
         // Physics update
         for (i in 0 until N_RINGS) {
             val e = minOf(bands[i], 1f)
-            pvel[i] += beat * (0.55f + e * 0.20f)
+            pvel[i] += beat * (0.80f + e * 0.30f)
             pvel[i] += -poff[i] * 0.35f
             pvel[i] *= 0.72f
             poff[i] += pvel[i]
@@ -74,7 +74,7 @@ class YantraMode : BaseMode() {
         // Collect ring vertices
         val allVerts = Array(N_RINGS) { i ->
             val baseR = maxR * (0.13f + i.toFloat() / (N_RINGS - 1) * 0.83f)
-            val r = baseR * (1f + poff[i] * 0.55f)
+            val r = baseR * (1f + poff[i] * 0.70f)
             ringVerts(i, r, cx, cy)
         }
 
@@ -97,7 +97,7 @@ class YantraMode : BaseMode() {
         for (i in N_RINGS - 1 downTo 0) {
             val e = minOf(bands[i], 1f)
             val h = (hue + i.toFloat() / N_RINGS * 0.55f) % 1f
-            val bright = 0.42f + e * 0.44f
+            val bright = 0.42f + e * 0.35f + beat * 0.30f
             val c = GLDraw.hsl(h, l = bright)
             draw.polygon(allVerts[i], c[0], c[1], c[2], 1f, filled = false)
             // Star connections (every 2nd vertex)
@@ -114,7 +114,7 @@ class YantraMode : BaseMode() {
         }
 
         // Radial spokes
-        val outerR = maxR * (1.02f + beat * 0.18f)
+        val outerR = maxR * (1.02f + beat * 0.55f)
         for (s in 0 until N_SPOKES) {
             val a = s.toFloat() / N_SPOKES * TAU + time * 0.22f +
                     sin(time * 2.4f + s * 0.85f) * (0.05f + mid * 0.10f)
@@ -128,9 +128,9 @@ class YantraMode : BaseMode() {
             }
         }
 
-        // Central pulse
-        val cr = maxOf(2f, 8f + bass * 28f + beat * 20f)
-        val cc = GLDraw.hsl(hue, l = 0.55f + beat * 0.35f)
+        // Central pulse — subtle, steady dot
+        val cr = maxOf(2f, 6f + bass * 8f + beat * 5f)
+        val cc = GLDraw.hsl(hue, l = 0.55f + beat * 0.10f)
         draw.circle(cx, cy, cr, cc[0], cc[1], cc[2], 1f, segments = 24)
         val cc2 = GLDraw.hsl((hue + 0.5f) % 1f, l = 0.75f)
         draw.circle(cx, cy, cr / 3f, cc2[0], cc2[1], cc2[2], 1f, segments = 20)

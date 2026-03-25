@@ -60,20 +60,24 @@ class BubblesMode : BaseMode() {
         val bass = fft.meanSlice(0, 8)
         val mid  = fft.meanSlice(6, 30)
 
-        // Global beat spring
-        pvel  += beat * 1.50f + bass * 0.90f
+        // beatSel: capped at 1 for count/size selectors so intensity doesn't blow up counts
+        val beatSel = beat.coerceAtMost(1f)
+
+        // Global beat spring (uses full beat so bumpiness still scales with intensity)
+        pvel  += beat * 1.20f + bass * 0.80f
         pvel  += -pulse * 0.55f
         pvel  *= 0.62f
         pulse += pvel
 
-        // Spawn on beat/bass
-        val spawnCount = (2 + beat * 12 + bass * 6).toInt()
+        // Spawn on beat/bass — use beatSel to cap count at high intensity
+        val spawnCount = (1 + beatSel * 7 + bass * 3).toInt()
         repeat(spawnCount) {
             if (pool.size < MAX) {
                 val b = makeBubble(W, H)
-                b.vy  *= (1f + beat * 0.8f)
-                b.r   *= (1f + bass * 1.2f)
-                b.hue  = (hue + Math.random().toFloat() * 0.35f) % 1f
+                b.vy  *= (1f + beatSel * 0.8f)
+                b.r   *= (1f + bass * 0.7f)
+                // wider hue spread at higher intensity → more colours
+                b.hue  = (hue + Math.random().toFloat() * (0.25f + beat * 0.75f)) % 1f
                 pool.add(b)
             }
         }
@@ -86,7 +90,7 @@ class BubblesMode : BaseMode() {
             if (b.y + b.r < 0) continue
 
             val life  = (b.y / H).coerceIn(0f, 1f)
-            val r     = maxOf(2f, b.r * (1f + pulse * 1.50f + mid * 0.15f))
+            val r     = maxOf(2f, b.r * (1f + pulse * 1.10f + mid * 0.15f))
             val alpha = life * 0.63f  // matches pygame's 160/255
 
             // Multi-layer halos (outermost first)
@@ -122,6 +126,21 @@ class BubblesMode : BaseMode() {
                 val fc = GLDraw.hsl((b.hue + 0.25f) % 1f, l = 0.88f)
                 draw.circle(b.x, b.y, fr, fc[0], fc[1], fc[2], alpha * beat * 0.4f,
                             filled = false, segments = 20)
+            }
+
+            // Extra neon rings at higher intensity (beat > 1 only when beatGain > 1)
+            if (beat > 1.0f) {
+                val excess = beat - 1.0f  // 0..1 extra range from intensity
+                val er1 = maxOf(1f, r * (1.7f + excess * 0.4f))
+                val ec1 = GLDraw.hsl((b.hue + 0.33f) % 1f, l = 0.90f)
+                draw.circle(b.x, b.y, er1, ec1[0], ec1[1], ec1[2], alpha * excess * 0.55f,
+                            filled = false, segments = 20)
+                if (excess > 0.5f) {
+                    val er2 = maxOf(1f, r * (2.0f + excess * 0.3f))
+                    val ec2 = GLDraw.hsl((b.hue + 0.66f) % 1f, l = 0.85f)
+                    draw.circle(b.x, b.y, er2, ec2[0], ec2[1], ec2[2], alpha * (excess - 0.5f) * 0.45f,
+                                filled = false, segments = 20)
+                }
             }
 
             alive.add(b)

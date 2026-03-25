@@ -128,11 +128,11 @@ class PlasmaMode : BaseMode() {
 
         val fft  = audio.fft
         val beat = audio.beat
-        hue  += 0.005f
+        hue  += 0.002f
         val bass  = fft.meanSlice(0,  6)
         val mid   = fft.meanSlice(6,  30)
         val high  = fft.meanSlice(30, fft.size)
-        time += 0.045f + bass * 0.09f + beat * 0.14f
+        time += 0.018f + bass * 0.05f + beat * 0.08f
 
         GLES20.glUseProgram(program)
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo)

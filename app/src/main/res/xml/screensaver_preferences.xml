@@ -24,7 +24,7 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:key="cat_slideshow" android:title="Slideshow">
-        <SwitchPreferenceCompat android:key="show_clock" android:title="Show Clock" android:summary="Display the time and date while the screensaver runs" android:defaultValue="true" />
+        <SwitchPreferenceCompat android:key="show_clock" android:title="Show Clock" android:summary="Display the time and date while the screensaver runs" android:defaultValue="false" />
         <SwitchPreferenceCompat android:key="ken_burns_enabled" android:title="Ken Burns Effect" android:summary="Slow pan and zoom while each photo is displayed" android:defaultValue="true" />
         <SwitchPreferenceCompat android:key="viz_overlay_on_slideshow" android:title="Visualizer Overlay" android:summary="Show audio-reactive visuals behind photos" android:defaultValue="false" />
         <ListPreference android:key="viz_overlay_opacity" android:title="Overlay Opacity" android:entries="@array/overlay_opacity_entries" android:entryValues="@array/overlay_opacity_values" android:defaultValue="0.3" android:summary="%s" android:dependency="viz_overlay_on_slideshow" />

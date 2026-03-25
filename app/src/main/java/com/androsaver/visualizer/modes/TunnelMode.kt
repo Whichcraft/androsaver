@@ -10,11 +10,12 @@ class TunnelMode : BaseMode() {
     override val name = "Tunnel"
 
     private companion object {
-        const val N_RINGS = 30
-        const val N_SIDES = 20
-        const val TUBE_R  = 2.0f
-        const val Z_FAR   = 10.0f
-        const val Z_NEAR  = 0.18f
+        const val N_RINGS    = 30
+        const val N_SIDES    = 20
+        const val TUBE_R_MIN = 0.8f   // radius at silence; grows with beat/intensity
+        const val TUBE_R_MAX = 2.2f
+        const val Z_FAR      = 10.0f
+        const val Z_NEAR     = 0.18f
     }
 
     private data class Ring(var z: Float, var pt: Float)
@@ -59,16 +60,17 @@ class TunnelMode : BaseMode() {
         val dt = 0.05f + bass * 0.13f + beat * 0.28f
         time += dt
 
-        // Spawn beat triangles
-        if (beat > 0.5f) {
-            val count = (1 + beat * 2.5f).toInt()
+        // Spawn beat triangles — threshold and count scale with beat (i.e. with intensity)
+        val tubeR = TUBE_R_MIN + (TUBE_R_MAX - TUBE_R_MIN) * (beat + bass * 0.5f).coerceIn(0f, 1f)
+        if (beat > 0.65f) {
+            val count = ((beat - 0.65f) * 5f).toInt().coerceAtLeast(1)
             repeat(count) {
                 tris.add(Triangle(
                     z    = Z_FAR * (0.65f + Math.random().toFloat() * 0.30f),
                     pt   = time + Z_FAR * 0.8f,
                     rot  = (Math.random() * TAU).toFloat(),
                     rvel = (if (Math.random() < 0.5) 1 else -1) * (0.04f + Math.random().toFloat() * 0.08f),
-                    size = 0.45f + Math.random().toFloat() * 0.65f,
+                    size = 0.20f + Math.random().toFloat() * 0.35f,
                     hue  = (hue + Math.random().toFloat() * 0.5f) % 1f
                 ))
             }
@@ -86,7 +88,7 @@ class TunnelMode : BaseMode() {
             val r1 = ordered[i]; val r2 = ordered[i + 1]
             val (cx1, cy1) = path(r1.pt); val (sx1, sy1, sc1) = proj(cx1, cy1, r1.z, draw.W, draw.H)
             val (cx2, cy2) = path(r2.pt); val (sx2, sy2, sc2) = proj(cx2, cy2, r2.z, draw.W, draw.H)
-            val sr1 = maxOf(1f, TUBE_R * sc1); val sr2 = maxOf(1f, TUBE_R * sc2)
+            val sr1 = maxOf(1f, tubeR * sc1); val sr2 = maxOf(1f, tubeR * sc2)
             val nearT = maxOf(0f, 1f - r1.z / Z_FAR)
             val fi = minOf((nearT * fft.size * 0.8f).toInt(), fft.size - 1)
             val h = (hue + nearT) % 1f

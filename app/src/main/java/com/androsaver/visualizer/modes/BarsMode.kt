@@ -17,6 +17,7 @@ class BarsMode : BaseMode() {
     private var n = 0
     private lateinit var peaks: FloatArray
     private lateinit var counts: FloatArray   // pre-computed bin widths
+    private lateinit var display: FloatArray  // smoothed heights shown on screen
 
     override fun reset() {
         hue = 0f
@@ -24,14 +25,16 @@ class BarsMode : BaseMode() {
         val raw = geomSpaceInt(2.0, 434.0, 81)
         edges = raw.map { it.coerceIn(1, 511) }.distinct().sorted().toIntArray()
         n = edges.size - 1
-        peaks  = FloatArray(n)
-        counts = FloatArray(n) { i -> (edges[i + 1] - edges[i]).toFloat().coerceAtLeast(1f) }
+        peaks   = FloatArray(n)
+        counts  = FloatArray(n) { i -> (edges[i + 1] - edges[i]).toFloat().coerceAtLeast(1f) }
+        display = FloatArray(n)
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         hue = (hue + 0.003f) % 1f
 
         val fft = audio.fft
+        val beat = audio.beat
         val waveform = audio.waveform
         val W = draw.W.toFloat()
         val H = draw.H.toFloat()
@@ -47,16 +50,22 @@ class BarsMode : BaseMode() {
         val maxH = heights.max().coerceAtLeast(1e-6f)
         for (i in 0 until n) heights[i] /= maxH
 
-        // Update peaks
+        // Lerp display heights: base speed 0.25, scales up with beat (beat is × beatGain)
+        val lerpSpeed = (0.25f + beat * 0.55f).coerceIn(0.05f, 1.0f)
         for (i in 0 until n) {
-            peaks[i] = maxOf(peaks[i] * 0.94f, heights[i])
+            display[i] = display[i] + (heights[i] - display[i]) * lerpSpeed
+        }
+
+        // Update peaks from smoothed display heights
+        for (i in 0 until n) {
+            peaks[i] = maxOf(peaks[i] * 0.94f, display[i])
         }
 
         val barW = W / n
 
         // Draw bars and peak markers
         for (i in 0 until n) {
-            val h = heights[i]
+            val h = display[i]
             val barH = h * H * 0.82f
             val peak = peaks[i] * H * 0.82f
             val x = i * barW
