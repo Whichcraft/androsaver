@@ -1,0 +1,3 @@
+[submodule "psysuals"]
+	path = psysuals
+	url = git@github.com:Whichcraft/psysuals.git

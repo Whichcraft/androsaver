@@ -22,4 +22,8 @@ object Prefs {
     const val SLIDE_DURATION = "transition_duration"
     const val TRANSITION_EFFECT = "transition_effect"
     const val TRANSITION_SPEED = "transition_speed"
+
+    // Visualizer
+    const val ENABLE_VISUALIZER  = "enable_visualizer"
+    const val VISUALIZER_MODE    = "visualizer_mode"   // mode name or "auto"
 }
