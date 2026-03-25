@@ -47,6 +47,7 @@ jobs:
           tag_name: dev
           name: Dev
           prerelease: true
+          target_commitish: ${{ github.sha }}
           files: app/build/outputs/apk/release/androsaver.apk
 
       - name: Publish to stable release
@@ -57,6 +58,7 @@ jobs:
           name: Stable
           prerelease: false
           make_latest: true
+          target_commitish: ${{ github.sha }}
           files: app/build/outputs/apk/release/androsaver.apk
 
   bundle-playstore:
@@ -99,4 +101,5 @@ jobs:
           name: Playstore Stable
           prerelease: false
           make_latest: false
+          target_commitish: ${{ github.sha }}
           files: app/build/outputs/bundle/release/androsaver.aab
