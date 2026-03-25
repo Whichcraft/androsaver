@@ -19,6 +19,7 @@ import com.androsaver.source.GoogleDriveSource
 import com.androsaver.source.ImageItem
 import com.androsaver.source.ImageSource
 import com.androsaver.source.LocalStorageSource
+import com.androsaver.source.DropboxSource
 import com.androsaver.source.ImmichSource
 import com.androsaver.source.NextcloudSource
 import com.androsaver.source.OneDriveSource
@@ -305,6 +306,7 @@ class ScreensaverEngine(
     private fun getConfiguredSources(prefs: SharedPreferences): List<ImageSource> = buildList {
         if (prefs.getBoolean(Prefs.ENABLE_GOOGLE_DRIVE, false)) add(GoogleDriveSource(context))
         if (prefs.getBoolean(Prefs.ENABLE_ONEDRIVE, false)) add(OneDriveSource(context))
+        if (prefs.getBoolean(Prefs.ENABLE_DROPBOX, false)) add(DropboxSource(context))
         if (prefs.getBoolean(Prefs.ENABLE_IMMICH, false)) add(ImmichSource(context))
         if (prefs.getBoolean(Prefs.ENABLE_NEXTCLOUD, false)) add(NextcloudSource(context))
         if (prefs.getBoolean(Prefs.ENABLE_SYNOLOGY, false)) add(SynologySource(context))

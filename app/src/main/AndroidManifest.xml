@@ -76,7 +76,7 @@
             android:exported="false"
             android:label="@string/onedrive_setup_title" />
 
-        <!-- Immich setup -->
+        <!-- Dropbox setup -->\n        <activity\n            android:name=".DropboxSetupActivity"\n            android:exported="false"\n            android:label="@string/dropbox_setup_title" />\n\n        <activity\n            android:name=".DropboxAuthActivity"\n            android:exported="false"\n            android:label="@string/dropbox_setup_title" />\n\n        <!-- Immich setup -->
         <activity
             android:name=".ImmichSetupActivity"
             android:exported="false"

@@ -16,6 +16,14 @@ object Prefs {
     const val ONEDRIVE_ACCESS_TOKEN  = "onedrive_access_token"
     const val ONEDRIVE_REFRESH_TOKEN = "onedrive_refresh_token"
 
+    // Dropbox
+    const val ENABLE_DROPBOX        = "source_dropbox"
+    const val DROPBOX_APP_KEY       = "dropbox_app_key"
+    const val DROPBOX_APP_SECRET    = "dropbox_app_secret"
+    const val DROPBOX_ACCESS_TOKEN  = "dropbox_access_token"
+    const val DROPBOX_REFRESH_TOKEN = "dropbox_refresh_token"
+    const val DROPBOX_FOLDER        = "dropbox_folder"
+
     // Immich
     const val ENABLE_IMMICH    = "source_immich"
     const val IMMICH_HOST      = "immich_host"
