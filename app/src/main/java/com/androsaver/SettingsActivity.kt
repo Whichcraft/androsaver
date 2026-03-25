@@ -75,6 +75,7 @@ class SettingsActivity : AppCompatActivity() {
             super.onResume()
             updateGoogleDriveStatus()
             updateOneDriveStatus()
+            updateDropboxStatus()
             updateImmichStatus()
         }
 
@@ -90,6 +91,10 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 "onedrive_setup" -> {
                     startActivity(Intent(requireContext(), OneDriveSetupActivity::class.java))
+                    true
+                }
+                "dropbox_setup" -> {
+                    startActivity(Intent(requireContext(), DropboxSetupActivity::class.java))
                     true
                 }
                 "immich_setup" -> {
@@ -113,6 +118,14 @@ class SettingsActivity : AppCompatActivity() {
             findPreference<PreferenceCategory>("cat_sources")?.isVisible = isSlideshow
             findPreference<PreferenceCategory>("cat_slideshow")?.isVisible = isSlideshow
             findPreference<PreferenceCategory>("cat_visualizer")?.isVisible = !isSlideshow
+        }
+
+        private fun updateDropboxStatus() {
+            val authorized = com.androsaver.auth.DropboxAuthManager(requireContext()).isAuthorized()
+            findPreference<Preference>("dropbox_setup")?.summary = if (authorized)
+                getString(R.string.dropbox_authorized)
+            else
+                getString(R.string.dropbox_not_authorized)
         }
 
         private fun updateImmichStatus() {
