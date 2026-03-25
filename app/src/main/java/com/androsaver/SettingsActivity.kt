@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.preference.ListPreference
@@ -33,9 +34,18 @@ class SettingsActivity : AppCompatActivity() {
         else
             Manifest.permission.READ_EXTERNAL_STORAGE
 
-        private companion object {
-            const val REQ_STORAGE = 42
-            const val REQ_AUDIO   = 43
+        private val storagePermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.isChecked = true
+        }
+
+        private val audioPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (!granted) android.widget.Toast.makeText(
+                requireContext(), R.string.audio_permission_denied, android.widget.Toast.LENGTH_LONG
+            ).show()
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -48,14 +58,14 @@ class SettingsActivity : AppCompatActivity() {
             findPreference<ListPreference>(Prefs.SCREENSAVER_MODE)?.setOnPreferenceChangeListener { _, newValue ->
                 updateModeVisibility(newValue as String)
                 if (newValue == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
-                    requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
+                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
                 true
             }
 
             findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.setOnPreferenceChangeListener { _, newValue ->
                 if (newValue == true && !hasStoragePermission()) {
-                    requestPermissions(arrayOf(storagePermission), REQ_STORAGE)
+                    storagePermissionLauncher.launch(storagePermission)
                     false  // revert; will be re-enabled if permission granted
                 } else true
             }
@@ -64,17 +74,6 @@ class SettingsActivity : AppCompatActivity() {
         override fun onResume() {
             super.onResume()
             updateGoogleDriveStatus()
-        }
-
-        override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-            when {
-                requestCode == REQ_STORAGE && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED ->
-                    findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.isChecked = true
-                requestCode == REQ_AUDIO && grantResults.firstOrNull() != PackageManager.PERMISSION_GRANTED ->
-                    android.widget.Toast.makeText(requireContext(),
-                        R.string.audio_permission_denied, android.widget.Toast.LENGTH_LONG).show()
-            }
         }
 
         override fun onPreferenceTreeClick(preference: Preference): Boolean {

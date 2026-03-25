@@ -45,10 +45,10 @@ class ScreensaverEngine(
         private val RANDOM_EFFECTS = listOf("crossfade","fade_black","slide_left","slide_right","zoom_in","zoom_out")
         val INTENSITY_STEPS = floatArrayOf(0.0f, 0.5f, 1.0f, 1.5f, 2.0f)
         private val KB_PRESETS = listOf(
-            floatArrayOf(1.0f, 1.06f, -0.02f, -0.01f,  0.02f,  0.01f),
-            floatArrayOf(1.0f, 1.06f,  0.02f,  0.01f, -0.02f, -0.01f),
-            floatArrayOf(1.0f, 1.08f,  0.0f,  -0.02f,  0.0f,   0.02f),
-            floatArrayOf(1.0f, 1.06f, -0.01f,  0.02f,  0.01f, -0.02f)
+            floatArrayOf(1.05f, 1.12f, -0.02f, -0.01f,  0.02f,  0.01f),
+            floatArrayOf(1.05f, 1.12f,  0.02f,  0.01f, -0.02f, -0.01f),
+            floatArrayOf(1.05f, 1.14f,  0.0f,  -0.02f,  0.0f,   0.02f),
+            floatArrayOf(1.05f, 1.12f, -0.01f,  0.02f,  0.01f, -0.02f)
         )
     }
 
@@ -86,7 +86,7 @@ class ScreensaverEngine(
             startSlideshowMode(prefs)
         }
 
-        if (prefs.getBoolean(Prefs.SHOW_CLOCK, true)) startClock()
+        if (prefs.getBoolean(Prefs.SHOW_CLOCK, false)) startClock()
         if (prefs.getBoolean(Prefs.WEATHER_ENABLED, false)) startWeather(prefs)
     }
 
@@ -104,20 +104,36 @@ class ScreensaverEngine(
     }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
-        val vv = visualizerView
-        if (vv == null) {
-            if (event.action == KeyEvent.ACTION_DOWN) onRequestFinish()
-            return true
-        }
         if (event.action != KeyEvent.ACTION_DOWN) return true
-        when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_RIGHT -> vv.nextMode()
-            KeyEvent.KEYCODE_DPAD_LEFT  -> vv.previousMode()
-            KeyEvent.KEYCODE_DPAD_UP    -> adjustIntensity(+1)
-            KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
-            else -> { onRequestFinish(); return true }
+        val vv = visualizerView
+        if (vv != null) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> vv.nextMode()
+                KeyEvent.KEYCODE_DPAD_LEFT  -> vv.previousMode()
+                KeyEvent.KEYCODE_DPAD_UP    -> adjustIntensity(+1)
+                KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
+                else -> { onRequestFinish(); return true }
+            }
+        } else if (imageItems.isNotEmpty()) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> slideshowSkip(+1)
+                KeyEvent.KEYCODE_DPAD_LEFT  -> slideshowSkip(-1)
+                else -> onRequestFinish()
+            }
+        } else {
+            onRequestFinish()
         }
         return true
+    }
+
+    private fun slideshowSkip(delta: Int) {
+        // currentIndex already points to the *next* image to show, so offset accordingly
+        currentIndex = ((currentIndex + delta - 1) % imageItems.size + imageItems.size) % imageItems.size
+        showNextImage()
+        // Reset the auto-advance timer so the new image gets a full duration
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val durationMs = prefs.getString(Prefs.SLIDE_DURATION, "10000")?.toLongOrNull() ?: 10_000L
+        slideshowRunnable?.let { handler.removeCallbacks(it); handler.postDelayed(it, durationMs) }
     }
 
     // ── Schedule ──────────────────────────────────────────────────────────────
@@ -226,6 +242,9 @@ class ScreensaverEngine(
     // ── Slideshow mode ────────────────────────────────────────────────────────
 
     private fun startSlideshowMode(prefs: SharedPreferences) {
+        // Restore image views in case a previous run was in visualizer mode (which hides them)
+        binding.imageView1.visibility = View.VISIBLE
+        binding.imageView2.visibility = View.VISIBLE
         if (prefs.getBoolean(Prefs.VIZ_OVERLAY_ENABLED, false)) {
             val overlay = VisualizerView(context)
             overlayVisualizerView = overlay

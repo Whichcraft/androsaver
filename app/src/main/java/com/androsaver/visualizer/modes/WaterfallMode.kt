@@ -68,10 +68,9 @@ class WaterfallMode : BaseMode() {
             val rowBoost = flash * maxOf(0f, 1f - age * 6f)
             for (ci in 0 until cols) {
                 val e = r[ci]
-                if (e < 0.02f) continue
                 val x = ci * bw
                 val colHue = (hue + ci.toFloat() / cols * 0.75f) % 1f
-                val lit = ((1f - age * 0.7f) * (0.2f + e * 0.8f) + rowBoost).coerceIn(0f, 0.95f)
+                val lit = ((1f - age * 0.7f) * (0.15f + e * 0.85f) + rowBoost).coerceIn(0.04f, 0.95f)
                 val color = GLDraw.hsl(colHue, 1f, lit)
                 draw.rect(x, y, bw - 1f, bh - 1f, color[0], color[1], color[2], 1f)
             }

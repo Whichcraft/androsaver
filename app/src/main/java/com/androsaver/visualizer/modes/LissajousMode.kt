@@ -49,29 +49,29 @@ class LissajousMode : BaseMode() {
         val mid  = fft.meanSlice(6, 30)
         val high = fft.meanSlice(30, fft.size)
 
-        val ax = 3.0f + bass * 1.3f
-        val ay = 2.0f + mid  * 1.3f
-        val az = 5.0f + high * 1.3f
+        val ax = 3.0f + bass * 0.4f
+        val ay = 2.0f + mid  * 0.4f
+        val az = 5.0f + high * 0.4f
 
-        dx += 0.001f  + bass * 0.003f
-        dz += 0.0008f + high * 0.002f
-        t  += 0.022f  + beat * 0.06f
+        dx += 0.0003f + bass * 0.0008f
+        dz += 0.0002f + high * 0.0006f
+        t  += 0.010f  + beat * 0.03f
 
         if (hist.size >= TRAIL) hist.removeFirst()
         hist.addLast(Triple(sin(ax * t + dx), sin(ay * t + dy), sin(az * t + dz)))
 
         // Spring scale burst
-        svel  += beat * 0.55f
+        svel  += beat * 0.20f
         svel  += (1f - scale) * 0.26f
         svel  *= 0.60f
         scale += svel
         scale  = maxOf(0.35f, scale)
 
-        hue += beat * 0.12f
+        hue += beat * 0.04f
 
         // Rotation inertia
-        rvx += beat * 0.016f + 0.0002f; rvx *= 0.97f; rx += rvx
-        rvy += beat * 0.019f + 0.0003f; rvy *= 0.97f; ry += rvy
+        rvx += beat * 0.005f + 0.00005f; rvx *= 0.97f; rx += rvx
+        rvy += beat * 0.006f + 0.00007f; rvy *= 0.97f; ry += rvy
 
         val n = hist.size
         if (n < 2) return

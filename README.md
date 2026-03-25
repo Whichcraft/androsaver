@@ -22,12 +22,19 @@ An Android TV screensaver app for the Huawei TV Stick (and any Android TV device
   - **←** / **→** — previous / next visual effect
   - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Subtle → Normal → High → Intense)
   - Any other key — dismiss the screensaver
-- Auto-cycle mode rotates through all effects on a configurable interval (default 90 s)
+- **Music Genre hint** — tunes the beat-detection frequency weighting to the music style (Any / Electronic / Rock / Classical); see [genre hint details](#music-genre-hint) below
+- Auto-cycle mode rotates through all effects on a configurable interval (off by default)
 - Configurable effect and intensity via Settings
 
+### Photo Slideshow
+- **Remote control** while slideshow is running:
+  - **→** — skip to next image immediately
+  - **←** — go back to previous image
+  - Any other key — dismiss the screensaver
+
 ### General
-- **Clock overlay** — date and time shown in the corner during the screensaver
-- **Weather widget** — current temperature and conditions from OpenWeatherMap
+- **Clock overlay** — date and time shown in the corner (available in both Slideshow and Visualizer mode)
+- **Weather widget** — current temperature and conditions from OpenWeatherMap (available in both modes)
 - **Schedule** — restrict the screensaver to a configurable active time window (e.g. 08:00–22:00)
 - **Preview mode** — test the screensaver from the Settings app without activating the system screensaver
 - Registered as a system Dream Service — appears in Android TV's screensaver settings
@@ -167,8 +174,8 @@ All sources can be enabled at the same time — images from all sources are merg
 |---------|---------|---------|-------------|
 | **Visual Effect** | Auto, Yantra, Cube, Plasma, Tunnel, Lissajous, Nova, Spiral, Bubbles, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
 | **Effect Intensity** | Off, Subtle, Normal, High, Intense | Normal | How strongly the visuals react to the beat |
-| **Auto-cycle Interval** | 30 s, 60 s, 90 s, 2 min, 5 min, disabled | 90 s | How often Auto mode switches to the next effect |
-| **Audio Genre Hint** | Any, Electronic, Rock, Classical | Any | Tunes the beat-frequency weighting to the music style |
+| **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min | Off | How often Auto mode switches to the next effect |
+| **Music Genre** | Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting to the music style |
 
 #### Remote Control (while visualizer is running)
 
@@ -182,14 +189,44 @@ All sources can be enabled at the same time — images from all sources are merg
 
 Intensity changes made with the remote are saved and reflected in Settings.
 
+#### Music Genre Hint
+
+The genre setting adjusts how the beat-detection algorithm weights bass frequency bins. It does not change the visual style directly — it changes what the algorithm considers a *beat*, making visuals more or less reactive to different frequency ranges:
+
+| Genre | Effect |
+|-------|--------|
+| **Any** | Flat weighting across all bass frequencies (default) |
+| **Electronic** | Boosts sub-bass (~0–170 Hz) by 50%, reduces upper bass/low-mids (~430–860 Hz) — more sensitive to kick drums and synth bass |
+| **Rock** | Boosts mid-bass range (~85–345 Hz) by 30% — better response to electric guitar and driven kick |
+| **Classical** | Reduces overall bass sensitivity, boosts upper harmonics — suited to orchestral content with little sub-bass |
+
+If the visuals feel sluggish or over-reactive, try switching the genre hint to match what is playing.
+
+#### Remote Control (while slideshow is running)
+
+| Key | Action |
+|-----|--------|
+| **→** | Skip to next image |
+| **←** | Go back to previous image |
+| Any other key | Dismiss the screensaver |
+
+Manually skipping resets the auto-advance timer so the new image gets a full display duration.
+
+### Display Overlays
+
+These settings apply in **both** Slideshow and Visualizer mode.
+
+| Setting | Options | Default | Description |
+|---------|---------|---------|-------------|
+| **Show Clock** | On / Off | Off | Display time and date in the corner |
+| **Show Weather** | On / Off | Off | Show current weather in the corner |
+| **Weather City** | text | — | City name passed to OpenWeatherMap |
+| **OpenWeatherMap API Key** | text | — | Free API key from openweathermap.org |
+
 ### General Settings
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Show Clock** | On / Off | On | Display time and date in the corner |
-| **Weather** | On / Off | Off | Show current weather in the corner |
-| **Weather City** | text | — | City name passed to OpenWeatherMap |
-| **OpenWeatherMap API Key** | text | — | Free API key from openweathermap.org |
 | **Schedule** | On / Off | Off | Restrict the screensaver to an active time window |
 | **Active from / until** | 0–23 h | 8 / 22 | Hour range during which the screensaver is allowed to run |
 
@@ -198,9 +235,9 @@ Intensity changes made with the remote are saved and reflected in Settings.
 | Effect | Description |
 |--------|-------------|
 | **Yantra** | Psychedelic sacred-geometry mandala with 6 concentric polygon rings, web connections, neon spokes, and beat-driven spring pulses |
-| **Cube** | Dual wireframe cubes with slow rotation and spectrum colour-fade |
+| **Cube** | Dual wireframe cubes with slow rotation, motion trails, and spectrum colour-fade; size pulses sharply on each beat |
 | **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
-| **Tunnel** | First-person ride through a neon tube; beat spawns triangles that fly toward the camera |
+| **Tunnel** | First-person ride through a neon tube; bass bursts triangles that fly toward the camera, growing larger and more numerous with sound intensity |
 | **Lissajous** | 3D trefoil Lissajous knot with two-pass neon glow and hard beat spring burst |
 | **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
 | **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |

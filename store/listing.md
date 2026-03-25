@@ -7,34 +7,57 @@ AndroSaver
 
 ## Short description (≤80 chars)
 ```
-TV Photo slideshow screensaver from Google Drive or your Synology NAS.
+Photo slideshow & music visualizer screensaver for Android TV.
 ```
 
 ## Full description (≤4000 chars)
 ```
-Turn your Android TV into a beautiful photo frame.
+Turn your Android TV into a beautiful photo frame or a live music visualizer.
 
-AndroSaver is a screensaver that streams your personal photos directly from Google Drive or a Synology NAS and displays them as a fullscreen slideshow — automatically, whenever your TV goes idle.
+AndroSaver is a screensaver with two modes — photo slideshow and music visualizer — that activates automatically whenever your TV goes idle.
 
-PHOTO SOURCES
-• Google Drive — stream photos from any Drive folder using secure OAuth 2.0 device flow. No Google Play Services required, works on Huawei and other GMS-free devices.
-• Synology NAS — connect to any Synology DiskStation via the DSM FileStation API. Just enter your NAS address, credentials, and folder path.
-• Use both at once — images from all sources are merged and shuffled together.
+PHOTO SLIDESHOW
+Stream your personal photos from Google Drive, a Synology NAS, or the device itself and display them as a fullscreen slideshow with cinematic transitions.
 
-TRANSITIONS
-Six cinematic transition effects to choose from:
-• Crossfade
-• Fade to Black
-• Slide Left / Slide Right
-• Zoom In / Zoom Out
-• Random (a different effect each time)
+• Google Drive — secure OAuth 2.0 device flow. No Google Play Services required, works on Huawei and other GMS-free devices.
+• Synology NAS — connect via the DSM FileStation API with just an address, credentials, and folder path.
+• Device Photos — show photos stored on the TV itself.
+• All sources can be active at once — images are merged and shuffled.
+• Offline cache — up to 200 images stored locally as a fallback.
+• Ken Burns effect — slow pan and zoom on each photo.
+• Six transition effects: Crossfade, Fade to Black, Slide Left/Right, Zoom In/Out, Random.
+• Remote control: press ← / → to jump to the previous or next photo.
 
-CUSTOMIZABLE TIMING
-• Time per image: 5 seconds up to 30 minutes
-• Transition speed: 1 to 5 seconds
+MUSIC VISUALIZER
+Ten real-time OpenGL ES 2.0 effects that react to whatever is playing on the TV — music, games, movies.
+
+• Yantra — sacred-geometry mandala with beat-driven ring pulses
+• Cube — dual wireframe cubes with spectrum colour cycling
+• Plasma — full-screen GPU sine-interference field
+• Tunnel — first-person neon tube ride with beat-spawned triangles
+• Lissajous — 3D trefoil knot with neon trail glow
+• Nova — waveform kaleidoscope with 7-fold symmetry
+• Spiral — neon helix vortex with audio-reactive arms
+• Bubbles — translucent rising bubbles driven by bass energy
+• Spectrum — log-spaced equalizer bars with peak markers
+• Waterfall — scrolling time-frequency spectrogram
+
+Remote control while visualizer is running:
+• ← / → — switch between effects
+• ↑ / ↓ — adjust how strongly visuals react to the beat (5 levels)
+
+Music Genre hint — tune beat detection to Electronic, Rock, Classical, or Any for the best reaction to what you're listening to.
+
+DISPLAY OVERLAYS (both modes)
+• Clock — time and date shown in the corner
+• Weather — current temperature from OpenWeatherMap
+
+OTHER FEATURES
+• Schedule — restrict the screensaver to an active time window (e.g. 08:00–22:00)
+• Preview mode — test the screensaver instantly from Settings
 
 PRIVACY FIRST
-All credentials are stored on-device only. No data is sent anywhere except directly to Google's servers and/or your own NAS.
+All credentials are stored on-device only. No data is sent anywhere except directly to Google's servers, your own NAS, and OpenWeatherMap (if weather is enabled).
 
 SETUP
 AndroSaver registers as a system Dream Service and appears directly in your Android TV screensaver settings (Settings → Device Preferences → Screen saver).

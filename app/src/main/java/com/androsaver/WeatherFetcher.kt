@@ -45,7 +45,7 @@ class WeatherFetcher(private val context: Context) {
         return parseJson(json)
     }
 
-    private fun saveCached(data: WeatherData, rawJson: String) {
+    private fun saveCached(@Suppress("UNUSED_PARAMETER") data: WeatherData, rawJson: String) {
         prefs.edit().putString(KEY_JSON, rawJson).putLong(KEY_TS, System.currentTimeMillis()).apply()
     }
 

@@ -146,13 +146,26 @@ class NovaMode : BaseMode() {
             }
         }
 
-        // Central pulse
-        val cr = maxOf(2f, 10f + bass * 22f + beat * 40f)
-        val pulseColor = GLDraw.hsl(hue, 1f, (0.55f + beat * 0.35f).coerceIn(0f, 1f))
-        draw.circle(cx, cy, cr, pulseColor[0], pulseColor[1], pulseColor[2], 1f, filled = true)
-
-        // White inner flash
-        draw.circle(cx, cy, maxOf(1f, cr / 4f), 1f, 1f, 1f, 1f, filled = true)
+        // Central 3 rotating triangles (two counter-rotating layers)
+        val cRot1 =  time * 1.8f
+        val cRot2 = -time * 1.2f + PI.toFloat() / 3f
+        val cR = maxR * (0.06f + bass * 0.04f + beat * 0.06f)
+        for ((cRot, hOff) in listOf(cRot1 to 0.0f, cRot2 to 0.5f)) {
+            val tH = (hue + hOff) % 1f
+            val tL = (0.55f + beat * 0.35f).coerceIn(0f, 1f)
+            val tColor = GLDraw.hsl(tH, 1f, tL)
+            for (k in 0 until 3) {
+                val aMid = k.toFloat() / 3f * TAU + cRot
+                val aL   = aMid - PI.toFloat() / 3f * 0.55f
+                val aR   = aMid + PI.toFloat() / 3f * 0.55f
+                val triPts = floatArrayOf(
+                    cx + cos(aMid) * cR * 1.25f, cy + sin(aMid) * cR * 1.25f,
+                    cx + cos(aL)   * cR * 0.75f, cy + sin(aL)   * cR * 0.75f,
+                    cx + cos(aR)   * cR * 0.75f, cy + sin(aR)   * cR * 0.75f
+                )
+                draw.polygon(triPts, tColor[0], tColor[1], tColor[2], 1f, filled = false)
+            }
+        }
     }
 
     private fun FloatArray.reversedArray(): FloatArray {
