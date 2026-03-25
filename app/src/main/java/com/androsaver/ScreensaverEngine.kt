@@ -104,20 +104,36 @@ class ScreensaverEngine(
     }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
-        val vv = visualizerView
-        if (vv == null) {
-            if (event.action == KeyEvent.ACTION_DOWN) onRequestFinish()
-            return true
-        }
         if (event.action != KeyEvent.ACTION_DOWN) return true
-        when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_RIGHT -> vv.nextMode()
-            KeyEvent.KEYCODE_DPAD_LEFT  -> vv.previousMode()
-            KeyEvent.KEYCODE_DPAD_UP    -> adjustIntensity(+1)
-            KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
-            else -> { onRequestFinish(); return true }
+        val vv = visualizerView
+        if (vv != null) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> vv.nextMode()
+                KeyEvent.KEYCODE_DPAD_LEFT  -> vv.previousMode()
+                KeyEvent.KEYCODE_DPAD_UP    -> adjustIntensity(+1)
+                KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
+                else -> { onRequestFinish(); return true }
+            }
+        } else if (imageItems.isNotEmpty()) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> slideshowSkip(+1)
+                KeyEvent.KEYCODE_DPAD_LEFT  -> slideshowSkip(-1)
+                else -> onRequestFinish()
+            }
+        } else {
+            onRequestFinish()
         }
         return true
+    }
+
+    private fun slideshowSkip(delta: Int) {
+        // currentIndex already points to the *next* image to show, so offset accordingly
+        currentIndex = ((currentIndex + delta - 1) % imageItems.size + imageItems.size) % imageItems.size
+        showNextImage()
+        // Reset the auto-advance timer so the new image gets a full duration
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val durationMs = prefs.getString(Prefs.SLIDE_DURATION, "10000")?.toLongOrNull() ?: 10_000L
+        slideshowRunnable?.let { handler.removeCallbacks(it); handler.postDelayed(it, durationMs) }
     }
 
     // ── Schedule ──────────────────────────────────────────────────────────────

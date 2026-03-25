@@ -2,6 +2,33 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-25 (session 2)
+
+### Added
+- Slideshow remote control: ← / → now navigate to previous / next image; skipping resets the auto-advance timer
+- Display Overlays settings section — clock and weather are now configurable in both Slideshow and Visualizer mode (previously clock was slideshow-only in the UI)
+- Music Genre hint documented: explains how each genre adjusts bass-frequency weighting for beat detection (Electronic boosts sub-bass, Rock boosts mid-bass, Classical reduces bass / boosts harmonics)
+
+### Changed
+- `AudioEngine`: doubled capture rate (removed `/2` on `getMaxCaptureRate`), reduced FFT smoothing (0.75→0.50), halved energy-history window (30→15 frames) — faster overall music reaction
+- `BarsMode` (Spectrum): added `display[]` smoothed height buffer; lerp speed scales from 0.25 at silence to 1.0 at full beat — calmer bars at low intensity, snappy at high
+- `BubblesMode`: capped `beatSel` for spawn count and bubble size so high intensity doesn't flood the screen; wider hue spread at high intensity; extra neon rings appear only when beat > 1.0 (i.e. intensity > Normal)
+- `CubeMode`: reduced base rotation and band multipliers further; scale pulse now driven by both beat and direct bass for a sharper size pop
+- `LissajousMode`: substantially reduced trace speed, phase-selector drift, frequency-selector reactivity, scale burst, rotation inertia, and hue jump — much calmer at default intensity
+- `NovaMode`: replaced oversized centre circle with two counter-rotating layers of 3 triangles; redistributed beat energy to rings, spokes, and ring brightness
+- `PlasmaMode`: reduced idle time increment ~60% and hue cycle rate for slower default movement
+- `TunnelMode`: tunnel radius is now dynamic (small at silence, expands with beat/intensity); triangle spawn threshold raised and count/size reduced — scales cleanly with intensity
+- `WaterfallMode`: removed `e < 0.02` skip; minimum lightness floor (`coerceIn 0.04`) ensures no black tiles
+- `YantraMode`: beat impulse on ring pulsation increased; ring displacement amplitude increased; ring brightness now includes a beat term; spokes reach further on beat; centre dot substantially reduced
+- Auto-cycle interval default changed to Off (was 90 s)
+- Show Clock default changed to Off
+- Auto-cycle options simplified to Off / 1 min / 2 min / 5 min (removed 30 s option)
+
+### Fixed
+- CI: upgraded `gradle/actions/setup-gradle` from v3 to v4 for Node.js 24 compatibility
+
+---
+
 ## 2026-03-25
 
 ### Added

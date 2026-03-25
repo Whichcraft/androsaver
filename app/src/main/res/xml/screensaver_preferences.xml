@@ -24,7 +24,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:key="cat_slideshow" android:title="Slideshow">
-        <SwitchPreferenceCompat android:key="show_clock" android:title="Show Clock" android:summary="Display the time and date while the screensaver runs" android:defaultValue="false" />
         <SwitchPreferenceCompat android:key="ken_burns_enabled" android:title="Ken Burns Effect" android:summary="Slow pan and zoom while each photo is displayed" android:defaultValue="true" />
         <SwitchPreferenceCompat android:key="viz_overlay_on_slideshow" android:title="Visualizer Overlay" android:summary="Show audio-reactive visuals behind photos" android:defaultValue="false" />
         <ListPreference android:key="viz_overlay_opacity" android:title="Overlay Opacity" android:entries="@array/overlay_opacity_entries" android:entryValues="@array/overlay_opacity_values" android:defaultValue="0.3" android:summary="%s" android:dependency="viz_overlay_on_slideshow" />
@@ -46,7 +45,8 @@
         <ListPreference android:key="schedule_end_hr" android:title="End Hour" android:entries="@array/hour_entries" android:entryValues="@array/hour_values" android:defaultValue="22" android:summary="%s" android:dependency="schedule_enabled" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:key="cat_weather" android:title="Weather Widget">
+    <PreferenceCategory android:key="cat_display" android:title="Display Overlays">
+        <SwitchPreferenceCompat android:key="show_clock" android:title="Show Clock" android:summary="Display the time and date over the screensaver" android:defaultValue="false" />
         <SwitchPreferenceCompat android:key="weather_enabled" android:title="Show Weather" android:summary="Display current temperature in the corner" android:defaultValue="false" />
         <EditTextPreference android:key="weather_city" android:title="City" android:summary="e.g. London or New York,US" android:dependency="weather_enabled" />
         <EditTextPreference android:key="weather_api_key" android:title="OpenWeatherMap API Key" android:summary="Get a free key at openweathermap.org/api" android:dependency="weather_enabled" />
