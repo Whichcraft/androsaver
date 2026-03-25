@@ -1,16 +1,19 @@
 # AndroSaver
 
-An Android TV screensaver app for the Huawei TV Stick (and any Android TV device). Choose between a **photo slideshow** (Google Drive / Synology NAS) or a fullscreen **music visualizer** that reacts to whatever is playing on the TV.
+An Android TV screensaver app for the Huawei TV Stick (and any Android TV device). Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** that reacts to whatever is playing on the TV.
 
 ## Features
 
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
-- Both sources can be active simultaneously; images are shuffled together
+- **Device storage source** — uses photos from the TV's local storage via MediaStore
+- All sources can be active simultaneously; images are merged and shuffled
+- **Offline cache** — up to 200 images / 300 MB stored locally; used automatically as a fallback when sources are unreachable
 - Six transition effects: **Crossfade**, **Fade to Black**, **Slide Left**, **Slide Right**, **Zoom In**, **Zoom Out**, plus a **Random** mode
-- Configurable time per image (5 s – 30 min)
-- Configurable transition speed (1 – 5 seconds)
+- Configurable time per image (5 s – 30 min) and transition speed (1 – 5 seconds)
+- **Ken Burns effect** — slow pan and zoom animation applied to each photo
+- **Visualizer overlay** — music visualizer rendered semi-transparently on top of the slideshow
 
 ### Music Visualizer
 - Ten audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **Plasma**, **Tunnel**, **Lissajous**, **Nova**, **Spiral**, **Bubbles**, **Spectrum**, **Waterfall**
@@ -19,10 +22,14 @@ An Android TV screensaver app for the Huawei TV Stick (and any Android TV device
   - **←** / **→** — previous / next visual effect
   - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Subtle → Normal → High → Intense)
   - Any other key — dismiss the screensaver
-- Auto-cycle mode rotates through all effects every 90 seconds
+- Auto-cycle mode rotates through all effects on a configurable interval (default 90 s)
 - Configurable effect and intensity via Settings
 
 ### General
+- **Clock overlay** — date and time shown in the corner during the screensaver
+- **Weather widget** — current temperature and conditions from OpenWeatherMap
+- **Schedule** — restrict the screensaver to a configurable active time window (e.g. 08:00–22:00)
+- **Preview mode** — test the screensaver from the Settings app without activating the system screensaver
 - Registered as a system Dream Service — appears in Android TV's screensaver settings
 
 ## Installation
@@ -94,6 +101,20 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 | Google Drive | Any format with an `image/` MIME type |
 | Synology NAS | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
 
+### Local Storage
+
+Enable the **Device Photos** toggle in Settings. No additional setup is required — AndroSaver reads images from the device's external storage via MediaStore (up to 500 photos, sorted by most recent).
+
+### Weather
+
+1. Get a free API key from [openweathermap.org](https://openweathermap.org/api).
+2. Open **AndroSaver Settings** and enter the **Weather City** and **API Key**.
+3. Enable the **Weather** toggle.
+
+### Preview
+
+Tap **Preview** in the Settings app to test the screensaver immediately without waiting for the system idle timeout.
+
 ### Activating the Screensaver
 
 - **Android TV:** Settings → Device Preferences → Screen saver → Select **AndroSaver**
@@ -113,8 +134,9 @@ All options are configured in the **AndroSaver Settings** app. The top-level **S
 | **Google Drive Setup** | Configure OAuth credentials and folder |
 | **Synology NAS** toggle | Enable/disable fetching images from a Synology NAS |
 | **Synology NAS Setup** | Configure host, credentials, and folder path |
+| **Device Photos** toggle | Enable/disable fetching images from local device storage |
 
-Both sources can be enabled at the same time — images from all sources are merged and shuffled.
+All sources can be enabled at the same time — images from all sources are merged and shuffled. When no source is reachable, the last-fetched images are loaded from the local cache.
 
 #### Slideshow
 
@@ -123,6 +145,9 @@ Both sources can be enabled at the same time — images from all sources are mer
 | **Time per Image** | 5 s, 10 s, 15 s, 30 s, 1 min, 2 min, 5 min, 10 min, 15 min, 20 min, 30 min | 10 s | How long each image is displayed |
 | **Transition Speed** | 1 s, 2 s, 3 s, 4 s, 5 s | 1.5 s | Duration of the animation between images |
 | **Transition Effect** | Crossfade, Fade to Black, Slide Left, Slide Right, Zoom In, Zoom Out, Random | Crossfade | Animation style used between images |
+| **Ken Burns Effect** | On / Off | On | Slow pan and zoom applied to each photo |
+| **Visualizer Overlay** | On / Off | Off | Render the music visualizer semi-transparently over photos |
+| **Overlay Opacity** | 0.1 – 1.0 | 0.3 | Opacity of the visualizer overlay |
 
 | Effect | Description |
 |--------|-------------|
@@ -138,8 +163,10 @@ Both sources can be enabled at the same time — images from all sources are mer
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Visual Effect** | Auto, Yantra, Cube, Plasma, Tunnel, Lissajous, Nova, Spiral, Bubbles, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects every 90 s |
+| **Visual Effect** | Auto, Yantra, Cube, Plasma, Tunnel, Lissajous, Nova, Spiral, Bubbles, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
 | **Effect Intensity** | Off, Subtle, Normal, High, Intense | Normal | How strongly the visuals react to the beat |
+| **Auto-cycle Interval** | 30 s, 60 s, 90 s, 2 min, 5 min, disabled | 90 s | How often Auto mode switches to the next effect |
+| **Audio Genre Hint** | Any, Electronic, Rock, Classical | Any | Tunes the beat-frequency weighting to the music style |
 
 #### Remote Control (while visualizer is running)
 
@@ -152,6 +179,17 @@ Both sources can be enabled at the same time — images from all sources are mer
 | Any other key | Dismiss the screensaver |
 
 Intensity changes made with the remote are saved and reflected in Settings.
+
+### General Settings
+
+| Setting | Options | Default | Description |
+|---------|---------|---------|-------------|
+| **Show Clock** | On / Off | On | Display time and date in the corner |
+| **Weather** | On / Off | Off | Show current weather in the corner |
+| **Weather City** | text | — | City name passed to OpenWeatherMap |
+| **OpenWeatherMap API Key** | text | — | Free API key from openweathermap.org |
+| **Schedule** | On / Off | Off | Restrict the screensaver to an active time window |
+| **Active from / until** | 0–23 h | 8 / 22 | Hour range during which the screensaver is allowed to run |
 
 #### Visual Effects
 
@@ -172,19 +210,28 @@ Intensity changes made with the remote are saved and reflected in Settings.
 
 ```
 ScreensaverService (DreamService)
-  ├── Photo Slideshow mode
-  │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
-  │   └── SynologySource       ← Synology DSM FileStation API
-  └── Music Visualizer mode
-      ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
-      └── VisualizerView (GLSurfaceView)
-          └── VisualizerRenderer (OpenGL ES 2.0)
-              └── 10 × BaseMode  ← Yantra, Cube, Plasma, Tunnel, Lissajous,
-                                    Nova, Spiral, Bubbles, Spectrum, Waterfall
+  └── ScreensaverEngine
+        ├── Photo Slideshow mode
+        │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
+        │   ├── SynologySource       ← Synology DSM FileStation API
+        │   ├── LocalStorageSource   ← MediaStore device photos
+        │   ├── ImageCache           ← offline fallback (200 images / 300 MB)
+        │   ├── Ken Burns animator   ← pan/zoom per photo
+        │   └── VisualizerView       ← optional overlay (semi-transparent)
+        ├── Music Visualizer mode
+        │   ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
+        │   └── VisualizerView (GLSurfaceView)
+        │       └── VisualizerRenderer (OpenGL ES 2.0)
+        │           └── 10 × BaseMode  ← Yantra, Cube, Plasma, Tunnel, Lissajous,
+        │                                 Nova, Spiral, Bubbles, Spectrum, Waterfall
+        ├── Clock overlay            ← date/time updated every minute
+        ├── WeatherFetcher           ← OpenWeatherMap, cached 30 min
+        └── Schedule check          ← restricts active hours
 
 SettingsActivity (PreferenceFragment)
   ├── GoogleDriveSetupActivity → GoogleAuthActivity (device flow)
-  └── SynologySetupActivity
+  ├── SynologySetupActivity
+  └── PreviewActivity              ← in-app screensaver preview
 ```
 
 Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
