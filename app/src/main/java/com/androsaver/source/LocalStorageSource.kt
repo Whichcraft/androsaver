@@ -4,6 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
 import android.util.Log
+import com.androsaver.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -30,7 +31,7 @@ class LocalStorageSource(private val context: Context) : ImageSource {
                     count++
                 }
             }
-        } catch (e: Exception) { Log.w("LocalStorageSource", "MediaStore query failed: ${e.message}") }
+        } catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.w("LocalStorageSource", "MediaStore query failed: ${e.message}") }
         items
     }
 }

@@ -25,6 +25,18 @@ android {
         }
     }
 
+    flavorDimensions "environment"
+    productFlavors {
+        dev {
+            dimension "environment"
+            buildConfigField "boolean", "DEBUG_LOGGING", "true"
+        }
+        prod {
+            dimension "environment"
+            buildConfigField "boolean", "DEBUG_LOGGING", "false"
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -41,6 +53,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 }
 

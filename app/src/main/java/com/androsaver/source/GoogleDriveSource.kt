@@ -3,6 +3,7 @@ package com.androsaver.source
 import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
+import com.androsaver.BuildConfig
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -31,7 +32,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
         val accessToken = refreshAccessTokenSilently() ?: run {
-            Log.w(TAG, "No valid access token")
+            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "No valid access token")
             return@withContext emptyList()
         }
 
@@ -54,7 +55,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
                     Request.Builder().url(url).addHeader("Authorization", "Bearer $accessToken").build()
                 ).execute()
                 if (!response.isSuccessful) {
-                    Log.e(TAG, "List files failed: ${response.code}")
+                    if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List files failed: ${response.code}")
                     response.close()
                     break
                 }
@@ -73,7 +74,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             } while (pageToken != null)
             items
         } catch (e: Exception) {
-            Log.e(TAG, "Error listing Drive files", e)
+            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error listing Drive files", e)
             emptyList()
         }
     }
@@ -104,7 +105,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             }
             token
         } catch (e: Exception) {
-            Log.e(TAG, "Token refresh failed", e)
+            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Token refresh failed", e)
             null
         }
     }

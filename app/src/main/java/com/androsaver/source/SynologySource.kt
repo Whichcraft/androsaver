@@ -3,6 +3,7 @@ package com.androsaver.source
 import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
+import com.androsaver.BuildConfig
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -63,11 +64,11 @@ class SynologySource(private val context: Context) : ImageSource {
             if (json.get("success")?.asBoolean == true) {
                 json.getAsJsonObject("data")?.get("sid")?.asString
             } else {
-                Log.e(TAG, "Login failed: ${json.get("error")}")
+                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Login failed: ${json.get("error")}")
                 null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Login error", e)
+            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Login error", e)
             null
         }
     }
@@ -82,7 +83,7 @@ class SynologySource(private val context: Context) : ImageSource {
                 .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
 
             if (json.get("success")?.asBoolean != true) {
-                Log.e(TAG, "List files failed: $json")
+                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List files failed: $json")
                 return emptyList()
             }
 
@@ -101,7 +102,7 @@ class SynologySource(private val context: Context) : ImageSource {
                 ImageItem(url = downloadUrl, name = name)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "List images error", e)
+            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List images error", e)
             emptyList()
         }
     }
@@ -128,7 +129,7 @@ class SynologySource(private val context: Context) : ImageSource {
             val url = "$baseUrl/webapi/auth.cgi?api=SYNO.API.Auth&version=3&method=logout&session=AndroSaver&_sid=$sid"
             client.newCall(Request.Builder().url(url).build()).execute().close()
         } catch (e: Exception) {
-            Log.w(TAG, "Logout failed (non-critical): ${e.message}")
+            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Logout failed (non-critical): ${e.message}")
         }
     }
 
