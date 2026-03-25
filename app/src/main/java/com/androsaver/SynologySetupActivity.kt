@@ -35,10 +35,21 @@ class SynologySetupActivity : AppCompatActivity() {
         binding.httpsSwitch.isChecked = prefs.getBoolean(Prefs.SYNOLOGY_USE_HTTPS, false)
     }
 
+    private fun validatedPort(): String? {
+        val raw = binding.portEdit.text.toString().trim().ifEmpty { "5000" }
+        val n = raw.toIntOrNull()
+        if (n == null || n < 1 || n > 65535) {
+            Toast.makeText(this, R.string.invalid_port, Toast.LENGTH_SHORT).show()
+            return null
+        }
+        return raw
+    }
+
     private fun saveSettings() {
+        val port = validatedPort() ?: return
         PreferenceManager.getDefaultSharedPreferences(this).edit()
             .putString(Prefs.SYNOLOGY_HOST, binding.hostEdit.text.toString().trim())
-            .putString(Prefs.SYNOLOGY_PORT, binding.portEdit.text.toString().trim().ifEmpty { "5000" })
+            .putString(Prefs.SYNOLOGY_PORT, port)
             .putString(Prefs.SYNOLOGY_USERNAME, binding.usernameEdit.text.toString())
             .putString(Prefs.SYNOLOGY_PASSWORD, binding.passwordEdit.text.toString())
             .putString(Prefs.SYNOLOGY_FOLDER, binding.folderEdit.text.toString().trim().ifEmpty { "/photos" })
@@ -49,10 +60,11 @@ class SynologySetupActivity : AppCompatActivity() {
     }
 
     private fun testConnection() {
+        val port = validatedPort() ?: return
         // Save current values before testing
         PreferenceManager.getDefaultSharedPreferences(this).edit()
             .putString(Prefs.SYNOLOGY_HOST, binding.hostEdit.text.toString().trim())
-            .putString(Prefs.SYNOLOGY_PORT, binding.portEdit.text.toString().trim().ifEmpty { "5000" })
+            .putString(Prefs.SYNOLOGY_PORT, port)
             .putString(Prefs.SYNOLOGY_USERNAME, binding.usernameEdit.text.toString())
             .putString(Prefs.SYNOLOGY_PASSWORD, binding.passwordEdit.text.toString())
             .putString(Prefs.SYNOLOGY_FOLDER, binding.folderEdit.text.toString().trim().ifEmpty { "/photos" })
