@@ -12,8 +12,8 @@ class TunnelMode : BaseMode() {
     private companion object {
         const val N_RINGS    = 30
         const val N_SIDES    = 20
-        const val TUBE_R_MIN = 0.8f   // radius at silence; grows with beat/intensity
-        const val TUBE_R_MAX = 2.2f
+        const val TUBE_R_MIN = 1.3f   // raised so viewer stays mostly inside the tube
+        const val TUBE_R_MAX = 3.0f
         const val Z_FAR      = 10.0f
         const val Z_NEAR     = 0.18f
     }
@@ -25,13 +25,15 @@ class TunnelMode : BaseMode() {
         var size: Float, var hue: Float
     )
 
-    private val rings = ArrayList<Ring>(N_RINGS)
-    private val tris  = ArrayList<Triangle>(80)
-    private var hue   = 0f
-    private var time  = 0f
+    private val rings    = ArrayList<Ring>(N_RINGS)
+    private val tris     = ArrayList<Triangle>(120)
+    private var hue      = 0f
+    private var time     = 0f
+    private var bassPulse = 0f
+    private var bassVel   = 0f
 
     override fun reset() {
-        hue = 0f; time = 0f
+        hue = 0f; time = 0f; bassPulse = 0f; bassVel = 0f
         rings.clear(); tris.clear()
         val spacing = (Z_FAR - Z_NEAR) / N_RINGS
         for (i in 0 until N_RINGS) {
@@ -41,7 +43,7 @@ class TunnelMode : BaseMode() {
     }
 
     private fun path(t: Float): Pair<Float, Float> =
-        Pair(sin(t * 0.21f) * 1.4f, cos(t * 0.16f) * 1.0f)
+        Pair(sin(t * 0.21f) * 0.9f, cos(t * 0.16f) * 0.65f)
 
     private fun proj(wx: Float, wy: Float, wz: Float, W: Int, H: Int): Triple<Float, Float, Float> {
         val fov = minOf(W, H) * 0.75f
@@ -60,10 +62,15 @@ class TunnelMode : BaseMode() {
         val dt = 0.008f + bass * 0.04f + beat * 0.05f
         time += dt
 
+        // Bass spring — drives triangle burst size
+        bassVel   += bass * 2.5f - bassPulse * 0.5f
+        bassVel   *= 0.68f
+        bassPulse += bassVel
+
         // Spawn beat triangles — threshold and count scale with beat (i.e. with intensity)
         val tubeR = TUBE_R_MIN + (TUBE_R_MAX - TUBE_R_MIN) * (beat + bass * 0.5f).coerceIn(0f, 1f)
         if (beat > 1.3f) {
-            val count = ((beat - 1.3f) * 5f).toInt().coerceAtLeast(1)
+            val count = ((beat - 1.3f) * 10f).toInt().coerceAtLeast(1)
             repeat(count) {
                 tris.add(Triangle(
                     z    = Z_FAR * (0.65f + Math.random().toFloat() * 0.30f),
@@ -135,7 +142,7 @@ class TunnelMode : BaseMode() {
             val (tcx, tcy) = path(tri.pt)
             val (tsx, tsy, tsc) = proj(tcx, tcy, tri.z, draw.W, draw.H)
             val nearT = maxOf(0f, 1f - tri.z / Z_FAR)
-            val tr = maxOf(3f, tri.size * tsc)
+            val tr = maxOf(3f, tri.size * tsc * (1f + bassPulse * 0.9f))
             val h  = (tri.hue + nearT * 0.4f) % 1f
             val bright = 0.35f + nearT * 0.60f
             val triPts = FloatArray(6)
@@ -149,7 +156,7 @@ class TunnelMode : BaseMode() {
             draw.polygon(triPts, cr, cg, cb, 1f, filled = false)
             liveTris.add(tri)
         }
-        tris.clear(); tris.addAll(liveTris.takeLast(80))
+        tris.clear(); tris.addAll(liveTris.takeLast(120))
     }
 
     private fun hsl3(h: Float, s: Float = 1f, l: Float = 0.5f): Triple<Float, Float, Float> {
