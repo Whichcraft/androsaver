@@ -36,7 +36,7 @@
     <PreferenceCategory android:key="cat_visualizer" android:title="Visualizer">
         <ListPreference android:key="visualizer_mode" android:title="Visual Effect" android:entries="@array/visualizer_mode_entries" android:entryValues="@array/visualizer_mode_values" android:defaultValue="auto" android:summary="%s" />
         <ListPreference android:key="visualizer_intensity" android:title="Effect Intensity" android:summary="How strongly visuals react to the beat" android:entries="@array/visualizer_intensity_entries" android:entryValues="@array/visualizer_intensity_values" android:defaultValue="1.0" />
-        <ListPreference android:key="viz_cycle_interval" android:title="Auto-Cycle Interval" android:entries="@array/viz_cycle_entries" android:entryValues="@array/viz_cycle_values" android:defaultValue="90000" android:summary="%s" />
+        <ListPreference android:key="viz_cycle_interval" android:title="Auto-Cycle Interval" android:entries="@array/viz_cycle_entries" android:entryValues="@array/viz_cycle_values" android:defaultValue="0" android:summary="%s" />
         <ListPreference android:key="audio_genre" android:title="Music Genre" android:entries="@array/audio_genre_entries" android:entryValues="@array/audio_genre_values" android:defaultValue="any" android:summary="%s" />
     </PreferenceCategory>
 

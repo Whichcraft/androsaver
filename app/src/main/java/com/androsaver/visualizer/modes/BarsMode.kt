@@ -49,7 +49,7 @@ class BarsMode : BaseMode() {
 
         // Update peaks
         for (i in 0 until n) {
-            peaks[i] = maxOf(peaks[i] * 0.97f, heights[i])
+            peaks[i] = maxOf(peaks[i] * 0.94f, heights[i])
         }
 
         val barW = W / n

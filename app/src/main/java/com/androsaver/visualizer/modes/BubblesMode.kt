@@ -61,9 +61,9 @@ class BubblesMode : BaseMode() {
         val mid  = fft.meanSlice(6, 30)
 
         // Global beat spring
-        pvel  += beat * 0.75f
-        pvel  += -pulse * 0.35f
-        pvel  *= 0.52f
+        pvel  += beat * 1.50f + bass * 0.90f
+        pvel  += -pulse * 0.55f
+        pvel  *= 0.62f
         pulse += pvel
 
         // Spawn on beat/bass
@@ -86,7 +86,7 @@ class BubblesMode : BaseMode() {
             if (b.y + b.r < 0) continue
 
             val life  = (b.y / H).coerceIn(0f, 1f)
-            val r     = maxOf(2f, b.r * (1f + pulse * 0.90f + mid * 0.15f))
+            val r     = maxOf(2f, b.r * (1f + pulse * 1.50f + mid * 0.15f))
             val alpha = life * 0.63f  // matches pygame's 160/255
 
             // Multi-layer halos (outermost first)

@@ -64,9 +64,9 @@ class YantraMode : BaseMode() {
         // Physics update
         for (i in 0 until N_RINGS) {
             val e = minOf(bands[i], 1f)
-            pvel[i] += beat * (0.24f + e * 0.12f)
-            pvel[i] += -poff[i] * 0.22f
-            pvel[i] *= 0.65f
+            pvel[i] += beat * (0.55f + e * 0.20f)
+            pvel[i] += -poff[i] * 0.35f
+            pvel[i] *= 0.72f
             poff[i] += pvel[i]
             rot[i]  += rvel[i] * (1f + e * 2.8f + bass * 1.2f)
         }
@@ -74,7 +74,7 @@ class YantraMode : BaseMode() {
         // Collect ring vertices
         val allVerts = Array(N_RINGS) { i ->
             val baseR = maxR * (0.13f + i.toFloat() / (N_RINGS - 1) * 0.83f)
-            val r = baseR * (1f + poff[i] * 0.38f)
+            val r = baseR * (1f + poff[i] * 0.55f)
             ringVerts(i, r, cx, cy)
         }
 

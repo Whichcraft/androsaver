@@ -48,7 +48,7 @@ class AudioEngine {
                         lastFft = bytes.toFftMagnitude()
                         publish()
                     }
-                }, Visualizer.getMaxCaptureRate() / 2, true, true)
+                }, Visualizer.getMaxCaptureRate(), true, true)
                 v.enabled = true
                 visualizer = v
             } catch (e: Exception) {
@@ -81,9 +81,9 @@ class AudioEngine {
         val wave = lastWave ?: return
         val rawFft = lastFft ?: return
 
-        // Smooth FFT: 75% old + 25% new (matching Python _smooth_fft)
+        // Smooth FFT: 50% old + 50% new — faster reaction while avoiding flicker
         for (i in 0 until minOf(rawFft.size, FFT_BINS)) {
-            smoothFft[i] = smoothFft[i] * 0.75f + rawFft[i] * 0.25f
+            smoothFft[i] = smoothFft[i] * 0.50f + rawFft[i] * 0.50f
         }
 
         // Beat energy = mean of bass bins 0..19 (≈ 0–860 Hz with 512 bins at 44100 Hz)
@@ -92,7 +92,7 @@ class AudioEngine {
         val bassEnergy = bassSum / 20f
 
         // Rolling history for normalisation — running sum avoids iterating the deque each frame
-        if (energyHistory.size >= 30) energySum -= energyHistory.removeFirst().toDouble()
+        if (energyHistory.size >= 15) energySum -= energyHistory.removeFirst().toDouble()
         energyHistory.addLast(bassEnergy)
         energySum += bassEnergy.toDouble()
         val avgEnergy = (energySum / energyHistory.size).toFloat()
