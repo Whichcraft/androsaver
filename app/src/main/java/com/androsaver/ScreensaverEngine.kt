@@ -271,7 +271,7 @@ class ScreensaverEngine(
             val items = mutableListOf<ImageItem>()
             for (src in sources) {
                 try { items.addAll(src.getImageUrls()) }
-                catch (e: Exception) { Log.e(TAG, "Error from ${src.name}", e) }
+                catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error from ${src.name}", e) }
             }
             if (items.isEmpty()) {
                 tryFallbackCache()
@@ -358,12 +358,12 @@ class ScreensaverEngine(
                     incoming.setImageDrawable(null)
                 }
                 override fun onLoadFailed(errorDrawable: Drawable?) {
-                    Log.w(TAG, "Failed: ${item.url}")
+                    if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Failed: ${item.url}")
                     consecutiveLoadFailures++
                     if (consecutiveLoadFailures < imageItems.size) {
                         handler.postDelayed({ showNextImage() }, 300L)
                     } else {
-                        Log.e(TAG, "All images failed to load")
+                        if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "All images failed to load")
                         consecutiveLoadFailures = 0
                     }
                 }

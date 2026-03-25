@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-25 (session 5)
+
+### Changed
+- **Dev vs Stable builds**: added `dev` and `prod` product flavors. `BuildConfig.DEBUG_LOGGING` is `true` in dev, `false` in prod — all `Log.*` calls are gated behind this flag so no debug output ships in Stable or Play Store builds
+- CI updated: dev branch builds `assembleDevRelease`; master builds `assembleProdRelease` / `bundleProdRelease`
+
+---
+
 ## 2026-03-25 (session 4)
 
 ### Fixed

@@ -35,10 +35,20 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            ./gradlew assembleDevRelease
+          else
+            ./gradlew assembleProdRelease
+          fi
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/release/*.apk app/build/outputs/apk/release/androsaver.apk
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            mv app/build/outputs/apk/dev/release/*.apk app/build/outputs/apk/dev/release/androsaver.apk
+          else
+            mv app/build/outputs/apk/prod/release/*.apk app/build/outputs/apk/prod/release/androsaver.apk
+          fi
 
       - name: Move dev tag to current commit
         if: github.ref == 'refs/heads/dev'
@@ -51,7 +61,7 @@ jobs:
           tag_name: dev
           name: Dev
           prerelease: true
-          files: app/build/outputs/apk/release/androsaver.apk
+          files: app/build/outputs/apk/dev/release/androsaver.apk
 
       - name: Move stable tag to current commit
         if: github.ref == 'refs/heads/master'
@@ -65,7 +75,7 @@ jobs:
           name: Stable
           prerelease: false
           make_latest: true
-          files: app/build/outputs/apk/release/androsaver.apk
+          files: app/build/outputs/apk/prod/release/androsaver.apk
 
   bundle-playstore:
     runs-on: ubuntu-latest
@@ -103,10 +113,10 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew bundleRelease
+        run: ./gradlew bundleProdRelease
 
       - name: Rename AAB
-        run: mv app/build/outputs/bundle/release/*.aab app/build/outputs/bundle/release/androsaver.aab
+        run: mv app/build/outputs/bundle/prodRelease/*.aab app/build/outputs/bundle/prodRelease/androsaver.aab
 
       - name: Move playstore-stable tag to current commit
         run: git push origin HEAD:refs/tags/playstore-stable --force
@@ -118,4 +128,4 @@ jobs:
           name: Playstore Stable
           prerelease: false
           make_latest: false
-          files: app/build/outputs/bundle/release/androsaver.aab
+          files: app/build/outputs/bundle/prodRelease/androsaver.aab

@@ -52,11 +52,11 @@ class ImageCache(private val context: Context) {
                 manifest.add(Entry(item.url, fname, sourceName, System.currentTimeMillis(), bytes.size.toLong()))
                 saved++
             } catch (e: Exception) {
-                Log.w(TAG, "Cache miss for ${item.url}: ${e.message}")
+                if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Cache miss for ${item.url}: ${e.message}")
             }
         }
         evict(manifest)
-        if (saved > 0) Log.d(TAG, "Cached $saved new images")
+        if (saved > 0 && BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Cached $saved new images")
     }
 
     private fun evict(manifest: MutableList<Entry>) {

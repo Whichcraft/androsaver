@@ -2,6 +2,7 @@ package com.androsaver.visualizer
 
 import android.media.audiofx.Visualizer
 import android.util.Log
+import com.androsaver.BuildConfig
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.*
 
@@ -55,9 +56,9 @@ class AudioEngine {
                 try { v.release() } catch (_: Exception) {}
                 throw e
             }
-            Log.d(TAG, "Visualizer started, captureSize=$maxCap")
+            if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Visualizer started, captureSize=$maxCap")
         } catch (e: Exception) {
-            Log.w(TAG, "Visualizer unavailable: ${e.message}")
+            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Visualizer unavailable: ${e.message}")
         }
     }
 

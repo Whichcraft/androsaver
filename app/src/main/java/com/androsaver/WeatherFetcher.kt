@@ -53,13 +53,13 @@ class WeatherFetcher(private val context: Context) {
         return try {
             val url = "$OWM_URL?q=${URLEncoder.encode(city, "UTF-8")}&appid=$apiKey&units=metric"
             client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
-                if (!resp.isSuccessful) { Log.w(TAG, "Weather API error ${resp.code}"); return null }
+                if (!resp.isSuccessful) { if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Weather API error ${resp.code}"); return null }
                 val body = resp.body?.string() ?: return null
                 val data = parseJson(body)
                 if (data != null) saveCached(data, body)
                 data
             }
-        } catch (e: Exception) { Log.w(TAG, "Weather fetch failed: ${e.message}"); null }
+        } catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Weather fetch failed: ${e.message}"); null }
     }
 
     private fun parseJson(json: String): WeatherData? {
