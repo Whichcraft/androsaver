@@ -1,6 +1,6 @@
 # AndroSaver
 
-An Android TV screensaver app for the Huawei TV Stick (and any Android TV device). Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
+An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
 ## Features
 
@@ -57,7 +57,7 @@ The easiest way to install on an Amazon Fire TV or Android TV device is via the 
 ## Requirements
 
 - Android 5.0+ (API 21)
-- Any Android device — optimised for Android TV (tested on Huawei TV Stick), also works on tablets and phones
+- Any Android device — optimised for Android TV (tested on Huawei TV Stick and Amazon Fire TV Stick), also works on tablets and phones
 - Android Studio Hedgehog or later (to build from source)
 - `RECORD_AUDIO` permission required for the Music Visualizer (prompted automatically when you select Visualizer mode in Settings)
 - `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` permission required for the Device Photos source (prompted when you enable the toggle)
