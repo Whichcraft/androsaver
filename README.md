@@ -43,10 +43,10 @@ An Android TV screensaver app for the Huawei TV Stick (and any Android TV device
 
 The easiest way to install on an Amazon Fire TV or Android TV device is via the [Downloader app](https://www.aftvnews.com/downloader/):
 
-| Release | Downloader code | Short URL |
-|---------|----------------|-----------|
-| Stable  | `7582483`      | [aftv.news/7582483](https://aftv.news/7582483) |
-| Dev     | `9149021`      | [aftv.news/9149021](https://aftv.news/9149021) |
+| Release | Downloader code | Short URL | Notes |
+|---------|----------------|-----------|-------|
+| Stable  | `7582483`      | [aftv.news/7582483](https://aftv.news/7582483) | No debug logging |
+| Dev     | `9149021`      | [aftv.news/9149021](https://aftv.news/9149021) | Debug logging enabled |
 
 1. Install **Downloader** from the Amazon Appstore or Google Play.
 2. Open Downloader and enter the code (or short URL) for the version you want.
@@ -64,7 +64,10 @@ The easiest way to install on an Amazon Fire TV or Android TV device is via the 
 
 1. Clone the repo and open it in Android Studio.
 2. Android Studio will download the Gradle wrapper automatically on first sync.
-3. Build and install via `Run > Run 'app'` or `adb install`.
+3. Select the build variant in **Build > Select Build Variant**:
+   - `devRelease` — debug logging enabled (mirrors the Dev APK)
+   - `prodRelease` — no debug logging (mirrors the Stable APK)
+4. Build and install via `Run > Run 'app'` or `adb install`.
 
 ## Setup
 
