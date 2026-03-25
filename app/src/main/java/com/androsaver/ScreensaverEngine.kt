@@ -45,10 +45,10 @@ class ScreensaverEngine(
         private val RANDOM_EFFECTS = listOf("crossfade","fade_black","slide_left","slide_right","zoom_in","zoom_out")
         val INTENSITY_STEPS = floatArrayOf(0.0f, 0.5f, 1.0f, 1.5f, 2.0f)
         private val KB_PRESETS = listOf(
-            floatArrayOf(1.0f, 1.06f, -0.02f, -0.01f,  0.02f,  0.01f),
-            floatArrayOf(1.0f, 1.06f,  0.02f,  0.01f, -0.02f, -0.01f),
-            floatArrayOf(1.0f, 1.08f,  0.0f,  -0.02f,  0.0f,   0.02f),
-            floatArrayOf(1.0f, 1.06f, -0.01f,  0.02f,  0.01f, -0.02f)
+            floatArrayOf(1.05f, 1.12f, -0.02f, -0.01f,  0.02f,  0.01f),
+            floatArrayOf(1.05f, 1.12f,  0.02f,  0.01f, -0.02f, -0.01f),
+            floatArrayOf(1.05f, 1.14f,  0.0f,  -0.02f,  0.0f,   0.02f),
+            floatArrayOf(1.05f, 1.12f, -0.01f,  0.02f,  0.01f, -0.02f)
         )
     }
 

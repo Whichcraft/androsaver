@@ -67,20 +67,18 @@ class TunnelMode : BaseMode() {
         bassVel   *= 0.68f
         bassPulse += bassVel
 
-        // Spawn beat triangles — threshold and count scale with beat (i.e. with intensity)
+        // Spawn triangles — count driven by both beat and bass so spawning tracks the music
         val tubeR = TUBE_R_MIN + (TUBE_R_MAX - TUBE_R_MIN) * (beat + bass * 0.5f).coerceIn(0f, 1f)
-        if (beat > 1.3f) {
-            val count = ((beat - 1.3f) * 10f).toInt().coerceAtLeast(1)
-            repeat(count) {
-                tris.add(Triangle(
-                    z    = Z_FAR * (0.65f + Math.random().toFloat() * 0.30f),
-                    pt   = time + Z_FAR * 0.8f,
-                    rot  = (Math.random() * TAU).toFloat(),
-                    rvel = (if (Math.random() < 0.5) 1 else -1) * (0.04f + Math.random().toFloat() * 0.08f),
-                    size = 0.20f + Math.random().toFloat() * 0.35f,
-                    hue  = (hue + Math.random().toFloat() * 0.5f) % 1f
-                ))
-            }
+        val spawnCount = (bass * 2.5f + (beat - 1.3f).coerceAtLeast(0f) * 10f).toInt()
+        repeat(spawnCount) {
+            tris.add(Triangle(
+                z    = Z_FAR * (0.65f + Math.random().toFloat() * 0.30f),
+                pt   = time + Z_FAR * 0.8f,
+                rot  = (Math.random() * TAU).toFloat(),
+                rvel = (if (Math.random() < 0.5) 1 else -1) * (0.04f + Math.random().toFloat() * 0.08f),
+                size = 0.20f + Math.random().toFloat() * 0.35f,
+                hue  = (hue + Math.random().toFloat() * 0.5f) % 1f
+            ))
         }
 
         // Advance rings

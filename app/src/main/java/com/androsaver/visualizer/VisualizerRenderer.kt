@@ -16,7 +16,12 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
     /** Index into [modes] of the currently active mode. */
     var modeIndex: Int = 0
-        set(v) { field = v % modes.size; modes[field].reset() }
+        set(v) { field = v % modes.size; resetPending = true }
+
+    // Written on main thread, read on GL thread — volatile ensures visibility.
+    // Because resetPending is written *after* modeIndex, the GL thread is guaranteed
+    // to see the updated modeIndex when it observes resetPending == true (JMM).
+    @Volatile private var resetPending = false
 
     val modes = listOf(
         YantraMode(),
@@ -48,6 +53,11 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        if (resetPending) {
+            modes[modeIndex].reset()
+            resetPending = false
+            tick = 0
+        }
         val audio = audio.data
         val mode  = modes[modeIndex]
 
