@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-25 (session 4)
+
+### Fixed
+- CI: release steps now force-push the `dev`, `stable`, and `playstore-stable` tags to the current commit before publishing, so GitHub's auto-generated source archives (`/archive/refs/tags/*.zip`) always match the released build
+- CI: `bundle-playstore` job now merges `master` into the `playstore` branch before building the AAB, keeping the branch and its source archive in sync with master
+
+---
+
 ## 2026-03-25 (session 3)
 
 ### Changed
