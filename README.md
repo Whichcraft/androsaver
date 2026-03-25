@@ -235,9 +235,9 @@ These settings apply in **both** Slideshow and Visualizer mode.
 | Effect | Description |
 |--------|-------------|
 | **Yantra** | Psychedelic sacred-geometry mandala with 6 concentric polygon rings, web connections, neon spokes, and beat-driven spring pulses |
-| **Cube** | Dual wireframe cubes with slow rotation and spectrum colour-fade |
+| **Cube** | Dual wireframe cubes with slow rotation, motion trails, and spectrum colour-fade; size pulses sharply on each beat |
 | **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
-| **Tunnel** | First-person ride through a neon tube; beat spawns triangles that fly toward the camera |
+| **Tunnel** | First-person ride through a neon tube; bass bursts triangles that fly toward the camera, growing larger and more numerous with sound intensity |
 | **Lissajous** | 3D trefoil Lissajous knot with two-pass neon glow and hard beat spring burst |
 | **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
 | **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |

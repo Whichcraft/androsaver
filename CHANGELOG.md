@@ -2,6 +2,22 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-25 (session 3)
+
+### Changed
+- **Effect cycling** now always starts each effect from its default state — `reset()` is dispatched to the GL thread via a `@Volatile` flag so no mode ever draws an uninitialised first frame
+- `YantraMode`: beat reactivity increased by ~1.5× (ring pulse, brightness, spoke reach, outer radius)
+- `CubeMode`: beat reactivity doubled; base spin ~65% faster; scale pulse on beat substantially increased; trail persistence increased (fadeBlack 0.13→0.07)
+- `TunnelMode`: default speed and reactivity reduced (−2 intensity steps) so tunnel is calm at Normal intensity and scales up with the slider; path swing reduced and tube radius increased so viewer stays inside the tube most of the time; triangles burst larger on bass hits (spring physics); triangle spawn count is now continuously driven by both bass and beat (more sound → more triangles); triangle cap increased (80→120)
+- `BubblesMode`: initial bubble pool halved (400→200); spawn rate and beat-spring pulsation reduced for a calmer default start
+
+### Fixed
+- **Slideshow — black screen with Synology source**: `SynologySource.getImageUrls()` was calling `logout()` immediately after listing files, invalidating the session ID that was embedded in every image URL before Glide could load any images. The logout is now omitted; the DSM session expires naturally after ~30 minutes
+- **Slideshow — black edge on right side**: Ken Burns `startScale` raised from 1.0 to 1.05 so the image always overflows the view bounds on all sides, eliminating the gap that appeared when a translation shifted the image at 1:1 scale
+- `SettingsActivity`: replaced deprecated `requestPermissions` / `onRequestPermissionsResult` API with `ActivityResultLauncher` for both storage and audio permissions
+
+---
+
 ## 2026-03-25 (session 2)
 
 ### Added
