@@ -49,7 +49,7 @@ class YantraMode : BaseMode() {
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val fft  = audio.fft
         val beat = audio.beat
-        hue += 0.005f; time += 0.02f + beat * 0.04f
+        hue += 0.005f; time += 0.02f + beat * 0.06f
         val cx = draw.W / 2f; val cy = draw.H / 2f
         val maxR  = minOf(draw.W, draw.H) * 0.46f
         val safeR = minOf(cx, cy) - 6f   // hard ceiling — nothing draws outside the screen
@@ -65,7 +65,7 @@ class YantraMode : BaseMode() {
         // Physics update
         for (i in 0 until N_RINGS) {
             val e = minOf(bands[i], 1f)
-            pvel[i] += beat * (0.80f + e * 0.30f)
+            pvel[i] += beat * (1.20f + e * 0.45f)
             pvel[i] += -poff[i] * 0.35f
             pvel[i] *= 0.72f
             poff[i] += pvel[i]
@@ -98,7 +98,7 @@ class YantraMode : BaseMode() {
         for (i in N_RINGS - 1 downTo 0) {
             val e = minOf(bands[i], 1f)
             val h = (hue + i.toFloat() / N_RINGS * 0.55f) % 1f
-            val bright = 0.42f + e * 0.35f + beat * 0.30f
+            val bright = 0.42f + e * 0.35f + beat * 0.45f
             val c = GLDraw.hsl(h, l = bright)
             draw.polygon(allVerts[i], c[0], c[1], c[2], 1f, filled = false)
             // Star connections (every 2nd vertex)
@@ -115,17 +115,17 @@ class YantraMode : BaseMode() {
         }
 
         // Radial spokes
-        val outerR = (maxR * (1.02f + beat * 0.55f)).coerceAtMost(safeR)
+        val outerR = (maxR * (1.02f + beat * 0.83f)).coerceAtMost(safeR)
         for (s in 0 until N_SPOKES) {
             val a = s.toFloat() / N_SPOKES * TAU + time * 0.22f +
                     sin(time * 2.4f + s * 0.85f) * (0.05f + mid * 0.10f)
             val x2 = cx + cos(a) * outerR
             val y2 = cy + sin(a) * outerR
             val h = (hue + s.toFloat() / N_SPOKES * 0.35f + high * 0.2f) % 1f
-            val lSpoke = 0.18f + beat * 0.50f + high * 0.18f
+            val lSpoke = 0.18f + beat * 0.75f + high * 0.18f
             if (beat > 0.05f) {
                 val c = GLDraw.hsl(h, l = lSpoke)
-                draw.line(cx, cy, x2, y2, c[0], c[1], c[2], beat * 0.9f)
+                draw.line(cx, cy, x2, y2, c[0], c[1], c[2], minOf(1f, beat * 1.35f))
             }
         }
 

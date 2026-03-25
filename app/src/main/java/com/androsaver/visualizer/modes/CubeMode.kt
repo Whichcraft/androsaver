@@ -50,13 +50,13 @@ class CubeMode : BaseMode() {
         val mid  = fft.meanSlice(5, 25).coerceIn(0f, 1f)
         val high = fft.meanSlice(25, fft.size).coerceIn(0f, 1f)
 
-        rvx += 0.00015f + mid  * 0.0015f + beat * 0.006f
-        rvy += 0.00020f + bass * 0.0015f + beat * 0.008f
-        rvz += 0.00010f + high * 0.0010f + beat * 0.003f
+        rvx += 0.00025f + mid  * 0.0015f + beat * 0.012f
+        rvy += 0.00035f + bass * 0.0015f + beat * 0.016f
+        rvz += 0.00018f + high * 0.0010f + beat * 0.006f
         rvx *= 0.86f; rvy *= 0.86f; rvz *= 0.86f
         rx += rvx; ry += rvy; rz += rvz
 
-        svel += beat * 0.30f + bass * 0.15f
+        svel += beat * 0.70f + bass * 0.30f
         svel += (1f - scale) * 0.20f
         svel *= 0.72f
         scale += svel

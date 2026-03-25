@@ -46,11 +46,9 @@ class SynologySource(private val context: Context) : ImageSource {
         val baseUrl = "$scheme://$host:$port"
 
         val sid = login(baseUrl, username, password) ?: return@withContext emptyList()
-        try {
-            listImages(baseUrl, folder, sid)
-        } finally {
-            logout(baseUrl, sid)
-        }
+        // Don't logout here — the SID is embedded in image URLs, and Glide loads images
+        // after getImageUrls() returns.  Let the Synology session expire naturally (~30 min).
+        listImages(baseUrl, folder, sid)
     }
 
     private fun login(baseUrl: String, username: String, password: String): String? {

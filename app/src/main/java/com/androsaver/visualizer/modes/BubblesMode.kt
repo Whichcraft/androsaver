@@ -46,7 +46,7 @@ class BubblesMode : BaseMode() {
 
     private fun init(W: Int, H: Int) {
         if (pool.isEmpty()) {
-            repeat(400) { pool.add(makeBubble(W, H, Math.random().toFloat() * H)) }
+            repeat(200) { pool.add(makeBubble(W, H, Math.random().toFloat() * H)) }
         }
     }
 
@@ -64,20 +64,20 @@ class BubblesMode : BaseMode() {
         val beatSel = beat.coerceAtMost(1f)
 
         // Global beat spring (uses full beat so bumpiness still scales with intensity)
-        pvel  += beat * 1.20f + bass * 0.80f
+        pvel  += beat * 0.70f + bass * 0.45f
         pvel  += -pulse * 0.55f
         pvel  *= 0.62f
         pulse += pvel
 
         // Spawn on beat/bass — use beatSel to cap count at high intensity
-        val spawnCount = (1 + beatSel * 7 + bass * 3).toInt()
+        val spawnCount = (1 + beatSel * 4 + bass * 1.5f).toInt()
         repeat(spawnCount) {
             if (pool.size < MAX) {
                 val b = makeBubble(W, H)
                 b.vy  *= (1f + beatSel * 0.8f)
                 b.r   *= (1f + bass * 0.7f)
                 // wider hue spread at higher intensity → more colours
-                b.hue  = (hue + Math.random().toFloat() * (0.25f + beat * 0.75f)) % 1f
+                b.hue  = (hue + Math.random().toFloat() * (0.25f + beat * 0.50f)) % 1f
                 pool.add(b)
             }
         }
