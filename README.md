@@ -1,6 +1,6 @@
 # AndroSaver
 
-An Android TV screensaver app for the Huawei TV Stick (and any Android TV device). Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** that reacts to whatever is playing on the TV.
+An Android TV screensaver app for the Huawei TV Stick (and any Android TV device). Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
 ## Features
 
@@ -16,8 +16,10 @@ An Android TV screensaver app for the Huawei TV Stick (and any Android TV device
 - **Visualizer overlay** — music visualizer rendered semi-transparently on top of the slideshow
 
 ### Music Visualizer
+Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
+
 - Ten audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **Plasma**, **Tunnel**, **Lissajous**, **Nova**, **Spiral**, **Bubbles**, **Spectrum**, **Waterfall**
-- Reacts to system audio — works with any app playing music or video on the TV
+- Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
   - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Subtle → Normal → High → Intense)
