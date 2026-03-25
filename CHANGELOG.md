@@ -2,18 +2,6 @@
 
 All notable changes to AndroSaver are documented here.
 
-## [Unreleased] — dev
-
-### Fixed
-- `WeatherFetcher`: check HTTP success status before reading response body; close response with `.use`; add 10 s connect / 15 s read timeouts
-- `AudioEngine`: release `Visualizer` resource if setup throws after construction (prevented resource leak)
-- `ScreensaverEngine`: break infinite retry loop on image load failure — track consecutive failures, give up after exhausting the list, add 300 ms delay between retries
-- `GoogleDriveSource`: null-safe access on `id`/`name` JSON fields (prevented crash on malformed API response); close responses; add timeouts
-- `SynologySource`: close HTTP responses with `.use`; add 10 s / 30 s timeouts to trust-all client
-- `LocalStorageSource`: log silenced `MediaStore` exceptions instead of swallowing them
-
----
-
 ## 2026-03-25
 
 ### Added
@@ -31,6 +19,16 @@ All notable changes to AndroSaver are documented here.
 
 ### Changed
 - Visualizer performance improvements ported from psysuals v1.1/v1.2 algorithm (FFT smoothing, beat energy normalisation)
+
+### Fixed
+- `WeatherFetcher`: check HTTP success status before reading response body; close responses; add 10 s / 15 s timeouts
+- `AudioEngine`: release `Visualizer` resource if setup throws after construction (resource leak)
+- `ScreensaverEngine`: prevent infinite retry loop on image load failure — track consecutive failures, give up after exhausting the list, add 300 ms delay between retries
+- `GoogleDriveSource`: null-safe access on `id`/`name` JSON fields; close responses; add timeouts; follow `nextPageToken` so folders with >1000 images are fully fetched
+- `SynologySource`: close HTTP responses; add timeouts; log out DSM session after image listing to prevent session accumulation on the NAS
+- `SynologySetupActivity`: validate port is a number between 1–65535 before saving or testing
+- `LocalStorageSource`: log silenced `MediaStore` exceptions instead of swallowing them
+- `SettingsActivity`: request `RECORD_AUDIO` permission when switching to Visualizer mode; show explanatory message if denied
 
 ---
 
