@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-25 (session 6)
+
+### Added
+- **Nextcloud source** — fetch photos from any Nextcloud instance via WebDAV (PROPFIND + Basic Auth); supports app passwords and self-signed certificates; setup UI mirrors the Synology setup
+
+---
+
 ## 2026-03-25 (session 5)
 
 ### Changed

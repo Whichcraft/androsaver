@@ -6,6 +6,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
+- **Nextcloud source** — streams photos from any folder via WebDAV; works with app passwords and self-signed certificates
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
 - **Device storage source** — uses photos from the TV's local storage via MediaStore
 - All sources can be active simultaneously; images are merged and shuffled
@@ -91,6 +92,25 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 
 > **Getting a Folder ID:** Open Google Drive in a browser, navigate to the folder, and copy the ID from the URL (`/drive/folders/<FOLDER_ID>`).
 
+### Nextcloud
+
+1. Open **AndroSaver Settings** on your TV.
+2. Tap **Nextcloud Setup** and fill in:
+
+   | Field | Description |
+   |-------|-------------|
+   | **Host / IP** | e.g. `cloud.example.com` or `192.168.1.50` |
+   | **Port** | `443` (HTTPS) or `80` (HTTP) |
+   | **Use HTTPS** | Enable for HTTPS (self-signed certs are accepted) |
+   | **Username** | Your Nextcloud username |
+   | **Password / App Password** | Your Nextcloud password, or an app password from Nextcloud's Security settings |
+   | **Image Folder Path** | e.g. `/Photos` or `/family/Pictures` |
+
+3. Tap **Test Connection** to verify — a success message shows how many images were found.
+4. Tap **Save**, then enable the **Nextcloud** toggle in Settings.
+
+> **App passwords** are recommended: in Nextcloud, go to Settings → Security → Devices & Sessions → Create new app password.
+
 ### Synology NAS
 
 1. Open **AndroSaver Settings** on your TV.
@@ -113,6 +133,7 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 | Source | Formats |
 |--------|---------|
 | Google Drive | Any format with an `image/` MIME type |
+| Nextcloud | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` (or any `image/` MIME type) |
 | Synology NAS | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
 
 ### Local Storage
@@ -157,6 +178,8 @@ All options are configured in the **AndroSaver Settings** app. The top-level **S
 |---------|-------------|
 | **Google Drive** toggle | Enable/disable fetching images from Google Drive |
 | **Google Drive Setup** | Configure OAuth credentials and folder |
+| **Nextcloud** toggle | Enable/disable fetching images from a Nextcloud instance |
+| **Nextcloud Setup** | Configure host, credentials, and folder path |
 | **Synology NAS** toggle | Enable/disable fetching images from a Synology NAS |
 | **Synology NAS Setup** | Configure host, credentials, and folder path |
 | **Device Photos** toggle | Enable/disable fetching images from local device storage |
@@ -268,6 +291,7 @@ ScreensaverService (DreamService)
   └── ScreensaverEngine
         ├── Photo Slideshow mode
         │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
+        │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
         │   ├── SynologySource       ← Synology DSM FileStation API
         │   ├── LocalStorageSource   ← MediaStore device photos
         │   ├── ImageCache           ← offline fallback (200 images / 300 MB)

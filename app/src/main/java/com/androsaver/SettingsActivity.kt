@@ -86,6 +86,10 @@ class SettingsActivity : AppCompatActivity() {
                     startActivity(Intent(requireContext(), GoogleDriveSetupActivity::class.java))
                     true
                 }
+                "nextcloud_setup" -> {
+                    startActivity(Intent(requireContext(), NextcloudSetupActivity::class.java))
+                    true
+                }
                 "synology_setup" -> {
                     startActivity(Intent(requireContext(), SynologySetupActivity::class.java))
                     true

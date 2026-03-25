@@ -9,6 +9,15 @@ object Prefs {
     const val GOOGLE_REFRESH_TOKEN = "google_refresh_token"
     const val GOOGLE_FOLDER_ID = "google_folder_id"
 
+    // Nextcloud
+    const val ENABLE_NEXTCLOUD    = "source_nextcloud"
+    const val NEXTCLOUD_HOST      = "nextcloud_host"
+    const val NEXTCLOUD_PORT      = "nextcloud_port"
+    const val NEXTCLOUD_USERNAME  = "nextcloud_username"
+    const val NEXTCLOUD_PASSWORD  = "nextcloud_password"
+    const val NEXTCLOUD_FOLDER    = "nextcloud_folder"
+    const val NEXTCLOUD_USE_HTTPS = "nextcloud_use_https"
+
     // Synology NAS
     const val ENABLE_SYNOLOGY = "source_synology"
     const val SYNOLOGY_HOST = "synology_host"

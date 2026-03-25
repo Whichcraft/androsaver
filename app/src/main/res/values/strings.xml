@@ -38,6 +38,16 @@
     <string name="auth_error">Error: %s</string>
     <string name="auth_failed_check_client_id">Failed to get device code. Check your Client ID and make sure the Google Drive API is enabled.</string>
 
+    <!-- Nextcloud setup -->
+    <string name="nextcloud_setup_title">Nextcloud Setup</string>
+    <string name="nextcloud_host_label">Nextcloud Host / IP Address</string>
+    <string name="nextcloud_host_hint">e.g. cloud.example.com or 192.168.1.50</string>
+    <string name="nextcloud_port_hint">443 (HTTPS) or 80 (HTTP)</string>
+    <string name="nextcloud_username_hint">Nextcloud username</string>
+    <string name="nextcloud_password_label">Password / App Password</string>
+    <string name="nextcloud_password_hint">Use an app password for better security</string>
+    <string name="nextcloud_folder_hint">e.g. /Photos or /family/Pictures</string>
+
     <!-- Synology setup -->
     <string name="nas_host_label">NAS Host / IP Address</string>
     <string name="nas_host_hint">e.g. 192.168.1.100 or nas.local</string>
