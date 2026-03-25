@@ -27,6 +27,24 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="Visualizer">
+
+        <SwitchPreferenceCompat
+            android:key="enable_visualizer"
+            android:title="Enable Music Visualizer"
+            android:summary="Show audio-reactive visuals (requires audio permission)" />
+
+        <ListPreference
+            android:key="visualizer_mode"
+            android:title="Visualizer Mode"
+            android:entries="@array/visualizer_mode_entries"
+            android:entryValues="@array/visualizer_mode_values"
+            android:defaultValue="auto"
+            android:summary="%s"
+            android:dependency="enable_visualizer" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Slideshow">
 
         <ListPreference

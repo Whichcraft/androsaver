@@ -20,6 +20,13 @@
         android:scaleType="centerCrop"
         android:alpha="1" />
 
+    <!-- Visualizer container: programmatically populated with VisualizerView -->
+    <FrameLayout
+        android:id="@+id/visualizerContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/statusText"
         android:layout_width="wrap_content"

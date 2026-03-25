@@ -44,6 +44,34 @@
         <item>5000</item>
     </string-array>
 
+    <string-array name="visualizer_mode_entries">
+        <item>Auto (cycle all)</item>
+        <item>Yantra</item>
+        <item>Cube</item>
+        <item>Plasma</item>
+        <item>Tunnel</item>
+        <item>Lissajous</item>
+        <item>Nova</item>
+        <item>Spiral</item>
+        <item>Bubbles</item>
+        <item>Spectrum</item>
+        <item>Waterfall</item>
+    </string-array>
+
+    <string-array name="visualizer_mode_values">
+        <item>auto</item>
+        <item>Yantra</item>
+        <item>Cube</item>
+        <item>Plasma</item>
+        <item>Tunnel</item>
+        <item>Lissajous</item>
+        <item>Nova</item>
+        <item>Spiral</item>
+        <item>Bubbles</item>
+        <item>Spectrum</item>
+        <item>Waterfall</item>
+    </string-array>
+
     <string-array name="transition_entries">
         <item>Crossfade</item>
         <item>Fade to Black</item>

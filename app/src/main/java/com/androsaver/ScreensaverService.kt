@@ -17,6 +17,7 @@ import com.androsaver.source.GoogleDriveSource
 import com.androsaver.source.ImageItem
 import com.androsaver.source.ImageSource
 import com.androsaver.source.SynologySource
+import com.androsaver.visualizer.VisualizerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
@@ -37,6 +38,9 @@ class ScreensaverService : DreamService() {
     private var activeView = 1  // 1 = imageView1 showing, 2 = imageView2 showing
     private val handler = Handler(Looper.getMainLooper())
     private var slideshowRunnable: Runnable? = null
+    private var visualizerView: VisualizerView? = null
+    // Auto-cycle timer for visualizer modes
+    private var vizCycleRunnable: Runnable? = null
 
     companion object {
         private const val TAG = "AndroSaver"
@@ -61,14 +65,58 @@ class ScreensaverService : DreamService() {
         binding.imageView1.alpha = 1f
         binding.imageView2.alpha = 0f
 
-        loadImages()
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (prefs.getBoolean(Prefs.ENABLE_VISUALIZER, false)) {
+            startVisualizerMode(prefs.getString(Prefs.VISUALIZER_MODE, "auto") ?: "auto")
+        } else {
+            loadImages()
+        }
     }
 
     override fun onDetachedFromWindow() {
         stopSlideshow()
+        stopVisualizerMode()
         scope.cancel()
         Glide.with(applicationContext).onStop()
         super.onDetachedFromWindow()
+    }
+
+    // -------------------------------------------------------------------------
+    // Visualizer
+    // -------------------------------------------------------------------------
+
+    private fun startVisualizerMode(modePref: String) {
+        val vv = VisualizerView(this)
+        visualizerView = vv
+
+        if (modePref != "auto") {
+            vv.setMode(modePref)
+        }
+
+        binding.visualizerContainer.addView(vv)
+        binding.visualizerContainer.visibility = View.VISIBLE
+        binding.imageView1.visibility = View.GONE
+        binding.imageView2.visibility = View.GONE
+
+        vv.startVisualizer()
+
+        // Auto-cycle through modes every 90 seconds when "auto" is selected
+        if (modePref == "auto") {
+            vizCycleRunnable = object : Runnable {
+                override fun run() {
+                    vv.nextMode()
+                    handler.postDelayed(this, 90_000L)
+                }
+            }
+            handler.postDelayed(vizCycleRunnable!!, 90_000L)
+        }
+    }
+
+    private fun stopVisualizerMode() {
+        vizCycleRunnable?.let { handler.removeCallbacks(it) }
+        vizCycleRunnable = null
+        visualizerView?.stopVisualizer()
+        visualizerView = null
     }
 
     // -------------------------------------------------------------------------
