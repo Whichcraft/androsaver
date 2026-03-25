@@ -76,6 +76,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: playstore
+          fetch-depth: 0
+
+      - name: Merge master into playstore and push
+        run: |
+          git config user.email "ci@github.com"
+          git config user.name "GitHub Actions"
+          git merge origin/master --no-edit
+          git push origin playstore
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
