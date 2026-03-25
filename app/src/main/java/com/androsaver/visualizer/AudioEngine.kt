@@ -36,19 +36,24 @@ class AudioEngine {
         if (visualizer != null) return
         try {
             val maxCap = Visualizer.getCaptureSizeRange()[1].coerceAtMost(1024)
-            visualizer = Visualizer(0).apply {
-                captureSize = maxCap
-                setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
-                    override fun onWaveFormDataCapture(v: Visualizer, bytes: ByteArray, rate: Int) {
+            val v = Visualizer(0)
+            try {
+                v.captureSize = maxCap
+                v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
+                    override fun onWaveFormDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
                         lastWave = bytes.toWaveform()
                         publish()
                     }
-                    override fun onFftDataCapture(v: Visualizer, bytes: ByteArray, rate: Int) {
+                    override fun onFftDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
                         lastFft = bytes.toFftMagnitude()
                         publish()
                     }
                 }, Visualizer.getMaxCaptureRate() / 2, true, true)
-                enabled = true
+                v.enabled = true
+                visualizer = v
+            } catch (e: Exception) {
+                try { v.release() } catch (_: Exception) {}
+                throw e
             }
             Log.d(TAG, "Visualizer started, captureSize=$maxCap")
         } catch (e: Exception) {

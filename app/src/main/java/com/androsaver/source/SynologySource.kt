@@ -13,6 +13,7 @@ import okhttp3.Request
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
@@ -55,8 +56,8 @@ class SynologySource(private val context: Context) : ImageSource {
                 "&account=$user&passwd=$pass&session=AndroSaver&format=sid"
 
         return try {
-            val response = client.newCall(Request.Builder().url(url).build()).execute()
-            val json = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            val json = client.newCall(Request.Builder().url(url).build()).execute()
+                .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
             if (json.get("success")?.asBoolean == true) {
                 json.getAsJsonObject("data")?.get("sid")?.asString
             } else {
@@ -75,8 +76,8 @@ class SynologySource(private val context: Context) : ImageSource {
                 "&folder_path=$encodedFolder&filetype=file&_sid=$sid"
 
         return try {
-            val response = client.newCall(Request.Builder().url(url).build()).execute()
-            val json = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            val json = client.newCall(Request.Builder().url(url).build()).execute()
+                .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
 
             if (json.get("success")?.asBoolean != true) {
                 Log.e(TAG, "List files failed: $json")
@@ -115,6 +116,8 @@ class SynologySource(private val context: Context) : ImageSource {
         return OkHttpClient.Builder()
             .sslSocketFactory(sslContext.socketFactory, trustManager)
             .hostnameVerifier { _, _ -> true }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 

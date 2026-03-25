@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
 class WeatherFetcher(private val context: Context) {
 
@@ -24,7 +25,10 @@ class WeatherFetcher(private val context: Context) {
     data class WeatherData(val tempC: Float, val description: String)
 
     private val gson = Gson()
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
     private val prefs by lazy { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
 
     suspend fun getWeather(city: String, apiKey: String): WeatherData? {
@@ -48,12 +52,13 @@ class WeatherFetcher(private val context: Context) {
     private fun fetchFromApi(city: String, apiKey: String): WeatherData? {
         return try {
             val url = "$OWM_URL?q=${URLEncoder.encode(city, "UTF-8")}&appid=$apiKey&units=metric"
-            val resp = client.newCall(Request.Builder().url(url).build()).execute()
-            val body = resp.body?.string() ?: return null
-            if (!resp.isSuccessful) { Log.w(TAG, "Weather API error ${resp.code}"); return null }
-            val data = parseJson(body)
-            if (data != null) saveCached(data, body)
-            data
+            client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
+                if (!resp.isSuccessful) { Log.w(TAG, "Weather API error ${resp.code}"); return null }
+                val body = resp.body?.string() ?: return null
+                val data = parseJson(body)
+                if (data != null) saveCached(data, body)
+                data
+            }
         } catch (e: Exception) { Log.w(TAG, "Weather fetch failed: ${e.message}"); null }
     }
 

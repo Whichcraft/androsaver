@@ -12,12 +12,16 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
 class GoogleDriveSource(private val context: Context) : ImageSource {
 
     override val name = "Google Drive"
 
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
     private val gson = Gson()
 
     override fun isConfigured(): Boolean {
@@ -50,17 +54,19 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
                 Log.e(TAG, "List files failed: ${response.code}")
+                response.close()
                 return@withContext emptyList()
             }
-            val json = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
             val files = json.getAsJsonArray("files") ?: return@withContext emptyList()
 
-            files.map { file ->
+            files.mapNotNull { file ->
                 val obj = file.asJsonObject
-                val fileId = obj.get("id").asString
+                val fileId = obj.get("id")?.asString ?: return@mapNotNull null
+                val name = obj.get("name")?.asString ?: return@mapNotNull null
                 ImageItem(
                     url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media",
-                    name = obj.get("name").asString,
+                    name = name,
                     headers = mapOf("Authorization" to "Bearer $accessToken")
                 )
             }
@@ -89,8 +95,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             .build()
 
         return try {
-            val response = client.newCall(request).execute()
-            val json = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            val json = client.newCall(request).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
             val token = json.get("access_token")?.asString
             if (token != null) {
                 prefs.edit().putString(Prefs.GOOGLE_ACCESS_TOKEN, token).apply()

@@ -57,6 +57,7 @@ class ScreensaverEngine(
     private var currentIndex = 0
     private var activeView = 1
     private var slideshowRunnable: Runnable? = null
+    private var consecutiveLoadFailures = 0
     private var visualizerView: VisualizerView? = null
     private var overlayVisualizerView: VisualizerView? = null
     private var vizCycleRunnable: Runnable? = null
@@ -325,6 +326,7 @@ class ScreensaverEngine(
                 binding.imageView1.height.takeIf { it > 0 } ?: context.resources.displayMetrics.heightPixels
             ) {
                 override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
+                    consecutiveLoadFailures = 0
                     kenBurnsAnimators[incoming]?.cancel()
                     incoming.setImageDrawable(resource)
                     val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -338,7 +340,13 @@ class ScreensaverEngine(
                 }
                 override fun onLoadFailed(errorDrawable: Drawable?) {
                     Log.w(TAG, "Failed: ${item.url}")
-                    handler.post { showNextImage() }
+                    consecutiveLoadFailures++
+                    if (consecutiveLoadFailures < imageItems.size) {
+                        handler.postDelayed({ showNextImage() }, 300L)
+                    } else {
+                        Log.e(TAG, "All images failed to load")
+                        consecutiveLoadFailures = 0
+                    }
                 }
             })
     }
