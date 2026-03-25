@@ -20,6 +20,7 @@ class WaterfallMode : BaseMode() {
     private var hue = 0f
     private lateinit var edges: IntArray
     private var cols = 0
+    private lateinit var counts: FloatArray   // pre-computed bin widths
     private val buf = ArrayDeque<FloatArray>()   // newest at front (index 0)
 
     override fun reset() {
@@ -27,8 +28,9 @@ class WaterfallMode : BaseMode() {
         buf.clear()
         // Log-spaced indices from 2 to 434 (85% of 512), COLS+1 = 81 entries, deduplicated.
         val raw = geomSpaceInt(2.0, 434.0, COLS + 1)
-        edges = raw.map { it.coerceIn(1, 511) }.distinct().sorted().toIntArray()
-        cols = edges.size - 1
+        edges  = raw.map { it.coerceIn(1, 511) }.distinct().sorted().toIntArray()
+        cols   = edges.size - 1
+        counts = FloatArray(cols) { i -> (edges[i + 1] - edges[i]).toFloat().coerceAtLeast(1f) }
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -39,10 +41,14 @@ class WaterfallMode : BaseMode() {
         val W = draw.W.toFloat()
         val H = draw.H.toFloat()
 
-        // Build new row from FFT
-        val row = FloatArray(cols) { c ->
-            fft.meanSlice(edges[c], edges[c + 1])
+        // Single-pass accumulation into bins (matches np.add.reduceat)
+        val row = FloatArray(cols)
+        var bi = 0
+        for (k in edges[0] until edges[cols]) {
+            while (bi + 1 < cols && k >= edges[bi + 1]) bi++
+            row[bi] += fft[k]
         }
+        for (i in 0 until cols) row[i] /= counts[i]
         val maxVal = row.max().coerceAtLeast(1e-6f)
         for (i in 0 until cols) row[i] /= maxVal
 

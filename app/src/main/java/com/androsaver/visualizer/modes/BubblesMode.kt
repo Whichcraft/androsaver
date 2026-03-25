@@ -21,6 +21,7 @@ class BubblesMode : BaseMode() {
     )
 
     private val pool  = ArrayList<Bubble>(MAX)
+    private val alive = ArrayList<Bubble>(MAX)   // reused each frame to avoid allocation
     private var hue   = 0f
     private var pulse = 0f
     private var pvel  = 0f
@@ -77,7 +78,7 @@ class BubblesMode : BaseMode() {
             }
         }
 
-        val alive = ArrayList<Bubble>(pool.size)
+        alive.clear()
         for (b in pool) {
             b.x  += b.vx + sin(tick * b.wobble + b.phase) * 0.9f
             b.y  += b.vy

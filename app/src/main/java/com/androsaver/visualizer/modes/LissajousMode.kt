@@ -35,23 +35,8 @@ class LissajousMode : BaseMode() {
         scale = 1f; svel = 0f
     }
 
-    /** Rotate point (x,y,z) around X then Y axes. */
-    private fun rot(x: Float, y: Float, z: Float): Triple<Float, Float, Float> {
-        val cx = cos(rx); val sx = sin(rx)
-        val cy = cos(ry); val sy = sin(ry)
-        val y2 =  y * cx - z * sx
-        val z2 =  y * sx + z * cx
-        val x3 =  x * cy + z2 * sy
-        val z3 = -x * sy + z2 * cy
-        return Triple(x3, y2, z3)
-    }
-
-    /** Orthographic-ish projection: returns (px, py) relative to screen centre. */
-    private fun proj(x: Float, y: Float, z: Float, W: Int, H: Int): Pair<Float, Float> {
-        val fov  = minOf(W, H) * 0.40f
-        val zcam = maxOf(z + 2.8f, 0.05f)
-        return Pair(x * fov / zcam, y * fov / zcam)
-    }
+    // Reusable flat buffer: [rawX0,rawY0, rawX1,rawY1, ...] — avoids per-frame allocation
+    private var rawBuf = FloatArray(TRAIL * 2)
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         draw.fadeBlack(0.08f)
@@ -88,16 +73,29 @@ class LissajousMode : BaseMode() {
         rvx += beat * 0.016f + 0.0002f; rvx *= 0.97f; rx += rvx
         rvy += beat * 0.019f + 0.0003f; rvy *= 0.97f; ry += rvy
 
-        val s = scale
-        val raw = Array(hist.size) { i ->
+        val n = hist.size
+        if (n < 2) return
+
+        // Precompute rotation elements once (avoids 1400 Triple+Pair allocations per frame)
+        val s    = scale
+        val cxR  = cos(rx);  val sxR = sin(rx)
+        val cyR  = cos(ry);  val syR = sin(ry)
+        val fovL = minOf(draw.W, draw.H) * 0.40f
+        if (rawBuf.size < n * 2) rawBuf = FloatArray(n * 2)
+        val raw = rawBuf
+        for (i in 0 until n) {
             val (px, py, pz) = hist[i]
-            val (rx3, ry3, rz3) = rot(px * s, py * s, pz * s)
-            proj(rx3, ry3, rz3, draw.W, draw.H)
+            val x   = px * s;  val y  = py * s;  val z  = pz * s
+            val y2  = y * cxR  - z  * sxR
+            val z2  = y * sxR  + z  * cxR
+            val x3  = x * cyR  + z2 * syR
+            val z3  = -x * syR + z2 * cyR
+            val zcam = maxOf(z3 + 2.8f, 0.05f)
+            raw[i * 2]     = x3 * fovL / zcam
+            raw[i * 2 + 1] = y2 * fovL / zcam
         }
 
         val cx = draw.W / 2f; val cy = draw.H / 2f
-        val n = raw.size
-        if (n < 2) return
 
         val l1Bright = minOf(0.90f + beat * 0.08f, 0.98f)
 
@@ -111,7 +109,7 @@ class LissajousMode : BaseMode() {
             val pts    = FloatArray(n * 2)
             val colors = FloatArray(n * 4)
             for (j in 0 until n) {
-                val (px, py) = raw[j]
+                val px = raw[j * 2]; val py = raw[j * 2 + 1]
                 pts[j * 2]     = cx + px * ca - py * sa
                 pts[j * 2 + 1] = cy + px * sa + py * ca
             }
@@ -132,7 +130,7 @@ class LissajousMode : BaseMode() {
         }
 
         // Head dot on current knot position
-        val (hpx, hpy) = raw.last()
+        val hpx = raw[(n - 1) * 2]; val hpy = raw[(n - 1) * 2 + 1]
         for (sym in 0 until N_SYM) {
             val ang = sym.toFloat() / N_SYM * TAU
             val ca = cos(ang); val sa = sin(ang)

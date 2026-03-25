@@ -16,6 +16,7 @@ class BarsMode : BaseMode() {
     private lateinit var edges: IntArray
     private var n = 0
     private lateinit var peaks: FloatArray
+    private lateinit var counts: FloatArray   // pre-computed bin widths
 
     override fun reset() {
         hue = 0f
@@ -23,7 +24,8 @@ class BarsMode : BaseMode() {
         val raw = geomSpaceInt(2.0, 434.0, 81)
         edges = raw.map { it.coerceIn(1, 511) }.distinct().sorted().toIntArray()
         n = edges.size - 1
-        peaks = FloatArray(n)
+        peaks  = FloatArray(n)
+        counts = FloatArray(n) { i -> (edges[i + 1] - edges[i]).toFloat().coerceAtLeast(1f) }
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -34,10 +36,14 @@ class BarsMode : BaseMode() {
         val W = draw.W.toFloat()
         val H = draw.H.toFloat()
 
-        // Compute per-bar heights from FFT bins
-        val heights = FloatArray(n) { i ->
-            fft.meanSlice(edges[i], edges[i + 1])
+        // Single-pass accumulation into bars (matches np.add.reduceat)
+        val heights = FloatArray(n)
+        var bi = 0
+        for (k in edges[0] until edges[n]) {
+            while (bi + 1 < n && k >= edges[bi + 1]) bi++
+            heights[bi] += fft[k]
         }
+        for (i in 0 until n) heights[i] /= counts[i]
         val maxH = heights.max().coerceAtLeast(1e-6f)
         for (i in 0 until n) heights[i] /= maxH
 

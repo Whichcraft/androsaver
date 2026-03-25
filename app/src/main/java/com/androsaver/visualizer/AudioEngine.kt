@@ -22,6 +22,7 @@ class AudioEngine {
     private var visualizer: Visualizer? = null
     private val smoothFft = FloatArray(FFT_BINS)
     private val energyHistory = ArrayDeque<Float>()
+    private var energySum = 0.0          // running sum for O(1) average
     private val _data = AtomicReference(AudioData())
 
     // Latest waveform/fft bytes — combined when both arrive
@@ -75,10 +76,11 @@ class AudioEngine {
         for (i in 0 until 20) bassSum += smoothFft[i]
         val bassEnergy = bassSum / 20f
 
-        // Rolling history for normalisation (not a hard threshold — matches Python behaviour)
-        if (energyHistory.size >= 30) energyHistory.removeFirst()
+        // Rolling history for normalisation — running sum avoids iterating the deque each frame
+        if (energyHistory.size >= 30) energySum -= energyHistory.removeFirst().toDouble()
         energyHistory.addLast(bassEnergy)
-        val avgEnergy = energyHistory.average().toFloat()
+        energySum += bassEnergy.toDouble()
+        val avgEnergy = (energySum / energyHistory.size).toFloat()
         val beat = (bassEnergy / (avgEnergy + 0.001f) - 0.6f).coerceIn(0f, 1f)
 
         _data.set(AudioData(
