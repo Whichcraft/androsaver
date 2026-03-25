@@ -9,6 +9,30 @@ object Prefs {
     const val GOOGLE_REFRESH_TOKEN = "google_refresh_token"
     const val GOOGLE_FOLDER_ID = "google_folder_id"
 
+    // OneDrive
+    const val ENABLE_ONEDRIVE        = "source_onedrive"
+    const val ONEDRIVE_CLIENT_ID     = "onedrive_client_id"
+    const val ONEDRIVE_FOLDER        = "onedrive_folder"
+    const val ONEDRIVE_ACCESS_TOKEN  = "onedrive_access_token"
+    const val ONEDRIVE_REFRESH_TOKEN = "onedrive_refresh_token"
+
+    // Immich
+    const val ENABLE_IMMICH    = "source_immich"
+    const val IMMICH_HOST      = "immich_host"
+    const val IMMICH_PORT      = "immich_port"
+    const val IMMICH_API_KEY   = "immich_api_key"
+    const val IMMICH_ALBUM_ID  = "immich_album_id"
+    const val IMMICH_USE_HTTPS = "immich_use_https"
+
+    // Nextcloud
+    const val ENABLE_NEXTCLOUD    = "source_nextcloud"
+    const val NEXTCLOUD_HOST      = "nextcloud_host"
+    const val NEXTCLOUD_PORT      = "nextcloud_port"
+    const val NEXTCLOUD_USERNAME  = "nextcloud_username"
+    const val NEXTCLOUD_PASSWORD  = "nextcloud_password"
+    const val NEXTCLOUD_FOLDER    = "nextcloud_folder"
+    const val NEXTCLOUD_USE_HTTPS = "nextcloud_use_https"
+
     // Synology NAS
     const val ENABLE_SYNOLOGY = "source_synology"
     const val SYNOLOGY_HOST = "synology_host"

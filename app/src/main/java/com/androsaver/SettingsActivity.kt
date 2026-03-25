@@ -74,6 +74,8 @@ class SettingsActivity : AppCompatActivity() {
         override fun onResume() {
             super.onResume()
             updateGoogleDriveStatus()
+            updateOneDriveStatus()
+            updateImmichStatus()
         }
 
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
@@ -84,6 +86,18 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 "google_drive_setup" -> {
                     startActivity(Intent(requireContext(), GoogleDriveSetupActivity::class.java))
+                    true
+                }
+                "onedrive_setup" -> {
+                    startActivity(Intent(requireContext(), OneDriveSetupActivity::class.java))
+                    true
+                }
+                "immich_setup" -> {
+                    startActivity(Intent(requireContext(), ImmichSetupActivity::class.java))
+                    true
+                }
+                "nextcloud_setup" -> {
+                    startActivity(Intent(requireContext(), NextcloudSetupActivity::class.java))
                     true
                 }
                 "synology_setup" -> {
@@ -99,6 +113,25 @@ class SettingsActivity : AppCompatActivity() {
             findPreference<PreferenceCategory>("cat_sources")?.isVisible = isSlideshow
             findPreference<PreferenceCategory>("cat_slideshow")?.isVisible = isSlideshow
             findPreference<PreferenceCategory>("cat_visualizer")?.isVisible = !isSlideshow
+        }
+
+        private fun updateImmichStatus() {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val configured = !prefs.getString(Prefs.IMMICH_HOST, null).isNullOrEmpty() &&
+                             !prefs.getString(Prefs.IMMICH_API_KEY, null).isNullOrEmpty()
+            findPreference<Preference>("immich_setup")?.summary = if (configured)
+                getString(R.string.immich_authorized)
+            else
+                getString(R.string.immich_not_authorized)
+        }
+
+        private fun updateOneDriveStatus() {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val authorized = !prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null).isNullOrEmpty()
+            findPreference<Preference>("onedrive_setup")?.summary = if (authorized)
+                getString(R.string.onedrive_authorized)
+            else
+                getString(R.string.onedrive_not_authorized)
         }
 
         private fun updateGoogleDriveStatus() {

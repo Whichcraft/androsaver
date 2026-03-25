@@ -38,6 +38,41 @@
     <string name="auth_error">Error: %s</string>
     <string name="auth_failed_check_client_id">Failed to get device code. Check your Client ID and make sure the Google Drive API is enabled.</string>
 
+    <!-- OneDrive setup -->
+    <string name="onedrive_setup_title">OneDrive Setup</string>
+    <string name="onedrive_setup_instructions">Register an app at portal.azure.com → Azure Active Directory → App registrations. Set the platform to \"Mobile and desktop applications\" and enable \"Allow public client flows\". Then enter the Application (client) ID below.</string>
+    <string name="onedrive_client_id_label">Application (Client) ID</string>
+    <string name="onedrive_client_id_hint">Enter your Azure app client ID</string>
+    <string name="onedrive_client_id_required">Client ID is required</string>
+    <string name="onedrive_folder_label">Folder Path (optional)</string>
+    <string name="onedrive_folder_hint">e.g. /Photos — leave blank for root</string>
+    <string name="onedrive_authorize">Authorize with Microsoft</string>
+    <string name="onedrive_authorized">✓ Authorized</string>
+    <string name="onedrive_not_authorized">Not authorized — tap to set up</string>
+    <string name="onedrive_auth_failed">Failed to get device code. Check your Client ID and make sure Files.Read is enabled.</string>
+
+    <!-- Immich setup -->
+    <string name="immich_setup_title">Immich Setup</string>
+    <string name="immich_host_label">Immich Host / IP Address</string>
+    <string name="immich_host_hint">e.g. 192.168.1.50 or photos.example.com</string>
+    <string name="immich_port_hint">2283 (default) or 443 (HTTPS)</string>
+    <string name="immich_api_key_label">API Key</string>
+    <string name="immich_api_key_hint">Generate in Immich → Account Settings → API Keys</string>
+    <string name="immich_album_id_label">Album ID (optional)</string>
+    <string name="immich_album_id_hint">Leave blank to show all photos</string>
+    <string name="immich_authorized">✓ Configured</string>
+    <string name="immich_not_authorized">Not configured — tap to set up</string>
+
+    <!-- Nextcloud setup -->
+    <string name="nextcloud_setup_title">Nextcloud Setup</string>
+    <string name="nextcloud_host_label">Nextcloud Host / IP Address</string>
+    <string name="nextcloud_host_hint">e.g. cloud.example.com or 192.168.1.50</string>
+    <string name="nextcloud_port_hint">443 (HTTPS) or 80 (HTTP)</string>
+    <string name="nextcloud_username_hint">Nextcloud username</string>
+    <string name="nextcloud_password_label">Password / App Password</string>
+    <string name="nextcloud_password_hint">Use an app password for better security</string>
+    <string name="nextcloud_folder_hint">e.g. /Photos or /family/Pictures</string>
+
     <!-- Synology setup -->
     <string name="nas_host_label">NAS Host / IP Address</string>
     <string name="nas_host_hint">e.g. 192.168.1.100 or nas.local</string>

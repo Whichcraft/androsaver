@@ -18,6 +18,12 @@
     <PreferenceCategory android:key="cat_sources" android:title="Image Sources">
         <SwitchPreferenceCompat android:key="source_google_drive" android:title="Google Drive" android:summary="Fetch images from your Google Drive" />
         <Preference android:key="google_drive_setup" android:title="Google Drive Setup" android:icon="@android:drawable/ic_menu_upload" />
+        <SwitchPreferenceCompat android:key="source_onedrive" android:title="OneDrive" android:summary="Fetch images from your Microsoft OneDrive" />
+        <Preference android:key="onedrive_setup" android:title="OneDrive Setup" android:summary="Configure Microsoft account and folder" android:icon="@android:drawable/ic_menu_upload" />
+        <SwitchPreferenceCompat android:key="source_immich" android:title="Immich" android:summary="Fetch images from a self-hosted Immich server" />
+        <Preference android:key="immich_setup" android:title="Immich Setup" android:summary="Configure host, API key, and optional album" android:icon="@android:drawable/ic_menu_manage" />
+        <SwitchPreferenceCompat android:key="source_nextcloud" android:title="Nextcloud" android:summary="Fetch images from a Nextcloud instance" />
+        <Preference android:key="nextcloud_setup" android:title="Nextcloud Setup" android:summary="Configure host, credentials, and folder" android:icon="@android:drawable/ic_menu_manage" />
         <SwitchPreferenceCompat android:key="source_synology" android:title="Synology NAS" android:summary="Fetch images from a Synology NAS" />
         <Preference android:key="synology_setup" android:title="Synology NAS Setup" android:summary="Configure host, credentials, and folder" android:icon="@android:drawable/ic_menu_manage" />
         <SwitchPreferenceCompat android:key="source_local_storage" android:title="Device Photos" android:summary="Show photos from this device" />

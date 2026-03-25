@@ -65,6 +65,29 @@
             android:exported="false"
             android:label="@string/google_auth_title" />
 
+        <!-- OneDrive setup -->
+        <activity
+            android:name=".OneDriveSetupActivity"
+            android:exported="false"
+            android:label="@string/onedrive_setup_title" />
+
+        <activity
+            android:name=".OneDriveAuthActivity"
+            android:exported="false"
+            android:label="@string/onedrive_setup_title" />
+
+        <!-- Immich setup -->
+        <activity
+            android:name=".ImmichSetupActivity"
+            android:exported="false"
+            android:label="@string/immich_setup_title" />
+
+        <!-- Nextcloud setup -->
+        <activity
+            android:name=".NextcloudSetupActivity"
+            android:exported="false"
+            android:label="@string/nextcloud_setup_title" />
+
         <!-- Synology NAS setup -->
         <activity
             android:name=".SynologySetupActivity"
