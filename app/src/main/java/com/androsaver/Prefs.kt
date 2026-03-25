@@ -23,7 +23,12 @@ object Prefs {
     const val TRANSITION_EFFECT = "transition_effect"
     const val TRANSITION_SPEED = "transition_speed"
 
+    // Screensaver mode
+    const val SCREENSAVER_MODE = "screensaver_mode"
+    const val MODE_SLIDESHOW   = "slideshow"
+    const val MODE_VISUALIZER  = "visualizer"
+
     // Visualizer
-    const val ENABLE_VISUALIZER  = "enable_visualizer"
-    const val VISUALIZER_MODE    = "visualizer_mode"   // mode name or "auto"
+    const val VISUALIZER_MODE      = "visualizer_mode"       // mode name or "auto"
+    const val VISUALIZER_INTENSITY = "visualizer_intensity"  // beat gain: 0.0–2.0, default 1.0
 }

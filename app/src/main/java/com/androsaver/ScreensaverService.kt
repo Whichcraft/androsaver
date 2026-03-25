@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.service.dreams.DreamService
 import android.util.Log
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
@@ -47,6 +48,7 @@ class ScreensaverService : DreamService() {
         private val RANDOM_EFFECTS = listOf(
             "crossfade", "fade_black", "slide_left", "slide_right", "zoom_in", "zoom_out"
         )
+        private val INTENSITY_STEPS = floatArrayOf(0.0f, 0.5f, 1.0f, 1.5f, 2.0f)
     }
 
     // -------------------------------------------------------------------------
@@ -66,9 +68,11 @@ class ScreensaverService : DreamService() {
         binding.imageView2.alpha = 0f
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        if (prefs.getBoolean(Prefs.ENABLE_VISUALIZER, false)) {
+        if (prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) == Prefs.MODE_VISUALIZER) {
+            isInteractive = true   // receive DPAD events from remote
             startVisualizerMode(prefs.getString(Prefs.VISUALIZER_MODE, "auto") ?: "auto")
         } else {
+            isInteractive = false
             loadImages()
         }
     }
@@ -86,12 +90,16 @@ class ScreensaverService : DreamService() {
     // -------------------------------------------------------------------------
 
     private fun startVisualizerMode(modePref: String) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         val vv = VisualizerView(this)
         visualizerView = vv
 
         if (modePref != "auto") {
             vv.setMode(modePref)
         }
+
+        vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "1.0")
+            ?.toFloatOrNull() ?: 1.0f
 
         binding.visualizerContainer.addView(vv)
         binding.visualizerContainer.visibility = View.VISIBLE
@@ -117,6 +125,36 @@ class ScreensaverService : DreamService() {
         vizCycleRunnable = null
         visualizerView?.stopVisualizer()
         visualizerView = null
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val vv = visualizerView
+        if (vv == null) {
+            // Not in visualizer mode — any key dismisses the dream
+            if (event.action == KeyEvent.ACTION_DOWN) finish()
+            return true
+        }
+        if (event.action != KeyEvent.ACTION_DOWN) return true  // consume key-up silently
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_RIGHT -> vv.nextMode()
+            KeyEvent.KEYCODE_DPAD_LEFT  -> vv.previousMode()
+            KeyEvent.KEYCODE_DPAD_UP    -> adjustIntensity(+1)
+            KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
+            else -> finish()  // Back, Home, any other key — dismiss
+        }
+        return true
+    }
+
+    private fun adjustIntensity(delta: Int) {
+        val vv = visualizerView ?: return
+        val current = vv.renderer.beatGain
+        val idx = INTENSITY_STEPS.indexOfFirst { it >= current - 0.01f }.takeIf { it >= 0 } ?: 2
+        val newIdx = (idx + delta).coerceIn(0, INTENSITY_STEPS.lastIndex)
+        val newGain = INTENSITY_STEPS[newIdx]
+        vv.renderer.beatGain = newGain
+        PreferenceManager.getDefaultSharedPreferences(this).edit()
+            .putString(Prefs.VISUALIZER_INTENSITY, newGain.toString())
+            .apply()
     }
 
     // -------------------------------------------------------------------------

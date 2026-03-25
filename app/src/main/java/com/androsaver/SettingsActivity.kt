@@ -3,7 +3,9 @@ package com.androsaver
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.ListPreference
 import androidx.preference.Preference
+import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 
@@ -24,6 +26,15 @@ class SettingsActivity : AppCompatActivity() {
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.screensaver_preferences, rootKey)
+
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) ?: Prefs.MODE_SLIDESHOW
+            updateModeVisibility(currentMode)
+
+            findPreference<ListPreference>(Prefs.SCREENSAVER_MODE)?.setOnPreferenceChangeListener { _, newValue ->
+                updateModeVisibility(newValue as String)
+                true
+            }
         }
 
         override fun onResume() {
@@ -43,6 +54,13 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 else -> super.onPreferenceTreeClick(preference)
             }
+        }
+
+        private fun updateModeVisibility(mode: String) {
+            val isSlideshow = mode == Prefs.MODE_SLIDESHOW
+            findPreference<PreferenceCategory>("cat_sources")?.isVisible = isSlideshow
+            findPreference<PreferenceCategory>("cat_slideshow")?.isVisible = isSlideshow
+            findPreference<PreferenceCategory>("cat_visualizer")?.isVisible = !isSlideshow
         }
 
         private fun updateGoogleDriveStatus() {

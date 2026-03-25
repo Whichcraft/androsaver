@@ -1,15 +1,28 @@
 # AndroSaver
 
-An Android TV screensaver app for the Huawei TV Stick (and any Android TV device) that fetches photos from **Google Drive** or a **Synology NAS** and displays them as a fullscreen slideshow.
+An Android TV screensaver app for the Huawei TV Stick (and any Android TV device). Choose between a **photo slideshow** (Google Drive / Synology NAS) or a fullscreen **music visualizer** that reacts to whatever is playing on the TV.
 
 ## Features
 
+### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
 - Both sources can be active simultaneously; images are shuffled together
 - Six transition effects: **Crossfade**, **Fade to Black**, **Slide Left**, **Slide Right**, **Zoom In**, **Zoom Out**, plus a **Random** mode
 - Configurable time per image (5 s – 30 min)
 - Configurable transition speed (1 – 5 seconds)
+
+### Music Visualizer
+- Ten audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **Plasma**, **Tunnel**, **Lissajous**, **Nova**, **Spiral**, **Bubbles**, **Spectrum**, **Waterfall**
+- Reacts to system audio — works with any app playing music or video on the TV
+- **Remote control** — use the TV remote while the visualizer is running:
+  - **←** / **→** — previous / next visual effect
+  - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Subtle → Normal → High → Intense)
+  - Any other key — dismiss the screensaver
+- Auto-cycle mode rotates through all effects every 90 seconds
+- Configurable effect and intensity via Settings
+
+### General
 - Registered as a system Dream Service — appears in Android TV's screensaver settings
 
 ## Installation
@@ -88,9 +101,11 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 
 ## Settings Reference
 
-All options are configured in the **AndroSaver Settings** app.
+All options are configured in the **AndroSaver Settings** app. The top-level **Screensaver Mode** picker switches between Photo Slideshow and Music Visualizer — only the relevant settings are shown.
 
-### Image Sources
+### Photo Slideshow
+
+#### Image Sources
 
 | Setting | Description |
 |---------|-------------|
@@ -101,15 +116,13 @@ All options are configured in the **AndroSaver Settings** app.
 
 Both sources can be enabled at the same time — images from all sources are merged and shuffled.
 
-### Slideshow
+#### Slideshow
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
 | **Time per Image** | 5 s, 10 s, 15 s, 30 s, 1 min, 2 min, 5 min, 10 min, 15 min, 20 min, 30 min | 10 s | How long each image is displayed |
 | **Transition Speed** | 1 s, 2 s, 3 s, 4 s, 5 s | 1.5 s | Duration of the animation between images |
 | **Transition Effect** | Crossfade, Fade to Black, Slide Left, Slide Right, Zoom In, Zoom Out, Random | Crossfade | Animation style used between images |
-
-#### Transition Effects
 
 | Effect | Description |
 |--------|-------------|
@@ -121,19 +134,60 @@ Both sources can be enabled at the same time — images from all sources are mer
 | **Zoom Out** | Old image scales up and fades out as new image fades in |
 | **Random** | A different effect is picked at random for each transition |
 
+### Music Visualizer
+
+| Setting | Options | Default | Description |
+|---------|---------|---------|-------------|
+| **Visual Effect** | Auto, Yantra, Cube, Plasma, Tunnel, Lissajous, Nova, Spiral, Bubbles, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects every 90 s |
+| **Effect Intensity** | Off, Subtle, Normal, High, Intense | Normal | How strongly the visuals react to the beat |
+
+#### Remote Control (while visualizer is running)
+
+| Key | Action |
+|-----|--------|
+| **←** | Previous effect |
+| **→** | Next effect |
+| **↑** | Increase intensity (one step) |
+| **↓** | Decrease intensity (one step) |
+| Any other key | Dismiss the screensaver |
+
+Intensity changes made with the remote are saved and reflected in Settings.
+
+#### Visual Effects
+
+| Effect | Description |
+|--------|-------------|
+| **Yantra** | Psychedelic sacred-geometry mandala with 6 concentric polygon rings, web connections, neon spokes, and beat-driven spring pulses |
+| **Cube** | Dual wireframe cubes with slow rotation and spectrum colour-fade |
+| **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
+| **Tunnel** | First-person ride through a neon tube; beat spawns triangles that fly toward the camera |
+| **Lissajous** | 3D trefoil Lissajous knot with two-pass neon glow and hard beat spring burst |
+| **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
+| **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |
+| **Bubbles** | Translucent full-screen rising bubbles driven by bass energy; synchronised beat pulse |
+| **Spectrum** | Log-spaced spectrum analyser with peak markers and waveform overlay |
+| **Waterfall** | Scrolling time-frequency spectrogram; beat flashes the leading edge |
+
 ## Architecture
 
 ```
 ScreensaverService (DreamService)
-  ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
-  └── SynologySource       ← Synology DSM FileStation API
+  ├── Photo Slideshow mode
+  │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
+  │   └── SynologySource       ← Synology DSM FileStation API
+  └── Music Visualizer mode
+      ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
+      └── VisualizerView (GLSurfaceView)
+          └── VisualizerRenderer (OpenGL ES 2.0)
+              └── 10 × BaseMode  ← Yantra, Cube, Plasma, Tunnel, Lissajous,
+                                    Nova, Spiral, Bubbles, Spectrum, Waterfall
 
 SettingsActivity (PreferenceFragment)
   ├── GoogleDriveSetupActivity → GoogleAuthActivity (device flow)
   └── SynologySetupActivity
 ```
 
-Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects.
+Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
 
 ## Privacy
 

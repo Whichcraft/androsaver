@@ -44,6 +44,32 @@
         <item>5000</item>
     </string-array>
 
+    <string-array name="screensaver_mode_entries">
+        <item>Photo Slideshow</item>
+        <item>Music Visualizer</item>
+    </string-array>
+
+    <string-array name="screensaver_mode_values">
+        <item>slideshow</item>
+        <item>visualizer</item>
+    </string-array>
+
+    <string-array name="visualizer_intensity_entries">
+        <item>Off (no reaction)</item>
+        <item>Subtle</item>
+        <item>Normal</item>
+        <item>High</item>
+        <item>Intense</item>
+    </string-array>
+
+    <string-array name="visualizer_intensity_values">
+        <item>0.0</item>
+        <item>0.5</item>
+        <item>1.0</item>
+        <item>1.5</item>
+        <item>2.0</item>
+    </string-array>
+
     <string-array name="visualizer_mode_entries">
         <item>Auto (cycle all)</item>
         <item>Yantra</item>
