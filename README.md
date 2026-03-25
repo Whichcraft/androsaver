@@ -7,6 +7,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
 - **OneDrive source** — streams photos from Microsoft OneDrive using OAuth 2.0 device flow; works with personal and work/school accounts
+- **Dropbox source** — streams photos from Dropbox via OAuth 2.0 authorization code flow; configurable folder path
 - **Immich source** — streams photos from a self-hosted [Immich](https://immich.app) server via its REST API; API key auth; optional album filter
 - **Nextcloud source** — streams photos from any folder via WebDAV; works with app passwords and self-signed certificates
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
@@ -112,6 +113,25 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
 10. On any other device, visit the URL and enter the code.
 11. Return to Settings and enable the **OneDrive** toggle.
 
+### Dropbox
+
+1. Go to [dropbox.com/developers](https://www.dropbox.com/developers) → **App Console** → **Create app**.
+2. Choose **Scoped access**, **Full Dropbox** (or **App Folder**), give it a name.
+3. On the app's **Settings** tab, copy the **App Key** and **App Secret**.
+4. Open **AndroSaver Settings** on your TV.
+5. Tap **Dropbox Setup** and fill in:
+
+   | Field | Description |
+   |-------|-------------|
+   | **App Key** | From Dropbox App Console → Settings |
+   | **App Secret** | From Dropbox App Console → Settings |
+   | **Folder Path** | Optional — e.g. `/Photos`; leave blank for root |
+
+6. Tap **Authorize with Dropbox** — the screen shows a URL to visit.
+7. On another device, visit the URL, sign in to Dropbox, and authorize the app.
+8. Dropbox displays an authorization code — type it into the TV and tap **Submit Code**.
+9. Enable the **Dropbox** toggle in Settings.
+
 ### Immich
 
 1. In Immich web UI, go to **Account Settings → API Keys** and create a new key.
@@ -172,6 +192,7 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
 |--------|---------|
 | Google Drive | Any format with an `image/` MIME type |
 | OneDrive | Any format with an `image/` MIME type |
+| Dropbox | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
 | Immich | Any `IMAGE` type asset (as classified by Immich) |
 | Nextcloud | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` (or any `image/` MIME type) |
 | Synology NAS | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
@@ -220,6 +241,8 @@ All options are configured in the **AndroSaver Settings** app. The top-level **S
 | **Google Drive Setup** | Configure OAuth credentials and folder |
 | **OneDrive** toggle | Enable/disable fetching images from Microsoft OneDrive |
 | **OneDrive Setup** | Authorize with Microsoft account and set folder path |
+| **Dropbox** toggle | Enable/disable fetching images from Dropbox |
+| **Dropbox Setup** | Configure App Key/Secret and authorize |
 | **Immich** toggle | Enable/disable fetching images from a self-hosted Immich server |
 | **Immich Setup** | Configure host, API key, and optional album ID |
 | **Nextcloud** toggle | Enable/disable fetching images from a Nextcloud instance |
@@ -336,6 +359,7 @@ ScreensaverService (DreamService)
         ├── Photo Slideshow mode
         │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
         │   ├── OneDriveSource       ← Microsoft Graph API + token refresh
+        │   ├── DropboxSource        ← Dropbox API v2 + OAuth code flow
         │   ├── ImmichSource         ← Immich REST API + API key auth
         │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
         │   ├── SynologySource       ← Synology DSM FileStation API
@@ -355,6 +379,10 @@ ScreensaverService (DreamService)
 
 SettingsActivity (PreferenceFragment)
   ├── GoogleDriveSetupActivity → GoogleAuthActivity (device flow)
+  ├── OneDriveSetupActivity → OneDriveAuthActivity (device flow)
+  ├── DropboxSetupActivity → DropboxAuthActivity (auth code flow)
+  ├── ImmichSetupActivity
+  ├── NextcloudSetupActivity
   ├── SynologySetupActivity
   └── PreviewActivity              ← in-app screensaver preview
 ```
@@ -367,4 +395,6 @@ Credentials are stored in Android SharedPreferences (on-device only). No data is
 
 ## License
 
-MIT
+Copyright © 2026 Tom Stocker. All Rights Reserved.
+
+Unauthorised copying, modification, distribution, or sale of this software is strictly prohibited. See [LICENSE](LICENSE) for full terms.

@@ -2,7 +2,24 @@
 
 All notable changes to AndroSaver are documented here.
 
-## 2026-03-25 (session 9)\n\n### Added\n- **Dropbox source** — fetch photos from Dropbox via API v2; OAuth 2.0 authorization code flow (user visits auth URL on another device, pastes code back); access token refreshed automatically using App Key + App Secret; images fetched as temporary links (4-hour pre-signed URLs) retrieved in parallel; configurable folder path\n\n---\n\n## 2026-03-25 (session 8)
+## 2026-03-25 (session 10)
+
+### Added
+- **Proprietary licence** — replaced placeholder MIT licence with All Rights Reserved; unauthorised copying, modification, distribution, or sale is prohibited
+
+### Changed
+- **README** — updated to reflect Dropbox source, proprietary licence, and full setup activity list in architecture section
+
+---
+
+## 2026-03-25 (session 9)
+
+### Added
+- **Dropbox source** — fetch photos from Dropbox via API v2; OAuth 2.0 authorization code flow (user visits auth URL on another device, pastes the code back into the app); access token refreshed automatically using App Key + App Secret; images fetched as temporary links (4-hour pre-signed URLs) retrieved in parallel; configurable folder path
+
+---
+
+## 2026-03-25 (session 8)
 
 ### Added
 - **Immich source** — fetch photos from a self-hosted [Immich](https://immich.app) server via its REST API; authenticates with an API key (generate in Account Settings → API Keys); optional Album ID to restrict to one album, or leave blank to show all photos; supports self-signed certificates; default port 2283
