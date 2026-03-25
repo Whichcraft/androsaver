@@ -86,7 +86,7 @@ class ScreensaverEngine(
             startSlideshowMode(prefs)
         }
 
-        if (prefs.getBoolean(Prefs.SHOW_CLOCK, true)) startClock()
+        if (prefs.getBoolean(Prefs.SHOW_CLOCK, false)) startClock()
         if (prefs.getBoolean(Prefs.WEATHER_ENABLED, false)) startWeather(prefs)
     }
 
@@ -242,6 +242,9 @@ class ScreensaverEngine(
     // ── Slideshow mode ────────────────────────────────────────────────────────
 
     private fun startSlideshowMode(prefs: SharedPreferences) {
+        // Restore image views in case a previous run was in visualizer mode (which hides them)
+        binding.imageView1.visibility = View.VISIBLE
+        binding.imageView2.visibility = View.VISIBLE
         if (prefs.getBoolean(Prefs.VIZ_OVERLAY_ENABLED, false)) {
             val overlay = VisualizerView(context)
             overlayVisualizerView = overlay
