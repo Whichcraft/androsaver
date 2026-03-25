@@ -21,6 +21,7 @@ class AudioEngine {
 
     private var visualizer: Visualizer? = null
     private val smoothFft = FloatArray(FFT_BINS)
+    private val genreWeights = FloatArray(20) { 1f }
     private val energyHistory = ArrayDeque<Float>()
     private var energySum = 0.0          // running sum for O(1) average
     private val _data = AtomicReference(AudioData())
@@ -55,6 +56,15 @@ class AudioEngine {
         }
     }
 
+    fun applyGenreHint(genre: String) {
+        for (i in 0..19) genreWeights[i] = 1f
+        when (genre) {
+            "electronic" -> { for (i in 0..4) genreWeights[i] = 1.5f; for (i in 10..19) genreWeights[i] = 0.7f }
+            "rock"       -> { for (i in 2..8) genreWeights[i] = 1.3f }
+            "classical"  -> { for (i in 0..9) genreWeights[i] = 0.6f; for (i in 10..19) genreWeights[i] = 1.4f }
+        }
+    }
+
     fun stop() {
         visualizer?.apply {
             try { enabled = false; release() } catch (_: Exception) {}
@@ -73,7 +83,7 @@ class AudioEngine {
 
         // Beat energy = mean of bass bins 0..19 (≈ 0–860 Hz with 512 bins at 44100 Hz)
         var bassSum = 0f
-        for (i in 0 until 20) bassSum += smoothFft[i]
+        for (i in 0 until 20) bassSum += smoothFft[i] * genreWeights[i]
         val bassEnergy = bassSum / 20f
 
         // Rolling history for normalisation — running sum avoids iterating the deque each frame

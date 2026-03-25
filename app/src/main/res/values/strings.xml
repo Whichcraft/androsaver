@@ -57,6 +57,11 @@
     <string name="connection_success_no_images">Connected, but no images found in the specified folder.</string>
     <string name="connection_failed">Connection failed: %s</string>
 
+    <!-- Screensaver extras -->
+    <string name="preview_screensaver">Start Now</string>
+    <string name="preview_screensaver_summary">Launch the screensaver immediately</string>
+    <string name="cache_fallback_notice">Network unavailable — showing cached images</string>
+
     <!-- Common -->
     <string name="settings_saved">Settings saved</string>
     <string name="save">Save</string>

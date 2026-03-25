@@ -29,6 +29,25 @@ object Prefs {
     const val MODE_VISUALIZER  = "visualizer"
 
     // Visualizer
-    const val VISUALIZER_MODE      = "visualizer_mode"       // mode name or "auto"
-    const val VISUALIZER_INTENSITY = "visualizer_intensity"  // beat gain: 0.0–2.0, default 1.0
+    const val VISUALIZER_MODE      = "visualizer_mode"
+    const val VISUALIZER_INTENSITY = "visualizer_intensity"
+    const val VIZ_CYCLE_INTERVAL   = "viz_cycle_interval"
+    const val AUDIO_GENRE          = "audio_genre"
+
+    // Slideshow extras
+    const val SHOW_CLOCK           = "show_clock"
+    const val KEN_BURNS_ENABLED    = "ken_burns_enabled"
+    const val VIZ_OVERLAY_ENABLED  = "viz_overlay_on_slideshow"
+    const val VIZ_OVERLAY_OPACITY  = "viz_overlay_opacity"
+    const val ENABLE_LOCAL_STORAGE = "source_local_storage"
+
+    // Schedule
+    const val SCHEDULE_ENABLED  = "schedule_enabled"
+    const val SCHEDULE_START_HR = "schedule_start_hr"
+    const val SCHEDULE_END_HR   = "schedule_end_hr"
+
+    // Weather
+    const val WEATHER_ENABLED = "weather_enabled"
+    const val WEATHER_CITY    = "weather_city"
+    const val WEATHER_API_KEY = "weather_api_key"
 }

@@ -1,13 +1,18 @@
 package com.androsaver
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
+import androidx.preference.SwitchPreferenceCompat
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -15,14 +20,18 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         if (savedInstanceState == null) {
-            supportFragmentManager
-                .beginTransaction()
+            supportFragmentManager.beginTransaction()
                 .replace(R.id.settings_container, SettingsFragment())
                 .commit()
         }
     }
 
     class SettingsFragment : PreferenceFragmentCompat() {
+
+        private val storagePermission = if (Build.VERSION.SDK_INT >= 33)
+            Manifest.permission.READ_MEDIA_IMAGES
+        else
+            Manifest.permission.READ_EXTERNAL_STORAGE
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.screensaver_preferences, rootKey)
@@ -35,6 +44,13 @@ class SettingsActivity : AppCompatActivity() {
                 updateModeVisibility(newValue as String)
                 true
             }
+
+            findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.setOnPreferenceChangeListener { pref, newValue ->
+                if (newValue == true && !hasStoragePermission()) {
+                    requestPermissions(arrayOf(storagePermission), 42)
+                    false  // revert; will be re-enabled if permission granted
+                } else true
+            }
         }
 
         override fun onResume() {
@@ -42,8 +58,19 @@ class SettingsActivity : AppCompatActivity() {
             updateGoogleDriveStatus()
         }
 
+        override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+            if (requestCode == 42 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.isChecked = true
+            }
+        }
+
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
             return when (preference.key) {
+                "preview_screensaver" -> {
+                    startActivity(Intent(requireContext(), PreviewActivity::class.java))
+                    true
+                }
                 "google_drive_setup" -> {
                     startActivity(Intent(requireContext(), GoogleDriveSetupActivity::class.java))
                     true
@@ -66,11 +93,13 @@ class SettingsActivity : AppCompatActivity() {
         private fun updateGoogleDriveStatus() {
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val authorized = !prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null).isNullOrEmpty()
-            findPreference<Preference>("google_drive_setup")?.summary = if (authorized) {
+            findPreference<Preference>("google_drive_setup")?.summary = if (authorized)
                 getString(R.string.google_drive_authorized)
-            } else {
+            else
                 getString(R.string.google_drive_not_authorized)
-            }
         }
+
+        private fun hasStoragePermission() =
+            ContextCompat.checkSelfPermission(requireContext(), storagePermission) == PackageManager.PERMISSION_GRANTED
     }
 }

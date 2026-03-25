@@ -26,7 +26,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
     }
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
-        val accessToken = refreshAccessToken() ?: run {
+        val accessToken = refreshAccessTokenSilently() ?: run {
             Log.w(TAG, "No valid access token")
             return@withContext emptyList()
         }
@@ -70,7 +70,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
         }
     }
 
-    private fun refreshAccessToken(): String? {
+    internal fun refreshAccessTokenSilently(): String? {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val refreshToken = prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null) ?: return null
         val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null) ?: return null

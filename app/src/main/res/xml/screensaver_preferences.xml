@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <Preference
+        android:key="preview_screensaver"
+        android:title="@string/preview_screensaver"
+        android:summary="@string/preview_screensaver_summary"
+        android:icon="@android:drawable/ic_media_play" />
 
     <ListPreference
         android:key="screensaver_mode"
@@ -10,83 +15,41 @@
         android:defaultValue="slideshow"
         android:summary="%s" />
 
-    <PreferenceCategory
-        android:key="cat_sources"
-        android:title="Image Sources">
-
-        <SwitchPreferenceCompat
-            android:key="source_google_drive"
-            android:title="Google Drive"
-            android:summary="Fetch images from your Google Drive" />
-
-        <Preference
-            android:key="google_drive_setup"
-            android:title="Google Drive Setup"
-            android:icon="@android:drawable/ic_menu_upload" />
-
-        <SwitchPreferenceCompat
-            android:key="source_synology"
-            android:title="Synology NAS"
-            android:summary="Fetch images from a Synology NAS" />
-
-        <Preference
-            android:key="synology_setup"
-            android:title="Synology NAS Setup"
-            android:summary="Configure host, credentials, and folder"
-            android:icon="@android:drawable/ic_menu_manage" />
-
+    <PreferenceCategory android:key="cat_sources" android:title="Image Sources">
+        <SwitchPreferenceCompat android:key="source_google_drive" android:title="Google Drive" android:summary="Fetch images from your Google Drive" />
+        <Preference android:key="google_drive_setup" android:title="Google Drive Setup" android:icon="@android:drawable/ic_menu_upload" />
+        <SwitchPreferenceCompat android:key="source_synology" android:title="Synology NAS" android:summary="Fetch images from a Synology NAS" />
+        <Preference android:key="synology_setup" android:title="Synology NAS Setup" android:summary="Configure host, credentials, and folder" android:icon="@android:drawable/ic_menu_manage" />
+        <SwitchPreferenceCompat android:key="source_local_storage" android:title="Device Photos" android:summary="Show photos from this device" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:key="cat_slideshow"
-        android:title="Slideshow">
-
-        <ListPreference
-            android:key="transition_duration"
-            android:title="Time per Image"
-            android:entries="@array/duration_entries"
-            android:entryValues="@array/duration_values"
-            android:defaultValue="10000"
-            android:summary="%s" />
-
-        <ListPreference
-            android:key="transition_speed"
-            android:title="Transition Speed"
-            android:entries="@array/transition_speed_entries"
-            android:entryValues="@array/transition_speed_values"
-            android:defaultValue="1500"
-            android:summary="%s" />
-
-        <ListPreference
-            android:key="transition_effect"
-            android:title="Transition Effect"
-            android:entries="@array/transition_entries"
-            android:entryValues="@array/transition_values"
-            android:defaultValue="crossfade"
-            android:summary="%s" />
-
+    <PreferenceCategory android:key="cat_slideshow" android:title="Slideshow">
+        <SwitchPreferenceCompat android:key="show_clock" android:title="Show Clock" android:summary="Display the time and date while the screensaver runs" android:defaultValue="true" />
+        <SwitchPreferenceCompat android:key="ken_burns_enabled" android:title="Ken Burns Effect" android:summary="Slow pan and zoom while each photo is displayed" android:defaultValue="true" />
+        <SwitchPreferenceCompat android:key="viz_overlay_on_slideshow" android:title="Visualizer Overlay" android:summary="Show audio-reactive visuals behind photos" android:defaultValue="false" />
+        <ListPreference android:key="viz_overlay_opacity" android:title="Overlay Opacity" android:entries="@array/overlay_opacity_entries" android:entryValues="@array/overlay_opacity_values" android:defaultValue="0.3" android:summary="%s" android:dependency="viz_overlay_on_slideshow" />
+        <ListPreference android:key="transition_duration" android:title="Time per Image" android:entries="@array/duration_entries" android:entryValues="@array/duration_values" android:defaultValue="10000" android:summary="%s" />
+        <ListPreference android:key="transition_speed" android:title="Transition Speed" android:entries="@array/transition_speed_entries" android:entryValues="@array/transition_speed_values" android:defaultValue="1500" android:summary="%s" />
+        <ListPreference android:key="transition_effect" android:title="Transition Effect" android:entries="@array/transition_entries" android:entryValues="@array/transition_values" android:defaultValue="crossfade" android:summary="%s" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:key="cat_visualizer"
-        android:title="Visualizer">
+    <PreferenceCategory android:key="cat_visualizer" android:title="Visualizer">
+        <ListPreference android:key="visualizer_mode" android:title="Visual Effect" android:entries="@array/visualizer_mode_entries" android:entryValues="@array/visualizer_mode_values" android:defaultValue="auto" android:summary="%s" />
+        <ListPreference android:key="visualizer_intensity" android:title="Effect Intensity" android:summary="How strongly visuals react to the beat" android:entries="@array/visualizer_intensity_entries" android:entryValues="@array/visualizer_intensity_values" android:defaultValue="1.0" />
+        <ListPreference android:key="viz_cycle_interval" android:title="Auto-Cycle Interval" android:entries="@array/viz_cycle_entries" android:entryValues="@array/viz_cycle_values" android:defaultValue="90000" android:summary="%s" />
+        <ListPreference android:key="audio_genre" android:title="Music Genre" android:entries="@array/audio_genre_entries" android:entryValues="@array/audio_genre_values" android:defaultValue="any" android:summary="%s" />
+    </PreferenceCategory>
 
-        <ListPreference
-            android:key="visualizer_mode"
-            android:title="Visual Effect"
-            android:entries="@array/visualizer_mode_entries"
-            android:entryValues="@array/visualizer_mode_values"
-            android:defaultValue="auto"
-            android:summary="%s" />
+    <PreferenceCategory android:key="cat_schedule" android:title="Active Hours">
+        <SwitchPreferenceCompat android:key="schedule_enabled" android:title="Enable Schedule" android:summary="Only run the screensaver during set hours" android:defaultValue="false" />
+        <ListPreference android:key="schedule_start_hr" android:title="Start Hour" android:entries="@array/hour_entries" android:entryValues="@array/hour_values" android:defaultValue="8" android:summary="%s" android:dependency="schedule_enabled" />
+        <ListPreference android:key="schedule_end_hr" android:title="End Hour" android:entries="@array/hour_entries" android:entryValues="@array/hour_values" android:defaultValue="22" android:summary="%s" android:dependency="schedule_enabled" />
+    </PreferenceCategory>
 
-        <ListPreference
-            android:key="visualizer_intensity"
-            android:title="Effect Intensity"
-            android:summary="How strongly visuals react to the beat"
-            android:entries="@array/visualizer_intensity_entries"
-            android:entryValues="@array/visualizer_intensity_values"
-            android:defaultValue="1.0" />
-
+    <PreferenceCategory android:key="cat_weather" android:title="Weather Widget">
+        <SwitchPreferenceCompat android:key="weather_enabled" android:title="Show Weather" android:summary="Display current temperature in the corner" android:defaultValue="false" />
+        <EditTextPreference android:key="weather_city" android:title="City" android:summary="e.g. London or New York,US" android:dependency="weather_enabled" />
+        <EditTextPreference android:key="weather_api_key" android:title="OpenWeatherMap API Key" android:summary="Get a free key at openweathermap.org/api" android:dependency="weather_enabled" />
     </PreferenceCategory>
 
 </PreferenceScreen>

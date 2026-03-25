@@ -9,7 +9,7 @@ import android.opengl.GLSurfaceView
  */
 class VisualizerView(context: Context) : GLSurfaceView(context) {
 
-    private val audio    = AudioEngine()
+    internal val audio   = AudioEngine()
     val renderer         = VisualizerRenderer(audio)
 
     init {
