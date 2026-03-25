@@ -1,11 +1,13 @@
 # AndroSaver
 
-An Android TV screensaver app for the Huawei TV Stick (and any Android TV device). Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** that reacts to whatever is playing on the TV.
+An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
 ## Features
 
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
+- **OneDrive source** — streams photos from Microsoft OneDrive using OAuth 2.0 device flow; works with personal and work/school accounts
+- **Nextcloud source** — streams photos from any folder via WebDAV; works with app passwords and self-signed certificates
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
 - **Device storage source** — uses photos from the TV's local storage via MediaStore
 - All sources can be active simultaneously; images are merged and shuffled
@@ -16,8 +18,10 @@ An Android TV screensaver app for the Huawei TV Stick (and any Android TV device
 - **Visualizer overlay** — music visualizer rendered semi-transparently on top of the slideshow
 
 ### Music Visualizer
+Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
+
 - Ten audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **Plasma**, **Tunnel**, **Lissajous**, **Nova**, **Spiral**, **Bubbles**, **Spectrum**, **Waterfall**
-- Reacts to system audio — works with any app playing music or video on the TV
+- Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
   - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Subtle → Normal → High → Intense)
@@ -55,7 +59,7 @@ The easiest way to install on an Amazon Fire TV or Android TV device is via the 
 ## Requirements
 
 - Android 5.0+ (API 21)
-- Any Android device — optimised for Android TV (tested on Huawei TV Stick), also works on tablets and phones
+- Any Android device — optimised for Android TV (tested on Huawei TV Stick and Amazon Fire TV Stick), also works on tablets and phones
 - Android Studio Hedgehog or later (to build from source)
 - `RECORD_AUDIO` permission required for the Music Visualizer (prompted automatically when you select Visualizer mode in Settings)
 - `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` permission required for the Device Photos source (prompted when you enable the toggle)
@@ -89,6 +93,43 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 
 > **Getting a Folder ID:** Open Google Drive in a browser, navigate to the folder, and copy the ID from the URL (`/drive/folders/<FOLDER_ID>`).
 
+### OneDrive
+
+Microsoft's device auth flow works without a browser redirect, making it ideal for Android TV.
+
+1. Go to [portal.azure.com](https://portal.azure.com) and sign in.
+2. Open **Azure Active Directory → App registrations → New registration**.
+3. Give it any name; under **Supported account types** select *Accounts in any organizational directory and personal Microsoft accounts*.
+4. Under **Authentication → Platform configurations**, add **Mobile and desktop applications**.
+5. Still under Authentication, enable **Allow public client flows**.
+6. Copy the **Application (client) ID**.
+7. Open **AndroSaver Settings** on your TV.
+8. Tap **OneDrive Setup** and enter:
+   - **Client ID** — the Application (client) ID from step 6
+   - **Folder Path** *(optional)* — leave blank for root, or enter e.g. `/Photos`
+9. Tap **Authorize with Microsoft** — the screen shows a URL and a short code.
+10. On any other device, visit the URL and enter the code.
+11. Return to Settings and enable the **OneDrive** toggle.
+
+### Nextcloud
+
+1. Open **AndroSaver Settings** on your TV.
+2. Tap **Nextcloud Setup** and fill in:
+
+   | Field | Description |
+   |-------|-------------|
+   | **Host / IP** | e.g. `cloud.example.com` or `192.168.1.50` |
+   | **Port** | `443` (HTTPS) or `80` (HTTP) |
+   | **Use HTTPS** | Enable for HTTPS (self-signed certs are accepted) |
+   | **Username** | Your Nextcloud username |
+   | **Password / App Password** | Your Nextcloud password, or an app password from Nextcloud's Security settings |
+   | **Image Folder Path** | e.g. `/Photos` or `/family/Pictures` |
+
+3. Tap **Test Connection** to verify — a success message shows how many images were found.
+4. Tap **Save**, then enable the **Nextcloud** toggle in Settings.
+
+> **App passwords** are recommended: in Nextcloud, go to Settings → Security → Devices & Sessions → Create new app password.
+
 ### Synology NAS
 
 1. Open **AndroSaver Settings** on your TV.
@@ -111,6 +152,8 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 | Source | Formats |
 |--------|---------|
 | Google Drive | Any format with an `image/` MIME type |
+| OneDrive | Any format with an `image/` MIME type |
+| Nextcloud | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` (or any `image/` MIME type) |
 | Synology NAS | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
 
 ### Local Storage
@@ -155,6 +198,10 @@ All options are configured in the **AndroSaver Settings** app. The top-level **S
 |---------|-------------|
 | **Google Drive** toggle | Enable/disable fetching images from Google Drive |
 | **Google Drive Setup** | Configure OAuth credentials and folder |
+| **OneDrive** toggle | Enable/disable fetching images from Microsoft OneDrive |
+| **OneDrive Setup** | Authorize with Microsoft account and set folder path |
+| **Nextcloud** toggle | Enable/disable fetching images from a Nextcloud instance |
+| **Nextcloud Setup** | Configure host, credentials, and folder path |
 | **Synology NAS** toggle | Enable/disable fetching images from a Synology NAS |
 | **Synology NAS Setup** | Configure host, credentials, and folder path |
 | **Device Photos** toggle | Enable/disable fetching images from local device storage |
@@ -266,6 +313,8 @@ ScreensaverService (DreamService)
   └── ScreensaverEngine
         ├── Photo Slideshow mode
         │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
+        │   ├── OneDriveSource       ← Microsoft Graph API + token refresh
+        │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
         │   ├── SynologySource       ← Synology DSM FileStation API
         │   ├── LocalStorageSource   ← MediaStore device photos
         │   ├── ImageCache           ← offline fallback (200 images / 300 MB)

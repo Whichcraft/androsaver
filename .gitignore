@@ -21,3 +21,6 @@ app/build/
 
 # Google Services
 google-services.json
+
+# Claude Code working files
+.claude/
