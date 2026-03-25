@@ -46,7 +46,11 @@ class SynologySource(private val context: Context) : ImageSource {
         val baseUrl = "$scheme://$host:$port"
 
         val sid = login(baseUrl, username, password) ?: return@withContext emptyList()
-        listImages(baseUrl, folder, sid)
+        try {
+            listImages(baseUrl, folder, sid)
+        } finally {
+            logout(baseUrl, sid)
+        }
     }
 
     private fun login(baseUrl: String, username: String, password: String): String? {
@@ -119,6 +123,15 @@ class SynologySource(private val context: Context) : ImageSource {
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
+    }
+
+    private fun logout(baseUrl: String, sid: String) {
+        try {
+            val url = "$baseUrl/webapi/auth.cgi?api=SYNO.API.Auth&version=3&method=logout&session=AndroSaver&_sid=$sid"
+            client.newCall(Request.Builder().url(url).build()).execute().close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Logout failed (non-critical): ${e.message}")
+        }
     }
 
     companion object {

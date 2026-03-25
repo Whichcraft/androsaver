@@ -42,34 +42,36 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             "mimeType contains 'image/' and '$folderId' in parents and trashed = false",
             "UTF-8"
         )
-        val url = "https://www.googleapis.com/drive/v3/files" +
-                "?q=$query&fields=files(id,name,mimeType)&pageSize=1000"
-
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Bearer $accessToken")
-            .build()
+        val baseUrl = "https://www.googleapis.com/drive/v3/files" +
+                "?q=$query&fields=files(id,name,mimeType),nextPageToken&pageSize=1000"
 
         try {
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Log.e(TAG, "List files failed: ${response.code}")
-                response.close()
-                return@withContext emptyList()
-            }
-            val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
-            val files = json.getAsJsonArray("files") ?: return@withContext emptyList()
-
-            files.mapNotNull { file ->
-                val obj = file.asJsonObject
-                val fileId = obj.get("id")?.asString ?: return@mapNotNull null
-                val name = obj.get("name")?.asString ?: return@mapNotNull null
-                ImageItem(
-                    url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media",
-                    name = name,
-                    headers = mapOf("Authorization" to "Bearer $accessToken")
-                )
-            }
+            val items = mutableListOf<ImageItem>()
+            var pageToken: String? = null
+            do {
+                val url = if (pageToken != null) "$baseUrl&pageToken=${URLEncoder.encode(pageToken, "UTF-8")}" else baseUrl
+                val response = client.newCall(
+                    Request.Builder().url(url).addHeader("Authorization", "Bearer $accessToken").build()
+                ).execute()
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "List files failed: ${response.code}")
+                    response.close()
+                    break
+                }
+                val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+                json.getAsJsonArray("files")?.mapNotNullTo(items) { file ->
+                    val obj = file.asJsonObject
+                    val fileId = obj.get("id")?.asString ?: return@mapNotNullTo null
+                    val name = obj.get("name")?.asString ?: return@mapNotNullTo null
+                    ImageItem(
+                        url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media",
+                        name = name,
+                        headers = mapOf("Authorization" to "Bearer $accessToken")
+                    )
+                }
+                pageToken = json.get("nextPageToken")?.asString
+            } while (pageToken != null)
+            items
         } catch (e: Exception) {
             Log.e(TAG, "Error listing Drive files", e)
             emptyList()

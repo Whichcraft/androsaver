@@ -62,6 +62,10 @@
     <string name="preview_screensaver_summary">Launch the screensaver immediately</string>
     <string name="cache_fallback_notice">Network unavailable — showing cached images</string>
 
+    <!-- Permissions -->
+    <string name="audio_permission_denied">Microphone permission denied — the visualizer will run silently without audio reactivity</string>
+    <string name="invalid_port">Port must be a number between 1 and 65535</string>
+
     <!-- Common -->
     <string name="settings_saved">Settings saved</string>
     <string name="save">Save</string>
