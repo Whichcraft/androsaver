@@ -51,7 +51,8 @@ class YantraMode : BaseMode() {
         val beat = audio.beat
         hue += 0.005f; time += 0.02f + beat * 0.04f
         val cx = draw.W / 2f; val cy = draw.H / 2f
-        val maxR = minOf(draw.W, draw.H) * 0.46f
+        val maxR  = minOf(draw.W, draw.H) * 0.46f
+        val safeR = minOf(cx, cy) - 6f   // hard ceiling — nothing draws outside the screen
 
         val bass = fft.meanSlice(0, 6)
         val mid  = fft.meanSlice(6, 30)
@@ -74,7 +75,7 @@ class YantraMode : BaseMode() {
         // Collect ring vertices
         val allVerts = Array(N_RINGS) { i ->
             val baseR = maxR * (0.13f + i.toFloat() / (N_RINGS - 1) * 0.83f)
-            val r = baseR * (1f + poff[i] * 0.70f)
+            val r = (baseR * (1f + poff[i] * 0.70f)).coerceAtMost(safeR)
             ringVerts(i, r, cx, cy)
         }
 
@@ -114,7 +115,7 @@ class YantraMode : BaseMode() {
         }
 
         // Radial spokes
-        val outerR = maxR * (1.02f + beat * 0.55f)
+        val outerR = (maxR * (1.02f + beat * 0.55f)).coerceAtMost(safeR)
         for (s in 0 until N_SPOKES) {
             val a = s.toFloat() / N_SPOKES * TAU + time * 0.22f +
                     sin(time * 2.4f + s * 0.85f) * (0.05f + mid * 0.10f)
@@ -128,12 +129,11 @@ class YantraMode : BaseMode() {
             }
         }
 
-        // Central pulse — subtle, steady dot
-        val cr = maxOf(2f, 6f + bass * 8f + beat * 5f)
-        val cc = GLDraw.hsl(hue, l = 0.55f + beat * 0.10f)
-        draw.circle(cx, cy, cr, cc[0], cc[1], cc[2], 1f, segments = 24)
-        val cc2 = GLDraw.hsl((hue + 0.5f) % 1f, l = 0.75f)
-        draw.circle(cx, cy, cr / 3f, cc2[0], cc2[1], cc2[2], 1f, segments = 20)
+        // Central pulse — tiny accent dot, not dominant
+        val cr = maxOf(1f, 3f + bass * 2f + beat * 2f)
+        val cc = GLDraw.hsl(hue, l = 0.40f + beat * 0.06f)
+        draw.circle(cx, cy, cr, cc[0], cc[1], cc[2], 0.7f, segments = 16)
+        draw.circle(cx, cy, maxOf(1f, cr / 3f), 1f, 1f, 1f, 0.6f, segments = 10)
     }
 }
 

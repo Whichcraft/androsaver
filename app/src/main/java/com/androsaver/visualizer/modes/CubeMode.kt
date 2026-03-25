@@ -58,7 +58,9 @@ class CubeMode : BaseMode() {
         svel += (1f - scale) * 0.20f
         svel *= 0.72f
         scale += svel
-        scale = maxOf(0.5f, scale)
+        // maxScale: at worst-case z=-1 (sz=2.8) the outermost vertex must stay on screen
+        val maxScale = minOf(draw.W, draw.H) * 1.4f / 680f * 0.88f
+        scale = scale.coerceIn(0.5f, maxScale)
 
         // Draw two cubes: full scale and inner (45% scale, hue offset +0.5)
         val cubeParams = listOf(scale to 0f, scale * 0.45f to 0.5f)

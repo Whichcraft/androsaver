@@ -57,7 +57,7 @@ class TunnelMode : BaseMode() {
         hue += 0.006f
         val bass = fft.meanSlice(0, 6)
         val mid  = fft.meanSlice(6, 30)
-        val dt = 0.05f + bass * 0.13f + beat * 0.28f
+        val dt = 0.020f + bass * 0.07f + beat * 0.18f
         time += dt
 
         // Spawn beat triangles — threshold and count scale with beat (i.e. with intensity)
