@@ -21,6 +21,7 @@ class AudioEngine {
 
     private var visualizer: Visualizer? = null
     private val smoothFft = FloatArray(FFT_BINS)
+    private val genreWeights = FloatArray(20) { 1f }
     private val energyHistory = ArrayDeque<Float>()
     private var energySum = 0.0          // running sum for O(1) average
     private val _data = AtomicReference(AudioData())
@@ -35,23 +36,37 @@ class AudioEngine {
         if (visualizer != null) return
         try {
             val maxCap = Visualizer.getCaptureSizeRange()[1].coerceAtMost(1024)
-            visualizer = Visualizer(0).apply {
-                captureSize = maxCap
-                setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
-                    override fun onWaveFormDataCapture(v: Visualizer, bytes: ByteArray, rate: Int) {
+            val v = Visualizer(0)
+            try {
+                v.captureSize = maxCap
+                v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
+                    override fun onWaveFormDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
                         lastWave = bytes.toWaveform()
                         publish()
                     }
-                    override fun onFftDataCapture(v: Visualizer, bytes: ByteArray, rate: Int) {
+                    override fun onFftDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
                         lastFft = bytes.toFftMagnitude()
                         publish()
                     }
                 }, Visualizer.getMaxCaptureRate() / 2, true, true)
-                enabled = true
+                v.enabled = true
+                visualizer = v
+            } catch (e: Exception) {
+                try { v.release() } catch (_: Exception) {}
+                throw e
             }
             Log.d(TAG, "Visualizer started, captureSize=$maxCap")
         } catch (e: Exception) {
             Log.w(TAG, "Visualizer unavailable: ${e.message}")
+        }
+    }
+
+    fun applyGenreHint(genre: String) {
+        for (i in 0..19) genreWeights[i] = 1f
+        when (genre) {
+            "electronic" -> { for (i in 0..4) genreWeights[i] = 1.5f; for (i in 10..19) genreWeights[i] = 0.7f }
+            "rock"       -> { for (i in 2..8) genreWeights[i] = 1.3f }
+            "classical"  -> { for (i in 0..9) genreWeights[i] = 0.6f; for (i in 10..19) genreWeights[i] = 1.4f }
         }
     }
 
@@ -73,7 +88,7 @@ class AudioEngine {
 
         // Beat energy = mean of bass bins 0..19 (≈ 0–860 Hz with 512 bins at 44100 Hz)
         var bassSum = 0f
-        for (i in 0 until 20) bassSum += smoothFft[i]
+        for (i in 0 until 20) bassSum += smoothFft[i] * genreWeights[i]
         val bassEnergy = bassSum / 20f
 
         // Rolling history for normalisation — running sum avoids iterating the deque each frame

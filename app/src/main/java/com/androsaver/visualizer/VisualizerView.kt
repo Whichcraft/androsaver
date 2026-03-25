@@ -9,7 +9,7 @@ import android.opengl.GLSurfaceView
  */
 class VisualizerView(context: Context) : GLSurfaceView(context) {
 
-    private val audio    = AudioEngine()
+    internal val audio   = AudioEngine()
     val renderer         = VisualizerRenderer(audio)
 
     init {
@@ -28,9 +28,14 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
         audio.stop()
     }
 
-    /** Convenience: switch to the next mode (wraps around). */
+    /** Switch to the next mode (wraps around). */
     fun nextMode() {
         renderer.modeIndex = (renderer.modeIndex + 1) % renderer.modes.size
+    }
+
+    /** Switch to the previous mode (wraps around). */
+    fun previousMode() {
+        renderer.modeIndex = (renderer.modeIndex - 1 + renderer.modes.size) % renderer.modes.size
     }
 
     /** Switch to a mode by its name. No-op if name not found. */

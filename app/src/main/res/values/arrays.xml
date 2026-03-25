@@ -91,4 +91,60 @@
         <item>zoom_out</item>
         <item>random</item>
     </string-array>
+
+    <string-array name="overlay_opacity_entries">
+        <item>10%</item><item>20%</item><item>30%</item><item>50%</item><item>70%</item>
+    </string-array>
+    <string-array name="overlay_opacity_values">
+        <item>0.1</item><item>0.2</item><item>0.3</item><item>0.5</item><item>0.7</item>
+    </string-array>
+    <string-array name="viz_cycle_entries">
+        <item>30 seconds</item><item>1 minute</item><item>2 minutes</item><item>5 minutes</item><item>Never</item>
+    </string-array>
+    <string-array name="viz_cycle_values">
+        <item>30000</item><item>60000</item><item>120000</item><item>300000</item><item>0</item>
+    </string-array>
+    <string-array name="audio_genre_entries">
+        <item>Any</item><item>Electronic</item><item>Rock</item><item>Classical</item>
+    </string-array>
+    <string-array name="audio_genre_values">
+        <item>any</item><item>electronic</item><item>rock</item><item>classical</item>
+    </string-array>
+    <string-array name="hour_entries">
+        <item>12 AM</item><item>1 AM</item><item>2 AM</item><item>3 AM</item><item>4 AM</item>
+        <item>5 AM</item><item>6 AM</item><item>7 AM</item><item>8 AM</item><item>9 AM</item>
+        <item>10 AM</item><item>11 AM</item><item>12 PM</item><item>1 PM</item><item>2 PM</item>
+        <item>3 PM</item><item>4 PM</item><item>5 PM</item><item>6 PM</item><item>7 PM</item>
+        <item>8 PM</item><item>9 PM</item><item>10 PM</item><item>11 PM</item>
+    </string-array>
+    <string-array name="hour_values">
+        <item>0</item><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item>
+        <item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item>
+        <item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item>
+        <item>18</item><item>19</item><item>20</item><item>21</item><item>22</item><item>23</item>
+    </string-array>
+
+    <string-array name="screensaver_mode_entries">
+        <item>Slideshow</item>
+        <item>Visualizer</item>
+    </string-array>
+    <string-array name="screensaver_mode_values">
+        <item>slideshow</item>
+        <item>visualizer</item>
+    </string-array>
+
+    <string-array name="visualizer_intensity_entries">
+        <item>Off</item>
+        <item>Low</item>
+        <item>Medium</item>
+        <item>High</item>
+        <item>Max</item>
+    </string-array>
+    <string-array name="visualizer_intensity_values">
+        <item>0.0</item>
+        <item>0.5</item>
+        <item>1.0</item>
+        <item>1.5</item>
+        <item>2.0</item>
+    </string-array>
 </resources>

@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Required for Visualizer API (system audio capture) since Android 9 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -67,6 +70,20 @@
             android:name=".SynologySetupActivity"
             android:exported="false"
             android:label="@string/synology_setup_title" />
+
+        <activity
+            android:name=".PreviewActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AndroSaver.Fullscreen"
+            android:label="Preview" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

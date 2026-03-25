@@ -33,6 +33,9 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
     val modeNames: List<String> get() = modes.map { it.name }
 
+    /** Beat-response gain (0.0 = no reaction, 1.0 = normal, 2.0 = intense). Matches psysuals effect_gain. */
+    @Volatile var beatGain: Float = 1.0f
+
     // ── GLSurfaceView.Renderer ─────────────────────────────────────────────────
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -48,8 +51,10 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         val audio = audio.data
         val mode  = modes[modeIndex]
 
+        val scaledAudio = if (beatGain == 1.0f) audio
+                          else audio.copy(beat = (audio.beat * beatGain).coerceIn(0f, 2f))
         draw.beginFrame()
-        mode.draw(draw, audio, tick)
+        mode.draw(draw, scaledAudio, tick)
         draw.endFrame()
         tick++
     }
