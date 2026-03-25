@@ -65,6 +65,17 @@
             android:exported="false"
             android:label="@string/google_auth_title" />
 
+        <!-- OneDrive setup -->
+        <activity
+            android:name=".OneDriveSetupActivity"
+            android:exported="false"
+            android:label="@string/onedrive_setup_title" />
+
+        <activity
+            android:name=".OneDriveAuthActivity"
+            android:exported="false"
+            android:label="@string/onedrive_setup_title" />
+
         <!-- Nextcloud setup -->
         <activity
             android:name=".NextcloudSetupActivity"

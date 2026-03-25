@@ -6,6 +6,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
+- **OneDrive source** — streams photos from Microsoft OneDrive using OAuth 2.0 device flow; works with personal and work/school accounts
 - **Nextcloud source** — streams photos from any folder via WebDAV; works with app passwords and self-signed certificates
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
 - **Device storage source** — uses photos from the TV's local storage via MediaStore
@@ -92,6 +93,24 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 
 > **Getting a Folder ID:** Open Google Drive in a browser, navigate to the folder, and copy the ID from the URL (`/drive/folders/<FOLDER_ID>`).
 
+### OneDrive
+
+Microsoft's device auth flow works without a browser redirect, making it ideal for Android TV.
+
+1. Go to [portal.azure.com](https://portal.azure.com) and sign in.
+2. Open **Azure Active Directory → App registrations → New registration**.
+3. Give it any name; under **Supported account types** select *Accounts in any organizational directory and personal Microsoft accounts*.
+4. Under **Authentication → Platform configurations**, add **Mobile and desktop applications**.
+5. Still under Authentication, enable **Allow public client flows**.
+6. Copy the **Application (client) ID**.
+7. Open **AndroSaver Settings** on your TV.
+8. Tap **OneDrive Setup** and enter:
+   - **Client ID** — the Application (client) ID from step 6
+   - **Folder Path** *(optional)* — leave blank for root, or enter e.g. `/Photos`
+9. Tap **Authorize with Microsoft** — the screen shows a URL and a short code.
+10. On any other device, visit the URL and enter the code.
+11. Return to Settings and enable the **OneDrive** toggle.
+
 ### Nextcloud
 
 1. Open **AndroSaver Settings** on your TV.
@@ -133,6 +152,7 @@ Google's device-auth flow works without Google Play Services, making it ideal fo
 | Source | Formats |
 |--------|---------|
 | Google Drive | Any format with an `image/` MIME type |
+| OneDrive | Any format with an `image/` MIME type |
 | Nextcloud | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` (or any `image/` MIME type) |
 | Synology NAS | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
 
@@ -178,6 +198,8 @@ All options are configured in the **AndroSaver Settings** app. The top-level **S
 |---------|-------------|
 | **Google Drive** toggle | Enable/disable fetching images from Google Drive |
 | **Google Drive Setup** | Configure OAuth credentials and folder |
+| **OneDrive** toggle | Enable/disable fetching images from Microsoft OneDrive |
+| **OneDrive Setup** | Authorize with Microsoft account and set folder path |
 | **Nextcloud** toggle | Enable/disable fetching images from a Nextcloud instance |
 | **Nextcloud Setup** | Configure host, credentials, and folder path |
 | **Synology NAS** toggle | Enable/disable fetching images from a Synology NAS |
@@ -291,6 +313,7 @@ ScreensaverService (DreamService)
   └── ScreensaverEngine
         ├── Photo Slideshow mode
         │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
+        │   ├── OneDriveSource       ← Microsoft Graph API + token refresh
         │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
         │   ├── SynologySource       ← Synology DSM FileStation API
         │   ├── LocalStorageSource   ← MediaStore device photos

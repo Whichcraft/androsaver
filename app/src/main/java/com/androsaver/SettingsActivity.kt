@@ -74,6 +74,7 @@ class SettingsActivity : AppCompatActivity() {
         override fun onResume() {
             super.onResume()
             updateGoogleDriveStatus()
+            updateOneDriveStatus()
         }
 
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
@@ -84,6 +85,10 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 "google_drive_setup" -> {
                     startActivity(Intent(requireContext(), GoogleDriveSetupActivity::class.java))
+                    true
+                }
+                "onedrive_setup" -> {
+                    startActivity(Intent(requireContext(), OneDriveSetupActivity::class.java))
                     true
                 }
                 "nextcloud_setup" -> {
@@ -103,6 +108,15 @@ class SettingsActivity : AppCompatActivity() {
             findPreference<PreferenceCategory>("cat_sources")?.isVisible = isSlideshow
             findPreference<PreferenceCategory>("cat_slideshow")?.isVisible = isSlideshow
             findPreference<PreferenceCategory>("cat_visualizer")?.isVisible = !isSlideshow
+        }
+
+        private fun updateOneDriveStatus() {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val authorized = !prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null).isNullOrEmpty()
+            findPreference<Preference>("onedrive_setup")?.summary = if (authorized)
+                getString(R.string.onedrive_authorized)
+            else
+                getString(R.string.onedrive_not_authorized)
         }
 
         private fun updateGoogleDriveStatus() {

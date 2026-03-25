@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-25 (session 7)
+
+### Added
+- **OneDrive source** — fetch photos from Microsoft OneDrive (personal or work) via Microsoft Graph API; uses OAuth 2.0 device code flow (same TV-friendly pattern as Google Drive); downloads use pre-authenticated URLs so no auth header is needed for image loading
+
+---
+
 ## 2026-03-25 (session 6)
 
 ### Added

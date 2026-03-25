@@ -9,6 +9,13 @@ object Prefs {
     const val GOOGLE_REFRESH_TOKEN = "google_refresh_token"
     const val GOOGLE_FOLDER_ID = "google_folder_id"
 
+    // OneDrive
+    const val ENABLE_ONEDRIVE        = "source_onedrive"
+    const val ONEDRIVE_CLIENT_ID     = "onedrive_client_id"
+    const val ONEDRIVE_FOLDER        = "onedrive_folder"
+    const val ONEDRIVE_ACCESS_TOKEN  = "onedrive_access_token"
+    const val ONEDRIVE_REFRESH_TOKEN = "onedrive_refresh_token"
+
     // Nextcloud
     const val ENABLE_NEXTCLOUD    = "source_nextcloud"
     const val NEXTCLOUD_HOST      = "nextcloud_host"
