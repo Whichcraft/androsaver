@@ -39,6 +39,8 @@ class CubeMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
+        draw.fadeBlack(0.13f)
+
         val fft = audio.fft
         val beat = audio.beat
 
@@ -48,18 +50,18 @@ class CubeMode : BaseMode() {
         val mid  = fft.meanSlice(5, 25).coerceIn(0f, 1f)
         val high = fft.meanSlice(25, fft.size).coerceIn(0f, 1f)
 
-        rvx += 0.0005f + mid  * 0.003f + beat * 0.012f
-        rvy += 0.0008f + bass * 0.003f + beat * 0.015f
-        rvz += 0.0003f + high * 0.002f + beat * 0.006f
-        rvx *= 0.90f; rvy *= 0.90f; rvz *= 0.90f
+        rvx += 0.00015f + mid  * 0.0015f + beat * 0.006f
+        rvy += 0.00020f + bass * 0.0015f + beat * 0.008f
+        rvz += 0.00010f + high * 0.0010f + beat * 0.003f
+        rvx *= 0.86f; rvy *= 0.86f; rvz *= 0.86f
         rx += rvx; ry += rvy; rz += rvz
 
         svel += beat * 0.30f + bass * 0.15f
         svel += (1f - scale) * 0.20f
         svel *= 0.72f
         scale += svel
-        // maxScale: at worst-case z=-1 (sz=2.8) the outermost vertex must stay on screen
-        val maxScale = minOf(draw.W, draw.H) * 1.4f / 680f * 0.88f
+        // A rotated corner projects up to scale×√3 from centre; sz ≥ 2.8 at z=-1
+        val maxScale = minOf(draw.W, draw.H) / 2f * 2.8f / (680f * 1.733f) * 0.90f
         scale = scale.coerceIn(0.5f, maxScale)
 
         // Draw two cubes: full scale and inner (45% scale, hue offset +0.5)
@@ -120,9 +122,9 @@ class CubeMode : BaseMode() {
      * Returns Pair(screenX, screenY).
      */
     private fun project(v: FloatArray, W: Int, H: Int, fov: Float): Pair<Float, Float> {
-        val sz = v[2] + 3.8f
-        val sx = v[0] * fov / sz + W / 2f
-        val sy = v[1] * fov / sz + H / 2f
+        val sz = maxOf(v[2] + 3.8f, 0.5f)
+        val sx = (v[0] * fov / sz + W / 2f).coerceIn(0f, W.toFloat())
+        val sy = (v[1] * fov / sz + H / 2f).coerceIn(0f, H.toFloat())
         return sx to sy
     }
 }
