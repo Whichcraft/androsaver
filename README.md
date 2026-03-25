@@ -55,7 +55,7 @@ The easiest way to install on an Amazon Fire TV or Android TV device is via the 
 ## Requirements
 
 - Android 5.0+ (API 21)
-- Android TV device (tested on Huawei TV Stick)
+- Any Android device — optimised for Android TV (tested on Huawei TV Stick), also works on tablets and phones
 - Android Studio Hedgehog or later (to build from source)
 - `RECORD_AUDIO` permission required for the Music Visualizer (prompted automatically when you select Visualizer mode in Settings)
 - `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` permission required for the Device Photos source (prompted when you enable the toggle)
@@ -127,7 +127,18 @@ Tap **Preview** in the Settings app to test the screensaver immediately without 
 ### Activating the Screensaver
 
 - **Android TV:** Settings → Device Preferences → Screen saver → Select **AndroSaver**
-- The screensaver activates automatically when the TV is idle.
+- **Tablet / Phone:** Settings → Display → Screen saver → Select **AndroSaver** *(exact path varies by Android version and OEM)*
+- The screensaver activates automatically when the device is idle (TV) or charging and idle (tablet/phone).
+
+### Using on a Tablet or Phone
+
+AndroSaver works on any Android device — not just Android TV. All features (photo slideshow, music visualizer, clock, weather) work as-is.
+
+A few differences compared to TV:
+
+- **Remote navigation** (← → to switch effects or skip photos, ↑ ↓ to adjust intensity) requires a connected keyboard or D-pad. Without one, the screensaver still runs; you just can't switch effects mid-session.
+- **Touch dismisses the screensaver** in slideshow mode — this is standard Android behaviour.
+- The screensaver activates while the device is **charging and idle**, rather than just idle.
 
 ## Settings Reference
 
