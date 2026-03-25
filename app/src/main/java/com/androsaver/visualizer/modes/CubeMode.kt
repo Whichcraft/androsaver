@@ -39,7 +39,7 @@ class CubeMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.13f)
+        draw.fadeBlack(0.07f)
 
         val fft = audio.fft
         val beat = audio.beat
@@ -56,7 +56,7 @@ class CubeMode : BaseMode() {
         rvx *= 0.86f; rvy *= 0.86f; rvz *= 0.86f
         rx += rvx; ry += rvy; rz += rvz
 
-        svel += beat * 0.70f + bass * 0.30f
+        svel += beat * 1.30f + bass * 0.40f
         svel += (1f - scale) * 0.20f
         svel *= 0.72f
         scale += svel
