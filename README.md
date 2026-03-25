@@ -7,6 +7,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
 - **OneDrive source** — streams photos from Microsoft OneDrive using OAuth 2.0 device flow; works with personal and work/school accounts
+- **Immich source** — streams photos from a self-hosted [Immich](https://immich.app) server via its REST API; API key auth; optional album filter
 - **Nextcloud source** — streams photos from any folder via WebDAV; works with app passwords and self-signed certificates
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
 - **Device storage source** — uses photos from the TV's local storage via MediaStore
@@ -111,6 +112,24 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
 10. On any other device, visit the URL and enter the code.
 11. Return to Settings and enable the **OneDrive** toggle.
 
+### Immich
+
+1. In Immich web UI, go to **Account Settings → API Keys** and create a new key.
+2. Open **AndroSaver Settings** on your TV.
+3. Tap **Immich Setup** and fill in:
+
+   | Field | Description |
+   |-------|-------------|
+   | **Host / IP** | e.g. `192.168.1.50` or `photos.example.com` |
+   | **Port** | `2283` (default) or `443` (HTTPS) |
+   | **Use HTTPS** | Enable if your Immich instance uses HTTPS (self-signed certs are accepted) |
+   | **API Key** | The key generated in Immich Account Settings |
+   | **Album ID** | Optional — paste an album UUID to show only that album; leave blank for all photos |
+
+4. Tap **Test Connection** to verify, then **Save** and enable the **Immich** toggle in Settings.
+
+> To get an album's UUID: open the album in Immich and copy the UUID from the URL (`/albums/<uuid>`).
+
 ### Nextcloud
 
 1. Open **AndroSaver Settings** on your TV.
@@ -153,6 +172,7 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
 |--------|---------|
 | Google Drive | Any format with an `image/` MIME type |
 | OneDrive | Any format with an `image/` MIME type |
+| Immich | Any `IMAGE` type asset (as classified by Immich) |
 | Nextcloud | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` (or any `image/` MIME type) |
 | Synology NAS | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
 
@@ -200,6 +220,8 @@ All options are configured in the **AndroSaver Settings** app. The top-level **S
 | **Google Drive Setup** | Configure OAuth credentials and folder |
 | **OneDrive** toggle | Enable/disable fetching images from Microsoft OneDrive |
 | **OneDrive Setup** | Authorize with Microsoft account and set folder path |
+| **Immich** toggle | Enable/disable fetching images from a self-hosted Immich server |
+| **Immich Setup** | Configure host, API key, and optional album ID |
 | **Nextcloud** toggle | Enable/disable fetching images from a Nextcloud instance |
 | **Nextcloud Setup** | Configure host, credentials, and folder path |
 | **Synology NAS** toggle | Enable/disable fetching images from a Synology NAS |
@@ -314,6 +336,7 @@ ScreensaverService (DreamService)
         ├── Photo Slideshow mode
         │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
         │   ├── OneDriveSource       ← Microsoft Graph API + token refresh
+        │   ├── ImmichSource         ← Immich REST API + API key auth
         │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
         │   ├── SynologySource       ← Synology DSM FileStation API
         │   ├── LocalStorageSource   ← MediaStore device photos

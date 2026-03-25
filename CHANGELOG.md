@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-25 (session 8)
+
+### Added
+- **Immich source** — fetch photos from a self-hosted [Immich](https://immich.app) server via its REST API; authenticates with an API key (generate in Account Settings → API Keys); optional Album ID to restrict to one album, or leave blank to show all photos; supports self-signed certificates; default port 2283
+
+---
+
 ## 2026-03-25 (session 7)
 
 ### Added
