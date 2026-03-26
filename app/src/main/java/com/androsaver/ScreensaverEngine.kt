@@ -225,7 +225,7 @@ class ScreensaverEngine(
         val vv = VisualizerView(context)
         visualizerView = vv
         if (modePref != "auto") vv.setMode(modePref)
-        vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "1.0")?.toFloatOrNull() ?: 1.0f
+        vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
         val genre = prefs.getString(Prefs.AUDIO_GENRE, "any") ?: "any"
         vv.audio.applyGenreHint(genre)
 
@@ -236,7 +236,7 @@ class ScreensaverEngine(
         vv.startVisualizer()
 
         if (modePref == "auto") {
-            val cycleMs = prefs.getString(Prefs.VIZ_CYCLE_INTERVAL, "90000")?.toLongOrNull() ?: 90_000L
+            val cycleMs = prefs.getString(Prefs.VIZ_CYCLE_INTERVAL, "120000")?.toLongOrNull() ?: 120_000L
             if (cycleMs > 0L) {
                 vizCycleRunnable = object : Runnable {
                     override fun run() { vv.nextMode(); handler.postDelayed(this, cycleMs) }

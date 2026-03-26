@@ -2,6 +2,15 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont4)
+
+### Changed
+- **Version bumped to 1.1** — versionName is now `1.1.${gitVersionCode}`
+- **Visualizer intensity default lowered to Low (0.5)** — effects start at lowest level instead of Medium
+- **Auto-cycle interval default changed to 2 minutes** — was Off; added 10-minute and 15-minute options
+
+---
+
 ## 2026-03-26 (session 15 cont3)
 
 ### Added
