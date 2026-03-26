@@ -2,6 +2,15 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont10)
+
+### Changed
+- **TunnelMode rework** — bass-punch triangles on the center line; constant speed always; beat circles removed
+- **LissajousMode** — less nervous (frequency/phase band influence cut 4×); trail fades faster (0.08→0.18)
+- **SpiralMode** — tighter spiral (SPIN 1.6→3.0); extremes reduced (beat speed, scale, radius mod, flash all pulled back)
+
+---
+
 ## 2026-03-26 (session 15 cont9)
 
 ### Fixed
