@@ -27,24 +27,32 @@ class CubeMode : BaseMode() {
     )
 
     private var rx = 0f; private var ry = 0f; private var rz = 0f
-    private var hue = 0f; private var fadeHue = 0f
+    private var fadeHue = 0f
     private var scale = 1f; private var svel = 0f
     private var rvx = 0f; private var rvy = 0f; private var rvz = 0f
     private var orbAngle = 0f
 
+    // Trail: ring buffer of projected vertex positions for main (ci=0) and inner (ci=1) cubes.
+    // The screen is cleared every frame by the renderer, so we re-draw past positions explicitly
+    // with decreasing alpha rather than relying on framebuffer persistence.
+    private val TRAIL_LEN = 8
+    private val trailProj  = Array(TRAIL_LEN) { Array(2) { Array(8) { 0f to 0f } } }
+    private var trailHead  = 0
+    private var trailCount = 0
+
     override fun reset() {
         rx = 0f; ry = 0f; rz = 0f
-        hue = 0f; fadeHue = 0f
+        fadeHue = 0f
         scale = 1f; svel = 0f
         rvx = 0f; rvy = 0f; rvz = 0f
         orbAngle = 0f
+        trailHead = 0; trailCount = 0
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.07f)
-
-        val fft = audio.fft
+        val fft  = audio.fft
         val beat = audio.beat
+        val fov  = 680f
 
         fadeHue = (fadeHue + 0.0018f) % 1f
 
@@ -62,47 +70,72 @@ class CubeMode : BaseMode() {
         svel += (1f - scale) * 0.20f
         svel *= 0.72f
         scale += svel
-        // A rotated corner projects up to scale×√3 from centre; sz ≥ 2.8 at z=-1
-        val maxScale = minOf(draw.W, draw.H) / 2f * 2.8f / (680f * 1.733f) * 0.90f
+        val maxScale = minOf(draw.W, draw.H) / 2f * 2.8f / (fov * 1.733f) * 0.90f
         scale = scale.coerceIn(0.5f, maxScale)
 
-        // Draw two cubes: full scale and inner (45% scale, hue offset +0.5)
-        val cubeParams = listOf(scale to 0f, scale * 0.45f to 0.5f)
-        for ((baseScale, hueOff) in cubeParams) {
+        // ── Compute projections for main (ci=0) and inner (ci=1) cubes ────────
+        val cubeScales = floatArrayOf(scale, scale * 0.45f)
+        val currentProj = Array(2) { ci ->
+            val s = cubeScales[ci]
             val verts3d = Array(8) { vi ->
-                rotateVertex(
-                    vertsBase[vi][0] * baseScale,
-                    vertsBase[vi][1] * baseScale,
-                    vertsBase[vi][2] * baseScale,
-                    rx, ry, rz
-                )
+                rotateVertex(vertsBase[vi][0] * s, vertsBase[vi][1] * s, vertsBase[vi][2] * s, rx, ry, rz)
             }
-            val proj = Array(8) { vi -> project(verts3d[vi], draw.W, draw.H, fov = 680f) }
+            Array(8) { vi -> project(verts3d[vi], draw.W, draw.H, fov) }
+        }
 
+        // ── Update trail ring buffer ───────────────────────────────────────────
+        for (ci in 0..1) for (vi in 0..7) trailProj[trailHead][ci][vi] = currentProj[ci][vi]
+        if (trailCount < TRAIL_LEN) trailCount++
+        trailHead = (trailHead + 1) % TRAIL_LEN
+
+        // ── Draw echo trail (oldest → newest-1, progressively brighter) ───────
+        for (age in trailCount - 1 downTo 1) {
+            val frameIdx = (trailHead - 1 - age + TRAIL_LEN * 2) % TRAIL_LEN
+            val alpha    = (1f - age.toFloat() / trailCount.toFloat()) * 0.55f
+            for (ci in 0..1) {
+                val hueOff = if (ci == 1) 0.5f else 0f
+                val proj   = trailProj[frameIdx][ci]
+                for ((ei, edge) in edges.withIndex()) {
+                    val (a, b) = edge
+                    val h     = (fadeHue + hueOff + ei.toFloat() / edges.size * 0.4f) % 1f
+                    val color = GLDraw.hsl(h, 1f, 0.32f)
+                    draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                        color[0], color[1], color[2], alpha)
+                }
+            }
+        }
+
+        // ── Draw current frame (full brightness) ──────────────────────────────
+        val lightness = (0.40f + minOf(svel, 1f) * 0.25f).coerceIn(0f, 1f)
+        for (ci in 0..1) {
+            val hueOff = if (ci == 1) 0.5f else 0f
+            val proj   = currentProj[ci]
             for ((ei, edge) in edges.withIndex()) {
                 val (a, b) = edge
-                val h = (fadeHue + hueOff + ei.toFloat() / edges.size * 0.4f) % 1f
-                val lightness = (0.40f + minOf(svel, 1f) * 0.25f).coerceIn(0f, 1f)
+                val h     = (fadeHue + hueOff + ei.toFloat() / edges.size * 0.4f) % 1f
                 val color = GLDraw.hsl(h, 1f, lightness)
-                draw.line(
-                    proj[a].first, proj[a].second,
-                    proj[b].first, proj[b].second,
-                    color[0], color[1], color[2], 1f
-                )
+                draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                    color[0], color[1], color[2], 1f)
             }
         }
 
         // ── Orbiting satellite cubes ──────────────────────────────────────────
-        // Count 2–6, grows with beat intensity (port of psysuals v1.3)
-        val nSats = 2 + (beat.coerceAtMost(2f) * 2f).toInt()
+        val nSats    = 2 + (beat.coerceAtMost(2f) * 2f).toInt()
         val satScale = scale * 0.28f
-        val orbR = 2.6f
-        orbAngle += 0.012f + beat * 0.04f
+        val orbR     = 2.6f
+        orbAngle    += 0.012f + beat * 0.04f
+
+        // Clamp orbit radius so the satellite cube stays fully on screen.
+        // A rotated satellite corner extends ~1.5× satScale from the orbit centre.
+        val sz0        = 3.8f  // approximate z-depth of cube centre (matches project() offset)
+        val satHalfPx  = satScale * 1.5f * fov / sz0
+        val maxOrbitPx = minOf(draw.W, draw.H) / 2f - satHalfPx - 8f
+        val effectiveOrbR = if (maxOrbitPx > 0f) minOf(orbR, maxOrbitPx * sz0 / fov) else 0f
 
         for (si in 0 until nSats) {
             val theta = orbAngle + si.toFloat() / nSats * (2f * PI.toFloat())
-            val ox = orbR * cos(theta)
-            val oy = orbR * sin(theta)
+            val ox    = effectiveOrbR * cos(theta)
+            val oy    = effectiveOrbR * sin(theta)
             val verts3d = Array(8) { vi ->
                 rotateVertex(
                     vertsBase[vi][0] * satScale,
@@ -111,18 +144,15 @@ class CubeMode : BaseMode() {
                     rx, ry, rz
                 )
             }
-            val proj = Array(8) { vi -> projectOffset(verts3d[vi], ox, oy, draw.W, draw.H, 680f) }
-            val hOff = si.toFloat() / nSats * 0.6f
+            val proj   = Array(8) { vi -> projectOffset(verts3d[vi], ox, oy, draw.W, draw.H, fov) }
+            val hOff   = si.toFloat() / nSats * 0.6f
+            val satL   = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
             for ((ei, edge) in edges.withIndex()) {
                 val (a, b) = edge
-                val h = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f
-                val lightness = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
-                val color = GLDraw.hsl(h, 1f, lightness)
-                draw.line(
-                    proj[a].first, proj[a].second,
-                    proj[b].first, proj[b].second,
-                    color[0], color[1], color[2], 1f
-                )
+                val h     = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f
+                val color = GLDraw.hsl(h, 1f, satL)
+                draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                    color[0], color[1], color[2], 1f)
             }
         }
     }

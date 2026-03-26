@@ -2,7 +2,11 @@
 
 All notable changes to AndroSaver are documented here.
 
-## 2026-03-26 (session 15 cont2)
+## 2026-03-26 (session 15 cont3)
+
+### Added
+- **CubeMode echo trail** — last 8 frames of main and inner cube positions are replayed each frame with decreasing alpha, giving a motion-trail/echo effect; implemented via ring buffer (renderer clears the screen every frame, so framebuffer persistence cannot be relied on)
+- **CubeMode satellite bounds clamping** — orbit radius is clamped per-frame so satellite cubes never leave the screen, accounting for screen size and current cube scale
 
 ### Changed
 - **Removed separate Update Channel row** — channel is now shown inline in the version string (e.g. "Version 1.0.42 · dev channel"); the read-only channel preference row is gone
