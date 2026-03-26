@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 12)
+
+### Changed
+- **psysuals submodule** — updated from v1.2.0 → v1.3.0; picks up backported AndroSaver tuning improvements, orbiting satellite cubes in CubeMode (count 2–6 scales with beat intensity), Lissajous `raw` variable bug fix, and 5 additional fixes from code audit
+
+---
+
 ## 2026-03-26 (session 11)
 
 ### Fixed
