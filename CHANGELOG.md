@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont12)
+
+### Changed
+- **LissajousMode** — 50% less music interaction across all multipliers
+- **LissajousMode** — faster reactivity restored (beat speed/scale/rotation ×3–4); center bubbles always present (3-fold, scale with bass/beat); high-freq glow halo at center; bass bump rings via spring system
+
+---
+
 ## 2026-03-26 (session 15 cont11)
 
 ### Changed
