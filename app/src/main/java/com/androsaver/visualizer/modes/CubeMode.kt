@@ -30,12 +30,14 @@ class CubeMode : BaseMode() {
     private var hue = 0f; private var fadeHue = 0f
     private var scale = 1f; private var svel = 0f
     private var rvx = 0f; private var rvy = 0f; private var rvz = 0f
+    private var orbAngle = 0f
 
     override fun reset() {
         rx = 0f; ry = 0f; rz = 0f
         hue = 0f; fadeHue = 0f
         scale = 1f; svel = 0f
         rvx = 0f; rvy = 0f; rvz = 0f
+        orbAngle = 0f
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -89,6 +91,40 @@ class CubeMode : BaseMode() {
                 )
             }
         }
+
+        // ── Orbiting satellite cubes ──────────────────────────────────────────
+        // Count 2–6, grows with beat intensity (port of psysuals v1.3)
+        val nSats = 2 + (beat.coerceAtMost(2f) * 2f).toInt()
+        val satScale = scale * 0.28f
+        val orbR = 2.6f
+        orbAngle += 0.012f + beat * 0.04f
+
+        for (si in 0 until nSats) {
+            val theta = orbAngle + si.toFloat() / nSats * (2f * PI.toFloat())
+            val ox = orbR * cos(theta)
+            val oy = orbR * sin(theta)
+            val verts3d = Array(8) { vi ->
+                rotateVertex(
+                    vertsBase[vi][0] * satScale,
+                    vertsBase[vi][1] * satScale,
+                    vertsBase[vi][2] * satScale,
+                    rx, ry, rz
+                )
+            }
+            val proj = Array(8) { vi -> projectOffset(verts3d[vi], ox, oy, draw.W, draw.H, 680f) }
+            val hOff = si.toFloat() / nSats * 0.6f
+            for ((ei, edge) in edges.withIndex()) {
+                val (a, b) = edge
+                val h = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f
+                val lightness = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
+                val color = GLDraw.hsl(h, 1f, lightness)
+                draw.line(
+                    proj[a].first, proj[a].second,
+                    proj[b].first, proj[b].second,
+                    color[0], color[1], color[2], 1f
+                )
+            }
+        }
     }
 
     /**
@@ -125,6 +161,14 @@ class CubeMode : BaseMode() {
         val sz = maxOf(v[2] + 3.8f, 0.5f)
         val sx = (v[0] * fov / sz + W / 2f).coerceIn(0f, W.toFloat())
         val sy = (v[1] * fov / sz + H / 2f).coerceIn(0f, H.toFloat())
+        return sx to sy
+    }
+
+    /** Perspective projection with XY world-space offset (for satellite cubes). */
+    private fun projectOffset(v: FloatArray, ox: Float, oy: Float, W: Int, H: Int, fov: Float): Pair<Float, Float> {
+        val sz = maxOf(v[2] + 3.8f, 0.5f)
+        val sx = ((v[0] + ox) * fov / sz + W / 2f).coerceIn(0f, W.toFloat())
+        val sy = ((v[1] + oy) * fov / sz + H / 2f).coerceIn(0f, H.toFloat())
         return sx to sy
     }
 }
