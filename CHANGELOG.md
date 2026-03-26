@@ -2,6 +2,18 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 13)
+
+### Fixed
+- **Resource leaks** — HTTP responses in `GoogleAuthManager` (two call sites) and `UpdateChecker` were not closed after use; wrapped with `.use {}`; `UpdateInstaller` response body was consumed without closing the response itself
+- **Dead code** — removed unused `logout()` method in `SynologySource` (intentionally not called; SID expires naturally)
+
+### Changed
+- **Shared HTTP clients** — replaced 9 separate `OkHttpClient` instances across sources and auth managers with two singletons in `HttpClients`: `standard` (cloud APIs) and `trustAll` (self-hosted LAN servers with self-signed certs); reduces thread/connection pool overhead
+- **Per-source fetch timeout** — `ScreensaverEngine` now wraps each source's `getImageUrls()` call with `withTimeoutOrNull(60s)` in both the initial load and the periodic refresh loop; a hung source can no longer block the entire slideshow
+
+---
+
 ## 2026-03-26 (session 12)
 
 ### Changed
