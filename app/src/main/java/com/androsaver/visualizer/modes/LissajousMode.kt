@@ -26,7 +26,6 @@ class LissajousMode : BaseMode() {
     private var dx   = 0f; private var dz   = PI.toFloat() / 4f
     private val dy   = PI.toFloat() / 2f
     private var scale = 1f; private var svel = 0f
-    private var bassPulse = 0f; private var bassVel = 0f
 
     override fun reset() {
         hist.clear()
@@ -34,7 +33,6 @@ class LissajousMode : BaseMode() {
         rvx = 0.006f; rvy = 0.009f
         dx = 0f; dz = PI.toFloat() / 4f
         scale = 1f; svel = 0f
-        bassPulse = 0f; bassVel = 0f
     }
 
     // Reusable flat buffer: [rawX0,rawY0, rawX1,rawY1, ...] — avoids per-frame allocation
@@ -131,48 +129,5 @@ class LissajousMode : BaseMode() {
             }
         }
 
-        // Bass spring — drives bump rings
-        bassVel += bass * 3.5f - bassPulse * 0.4f
-        bassVel *= 0.62f
-        bassPulse = maxOf(0f, bassPulse + bassVel)
-
-        val minDim = minOf(draw.W, draw.H).toFloat()
-
-        // High-frequency glow — soft radial halo at center, always if high > 0
-        if (high > 0.02f) {
-            val glowR = minDim * (0.08f + high * 0.18f)
-            val hg = (hue + 0.55f) % 1f
-            val gc = GLDraw.hsl(hg, l = 0.60f)
-            draw.circle(cx, cy, glowR, gc[0], gc[1], gc[2], (high * 0.45f).coerceAtMost(0.55f),
-                filled = true, segments = 32)
-        }
-
-        // Bass bump rings — pulse outward from center on bass hits
-        if (bassPulse > 0.05f) {
-            val alpha = (bassPulse * 0.7f).coerceAtMost(0.85f)
-            val hb = (hue + 0.15f) % 1f
-            val bc = GLDraw.hsl(hb, l = 0.55f)
-            draw.circle(cx, cy, minDim * (0.06f + bassPulse * 0.14f),
-                bc[0], bc[1], bc[2], alpha, filled = false, segments = 32)
-            draw.circle(cx, cy, minDim * (0.04f + bassPulse * 0.08f),
-                bc[0], bc[1], bc[2], alpha * 0.6f, filled = false, segments = 24)
-        }
-
-        // Head dot on current knot position
-        val hpx = raw[(n - 1) * 2]; val hpy = raw[(n - 1) * 2 + 1]
-        for (sym in 0 until N_SYM) {
-            val ang = sym.toFloat() / N_SYM * TAU
-            val ca = cos(ang); val sa = sin(ang)
-            val sx = cx + hpx * ca - hpy * sa
-            val sy_ = cy + hpx * sa + hpy * ca
-            val r = maxOf(3f, 7f + beat * 3.66f)
-            val c = GLDraw.hsl((hue + sym * 0.33f) % 1f, l = 0.88f)
-            draw.circle(sx, sy_, r, c[0], c[1], c[2], 1f, segments = 16)
-            draw.circle(sx, sy_, r / 3f, 1f, 1f, 1f, 1f, segments = 12)
-            if (beat > 0.5f) {
-                val hc = GLDraw.hsl((hue + sym * 0.33f + 0.5f) % 1f, l = 0.45f + beat * 0.25f)
-                draw.circle(sx, sy_, r * 1.8f, hc[0], hc[1], hc[2], 0.5f, filled = false, segments = 16)
-            }
-        }
     }
 }

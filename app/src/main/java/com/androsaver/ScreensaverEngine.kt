@@ -123,8 +123,8 @@ class ScreensaverEngine(
         val vv = visualizerView
         if (vv != null) {
             when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_RIGHT -> { vv.nextMode(); resetVizCycleTimer() }
-                KeyEvent.KEYCODE_DPAD_LEFT  -> { vv.previousMode(); resetVizCycleTimer() }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> { vv.nextMode(); resetIntensity(); resetVizCycleTimer() }
+                KeyEvent.KEYCODE_DPAD_LEFT  -> { vv.previousMode(); resetIntensity(); resetVizCycleTimer() }
                 KeyEvent.KEYCODE_DPAD_UP    -> adjustIntensity(+1)
                 KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
                 else -> { onRequestFinish(); return true }
@@ -472,6 +472,12 @@ class ScreensaverEngine(
     }
 
     // ── Intensity ─────────────────────────────────────────────────────────────
+
+    private fun resetIntensity() {
+        val vv = visualizerView ?: return
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
+    }
 
     fun adjustIntensity(delta: Int) {
         val vv = visualizerView ?: return

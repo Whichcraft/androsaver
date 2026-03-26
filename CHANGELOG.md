@@ -2,6 +2,17 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont16)
+
+### Fixed
+- **ScreensaverEngine** — switching effects now resets intensity to the saved preference default (not carried over from previous effect)
+
+### Changed
+- **LissajousMode** — removed all circles (bass bump rings, high-freq glow, head dots); dot trails only
+- **SpiralMode** — removed 3-fold rotational symmetry (N_SYM 3→1); single spiral only
+
+---
+
 ## 2026-03-26 (session 15 cont15)
 
 ### Fixed
