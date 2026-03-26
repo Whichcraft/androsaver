@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont13)
+
+### Changed
+- **CubeMode** — spin direction flips on each bass punch (rising edge at 0.4); fixed 2 satellites (opposite each other, bouncy)
+
+---
+
 ## 2026-03-26 (session 15 cont12)
 
 ### Changed

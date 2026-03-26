@@ -31,6 +31,8 @@ class CubeMode : BaseMode() {
     private var scale = 1f; private var svel = 0f
     private var rvx = 0f; private var rvy = 0f; private var rvz = 0f
     private var orbAngle = 0f
+    private var spinDir  = 1f   // +1 or -1, flips on bass punch
+    private var prevBass = 0f
 
     // Trail: ring buffer of projected vertex positions for main (ci=0) and inner (ci=1) cubes.
     // The screen is cleared every frame by the renderer, so we re-draw past positions explicitly
@@ -45,7 +47,7 @@ class CubeMode : BaseMode() {
         fadeHue = 0f
         scale = 1f; svel = 0f
         rvx = 0f; rvy = 0f; rvz = 0f
-        orbAngle = 0f
+        orbAngle = 0f; spinDir = 1f; prevBass = 0f
         trailHead = 0; trailCount = 0
     }
 
@@ -60,9 +62,13 @@ class CubeMode : BaseMode() {
         val mid  = fft.meanSlice(5, 25).coerceIn(0f, 1f)
         val high = fft.meanSlice(25, fft.size).coerceIn(0f, 1f)
 
-        rvx += 0.00025f + mid  * 0.0015f + beat * 0.0156f
-        rvy += 0.00035f + bass * 0.0015f + beat * 0.0208f
-        rvz += 0.00018f + high * 0.0010f + beat * 0.0078f
+        // Flip spin direction on each bass punch (rising edge)
+        if (bass > 0.4f && prevBass <= 0.4f) spinDir = -spinDir
+        prevBass = bass
+
+        rvx += spinDir * (0.00025f + mid  * 0.0015f + beat * 0.0156f)
+        rvy += spinDir * (0.00035f + bass * 0.0015f + beat * 0.0208f)
+        rvz += spinDir * (0.00018f + high * 0.0010f + beat * 0.0078f)
         rvx *= 0.86f; rvy *= 0.86f; rvz *= 0.86f
         rx += rvx; ry += rvy; rz += rvz
 
@@ -120,11 +126,9 @@ class CubeMode : BaseMode() {
         }
 
         // ── Orbiting satellite cubes ──────────────────────────────────────────
-        // N_MAX is the maximum possible nSats value; angular slots are fixed so
-        // existing satellites never jump when the active count changes.
-        val N_MAX    = 6
-        val nSats    = 2 + (beat.coerceAtMost(2f) * 2f).toInt()
-        val satScale = scale * 0.16f   // smaller satellites
+        val N_MAX    = 2
+        val nSats    = 2
+        val satScale = scale * 0.16f
         val baseOrbR = 2.6f
         val sz0      = 3.8f  // approximate z-depth (matches project() offset)
         orbAngle    += 0.012f + beat * 0.04f
