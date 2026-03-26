@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont11)
+
+### Changed
+- **CubeMode satellite cubes** — smaller (0.28→0.16 scale), bouncy radial oscillation per slot, no deformation
+- **CubeMode trails** — longer (8→14 frames) and brighter (alpha 0.55→0.75) for all cubes
+
+---
+
 ## 2026-03-26 (session 15 cont10)
 
 ### Changed
