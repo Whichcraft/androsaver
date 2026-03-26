@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont17)
+
+### Changed
+- **YantraMode** — rings near-static without audio (base rvel 10× reduced); rotation driven by energy/beat; fadeBlack dynamic (long trails on loud music, short trails on quiet)
+
+---
+
 ## 2026-03-26 (session 15 cont16)
 
 ### Fixed

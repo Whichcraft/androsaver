@@ -30,7 +30,7 @@ class YantraMode : BaseMode() {
         hue = 0f; time = 0f
         for (i in 0 until N_RINGS) {
             rot[i] = 0f
-            rvel[i] = signs[i] * (0.004f + i * 0.0018f)
+            rvel[i] = signs[i] * 0.0004f   // near-static base; audio drives actual rotation
             poff[i] = 0f; pvel[i] = 0f
         }
     }
@@ -47,8 +47,6 @@ class YantraMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.12f)
-
         val fft  = audio.fft
         val beat = audio.beat
         hue += 0.005f; time += 0.02f + beat * 0.078f
@@ -59,19 +57,24 @@ class YantraMode : BaseMode() {
         val bass = fft.meanSlice(0, 6)
         val mid  = fft.meanSlice(6, 30)
         val high = fft.meanSlice(30, fft.size)
+
+        // Trail length driven by energy — loud/fast = long trails, quiet = short
+        val energy = (bass + mid + high).coerceIn(0f, 1.5f) / 1.5f
+        draw.fadeBlack((0.17f - energy * 0.13f).coerceAtLeast(0.04f))
+
         val bands = floatArrayOf(
             bass, (bass + mid) * 0.5f, mid,
             (mid + high) * 0.5f, high, (bass + high) * 0.5f
         )
 
-        // Physics update
+        // Physics update — near-static without audio, driven hard by energy and beat
         for (i in 0 until N_RINGS) {
             val e = minOf(bands[i], 1f)
             pvel[i] += beat * (1.56f + e * 0.585f)
             pvel[i] += -poff[i] * 0.35f
             pvel[i] *= 0.72f
             poff[i] += pvel[i]
-            rot[i]  += rvel[i] * (1f + e * 3.64f + bass * 1.56f)
+            rot[i]  += rvel[i] + signs[i].toFloat() * (e * 0.022f + beat * 0.035f)
         }
 
         // Collect ring vertices
