@@ -158,15 +158,6 @@ class LissajousMode : BaseMode() {
                 bc[0], bc[1], bc[2], alpha * 0.6f, filled = false, segments = 24)
         }
 
-        // Center bubbles — always present, 3-fold symmetry, scale with music
-        for (sym in 0 until N_SYM) {
-            val ang = sym.toFloat() / N_SYM * TAU + hue * TAU * 0.5f
-            val r = maxOf(4f, minDim * (0.015f + bass * 0.04f + beat * 0.03f))
-            val c = GLDraw.hsl((hue + sym * 0.33f) % 1f, l = 0.82f)
-            draw.circle(cx, cy, r, c[0], c[1], c[2], 0.90f, filled = true, segments = 16)
-            draw.circle(cx, cy, r * 0.38f, 1f, 1f, 1f, 0.80f, filled = true, segments = 10)
-        }
-
         // Head dot on current knot position
         val hpx = raw[(n - 1) * 2]; val hpy = raw[(n - 1) * 2 + 1]
         for (sym in 0 until N_SYM) {

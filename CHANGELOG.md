@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont14)
+
+### Changed
+- **TunnelMode** — pure geometry tunnel; bass-punch triangle bursts scale with intensity (2–15 triangles, wilder spin/size at elevated bass)
+- **LissajousMode** — removed center dot bubbles
+
+---
+
 ## 2026-03-26 (session 15 cont13)
 
 ### Changed
