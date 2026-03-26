@@ -25,9 +25,11 @@ import com.androsaver.source.NextcloudSource
 import com.androsaver.source.OneDriveSource
 import com.androsaver.source.SynologySource
 import com.androsaver.visualizer.VisualizerView
+import androidx.exifinterface.media.ExifInterface
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
+import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import kotlinx.coroutines.CoroutineScope
@@ -46,13 +48,18 @@ class ScreensaverEngine(
 ) {
     companion object {
         private const val TAG = "ScreensaverEngine"
+        // Refresh image URLs 5 minutes before the Synology DSM session expires (~30 min).
+        private const val IMAGE_REFRESH_INTERVAL_MS = 25 * 60 * 1000L
         private val RANDOM_EFFECTS = listOf("crossfade","fade_black","slide_left","slide_right","zoom_in","zoom_out")
         val INTENSITY_STEPS = floatArrayOf(0.0f, 0.5f, 1.0f, 1.5f, 2.0f)
+        // [startScale, endScale, startTxFrac, startTyFrac, endTxFrac, endTyFrac]
+        // All presets end at (0,0) so the image is always centered at rest.
+        // Scale 1.04 min → (1.04-1)/2 = 0.02 overhang per side; translations ≤ 0.015 to stay within bounds.
         private val KB_PRESETS = listOf(
-            floatArrayOf(1.05f, 1.12f, -0.02f, -0.01f,  0.02f,  0.01f),
-            floatArrayOf(1.05f, 1.12f,  0.02f,  0.01f, -0.02f, -0.01f),
-            floatArrayOf(1.05f, 1.14f,  0.0f,  -0.02f,  0.0f,   0.02f),
-            floatArrayOf(1.05f, 1.12f, -0.01f,  0.02f,  0.01f, -0.02f)
+            floatArrayOf(1.04f, 1.08f, -0.015f, -0.01f, 0f, 0f),  // zoom in,  upper-left  → center
+            floatArrayOf(1.04f, 1.08f,  0.015f,  0.01f, 0f, 0f),  // zoom in,  lower-right → center
+            floatArrayOf(1.08f, 1.04f,  0.015f, -0.01f, 0f, 0f),  // zoom out, upper-right → center
+            floatArrayOf(1.08f, 1.04f, -0.015f,  0.01f, 0f, 0f)   // zoom out, lower-left  → center
         )
     }
 
@@ -61,6 +68,7 @@ class ScreensaverEngine(
     private var currentIndex = 0
     private var activeView = 1
     private var slideshowRunnable: Runnable? = null
+    private var imageRefreshRunnable: Runnable? = null
     private var consecutiveLoadFailures = 0
     private var visualizerView: VisualizerView? = null
     private var overlayVisualizerView: VisualizerView? = null
@@ -96,6 +104,7 @@ class ScreensaverEngine(
 
     fun stop() {
         stopSlideshow()
+        stopImageRefresh()
         stopVisualizerMode()
         stopClock()
         stopWeather()
@@ -320,11 +329,48 @@ class ScreensaverEngine(
             override fun run() { showNextImage(); handler.postDelayed(this, durationMs) }
         }
         handler.postDelayed(slideshowRunnable!!, durationMs)
+        scheduleImageRefresh(prefs)
     }
 
     private fun stopSlideshow() {
         slideshowRunnable?.let { handler.removeCallbacks(it) }
         slideshowRunnable = null
+    }
+
+    // ── Periodic image refresh ────────────────────────────────────────────────
+    // Re-fetches all sources every 25 minutes so Synology SIDs (which expire at ~30 min)
+    // and other session-scoped credentials stay fresh without any blackout.
+
+    private fun scheduleImageRefresh(prefs: SharedPreferences) {
+        imageRefreshRunnable = object : Runnable {
+            override fun run() {
+                scope.launch {
+                    val sources = getConfiguredSources(prefs)
+                    if (sources.isEmpty()) return@launch
+                    val fresh = mutableListOf<ImageItem>()
+                    for (src in sources) {
+                        try { fresh.addAll(src.getImageUrls()) }
+                        catch (e: Exception) {
+                            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Refresh error from ${src.name}", e)
+                        }
+                    }
+                    if (fresh.isNotEmpty()) {
+                        imageItems.clear()
+                        imageItems.addAll(fresh.shuffled())
+                        currentIndex = 0
+                        scope.launch(Dispatchers.IO) { imageCache.saveImages(fresh, "mixed") }
+                        if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Image list refreshed: ${fresh.size} items")
+                    }
+                }
+                handler.postDelayed(this, IMAGE_REFRESH_INTERVAL_MS)
+            }
+        }
+        handler.postDelayed(imageRefreshRunnable!!, IMAGE_REFRESH_INTERVAL_MS)
+    }
+
+    private fun stopImageRefresh() {
+        imageRefreshRunnable?.let { handler.removeCallbacks(it) }
+        imageRefreshRunnable = null
     }
 
     private fun showNextImage() {
@@ -346,9 +392,15 @@ class ScreensaverEngine(
             GlideUrl(item.url)
         }
 
-        Glide.with(context)
-            .load(glideUrl)
-            .into(object : CustomTarget<Drawable>(
+        val glideRequest = Glide.with(context).load(glideUrl)
+        // Apply explicit EXIF rotation for local/cached images where orientation is pre-read.
+        // Remote HTTP images (orientation == 0) are handled by Glide's Downsampler.
+        val request = if (item.orientation != 0 && item.orientation != ExifInterface.ORIENTATION_NORMAL)
+            glideRequest.apply(RequestOptions().transform(ExifRotationTransformation(item.orientation)))
+        else
+            glideRequest
+
+        request.into(object : CustomTarget<Drawable>(
                 binding.imageView1.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels,
                 binding.imageView1.height.takeIf { it > 0 } ?: context.resources.displayMetrics.heightPixels
             ) {

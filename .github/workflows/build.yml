@@ -50,6 +50,18 @@ jobs:
             mv app/build/outputs/apk/prod/release/*.apk app/build/outputs/apk/prod/release/androsaver.apk
           fi
 
+      - name: Write version manifest
+        run: |
+          VERSION_CODE=$(git rev-list --count HEAD)
+          if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            TAG="dev"
+          else
+            TAG="stable"
+          fi
+          APK_URL="https://github.com/Whichcraft/androsaver/releases/download/${TAG}/androsaver.apk"
+          printf '{"versionCode":%s,"versionName":"1.0.%s","apkUrl":"%s"}\n' \
+            "$VERSION_CODE" "$VERSION_CODE" "$APK_URL" > version.json
+
       - name: Move dev tag to current commit
         if: github.ref == 'refs/heads/dev'
         run: git push origin HEAD:refs/tags/dev --force
@@ -61,7 +73,9 @@ jobs:
           tag_name: dev
           name: Dev
           prerelease: true
-          files: app/build/outputs/apk/dev/release/androsaver.apk
+          files: |
+            app/build/outputs/apk/dev/release/androsaver.apk
+            version.json
 
       - name: Move stable tag to current commit
         if: github.ref == 'refs/heads/master'
@@ -75,7 +89,9 @@ jobs:
           name: Stable
           prerelease: false
           make_latest: true
-          files: app/build/outputs/apk/prod/release/androsaver.apk
+          files: |
+            app/build/outputs/apk/prod/release/androsaver.apk
+            version.json
 
   bundle-playstore:
     runs-on: ubuntu-latest

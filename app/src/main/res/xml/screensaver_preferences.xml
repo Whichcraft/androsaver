@@ -15,21 +15,10 @@
         android:defaultValue="slideshow"
         android:summary="%s" />
 
-    <PreferenceCategory android:key="cat_sources" android:title="Image Sources">
-        <SwitchPreferenceCompat android:key="source_google_drive" android:title="Google Drive" android:summary="Fetch images from your Google Drive" />
-        <Preference android:key="google_drive_setup" android:title="Google Drive Setup" android:icon="@android:drawable/ic_menu_upload" />
-        <SwitchPreferenceCompat android:key="source_onedrive" android:title="OneDrive" android:summary="Fetch images from your Microsoft OneDrive" />
-        <Preference android:key="onedrive_setup" android:title="OneDrive Setup" android:summary="Configure Microsoft account and folder" android:icon="@android:drawable/ic_menu_upload" />
-        <SwitchPreferenceCompat android:key="source_dropbox" android:title="Dropbox" android:summary="Fetch images from your Dropbox" />
-        <Preference android:key="dropbox_setup" android:title="Dropbox Setup" android:summary="Configure App Key and authorize" android:icon="@android:drawable/ic_menu_upload" />
-        <SwitchPreferenceCompat android:key="source_immich" android:title="Immich" android:summary="Fetch images from a self-hosted Immich server" />
-        <Preference android:key="immich_setup" android:title="Immich Setup" android:summary="Configure host, API key, and optional album" android:icon="@android:drawable/ic_menu_manage" />
-        <SwitchPreferenceCompat android:key="source_nextcloud" android:title="Nextcloud" android:summary="Fetch images from a Nextcloud instance" />
-        <Preference android:key="nextcloud_setup" android:title="Nextcloud Setup" android:summary="Configure host, credentials, and folder" android:icon="@android:drawable/ic_menu_manage" />
-        <SwitchPreferenceCompat android:key="source_synology" android:title="Synology NAS" android:summary="Fetch images from a Synology NAS" />
-        <Preference android:key="synology_setup" android:title="Synology NAS Setup" android:summary="Configure host, credentials, and folder" android:icon="@android:drawable/ic_menu_manage" />
-        <SwitchPreferenceCompat android:key="source_local_storage" android:title="Device Photos" android:summary="Show photos from this device" />
-    </PreferenceCategory>
+    <Preference
+        android:key="image_sources"
+        android:title="Image Sources"
+        android:icon="@android:drawable/ic_menu_gallery" />
 
     <PreferenceCategory android:key="cat_slideshow" android:title="Slideshow">
         <SwitchPreferenceCompat android:key="ken_burns_enabled" android:title="Ken Burns Effect" android:summary="Slow pan and zoom while each photo is displayed" android:defaultValue="true" />
@@ -58,6 +47,20 @@
         <SwitchPreferenceCompat android:key="weather_enabled" android:title="Show Weather" android:summary="Display current temperature in the corner" android:defaultValue="false" />
         <EditTextPreference android:key="weather_city" android:title="City" android:summary="e.g. London or New York,US" android:dependency="weather_enabled" />
         <EditTextPreference android:key="weather_api_key" android:title="OpenWeatherMap API Key" android:summary="Get a free key at openweathermap.org/api" android:dependency="weather_enabled" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:key="cat_about" android:title="About">
+        <ListPreference
+            android:key="update_channel"
+            android:title="Update Channel"
+            android:entries="@array/update_channel_entries"
+            android:entryValues="@array/update_channel_values"
+            android:summary="%s"
+            android:icon="@android:drawable/stat_sys_download" />
+        <Preference
+            android:key="about_app"
+            android:title="@string/app_name"
+            android:icon="@android:drawable/ic_menu_info_details" />
     </PreferenceCategory>
 
 </PreferenceScreen>
