@@ -47,6 +47,8 @@ class YantraMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
+        draw.fadeBlack(0.12f)
+
         val fft  = audio.fft
         val beat = audio.beat
         hue += 0.005f; time += 0.02f + beat * 0.078f

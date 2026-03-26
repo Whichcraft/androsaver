@@ -17,7 +17,7 @@ class SpiralMode : BaseMode() {
         private const val N_PTS    = 80
         private const val Z_FAR    = 10f
         private const val Z_NEAR   = 0.12f
-        private const val RADIUS   = 1f
+        private const val RADIUS   = 0.05f
         private const val SPIN     = 3.0f
         private const val N_SYM    = 3
         private const val RING_STEP = 8

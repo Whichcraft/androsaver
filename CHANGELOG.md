@@ -2,6 +2,17 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont15)
+
+### Fixed
+- **TunnelMode triangles** — were projected off-screen due to path offset magnification; now travel straight down world origin (center axis)
+
+### Changed
+- **SpiralMode** — center black hole shrunk (RADIUS 1.0→0.05)
+- **YantraMode** — added fadeBlack(0.12f) for color motion trails on rotating rings
+
+---
+
 ## 2026-03-26 (session 15 cont14)
 
 ### Changed

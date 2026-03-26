@@ -25,7 +25,7 @@ class TunnelMode : BaseMode() {
 
     private data class Ring(var z: Float, var pt: Float)
     private data class Tri(
-        var z: Float, var pt: Float,
+        var z: Float,
         var rot: Float, val rvel: Float,
         var hue: Float, val sizeFrac: Float
     )
@@ -77,7 +77,6 @@ class TunnelMode : BaseMode() {
                 val spin = (if (Math.random() < 0.5) 1 else -1) * (0.010f + Math.random().toFloat() * maxSpin)
                 tris.add(Tri(
                     z        = Z_FAR * (0.65f + bi * 0.05f),
-                    pt       = time + Z_FAR * (0.65f + bi * 0.05f),
                     rot      = (Math.random() * TAU).toFloat(),
                     rvel     = spin,
                     hue      = (hue + 0.3f + Math.random().toFloat() * 0.5f) % 1f,
@@ -124,8 +123,8 @@ class TunnelMode : BaseMode() {
             tri.z   -= DT
             tri.rot += tri.rvel
             if (tri.z < Z_NEAR) continue
-            val (tcx, tcy) = path(tri.pt)
-            val (tsx, tsy, tsc) = proj(tcx, tcy, tri.z, draw.W, draw.H)
+            // Triangles travel straight down the center axis (world origin)
+            val (tsx, tsy, tsc) = proj(0f, 0f, tri.z, draw.W, draw.H)
             val nearT = maxOf(0f, 1f - tri.z / Z_FAR)
             val tr    = maxOf(4f, TUBE_R * tsc * tri.sizeFrac)
             val h     = (tri.hue + nearT * 0.2f) % 1f
