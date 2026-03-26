@@ -17,11 +17,15 @@ Turn your Android TV into a beautiful photo frame or a live music visualizer.
 AndroSaver is a screensaver with two modes — photo slideshow and music visualizer — that activates automatically whenever your TV goes idle.
 
 PHOTO SLIDESHOW
-Stream your personal photos from Google Drive, a Synology NAS, or the device itself and display them as a fullscreen slideshow with cinematic transitions.
+Stream your personal photos from any combination of cloud services and local storage, displayed as a fullscreen slideshow with cinematic transitions.
 
-• Google Drive — secure OAuth 2.0 device flow. No Google Play Services required, works on Huawei and other GMS-free devices.
-• Synology NAS — connect via the DSM FileStation API with just an address, credentials, and folder path.
-• Device Photos — show photos stored on the TV itself.
+• Google Drive — secure OAuth 2.0 device flow; no Google Play Services required, works on Huawei and GMS-free devices.
+• OneDrive — Microsoft OAuth 2.0 device flow; personal and work/school accounts.
+• Dropbox — OAuth 2.0 authorization; tokens refresh automatically.
+• Immich — self-hosted Immich server via REST API; optional album filter.
+• Nextcloud — any folder via WebDAV; app passwords and self-signed certs supported.
+• Synology NAS — DSM FileStation API; session re-authenticated automatically.
+• Device Photos — photos stored on the TV itself via MediaStore.
 • All sources can be active at once — images are merged and shuffled.
 • Offline cache — up to 200 images stored locally as a fallback.
 • Ken Burns effect — slow pan and zoom on each photo.
@@ -57,7 +61,7 @@ OTHER FEATURES
 • Preview mode — test the screensaver instantly from Settings
 
 PRIVACY FIRST
-All credentials are stored on-device only. No data is sent anywhere except directly to Google's servers, your own NAS, and OpenWeatherMap (if weather is enabled).
+All credentials are stored on-device only. No data is sent anywhere except directly to whichever cloud services you configure (Google, Microsoft, Dropbox, your own Immich/Nextcloud/Synology server) and OpenWeatherMap if weather is enabled.
 
 SETUP
 AndroSaver registers as a system Dream Service and appears directly in your Android TV screensaver settings (Settings → Device Preferences → Screen saver).
@@ -70,11 +74,15 @@ Supports Android 5.0+ and any Android TV device.
 - Expected rating: **Everyone**
 
 ## Data safety disclosures
-| Data type         | Collected | Shared | Notes                                      |
-|-------------------|-----------|--------|--------------------------------------------|
-| Google OAuth token | Yes      | No     | Stored on-device, sent only to Google      |
-| NAS credentials   | Yes       | No     | Stored on-device, sent only to local NAS   |
-| Photos/images     | No        | No     | Streamed and displayed, never stored       |
+| Data type                  | Collected | Shared | Notes                                                      |
+|----------------------------|-----------|--------|------------------------------------------------------------|
+| Google OAuth token         | Yes       | No     | Stored on-device, sent only to Google                      |
+| Microsoft OAuth token      | Yes       | No     | Stored on-device, sent only to Microsoft                   |
+| Dropbox OAuth token        | Yes       | No     | Stored on-device, sent only to Dropbox                     |
+| Immich API key             | Yes       | No     | Stored on-device, sent only to your Immich server          |
+| Nextcloud credentials      | Yes       | No     | Stored on-device, sent only to your Nextcloud server       |
+| Synology NAS credentials   | Yes       | No     | Stored on-device, sent only to your Synology NAS           |
+| Photos/images              | No        | No     | Streamed and displayed, never uploaded or stored off-device |
 
 ## Category
 - Primary: **Personalization**

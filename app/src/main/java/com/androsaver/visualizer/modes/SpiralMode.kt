@@ -18,7 +18,7 @@ class SpiralMode : BaseMode() {
         private const val Z_FAR    = 10f
         private const val Z_NEAR   = 0.12f
         private const val RADIUS   = 1f
-        private const val SPIN     = 1.6f
+        private const val SPIN     = 3.0f
         private const val N_SYM    = 3
         private const val RING_STEP = 8
         private const val TAU = (PI * 2).toFloat()
@@ -65,12 +65,12 @@ class SpiralMode : BaseMode() {
         val W    = draw.W
         val H    = draw.H
 
-        hue = (hue + 0.007f + beat * 0.04f) % 1f
+        hue = (hue + 0.007f + beat * 0.02f) % 1f
         val bass = fft.meanSlice(0, 6)
-        val dt   = 0.038f + bass * 0.10f + beat * 0.18f
+        val dt   = 0.038f + bass * 0.05f + beat * 0.08f
         time += dt
 
-        svel += beat * 0.48f
+        svel += beat * 0.20f
         svel += (1f - scale) * 0.25f
         svel *= 0.81f
         scale = maxOf(0.4f, scale + svel)
@@ -97,7 +97,7 @@ class SpiralMode : BaseMode() {
             armPts.map { p ->
                 val nearT = maxOf(0f, 1f - p.z / Z_FAR)
                 val band = minOf((nearT * fft.size * 0.55f).toInt(), fft.size - 1)
-                val rMod = fft[band] * 1.5f
+                val rMod = fft[band] * 0.7f
                 val angle = p.pt * SPIN + armIdx.toFloat() / N_ARMS * TAU
                 val (pcx, pcy) = pathXY(p.pt)
                 val r = (RADIUS + rMod) * scale
@@ -142,7 +142,7 @@ class SpiralMode : BaseMode() {
 
                     // Beat flash for nearby particles
                     if (pp.nearT > 0.80f && beat > 0.35f) {
-                        val fr = maxOf(3f, rDot * (2.2f + beat * 0.9f))
+                        val fr = maxOf(3f, rDot * (1.6f + beat * 0.4f))
                         val cFlash = GLDraw.hsl(pp.h, 1f, 0.96f)
                         draw.circle(rx, ry, fr,
                             cFlash[0], cFlash[1], cFlash[2], cFlash[3], filled = true)
