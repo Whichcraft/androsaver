@@ -2,6 +2,7 @@ package com.androsaver
 
 import android.content.Context
 import android.util.Log
+import androidx.exifinterface.media.ExifInterface
 import com.androsaver.source.ImageItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -33,7 +34,9 @@ class ImageCache(private val context: Context) {
     fun getCachedItems(): List<ImageItem> =
         readManifest().mapNotNull { e ->
             val f = File(dir, e.file)
-            if (f.exists()) ImageItem(url = f.toURI().toString(), name = e.file) else null
+            if (!f.exists()) return@mapNotNull null
+            val orientation = try { ExifInterface(f.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED) } catch (_: Exception) { ExifInterface.ORIENTATION_UNDEFINED }
+            ImageItem(url = f.toURI().toString(), name = e.file, orientation = orientation)
         }
 
     suspend fun saveImages(items: List<ImageItem>, sourceName: String) = withContext(Dispatchers.IO) {

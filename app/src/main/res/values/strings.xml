@@ -124,4 +124,12 @@
     <string name="settings_saved">Settings saved</string>
     <string name="save">Save</string>
     <string name="test_connection">Test Connection</string>
+
+    <!-- Image Sources sub-screen -->
+    <string name="sources_none_active">No sources active</string>
+
+    <!-- About / Updates -->
+    <string name="about_version_summary">Version %s</string>
+    <string name="update_available">Update available: v%s — press to install</string>
+    <string name="update_downloading">Downloading update…</string>
 </resources>

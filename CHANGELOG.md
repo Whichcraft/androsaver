@@ -2,20 +2,38 @@
 
 All notable changes to AndroSaver are documented here.
 
-## 2026-03-25 (session 10)
+## 2026-03-26 (session 11)
+
+### Fixed
+- **CI build** — missing `import com.androsaver.auth.DropboxAuthManager` in `SettingsActivity` caused `Unresolved reference: auth` compile error; spurious `auth.` prefix removed from call site
+
+---
+
+## 2026-03-26 (session 10)
 
 ### Added
-- **Proprietary licence** — replaced placeholder MIT licence with All Rights Reserved; unauthorised copying, modification, distribution, or sale is prohibited
+- **In-app updater** — app silently checks GitHub Releases for a newer `version.json` on each Settings open; if a newer build is available the About row shows "Update available: vX — press to install"; pressing it downloads the APK and hands it to the system installer (`REQUEST_INSTALL_PACKAGES`)
+- **Update channel selector** — `ListPreference` in the About section lets users switch between Stable and Dev update channels; defaults to the build's own flavor; re-checks for updates immediately on change
+- **About preference** — new About category at the bottom of Settings always shows the current installed version
+- **Image Sources sub-screen** — all source toggles and setup entries moved to a dedicated sub-page (press Back to return); the main Settings screen shows a single "Image Sources" entry with a live summary of active source names (e.g. "Google Drive, Dropbox")
+- **EXIF orientation** — images are now displayed in their correct orientation; `LocalStorageSource` reads `MediaStore.Images.Media.ORIENTATION` at list time (free — already in the cursor); `ImageCache` reads `ExifInterface` from each cached file; `ExifRotationTransformation` (full 8-case EXIF including flips and transposes) is applied via Glide for local and cached images; remote HTTP images rely on Glide's built-in `Downsampler` EXIF handling
+- **Synology session auto-refresh** — image URLs (which embed the DSM session ID) are automatically re-fetched every 25 minutes, re-logging in to Synology before the ~30-minute DSM session expiry; the slideshow continues uninterrupted and all other sources also refresh at the same time
 
 ### Changed
-- **README** — updated to reflect Dropbox source, proprietary licence, and full setup activity list in architecture section
+- `versionCode` is now derived from `git rev-list --count HEAD` at build time (auto-incrementing); `versionName` is `1.0.<versionCode>`
+- CI now generates and publishes `version.json` alongside every APK release (dev and stable)
+- **Ken Burns** — reduced oversize from 5–14 % to 4–8 %; all four presets now end at translation (0, 0) so the image is always centered at rest; two presets zoom in (pan from offset to center), two zoom out (pan from offset to center at reduced scale)
+- **Proprietary licence** — replaced placeholder MIT licence with All Rights Reserved; unauthorised copying, modification, distribution, or sale is prohibited
+
+### Fixed
+- CHANGELOG session 9 entry had literal `\n` sequences instead of real newlines (same `sed` corruption bug as AndroidManifest)
 
 ---
 
 ## 2026-03-25 (session 9)
 
 ### Added
-- **Dropbox source** — fetch photos from Dropbox via API v2; OAuth 2.0 authorization code flow (user visits auth URL on another device, pastes the code back into the app); access token refreshed automatically using App Key + App Secret; images fetched as temporary links (4-hour pre-signed URLs) retrieved in parallel; configurable folder path
+- **Dropbox source** — fetch photos from Dropbox via API v2; OAuth 2.0 authorization code flow (user visits auth URL on another device, pastes code back); access token refreshed automatically using App Key + App Secret; images fetched as temporary links (4-hour pre-signed URLs) retrieved in parallel; configurable folder path
 
 ---
 

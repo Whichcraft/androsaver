@@ -1,22 +1,23 @@
 # AndroSaver
 
-An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive / Synology NAS / device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
+An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
 ## Features
 
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
 - **OneDrive source** — streams photos from Microsoft OneDrive using OAuth 2.0 device flow; works with personal and work/school accounts
-- **Dropbox source** — streams photos from Dropbox via OAuth 2.0 authorization code flow; configurable folder path
+- **Dropbox source** — streams photos from a Dropbox folder via OAuth 2.0 authorization code flow; access token auto-refreshed using App Key + App Secret
 - **Immich source** — streams photos from a self-hosted [Immich](https://immich.app) server via its REST API; API key auth; optional album filter
 - **Nextcloud source** — streams photos from any folder via WebDAV; works with app passwords and self-signed certificates
-- **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API
+- **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API; session re-authenticated automatically every 25 minutes
 - **Device storage source** — uses photos from the TV's local storage via MediaStore
 - All sources can be active simultaneously; images are merged and shuffled
 - **Offline cache** — up to 200 images / 300 MB stored locally; used automatically as a fallback when sources are unreachable
 - Six transition effects: **Crossfade**, **Fade to Black**, **Slide Left**, **Slide Right**, **Zoom In**, **Zoom Out**, plus a **Random** mode
 - Configurable time per image (5 s – 30 min) and transition speed (1 – 5 seconds)
-- **Ken Burns effect** — slow pan and zoom animation applied to each photo
+- **Ken Burns effect** — slow pan and zoom animation; each photo always comes to rest centered
+- **EXIF orientation** — portrait photos from phones are displayed upright regardless of source
 - **Visualizer overlay** — music visualizer rendered semi-transparently on top of the slideshow
 
 ### Music Visualizer
@@ -43,6 +44,7 @@ Designed for listening sessions: start playing music in any app, let the screen 
 - **Weather widget** — current temperature and conditions from OpenWeatherMap (available in both modes)
 - **Schedule** — restrict the screensaver to a configurable active time window (e.g. 08:00–22:00)
 - **Preview mode** — test the screensaver from the Settings app without activating the system screensaver
+- **In-app updater** — checks GitHub Releases on each Settings open; prompts to install if a newer build is available; update channel (Stable / Dev) selectable in Settings
 - Registered as a system Dream Service — appears in Android TV's screensaver settings
 
 ## Installation
@@ -115,22 +117,19 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
 
 ### Dropbox
 
-1. Go to [dropbox.com/developers](https://www.dropbox.com/developers) → **App Console** → **Create app**.
-2. Choose **Scoped access**, **Full Dropbox** (or **App Folder**), give it a name.
-3. On the app's **Settings** tab, copy the **App Key** and **App Secret**.
+1. Go to [dropbox.com/developers](https://www.dropbox.com/developers) → **App Console → Create app**.
+2. Set access to **Full Dropbox** (or **App folder** if you prefer).
+3. From the app's **Settings** tab, copy the **App Key** and **App Secret**.
 4. Open **AndroSaver Settings** on your TV.
-5. Tap **Dropbox Setup** and fill in:
+5. Tap **Image Sources → Dropbox Setup** and enter:
+   - **App Key** and **App Secret** from step 3
+   - **Folder Path** *(optional)* — leave blank for root, or enter e.g. `/Photos`
+6. Tap **Authorize with Dropbox** — the screen displays a URL.
+7. On any other device, visit the URL and sign in to Dropbox.
+8. Dropbox shows a short code — paste it back into the TV and tap **Submit Code**.
+9. Return to Settings and enable the **Dropbox** toggle.
 
-   | Field | Description |
-   |-------|-------------|
-   | **App Key** | From Dropbox App Console → Settings |
-   | **App Secret** | From Dropbox App Console → Settings |
-   | **Folder Path** | Optional — e.g. `/Photos`; leave blank for root |
-
-6. Tap **Authorize with Dropbox** — the screen shows a URL to visit.
-7. On another device, visit the URL, sign in to Dropbox, and authorize the app.
-8. Dropbox displays an authorization code — type it into the TV and tap **Submit Code**.
-9. Enable the **Dropbox** toggle in Settings.
+> Access tokens are refreshed automatically using the App Key + App Secret; no re-authorization is needed unless you revoke the app.
 
 ### Immich
 
@@ -192,7 +191,7 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
 |--------|---------|
 | Google Drive | Any format with an `image/` MIME type |
 | OneDrive | Any format with an `image/` MIME type |
-| Dropbox | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
+| Dropbox | Any format supported by Glide (JPEG, PNG, WebP, GIF, HEIC, BMP) |
 | Immich | Any `IMAGE` type asset (as classified by Immich) |
 | Nextcloud | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` (or any `image/` MIME type) |
 | Synology NAS | `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `heic`, `heif` |
@@ -234,6 +233,8 @@ All options are configured in the **AndroSaver Settings** app. The top-level **S
 ### Photo Slideshow
 
 #### Image Sources
+
+Tap **Image Sources** on the main Settings screen to open the sources sub-page. A summary of currently-active sources is shown on the entry (e.g. "Google Drive, Dropbox"). Press Back to return to main Settings.
 
 | Setting | Description |
 |---------|-------------|
@@ -336,6 +337,13 @@ These settings apply in **both** Slideshow and Visualizer mode.
 | **Schedule** | On / Off | Off | Restrict the screensaver to an active time window |
 | **Active from / until** | 0–23 h | 8 / 22 | Hour range during which the screensaver is allowed to run |
 
+### About
+
+| Setting | Options | Default | Description |
+|---------|---------|---------|-------------|
+| **Update Channel** | Stable, Dev | Stable (prod) / Dev (dev build) | Which GitHub Release to check for updates against |
+| **AndroSaver** (version row) | — | — | Shows installed version; changes to "Update available: vX — press to install" when a newer build is found |
+
 #### Visual Effects
 
 | Effect | Description |
@@ -357,15 +365,16 @@ These settings apply in **both** Slideshow and Visualizer mode.
 ScreensaverService (DreamService)
   └── ScreensaverEngine
         ├── Photo Slideshow mode
-        │   ├── GoogleDriveSource    ← Drive REST API v3 + token refresh
-        │   ├── OneDriveSource       ← Microsoft Graph API + token refresh
-        │   ├── DropboxSource        ← Dropbox API v2 + OAuth code flow
+        │   ├── GoogleDriveSource    ← Drive REST API v3 + OAuth token refresh
+        │   ├── OneDriveSource       ← Microsoft Graph API + OAuth token refresh
+        │   ├── DropboxSource        ← Dropbox API v2 + OAuth token refresh
         │   ├── ImmichSource         ← Immich REST API + API key auth
         │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
-        │   ├── SynologySource       ← Synology DSM FileStation API
-        │   ├── LocalStorageSource   ← MediaStore device photos
-        │   ├── ImageCache           ← offline fallback (200 images / 300 MB)
-        │   ├── Ken Burns animator   ← pan/zoom per photo
+        │   ├── SynologySource       ← Synology DSM FileStation API; re-login every 25 min
+        │   ├── LocalStorageSource   ← MediaStore device photos + EXIF orientation
+        │   ├── ImageCache           ← offline fallback (200 images / 300 MB); EXIF preserved
+        │   ├── ExifRotationTransformation ← corrects orientation for local/cached images
+        │   ├── Ken Burns animator   ← pan/zoom per photo; always ends centered
         │   └── VisualizerView       ← optional overlay (semi-transparent)
         ├── Music Visualizer mode
         │   ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
@@ -377,7 +386,9 @@ ScreensaverService (DreamService)
         ├── WeatherFetcher           ← OpenWeatherMap, cached 30 min
         └── Schedule check          ← restricts active hours
 
-SettingsActivity (PreferenceFragment)
+SettingsActivity
+  ├── SettingsFragment             ← main screen
+  │   └── SourcesFragment          ← Image Sources sub-screen (back-stack navigation)
   ├── GoogleDriveSetupActivity → GoogleAuthActivity (device flow)
   ├── OneDriveSetupActivity → OneDriveAuthActivity (device flow)
   ├── DropboxSetupActivity → DropboxAuthActivity (auth code flow)
@@ -385,16 +396,20 @@ SettingsActivity (PreferenceFragment)
   ├── NextcloudSetupActivity
   ├── SynologySetupActivity
   └── PreviewActivity              ← in-app screensaver preview
+
+UpdateChecker                      ← checks version.json on GitHub Releases (Stable/Dev)
+UpdateInstaller                    ← downloads APK via OkHttp, installs via FileProvider
 ```
 
-Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
+Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. EXIF orientation is applied for local and cached images via a custom `BitmapTransformation`; remote JPEG images are handled by Glide's built-in `Downsampler`. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
 
 ## Privacy
 
-Credentials are stored in Android SharedPreferences (on-device only). No data is sent anywhere except to Google and/or your local NAS.
+Credentials (OAuth tokens, API keys, passwords) are stored in Android SharedPreferences (on-device only). No data is sent to any third party except:
+- The cloud service you configure (Google, Microsoft, Dropbox, your Immich/Nextcloud/Synology server)
+- OpenWeatherMap (if the weather widget is enabled)
+- GitHub Releases (to check for updates — only a version manifest is fetched; no identifying information is sent)
 
 ## License
 
-Copyright © 2026 Tom Stocker. All Rights Reserved.
-
-Unauthorised copying, modification, distribution, or sale of this software is strictly prohibited. See [LICENSE](LICENSE) for full terms.
+All Rights Reserved — see [LICENSE](LICENSE).
