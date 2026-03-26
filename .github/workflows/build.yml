@@ -55,14 +55,17 @@ jobs:
       - name: Write version manifest
         run: |
           VERSION_CODE=$(git rev-list --count HEAD)
+          VERSION_PATCH_BASE=101
+          VERSION_PATCH=$((VERSION_CODE - VERSION_PATCH_BASE))
+          VERSION_NAME="1.1.${VERSION_PATCH}"
           if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             TAG="dev"
           else
             TAG="stable"
           fi
           APK_URL="https://github.com/Whichcraft/androsaver/releases/download/${TAG}/androsaver.apk"
-          printf '{"versionCode":%s,"versionName":"1.0.%s","apkUrl":"%s"}\n' \
-            "$VERSION_CODE" "$VERSION_CODE" "$APK_URL" > version.json
+          printf '{"versionCode":%s,"versionName":"%s","apkUrl":"%s"}\n' \
+            "$VERSION_CODE" "$VERSION_NAME" "$APK_URL" > version.json
 
       - name: Move dev tag to current commit
         if: github.ref == 'refs/heads/dev'

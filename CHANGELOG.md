@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont9)
+
+### Fixed
+- **Update checker version mismatch** — CI was hardcoding `1.0.x` in `version.json`; now mirrors `build.gradle` formula (`1.1.$(versionCode - 101)`)
+
+---
+
 ## 2026-03-26 (session 15 cont8)
 
 ### Changed
