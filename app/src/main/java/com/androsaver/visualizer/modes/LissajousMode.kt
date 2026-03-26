@@ -80,7 +80,7 @@ class LissajousMode : BaseMode() {
         val s    = scale
         val cxR  = cos(rx);  val sxR = sin(rx)
         val cyR  = cos(ry);  val syR = sin(ry)
-        val fovL = minOf(draw.W, draw.H) * 0.40f
+        val fovL = minOf(draw.W, draw.H) * 0.52f
         if (rawBuf.size < n * 2) rawBuf = FloatArray(n * 2)
         val raw = rawBuf
         for (i in 0 until n) {

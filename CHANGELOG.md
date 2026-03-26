@@ -2,6 +2,18 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont8)
+
+### Changed
+- **YantraMode intensity +30%** — all beat multipliers ×1.3
+- **CubeMode intensity +30%** — all beat multipliers ×1.3
+- **CubeMode satellite cubes no longer deform** — removed vertex clamping from projectOffset; orbit radius clamping already keeps them on-screen
+- **TunnelMode constant speed** — dt is now a fixed constant (no beat/bass fluctuation); always a smooth ride
+- **TunnelMode triangles removed** — triangle data class, spawn logic, bass spring, and draw loop fully removed
+- **LissajousMode size +30%** — projection scale raised from 0.40 to 0.52 of screen dimension
+
+---
+
 ## 2026-03-26 (session 15 cont7)
 
 ### Changed

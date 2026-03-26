@@ -60,13 +60,13 @@ class CubeMode : BaseMode() {
         val mid  = fft.meanSlice(5, 25).coerceIn(0f, 1f)
         val high = fft.meanSlice(25, fft.size).coerceIn(0f, 1f)
 
-        rvx += 0.00025f + mid  * 0.0015f + beat * 0.012f
-        rvy += 0.00035f + bass * 0.0015f + beat * 0.016f
-        rvz += 0.00018f + high * 0.0010f + beat * 0.006f
+        rvx += 0.00025f + mid  * 0.0015f + beat * 0.0156f
+        rvy += 0.00035f + bass * 0.0015f + beat * 0.0208f
+        rvz += 0.00018f + high * 0.0010f + beat * 0.0078f
         rvx *= 0.86f; rvy *= 0.86f; rvz *= 0.86f
         rx += rvx; ry += rvy; rz += rvz
 
-        svel += beat * 1.30f + bass * 0.40f
+        svel += beat * 1.69f + bass * 0.40f
         svel += (1f - scale) * 0.20f
         svel *= 0.72f
         scale += svel
@@ -200,8 +200,8 @@ class CubeMode : BaseMode() {
     /** Perspective projection with XY world-space offset (for satellite cubes). */
     private fun projectOffset(v: FloatArray, ox: Float, oy: Float, W: Int, H: Int, fov: Float): Pair<Float, Float> {
         val sz = maxOf(v[2] + 3.8f, 0.5f)
-        val sx = ((v[0] + ox) * fov / sz + W / 2f).coerceIn(0f, W.toFloat())
-        val sy = ((v[1] + oy) * fov / sz + H / 2f).coerceIn(0f, H.toFloat())
+        val sx = (v[0] + ox) * fov / sz + W / 2f
+        val sy = (v[1] + oy) * fov / sz + H / 2f
         return sx to sy
     }
 }
