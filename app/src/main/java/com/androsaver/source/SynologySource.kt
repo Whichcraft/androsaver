@@ -4,27 +4,21 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 
 class SynologySource(private val context: Context) : ImageSource {
 
     override val name = "Synology NAS"
 
     // Allow self-signed certificates common on local NAS devices
-    private val client = buildTrustAllClient()
+    private val client = HttpClients.trustAll
     private val gson = Gson()
 
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
@@ -104,32 +98,6 @@ class SynologySource(private val context: Context) : ImageSource {
         } catch (e: Exception) {
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List images error", e)
             emptyList()
-        }
-    }
-
-    private fun buildTrustAllClient(): OkHttpClient {
-        val trustManager = object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        }
-        val sslContext = SSLContext.getInstance("SSL").apply {
-            init(null, arrayOf<TrustManager>(trustManager), SecureRandom())
-        }
-        return OkHttpClient.Builder()
-            .sslSocketFactory(sslContext.socketFactory, trustManager)
-            .hostnameVerifier { _, _ -> true }
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
-    }
-
-    private fun logout(baseUrl: String, sid: String) {
-        try {
-            val url = "$baseUrl/webapi/auth.cgi?api=SYNO.API.Auth&version=3&method=logout&session=AndroSaver&_sid=$sid"
-            client.newCall(Request.Builder().url(url).build()).execute().close()
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Logout failed (non-critical): ${e.message}")
         }
     }
 

@@ -20,9 +20,10 @@ object UpdateInstaller {
     suspend fun downloadAndInstall(context: Context, apkUrl: String) = withContext(Dispatchers.IO) {
         val apkFile = File(context.cacheDir, "androsaver-update.apk")
         val request = Request.Builder().url(apkUrl).build()
-        val response = client.newCall(request).execute()
-        response.body?.byteStream()?.use { input ->
-            apkFile.outputStream().use { output -> input.copyTo(output) }
+        client.newCall(request).execute().use { response ->
+            response.body?.byteStream()?.use { input ->
+                apkFile.outputStream().use { output -> input.copyTo(output) }
+            }
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apkFile)
         val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {

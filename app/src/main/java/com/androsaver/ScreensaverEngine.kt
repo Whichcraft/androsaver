@@ -35,6 +35,7 @@ import com.bumptech.glide.request.transition.Transition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -283,8 +284,11 @@ class ScreensaverEngine(
         scope.launch {
             val items = mutableListOf<ImageItem>()
             for (src in sources) {
-                try { items.addAll(src.getImageUrls()) }
-                catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error from ${src.name}", e) }
+                try {
+                    val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
+                    if (urls != null) items.addAll(urls)
+                    else if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "${src.name} timed out")
+                } catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error from ${src.name}", e) }
             }
             if (items.isEmpty()) {
                 tryFallbackCache()
@@ -349,8 +353,11 @@ class ScreensaverEngine(
                     if (sources.isEmpty()) return@launch
                     val fresh = mutableListOf<ImageItem>()
                     for (src in sources) {
-                        try { fresh.addAll(src.getImageUrls()) }
-                        catch (e: Exception) {
+                        try {
+                            val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
+                            if (urls != null) fresh.addAll(urls)
+                            else if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Refresh: ${src.name} timed out")
+                        } catch (e: Exception) {
                             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Refresh error from ${src.name}", e)
                         }
                     }

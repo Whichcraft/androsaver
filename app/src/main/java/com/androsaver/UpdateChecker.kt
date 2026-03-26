@@ -29,9 +29,10 @@ object UpdateChecker {
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder().url(manifestUrl(context)).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext null
-            val body = response.body?.string() ?: return@withContext null
+            val body = client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                response.body?.string() ?: return@withContext null
+            }
             val info = Gson().fromJson(body, UpdateInfo::class.java)
             if (info.versionCode > BuildConfig.VERSION_CODE) info else null
         } catch (e: Exception) {

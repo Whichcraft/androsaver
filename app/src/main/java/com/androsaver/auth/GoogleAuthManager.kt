@@ -2,13 +2,13 @@ package com.androsaver.auth
 
 import android.content.Context
 import androidx.preference.PreferenceManager
+import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
-import okhttp3.OkHttpClient
 import okhttp3.Request
 
 data class DeviceCodeResponse(
@@ -28,7 +28,7 @@ sealed class AuthResult {
 
 class GoogleAuthManager(private val context: Context) {
 
-    private val client = OkHttpClient()
+    private val client = HttpClients.standard
     private val gson = Gson()
 
     suspend fun requestDeviceCode(): DeviceCodeResponse? = withContext(Dispatchers.IO) {
@@ -46,8 +46,7 @@ class GoogleAuthManager(private val context: Context) {
             .build()
 
         try {
-            val response = client.newCall(request).execute()
-            val json = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            val json = client.newCall(request).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
             if (json.has("error")) return@withContext null
             DeviceCodeResponse(
                 deviceCode = json.get("device_code").asString,
@@ -81,8 +80,7 @@ class GoogleAuthManager(private val context: Context) {
             .build()
 
         try {
-            val response = client.newCall(request).execute()
-            val json = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            val json = client.newCall(request).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
 
             when {
                 json.has("access_token") -> {

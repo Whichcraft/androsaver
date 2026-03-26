@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import com.androsaver.auth.DropboxAuthManager
 import com.google.gson.Gson
@@ -12,20 +13,15 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 
 /** Fetches images from Dropbox via the Dropbox API v2. */
 class DropboxSource(private val context: Context) : ImageSource {
 
     override val name = "Dropbox"
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val client = HttpClients.standard
     private val gson = Gson()
     private val authManager = DropboxAuthManager(context)
 

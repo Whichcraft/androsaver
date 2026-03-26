@@ -9,21 +9,17 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.androsaver.HttpClients
 import okhttp3.FormBody
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
 
 /** Fetches images from OneDrive (personal or work) via Microsoft Graph API. */
 class OneDriveSource(private val context: Context) : ImageSource {
 
     override val name = "OneDrive"
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val client = HttpClients.standard
     private val gson = Gson()
 
     override fun isConfigured(): Boolean {
