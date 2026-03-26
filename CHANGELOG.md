@@ -2,6 +2,17 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 14)
+
+### Added
+- **Satellite cubes in CubeMode** — port of psysuals v1.3 orbiting satellite cubes; 2–6 small cubes (28% of main cube scale) orbit at radius 2.6 using the same rotation matrix as the main cube; count scales with beat intensity (`2 + int(beat * 2)`), orbital speed increases on stronger beats
+- **Check for Updates button** — new "Check for Updates" entry in the About settings section; shows "Checking…" while in progress, then "Up to date" or "Update available: vX — press to install"
+
+### Changed
+- **Update channel locked to build flavor** — dev builds always check the dev channel, stable builds always check the stable channel; channel selector is now read-only with an "automatic" label; manual channel switching removed
+
+---
+
 ## 2026-03-26 (session 13)
 
 ### Fixed
