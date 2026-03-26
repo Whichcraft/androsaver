@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 11)
+
+### Fixed
+- **CI build** — missing `import com.androsaver.auth.DropboxAuthManager` in `SettingsActivity` caused `Unresolved reference: auth` compile error; spurious `auth.` prefix removed from call site
+
+---
+
 ## 2026-03-26 (session 10)
 
 ### Added
