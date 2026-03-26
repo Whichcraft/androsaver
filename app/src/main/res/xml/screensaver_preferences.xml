@@ -51,10 +51,6 @@
 
     <PreferenceCategory android:key="cat_about" android:title="About">
         <Preference
-            android:key="check_for_updates"
-            android:title="@string/check_for_updates"
-            android:icon="@android:drawable/stat_sys_download_done" />
-        <Preference
             android:key="about_app"
             android:title="@string/app_name"
             android:icon="@android:drawable/ic_menu_info_details" />

@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont5)
+
+### Removed
+- **Check for Updates button** — removed separate preference row; update check still runs automatically on resume and result shown in the AndroSaver about row
+
+---
+
 ## 2026-03-26 (session 15 cont4)
 
 ### Changed

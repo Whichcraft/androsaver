@@ -80,11 +80,6 @@ class SettingsActivity : AppCompatActivity() {
                         .commit()
                     true
                 }
-                "check_for_updates" -> {
-                    findPreference<Preference>("check_for_updates")?.summary = getString(R.string.checking_for_updates)
-                    checkForUpdates()
-                    true
-                }
                 "about_app" -> {
                     val url = pendingUpdateUrl
                     if (url != null) {
@@ -133,14 +128,10 @@ class SettingsActivity : AppCompatActivity() {
         private fun checkForUpdates() {
             viewLifecycleOwner.lifecycleScope.launch {
                 val update = UpdateChecker.checkForUpdate()
-                val checkPref = findPreference<Preference>("check_for_updates")
                 if (update != null) {
                     pendingUpdateUrl = update.apkUrl
-                    checkPref?.summary = getString(R.string.update_available, update.versionName)
                     findPreference<Preference>("about_app")?.summary =
                         getString(R.string.update_available, update.versionName)
-                } else {
-                    checkPref?.summary = getString(R.string.up_to_date)
                 }
             }
         }
