@@ -55,23 +55,23 @@ class LissajousMode : BaseMode() {
 
         dx += 0.0003f + bass * 0.0008f
         dz += 0.0002f + high * 0.0006f
-        t  += 0.010f  + beat * 0.03f
+        t  += 0.010f  + beat * 0.01f
 
         if (hist.size >= TRAIL) hist.removeFirst()
         hist.addLast(Triple(sin(ax * t + dx), sin(ay * t + dy), sin(az * t + dz)))
 
         // Spring scale burst
-        svel  += beat * 0.20f
+        svel  += beat * 0.067f
         svel  += (1f - scale) * 0.26f
         svel  *= 0.60f
         scale += svel
         scale  = maxOf(0.35f, scale)
 
-        hue += beat * 0.04f
+        hue += beat * 0.013f
 
         // Rotation inertia
-        rvx += beat * 0.005f + 0.00005f; rvx *= 0.97f; rx += rvx
-        rvy += beat * 0.006f + 0.00007f; rvy *= 0.97f; ry += rvy
+        rvx += beat * 0.00167f + 0.00005f; rvx *= 0.97f; rx += rvx
+        rvy += beat * 0.002f  + 0.00007f; rvy *= 0.97f; ry += rvy
 
         val n = hist.size
         if (n < 2) return
@@ -136,7 +136,7 @@ class LissajousMode : BaseMode() {
             val ca = cos(ang); val sa = sin(ang)
             val sx = cx + hpx * ca - hpy * sa
             val sy_ = cy + hpx * sa + hpy * ca
-            val r = maxOf(3f, 7f + beat * 22f)
+            val r = maxOf(3f, 7f + beat * 7.33f)
             val c = GLDraw.hsl((hue + sym * 0.33f) % 1f, l = 0.88f)
             draw.circle(sx, sy_, r, c[0], c[1], c[2], 1f, segments = 16)
             draw.circle(sx, sy_, r / 3f, 1f, 1f, 1f, 1f, segments = 12)

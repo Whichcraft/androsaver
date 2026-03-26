@@ -2,6 +2,15 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont7)
+
+### Changed
+- **CubeMode satellite smoothness** — fixed angular slot divisor to N_MAX=6 so existing satellites never jump when beat changes active count
+- **TunnelMode inner circles** — removed constant per-ring rotating polygons; replaced with beat-spawned circles that travel through the tunnel independently
+- **LissajousMode intensity** — all beat multipliers divided by 3 (scale, hue, rotation, knot speed, head dot size)
+
+---
+
 ## 2026-03-26 (session 15 cont6)
 
 ### Changed

@@ -120,6 +120,9 @@ class CubeMode : BaseMode() {
         }
 
         // ── Orbiting satellite cubes ──────────────────────────────────────────
+        // N_MAX is the maximum possible nSats value; angular slots are fixed so
+        // existing satellites never jump when the active count changes.
+        val N_MAX    = 6
         val nSats    = 2 + (beat.coerceAtMost(2f) * 2f).toInt()
         val satScale = scale * 0.28f
         val orbR     = 2.6f
@@ -133,7 +136,7 @@ class CubeMode : BaseMode() {
         val effectiveOrbR = if (maxOrbitPx > 0f) minOf(orbR, maxOrbitPx * sz0 / fov) else 0f
 
         for (si in 0 until nSats) {
-            val theta = orbAngle + si.toFloat() / nSats * (2f * PI.toFloat())
+            val theta = orbAngle + si.toFloat() / N_MAX * (2f * PI.toFloat())
             val ox    = effectiveOrbR * cos(theta)
             val oy    = effectiveOrbR * sin(theta)
             val verts3d = Array(8) { vi ->
