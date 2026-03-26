@@ -31,8 +31,8 @@
 
     <PreferenceCategory android:key="cat_visualizer" android:title="Visualizer">
         <ListPreference android:key="visualizer_mode" android:title="Visual Effect" android:entries="@array/visualizer_mode_entries" android:entryValues="@array/visualizer_mode_values" android:defaultValue="auto" android:summary="%s" />
-        <ListPreference android:key="visualizer_intensity" android:title="Effect Intensity" android:summary="How strongly visuals react to the beat" android:entries="@array/visualizer_intensity_entries" android:entryValues="@array/visualizer_intensity_values" android:defaultValue="1.0" />
-        <ListPreference android:key="viz_cycle_interval" android:title="Auto-Cycle Interval" android:entries="@array/viz_cycle_entries" android:entryValues="@array/viz_cycle_values" android:defaultValue="0" android:summary="%s" />
+        <ListPreference android:key="visualizer_intensity" android:title="Effect Intensity" android:summary="How strongly visuals react to the beat" android:entries="@array/visualizer_intensity_entries" android:entryValues="@array/visualizer_intensity_values" android:defaultValue="0.5" />
+        <ListPreference android:key="viz_cycle_interval" android:title="Auto-Cycle Interval" android:entries="@array/viz_cycle_entries" android:entryValues="@array/viz_cycle_values" android:defaultValue="120000" android:summary="%s" />
         <ListPreference android:key="audio_genre" android:title="Music Genre" android:entries="@array/audio_genre_entries" android:entryValues="@array/audio_genre_values" android:defaultValue="any" android:summary="%s" />
     </PreferenceCategory>
 
@@ -50,19 +50,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:key="cat_about" android:title="About">
-        <ListPreference
-            android:key="update_channel"
-            android:title="@string/update_channel_label"
-            android:entries="@array/update_channel_entries"
-            android:entryValues="@array/update_channel_values"
-            android:summary="%s"
-            android:icon="@android:drawable/stat_sys_download"
-            android:enabled="false"
-            android:selectable="false" />
-        <Preference
-            android:key="check_for_updates"
-            android:title="@string/check_for_updates"
-            android:icon="@android:drawable/stat_sys_download_done" />
         <Preference
             android:key="about_app"
             android:title="@string/app_name"

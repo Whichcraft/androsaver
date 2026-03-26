@@ -4,7 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/** First-person ride through a neon curving tube with beat-spawned flying triangles. */
+/** First-person ride through a neon curving tube with beat-spawned inner circles. */
 class TunnelMode : BaseMode() {
 
     override val name = "Tunnel"
@@ -12,29 +12,28 @@ class TunnelMode : BaseMode() {
     private companion object {
         const val N_RINGS    = 30
         const val N_SIDES    = 20
-        const val TUBE_R_MIN = 1.3f   // raised so viewer stays mostly inside the tube
+        const val TUBE_R_MIN = 1.3f
         const val TUBE_R_MAX = 3.0f
         const val Z_FAR      = 10.0f
         const val Z_NEAR     = 0.18f
+        const val DT         = 0.018f  // constant speed — smooth ride always
     }
 
     private data class Ring(var z: Float, var pt: Float)
-    private data class Triangle(
+    private data class BeatCircle(
         var z: Float, var pt: Float,
-        var rot: Float, var rvel: Float,
-        var size: Float, var hue: Float
+        var hue: Float, var radiusFrac: Float
     )
 
-    private val rings    = ArrayList<Ring>(N_RINGS)
-    private val tris     = ArrayList<Triangle>(120)
+    private val rings       = ArrayList<Ring>(N_RINGS)
+    private val beatCircles = ArrayList<BeatCircle>(60)
     private var hue      = 0f
     private var time     = 0f
-    private var bassPulse = 0f
-    private var bassVel   = 0f
+    private var prevBeat = 0f
 
     override fun reset() {
-        hue = 0f; time = 0f; bassPulse = 0f; bassVel = 0f
-        rings.clear(); tris.clear()
+        hue = 0f; time = 0f; prevBeat = 0f
+        rings.clear(); beatCircles.clear()
         val spacing = (Z_FAR - Z_NEAR) / N_RINGS
         for (i in 0 until N_RINGS) {
             val z = Z_NEAR + i * spacing
@@ -59,31 +58,24 @@ class TunnelMode : BaseMode() {
         hue += 0.006f
         val bass = fft.meanSlice(0, 6)
         val mid  = fft.meanSlice(6, 30)
-        val dt = 0.008f + bass * 0.04f + beat * 0.05f
-        time += dt
+        time += DT
 
-        // Bass spring — drives triangle burst size
-        bassVel   += bass * 2.5f - bassPulse * 0.5f
-        bassVel   *= 0.68f
-        bassPulse += bassVel
-
-        // Spawn triangles — count driven by both beat and bass so spawning tracks the music
         val tubeR = TUBE_R_MIN + (TUBE_R_MAX - TUBE_R_MIN) * (beat + bass * 0.5f).coerceIn(0f, 1f)
-        val spawnCount = (bass * 2.5f + (beat - 1.3f).coerceAtLeast(0f) * 10f).toInt()
-        repeat(spawnCount) {
-            tris.add(Triangle(
-                z    = Z_FAR * (0.65f + Math.random().toFloat() * 0.30f),
-                pt   = time + Z_FAR * 0.8f,
-                rot  = (Math.random() * TAU).toFloat(),
-                rvel = (if (Math.random() < 0.5) 1 else -1) * (0.04f + Math.random().toFloat() * 0.08f),
-                size = 0.20f + Math.random().toFloat() * 0.35f,
-                hue  = (hue + Math.random().toFloat() * 0.5f) % 1f
+
+        // Spawn beat circles on rising beat edge
+        if (beat > 0.45f && prevBeat <= 0.45f) {
+            beatCircles.add(BeatCircle(
+                z          = Z_FAR,
+                pt         = time + Z_FAR,
+                hue        = (hue + 0.25f + Math.random().toFloat() * 0.4f) % 1f,
+                radiusFrac = 0.25f + Math.random().toFloat() * 0.30f
             ))
         }
+        prevBeat = beat
 
         // Advance rings
         for (r in rings) {
-            r.z -= dt
+            r.z -= DT
             if (r.z < Z_NEAR) { r.z += Z_FAR; r.pt = time + r.z }
         }
         val ordered = rings.sortedByDescending { it.z }
@@ -113,48 +105,24 @@ class TunnelMode : BaseMode() {
                 val (wr, wg, wb) = hsl3(hs, l = bright * 0.55f)
                 draw.line(p1x, p1y, p2x, p2y, wr, wg, wb, 0.7f)
             }
-
-            // Rotating inner polygon
-            val nStar = 3 + (i % 4)
-            val sDir = if (i % 2 == 0) 1f else -1f
-            val sRot = time * 0.45f * sDir + i * 0.52f
-            val sR = maxOf(2f, sr1 * 0.52f)
-            val sH = (h + 0.5f) % 1f
-            val sL = minOf(bright * 1.1f + mid * 0.2f, 0.92f)
-            val sPts = FloatArray(nStar * 2)
-            for (v in 0 until nStar) {
-                val ang = v.toFloat() / nStar * TAU + sRot
-                sPts[v * 2]     = sx1 + cos(ang) * sR
-                sPts[v * 2 + 1] = sy1 + sin(ang) * sR
-            }
-            val (pr, pg, pb) = hsl3(sH, l = sL)
-            draw.polygon(sPts, pr, pg, pb, 1f, filled = false)
         }
 
-        // Beat triangles
-        val liveTris = ArrayList<Triangle>()
-        for (tri in tris) {
-            tri.z   -= dt
-            tri.rot += tri.rvel
-            if (tri.z < Z_NEAR) continue
-            val (tcx, tcy) = path(tri.pt)
-            val (tsx, tsy, tsc) = proj(tcx, tcy, tri.z, draw.W, draw.H)
-            val nearT = maxOf(0f, 1f - tri.z / Z_FAR)
-            val tr = maxOf(3f, tri.size * tsc * (1f + bassPulse * 0.9f))
-            val h  = (tri.hue + nearT * 0.4f) % 1f
-            val bright = 0.35f + nearT * 0.60f
-            val triPts = FloatArray(6)
-            for (v in 0 until 3) {
-                triPts[v * 2]     = tsx + cos(tri.rot + v * TAU / 3f) * tr
-                triPts[v * 2 + 1] = tsy + sin(tri.rot + v * TAU / 3f) * tr
-            }
-            val (hr, hg, hb) = hsl3(h, l = bright * 0.30f)
-            draw.polygon(triPts, hr, hg, hb, 0.7f, filled = false)
-            val (cr, cg, cb) = hsl3(h, l = bright)
-            draw.polygon(triPts, cr, cg, cb, 1f, filled = false)
-            liveTris.add(tri)
+        // Beat circles — spawned on beat, travel toward viewer independently
+        val liveBeatCircles = ArrayList<BeatCircle>()
+        for (bc in beatCircles) {
+            bc.z -= DT
+            if (bc.z < Z_NEAR) continue
+            val (bcx, bcy) = path(bc.pt)
+            val (bsx, bsy, bsc) = proj(bcx, bcy, bc.z, draw.W, draw.H)
+            val nearT = maxOf(0f, 1f - bc.z / Z_FAR)
+            val bsr = maxOf(2f, tubeR * bsc * bc.radiusFrac)
+            val bh = (bc.hue + nearT * 0.3f) % 1f
+            val bright = 0.40f + nearT * 0.55f
+            val (br, bg, bb) = hsl3(bh, l = bright)
+            draw.circle(bsx, bsy, bsr, br, bg, bb, 0.85f, filled = false, segments = N_SIDES)
+            liveBeatCircles.add(bc)
         }
-        tris.clear(); tris.addAll(liveTris.takeLast(120))
+        beatCircles.clear(); beatCircles.addAll(liveBeatCircles.takeLast(60))
     }
 
     private fun hsl3(h: Float, s: Float = 1f, l: Float = 0.5f): Triple<Float, Float, Float> {
