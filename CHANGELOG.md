@@ -2,7 +2,10 @@
 
 All notable changes to AndroSaver are documented here.
 
-## 2026-03-26 (session 15)
+## 2026-03-26 (session 15 cont)
+
+### Fixed
+- **Version always 1.0.1 / update check never finding updates** — CI checkout was a shallow clone (`fetch-depth` defaulting to 1), so `git rev-list --count HEAD` always returned 1; added `fetch-depth: 0` to the build job checkout
 
 ### Changed
 - **Version shows update channel** — About entry now displays e.g. "Version 1.0.42 · dev channel" instead of just the version number
