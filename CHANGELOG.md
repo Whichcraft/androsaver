@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 — version 1.2.0
+
+### Changed
+- Version bumped to 1.2 (patch counter reset to 0)
+
+---
+
 ## 2026-03-26 (session 15 cont18)
 
 ### Fixed
