@@ -131,8 +131,10 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateAboutVersion() {
+            val channel = if (BuildConfig.FLAVOR == "dev") Prefs.UPDATE_CHANNEL_DEV
+                          else Prefs.UPDATE_CHANNEL_STABLE
             findPreference<Preference>("about_app")?.summary =
-                getString(R.string.about_version_summary, BuildConfig.VERSION_NAME)
+                getString(R.string.about_version_summary, BuildConfig.VERSION_NAME, channel)
         }
 
         private fun checkForUpdates() {

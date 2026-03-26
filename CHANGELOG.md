@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15)
+
+### Changed
+- **Version shows update channel** — About entry now displays e.g. "Version 1.0.42 · dev channel" instead of just the version number
+
+---
+
 ## 2026-03-26 (session 14)
 
 ### Added

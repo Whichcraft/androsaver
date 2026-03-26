@@ -129,7 +129,7 @@
     <string name="sources_none_active">No sources active</string>
 
     <!-- About / Updates -->
-    <string name="about_version_summary">Version %s</string>
+    <string name="about_version_summary">Version %1$s · %2$s channel</string>
     <string name="update_available">Update available: v%s — press to install</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="check_for_updates">Check for Updates</string>
