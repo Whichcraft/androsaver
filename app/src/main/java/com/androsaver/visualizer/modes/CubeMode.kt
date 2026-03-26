@@ -31,11 +31,13 @@ class CubeMode : BaseMode() {
     private var scale = 1f; private var svel = 0f
     private var rvx = 0f; private var rvy = 0f; private var rvz = 0f
     private var orbAngle = 0f
+    private var spinDir  = 1f   // +1 or -1, flips on bass punch
+    private var prevBass = 0f
 
     // Trail: ring buffer of projected vertex positions for main (ci=0) and inner (ci=1) cubes.
     // The screen is cleared every frame by the renderer, so we re-draw past positions explicitly
     // with decreasing alpha rather than relying on framebuffer persistence.
-    private val TRAIL_LEN = 8
+    private val TRAIL_LEN = 14
     private val trailProj  = Array(TRAIL_LEN) { Array(2) { Array(8) { 0f to 0f } } }
     private var trailHead  = 0
     private var trailCount = 0
@@ -45,7 +47,7 @@ class CubeMode : BaseMode() {
         fadeHue = 0f
         scale = 1f; svel = 0f
         rvx = 0f; rvy = 0f; rvz = 0f
-        orbAngle = 0f
+        orbAngle = 0f; spinDir = 1f; prevBass = 0f
         trailHead = 0; trailCount = 0
     }
 
@@ -60,9 +62,13 @@ class CubeMode : BaseMode() {
         val mid  = fft.meanSlice(5, 25).coerceIn(0f, 1f)
         val high = fft.meanSlice(25, fft.size).coerceIn(0f, 1f)
 
-        rvx += 0.00025f + mid  * 0.0015f + beat * 0.0156f
-        rvy += 0.00035f + bass * 0.0015f + beat * 0.0208f
-        rvz += 0.00018f + high * 0.0010f + beat * 0.0078f
+        // Flip spin direction on each bass punch (rising edge)
+        if (bass > 0.4f && prevBass <= 0.4f) spinDir = -spinDir
+        prevBass = bass
+
+        rvx += spinDir * (0.00025f + mid  * 0.0015f + beat * 0.0156f)
+        rvy += spinDir * (0.00035f + bass * 0.0015f + beat * 0.0208f)
+        rvz += spinDir * (0.00018f + high * 0.0010f + beat * 0.0078f)
         rvx *= 0.86f; rvy *= 0.86f; rvz *= 0.86f
         rx += rvx; ry += rvy; rz += rvz
 
@@ -91,7 +97,7 @@ class CubeMode : BaseMode() {
         // ── Draw echo trail (oldest → newest-1, progressively brighter) ───────
         for (age in trailCount - 1 downTo 1) {
             val frameIdx = (trailHead - 1 - age + TRAIL_LEN * 2) % TRAIL_LEN
-            val alpha    = (1f - age.toFloat() / trailCount.toFloat()) * 0.55f
+            val alpha    = (1f - age.toFloat() / trailCount.toFloat()) * 0.75f
             for (ci in 0..1) {
                 val hueOff = if (ci == 1) 0.5f else 0f
                 val proj   = trailProj[frameIdx][ci]
@@ -120,22 +126,24 @@ class CubeMode : BaseMode() {
         }
 
         // ── Orbiting satellite cubes ──────────────────────────────────────────
-        // N_MAX is the maximum possible nSats value; angular slots are fixed so
-        // existing satellites never jump when the active count changes.
-        val N_MAX    = 6
-        val nSats    = 2 + (beat.coerceAtMost(2f) * 2f).toInt()
-        val satScale = scale * 0.28f
-        val orbR     = 2.6f
+        val N_MAX    = 2
+        val nSats    = 2
+        val satScale = scale * 0.16f
+        val baseOrbR = 2.6f
+        val sz0      = 3.8f  // approximate z-depth (matches project() offset)
         orbAngle    += 0.012f + beat * 0.04f
 
-        // Clamp orbit radius so the satellite cube stays fully on screen.
-        // A rotated satellite corner extends ~1.5× satScale from the orbit centre.
-        val sz0        = 3.8f  // approximate z-depth of cube centre (matches project() offset)
+        // Screen-space half-extent of a rotated satellite cube corner
         val satHalfPx  = satScale * 1.5f * fov / sz0
         val maxOrbitPx = minOf(draw.W, draw.H) / 2f - satHalfPx - 8f
-        val effectiveOrbR = if (maxOrbitPx > 0f) minOf(orbR, maxOrbitPx * sz0 / fov) else 0f
 
         for (si in 0 until nSats) {
+            // Each slot gets an independent radial bounce via a per-slot phase offset
+            val bouncePhase = si.toFloat() / N_MAX * (2f * PI.toFloat()) * 1.5f
+            val bounce      = sin(orbAngle * 5f + bouncePhase) * 0.35f
+            val orbR        = (baseOrbR * (1f + bounce)).coerceAtLeast(0.3f)
+            val effectiveOrbR = if (maxOrbitPx > 0f) minOf(orbR, maxOrbitPx * sz0 / fov) else 0f
+
             val theta = orbAngle + si.toFloat() / N_MAX * (2f * PI.toFloat())
             val ox    = effectiveOrbR * cos(theta)
             val oy    = effectiveOrbR * sin(theta)
@@ -147,9 +155,9 @@ class CubeMode : BaseMode() {
                     rx, ry, rz
                 )
             }
-            val proj   = Array(8) { vi -> projectOffset(verts3d[vi], ox, oy, draw.W, draw.H, fov) }
-            val hOff   = si.toFloat() / nSats * 0.6f
-            val satL   = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
+            val proj = Array(8) { vi -> projectOffset(verts3d[vi], ox, oy, draw.W, draw.H, fov) }
+            val hOff = si.toFloat() / N_MAX * 0.6f
+            val satL = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
             for ((ei, edge) in edges.withIndex()) {
                 val (a, b) = edge
                 val h     = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f

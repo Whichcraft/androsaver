@@ -4,7 +4,10 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/** Smooth ride through a neon tunnel; bass punches spawn triangles on the center line. */
+/**
+ * Smooth first-person tunnel ride (pure geometry, no music reactivity).
+ * Bass beats spawn bursts of triangles along the tunnel center line — only they react to music.
+ */
 class TunnelMode : BaseMode() {
 
     override val name = "Tunnel"
@@ -12,31 +15,28 @@ class TunnelMode : BaseMode() {
     private companion object {
         const val N_RINGS    = 30
         const val N_SIDES    = 20
-        const val TUBE_R_MIN = 1.3f
-        const val TUBE_R_MAX = 3.0f
+        const val TUBE_R     = 2.0f
         const val Z_FAR      = 10.0f
         const val Z_NEAR     = 0.18f
-        const val DT         = 0.018f   // constant speed — smooth ride always
-        const val BASS_THRESH = 0.35f   // bass level that triggers a triangle spawn
-        const val SPAWN_COOLDOWN = 8    // minimum frames between spawns
+        const val DT         = 0.018f
+        const val BASS_THRESH = 0.20f
+        const val SPAWN_GAP   = 4       // min frames between bursts
     }
 
     private data class Ring(var z: Float, var pt: Float)
-    private data class BassTri(
+    private data class Tri(
         var z: Float,
-        var pt: Float,      // path-time — keeps triangle on the tunnel's center line
-        var rot: Float,
-        val rvel: Float,
-        var hue: Float,
-        val sizeFrac: Float // triangle radius as fraction of tube radius at its z
+        var rot: Float, val rvel: Float,
+        var hue: Float, val sizeFrac: Float,
+        val pt: Float   // path time at spawn = time + z; stays constant as both tick together
     )
 
     private val rings = ArrayList<Ring>(N_RINGS)
-    private val tris  = ArrayList<BassTri>(60)
-    private var hue       = 0f
-    private var time      = 0f
-    private var prevBass  = 0f
-    private var cooldown  = 0
+    private val tris  = ArrayList<Tri>(80)
+    private var hue      = 0f
+    private var time     = 0f
+    private var prevBass = 0f
+    private var cooldown = 0
 
     override fun reset() {
         hue = 0f; time = 0f; prevBass = 0f; cooldown = 0
@@ -48,11 +48,9 @@ class TunnelMode : BaseMode() {
         }
     }
 
-    /** Tunnel center path — gentle S-curve in XY. */
     private fun path(t: Float): Pair<Float, Float> =
         Pair(sin(t * 0.21f) * 0.9f, cos(t * 0.16f) * 0.65f)
 
-    /** Perspective projection. Returns (screenX, screenY, scale). */
     private fun proj(wx: Float, wy: Float, wz: Float, W: Int, H: Int): Triple<Float, Float, Float> {
         val fov = minOf(W, H) * 0.75f
         val z = maxOf(wz, 0.01f)
@@ -60,51 +58,52 @@ class TunnelMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.10f)
+        draw.fadeBlack(0.11f)
 
         val fft  = audio.fft
         val beat = audio.beat
         val bass = fft.meanSlice(0, 6)
-        val mid  = fft.meanSlice(6, 30)
         hue += 0.005f
         time += DT
         if (cooldown > 0) cooldown--
 
-        // Tube radius breathes slightly with beat — still smooth
-        val tubeR = TUBE_R_MIN + (TUBE_R_MAX - TUBE_R_MIN) * (beat * 0.6f + bass * 0.4f).coerceIn(0f, 1f)
-
-        // Spawn a triangle on each bass punch (rising edge + cooldown)
+        // Spawn a burst of triangles on each bass punch.
+        // Burst size and wildness scale with bass intensity — elevated bass = more chaos.
         if (bass > BASS_THRESH && prevBass <= BASS_THRESH && cooldown == 0) {
-            val spin = (if (Math.random() < 0.5) 1 else -1) * (0.015f + Math.random().toFloat() * 0.025f)
-            tris.add(BassTri(
-                z        = Z_FAR,
-                pt       = time + Z_FAR,
-                rot      = (Math.random() * TAU).toFloat(),
-                rvel     = spin,
-                hue      = (hue + 0.4f + Math.random().toFloat() * 0.3f) % 1f,
-                sizeFrac = 0.40f + Math.random().toFloat() * 0.25f
-            ))
-            cooldown = SPAWN_COOLDOWN
+            val intensity  = (bass / BASS_THRESH).coerceAtMost(3.5f)  // 1.0 at threshold, up to 3.5×
+            val burstSize  = (1 + intensity * 3.5f).toInt()            // 2–15 triangles
+            val maxSpin    = 0.015f + intensity * 0.055f               // wilder rotation at high bass
+            val maxSize    = 0.28f  + intensity * 0.22f                // bigger triangles at high bass
+            repeat(burstSize) { bi ->
+                val spin = (if (Math.random() < 0.5) 1 else -1) * (0.010f + Math.random().toFloat() * maxSpin)
+                val spawnZ = Z_FAR * (0.65f + bi * 0.05f)
+                tris.add(Tri(
+                    z        = spawnZ,
+                    rot      = (Math.random() * TAU).toFloat(),
+                    rvel     = spin,
+                    hue      = (hue + 0.3f + Math.random().toFloat() * 0.5f) % 1f,
+                    sizeFrac = 0.22f + Math.random().toFloat() * maxSize,
+                    pt       = time + spawnZ   // constant: time+z stays fixed as both advance by DT
+                ))
+            }
+            cooldown = SPAWN_GAP
         }
         prevBass = bass
 
-        // Advance rings
         for (r in rings) {
             r.z -= DT
             if (r.z < Z_NEAR) { r.z += Z_FAR; r.pt = time + r.z }
         }
         val ordered = rings.sortedByDescending { it.z }
 
-        // Draw tunnel rings + wall lines
         for (i in 0 until ordered.size - 1) {
             val r1 = ordered[i]; val r2 = ordered[i + 1]
             val (cx1, cy1) = path(r1.pt); val (sx1, sy1, sc1) = proj(cx1, cy1, r1.z, draw.W, draw.H)
             val (cx2, cy2) = path(r2.pt); val (sx2, sy2, sc2) = proj(cx2, cy2, r2.z, draw.W, draw.H)
-            val sr1 = maxOf(1f, tubeR * sc1); val sr2 = maxOf(1f, tubeR * sc2)
+            val sr1 = maxOf(1f, TUBE_R * sc1); val sr2 = maxOf(1f, TUBE_R * sc2)
             val nearT = maxOf(0f, 1f - r1.z / Z_FAR)
-            val fi = minOf((nearT * fft.size * 0.8f).toInt(), fft.size - 1)
             val h = (hue + nearT) % 1f
-            val bright = 0.06f + nearT * 0.70f + fft[fi] * 0.20f + beat * nearT * 0.40f
+            val bright = 0.10f + nearT * 0.75f
 
             val (hr, hg, hb) = hsl3(h, l = bright * 0.35f)
             draw.circle(sx1, sy1, sr1 + 4, hr, hg, hb, 0.55f, filled = false, segments = N_SIDES)
@@ -121,19 +120,19 @@ class TunnelMode : BaseMode() {
             }
         }
 
-        // Draw bass triangles — centered on tunnel path, growing toward viewer
-        val liveTris = ArrayList<BassTri>()
+        // Draw bass triangles — centered on tunnel path, music-reactive brightness
+        val liveTris = ArrayList<Tri>()
         for (tri in tris) {
             tri.z   -= DT
             tri.rot += tri.rvel
             if (tri.z < Z_NEAR) continue
+            // Project at tunnel path center for this depth — stays inside the tunnel
             val (tcx, tcy) = path(tri.pt)
             val (tsx, tsy, tsc) = proj(tcx, tcy, tri.z, draw.W, draw.H)
             val nearT = maxOf(0f, 1f - tri.z / Z_FAR)
-            // Triangle radius in screen pixels — scales with perspective, matches tube fraction
-            val tr = maxOf(4f, tubeR * tsc * tri.sizeFrac)
-            val h  = (tri.hue + nearT * 0.2f) % 1f
-            val bright = 0.35f + nearT * 0.60f
+            val tr    = maxOf(4f, TUBE_R * tsc * tri.sizeFrac)
+            val h     = (tri.hue + nearT * 0.2f) % 1f
+            val bright = (0.30f + nearT * 0.45f + beat * 0.25f).coerceAtMost(0.95f)
             val pts = FloatArray(6)
             for (v in 0 until 3) {
                 pts[v * 2]     = tsx + cos(tri.rot + v * TAU / 3f) * tr
@@ -145,7 +144,7 @@ class TunnelMode : BaseMode() {
             draw.polygon(pts, cr, cg, cb, 1f, filled = false)
             liveTris.add(tri)
         }
-        tris.clear(); tris.addAll(liveTris.takeLast(60))
+        tris.clear(); tris.addAll(liveTris.takeLast(80))
     }
 
     private fun hsl3(h: Float, s: Float = 1f, l: Float = 0.5f): Triple<Float, Float, Float> {

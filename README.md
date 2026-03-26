@@ -280,8 +280,8 @@ All sources can be enabled at the same time — images from all sources are merg
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
 | **Visual Effect** | Auto, Yantra, Cube, Plasma, Tunnel, Lissajous, Nova, Spiral, Bubbles, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
-| **Effect Intensity** | Off, Subtle, Normal, High, Intense | Normal | How strongly the visuals react to the beat |
-| **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min | Off | How often Auto mode switches to the next effect |
+| **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
+| **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
 | **Music Genre** | Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting to the music style |
 
 #### Remote Control (while visualizer is running)
@@ -294,7 +294,7 @@ All sources can be enabled at the same time — images from all sources are merg
 | **↓** | Decrease intensity (one step) |
 | Any other key | Dismiss the screensaver |
 
-Intensity changes made with the remote are saved and reflected in Settings.
+Intensity changes made with the remote are saved and reflected in Settings. Switching effects (← / →) resets intensity to the last saved value.
 
 #### Music Genre Hint
 
@@ -342,16 +342,16 @@ These settings apply in **both** Slideshow and Visualizer mode.
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
 | **Update Channel** | Stable, Dev | Stable (prod) / Dev (dev build) | Which GitHub Release to check for updates against |
-| **AndroSaver** (version row) | — | — | Shows installed version; changes to "Update available: vX — press to install" when a newer build is found |
+| **AndroSaver** (version row) | — | — | Shows installed version; tapping installs a newer build when one is available (checked automatically each time Settings opens) |
 
 #### Visual Effects
 
 | Effect | Description |
 |--------|-------------|
-| **Yantra** | Psychedelic sacred-geometry mandala with 6 concentric polygon rings, web connections, neon spokes, and beat-driven spring pulses |
+| **Yantra** | Psychedelic sacred-geometry mandala with 6 concentric polygon rings, web connections, and neon spokes; rings are near-static in silence and spin hard on loud audio; trail length grows with energy |
 | **Cube** | Dual wireframe cubes with slow rotation, motion trails, and spectrum colour-fade; size pulses sharply on each beat |
 | **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
-| **Tunnel** | First-person ride through a neon tube; bass bursts triangles that fly toward the camera, growing larger and more numerous with sound intensity |
+| **Tunnel** | Smooth first-person ride through a curving neon tube; bass punches spawn bursts of triangles along the tunnel center line — more triangles and wilder spin at higher intensity |
 | **Lissajous** | 3D trefoil Lissajous knot with two-pass neon glow and hard beat spring burst |
 | **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
 | **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |

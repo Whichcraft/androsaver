@@ -2,6 +2,83 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 — version 1.2.0
+
+### Changed
+- Version bumped to 1.2 (patch counter reset to 0)
+
+---
+
+## 2026-03-26 (session 15 cont18)
+
+### Fixed
+- **TunnelMode triangles** — projected at world origin so they drifted outside tunnel walls; now use `path(tri.pt)` to stay centered inside tunnel; also lowered BASS_THRESH 0.35→0.20 so bursts trigger more reliably
+
+### Changed
+- **SpiralMode** — reverted all session tuning back to pre-session state (RADIUS=1f, SPIN=1.6f, N_SYM=3, original speed/rMod/flash)
+
+---
+
+## 2026-03-26 (session 15 cont17)
+
+### Changed
+- **YantraMode** — rings near-static without audio (base rvel 10× reduced); rotation driven by energy/beat; fadeBlack dynamic (long trails on loud music, short trails on quiet)
+
+---
+
+## 2026-03-26 (session 15 cont16)
+
+### Fixed
+- **ScreensaverEngine** — switching effects now resets intensity to the saved preference default (not carried over from previous effect)
+
+### Changed
+- **LissajousMode** — removed all circles (bass bump rings, high-freq glow, head dots); dot trails only
+- **SpiralMode** — removed 3-fold rotational symmetry (N_SYM 3→1); single spiral only
+
+---
+
+## 2026-03-26 (session 15 cont15)
+
+### Fixed
+- **TunnelMode triangles** — were projected off-screen due to path offset magnification; now travel straight down world origin (center axis)
+
+### Changed
+- **SpiralMode** — center black hole shrunk (RADIUS 1.0→0.05)
+- **YantraMode** — added fadeBlack(0.12f) for color motion trails on rotating rings
+
+---
+
+## 2026-03-26 (session 15 cont14)
+
+### Changed
+- **TunnelMode** — pure geometry tunnel; bass-punch triangle bursts scale with intensity (2–15 triangles, wilder spin/size at elevated bass)
+- **LissajousMode** — removed center dot bubbles
+
+---
+
+## 2026-03-26 (session 15 cont13)
+
+### Changed
+- **CubeMode** — spin direction flips on each bass punch (rising edge at 0.4); fixed 2 satellites (opposite each other, bouncy)
+
+---
+
+## 2026-03-26 (session 15 cont12)
+
+### Changed
+- **LissajousMode** — 50% less music interaction across all multipliers
+- **LissajousMode** — faster reactivity restored (beat speed/scale/rotation ×3–4); center bubbles always present (3-fold, scale with bass/beat); high-freq glow halo at center; bass bump rings via spring system
+
+---
+
+## 2026-03-26 (session 15 cont11)
+
+### Changed
+- **CubeMode satellite cubes** — smaller (0.28→0.16 scale), bouncy radial oscillation per slot, no deformation
+- **CubeMode trails** — longer (8→14 frames) and brighter (alpha 0.55→0.75) for all cubes
+
+---
+
 ## 2026-03-26 (session 15 cont10)
 
 ### Changed

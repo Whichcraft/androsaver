@@ -49,29 +49,29 @@ class LissajousMode : BaseMode() {
         val mid  = fft.meanSlice(6, 30)
         val high = fft.meanSlice(30, fft.size)
 
-        val ax = 3.0f + bass * 0.10f
-        val ay = 2.0f + mid  * 0.10f
-        val az = 5.0f + high * 0.10f
+        val ax = 3.0f + bass * 0.05f
+        val ay = 2.0f + mid  * 0.05f
+        val az = 5.0f + high * 0.05f
 
-        dx += 0.0003f + bass * 0.0002f
-        dz += 0.0002f + high * 0.0002f
-        t  += 0.010f  + beat * 0.005f
+        dx += 0.0003f + bass * 0.0001f
+        dz += 0.0002f + high * 0.0001f
+        t  += 0.010f  + beat * 0.008f
 
         if (hist.size >= TRAIL) hist.removeFirst()
         hist.addLast(Triple(sin(ax * t + dx), sin(ay * t + dy), sin(az * t + dz)))
 
         // Spring scale burst
-        svel  += beat * 0.067f
+        svel  += beat * 0.08f
         svel  += (1f - scale) * 0.26f
         svel  *= 0.60f
         scale += svel
         scale  = maxOf(0.35f, scale)
 
-        hue += beat * 0.013f
+        hue += beat * 0.006f
 
         // Rotation inertia
-        rvx += beat * 0.00167f + 0.00005f; rvx *= 0.97f; rx += rvx
-        rvy += beat * 0.002f  + 0.00007f; rvy *= 0.97f; ry += rvy
+        rvx += beat * 0.003f + 0.00005f; rvx *= 0.97f; rx += rvx
+        rvy += beat * 0.004f + 0.00007f; rvy *= 0.97f; ry += rvy
 
         val n = hist.size
         if (n < 2) return
@@ -129,21 +129,5 @@ class LissajousMode : BaseMode() {
             }
         }
 
-        // Head dot on current knot position
-        val hpx = raw[(n - 1) * 2]; val hpy = raw[(n - 1) * 2 + 1]
-        for (sym in 0 until N_SYM) {
-            val ang = sym.toFloat() / N_SYM * TAU
-            val ca = cos(ang); val sa = sin(ang)
-            val sx = cx + hpx * ca - hpy * sa
-            val sy_ = cy + hpx * sa + hpy * ca
-            val r = maxOf(3f, 7f + beat * 7.33f)
-            val c = GLDraw.hsl((hue + sym * 0.33f) % 1f, l = 0.88f)
-            draw.circle(sx, sy_, r, c[0], c[1], c[2], 1f, segments = 16)
-            draw.circle(sx, sy_, r / 3f, 1f, 1f, 1f, 1f, segments = 12)
-            if (beat > 0.5f) {
-                val hc = GLDraw.hsl((hue + sym * 0.33f + 0.5f) % 1f, l = 0.45f + beat * 0.25f)
-                draw.circle(sx, sy_, r * 1.8f, hc[0], hc[1], hc[2], 0.5f, filled = false, segments = 16)
-            }
-        }
     }
 }
