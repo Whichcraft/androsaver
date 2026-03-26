@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont6)
+
+### Changed
+- **Patch version resets on minor bump** — introduced `versionPatchBase` so 1.1.x patch count starts from 0 at the 1.1 bump; future minor bumps just update the base constant
+- **Auto-cycle timer resets on manual effect change** — left/right navigation now restarts the full cycle interval
+
+---
+
 ## 2026-03-26 (session 15 cont5)
 
 ### Removed

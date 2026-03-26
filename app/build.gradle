@@ -14,6 +14,9 @@ def gitVersionCode = {
     }
 }()
 
+// Commit count at the time of the 1.1 version bump; patch resets to 0 from here.
+def versionPatchBase = 101
+
 android {
     namespace 'com.androsaver'
     compileSdk 34
@@ -23,7 +26,7 @@ android {
         minSdk 21
         targetSdk 34
         versionCode gitVersionCode
-        versionName "1.1.${gitVersionCode}"
+        versionName "1.1.${gitVersionCode - versionPatchBase}"
     }
 
     signingConfigs {
