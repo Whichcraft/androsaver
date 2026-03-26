@@ -74,6 +74,7 @@ class ScreensaverEngine(
     private var visualizerView: VisualizerView? = null
     private var overlayVisualizerView: VisualizerView? = null
     private var vizCycleRunnable: Runnable? = null
+    private var vizCycleMs: Long = 0L
     private var clockRunnable: Runnable? = null
     private var weatherRunnable: Runnable? = null
     private val kenBurnsAnimators = mutableMapOf<ImageView, ValueAnimator>()
@@ -122,8 +123,8 @@ class ScreensaverEngine(
         val vv = visualizerView
         if (vv != null) {
             when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_RIGHT -> vv.nextMode()
-                KeyEvent.KEYCODE_DPAD_LEFT  -> vv.previousMode()
+                KeyEvent.KEYCODE_DPAD_RIGHT -> { vv.nextMode(); resetVizCycleTimer() }
+                KeyEvent.KEYCODE_DPAD_LEFT  -> { vv.previousMode(); resetVizCycleTimer() }
                 KeyEvent.KEYCODE_DPAD_UP    -> adjustIntensity(+1)
                 KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
                 else -> { onRequestFinish(); return true }
@@ -225,7 +226,7 @@ class ScreensaverEngine(
         val vv = VisualizerView(context)
         visualizerView = vv
         if (modePref != "auto") vv.setMode(modePref)
-        vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "1.0")?.toFloatOrNull() ?: 1.0f
+        vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
         val genre = prefs.getString(Prefs.AUDIO_GENRE, "any") ?: "any"
         vv.audio.applyGenreHint(genre)
 
@@ -236,14 +237,20 @@ class ScreensaverEngine(
         vv.startVisualizer()
 
         if (modePref == "auto") {
-            val cycleMs = prefs.getString(Prefs.VIZ_CYCLE_INTERVAL, "90000")?.toLongOrNull() ?: 90_000L
-            if (cycleMs > 0L) {
+            vizCycleMs = prefs.getString(Prefs.VIZ_CYCLE_INTERVAL, "120000")?.toLongOrNull() ?: 120_000L
+            if (vizCycleMs > 0L) {
                 vizCycleRunnable = object : Runnable {
-                    override fun run() { vv.nextMode(); handler.postDelayed(this, cycleMs) }
+                    override fun run() { vv.nextMode(); handler.postDelayed(this, vizCycleMs) }
                 }
-                handler.postDelayed(vizCycleRunnable!!, cycleMs)
+                handler.postDelayed(vizCycleRunnable!!, vizCycleMs)
             }
         }
+    }
+
+    private fun resetVizCycleTimer() {
+        val runnable = vizCycleRunnable ?: return
+        handler.removeCallbacks(runnable)
+        handler.postDelayed(runnable, vizCycleMs)
     }
 
     private fun stopVisualizerMode() {

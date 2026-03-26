@@ -58,13 +58,6 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
-            // Channel is locked to the build flavor — always dev on dev builds, stable on stable.
-            val flavorChannel = if (BuildConfig.FLAVOR == "dev") Prefs.UPDATE_CHANNEL_DEV
-                                else Prefs.UPDATE_CHANNEL_STABLE
-            findPreference<ListPreference>(Prefs.UPDATE_CHANNEL)?.let { pref ->
-                pref.value = flavorChannel
-                pref.summary = getString(R.string.update_channel_auto, flavorChannel)
-            }
         }
 
         override fun onResume() {
@@ -85,11 +78,6 @@ class SettingsActivity : AppCompatActivity() {
                         .replace(R.id.settings_container, SourcesFragment())
                         .addToBackStack(null)
                         .commit()
-                    true
-                }
-                "check_for_updates" -> {
-                    findPreference<Preference>("check_for_updates")?.summary = getString(R.string.checking_for_updates)
-                    checkForUpdates()
                     true
                 }
                 "about_app" -> {
@@ -131,21 +119,19 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateAboutVersion() {
+            val channel = if (BuildConfig.FLAVOR == "dev") Prefs.UPDATE_CHANNEL_DEV
+                          else Prefs.UPDATE_CHANNEL_STABLE
             findPreference<Preference>("about_app")?.summary =
-                getString(R.string.about_version_summary, BuildConfig.VERSION_NAME)
+                getString(R.string.about_version_summary, BuildConfig.VERSION_NAME, channel)
         }
 
         private fun checkForUpdates() {
             viewLifecycleOwner.lifecycleScope.launch {
                 val update = UpdateChecker.checkForUpdate()
-                val checkPref = findPreference<Preference>("check_for_updates")
                 if (update != null) {
                     pendingUpdateUrl = update.apkUrl
-                    checkPref?.summary = getString(R.string.update_available, update.versionName)
                     findPreference<Preference>("about_app")?.summary =
                         getString(R.string.update_available, update.versionName)
-                } else {
-                    checkPref?.summary = getString(R.string.up_to_date)
                 }
             }
         }

@@ -2,6 +2,75 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont9)
+
+### Fixed
+- **Update checker version mismatch** — CI was hardcoding `1.0.x` in `version.json`; now mirrors `build.gradle` formula (`1.1.$(versionCode - 101)`)
+
+---
+
+## 2026-03-26 (session 15 cont8)
+
+### Changed
+- **YantraMode intensity +30%** — all beat multipliers ×1.3
+- **CubeMode intensity +30%** — all beat multipliers ×1.3
+- **CubeMode satellite cubes no longer deform** — removed vertex clamping from projectOffset; orbit radius clamping already keeps them on-screen
+- **TunnelMode constant speed** — dt is now a fixed constant (no beat/bass fluctuation); always a smooth ride
+- **TunnelMode triangles removed** — triangle data class, spawn logic, bass spring, and draw loop fully removed
+- **LissajousMode size +30%** — projection scale raised from 0.40 to 0.52 of screen dimension
+
+---
+
+## 2026-03-26 (session 15 cont7)
+
+### Changed
+- **CubeMode satellite smoothness** — fixed angular slot divisor to N_MAX=6 so existing satellites never jump when beat changes active count
+- **TunnelMode inner circles** — removed constant per-ring rotating polygons; replaced with beat-spawned circles that travel through the tunnel independently
+- **LissajousMode intensity** — all beat multipliers divided by 3 (scale, hue, rotation, knot speed, head dot size)
+
+---
+
+## 2026-03-26 (session 15 cont6)
+
+### Changed
+- **Patch version resets on minor bump** — introduced `versionPatchBase` so 1.1.x patch count starts from 0 at the 1.1 bump; future minor bumps just update the base constant
+- **Auto-cycle timer resets on manual effect change** — left/right navigation now restarts the full cycle interval
+
+---
+
+## 2026-03-26 (session 15 cont5)
+
+### Removed
+- **Check for Updates button** — removed separate preference row; update check still runs automatically on resume and result shown in the AndroSaver about row
+
+---
+
+## 2026-03-26 (session 15 cont4)
+
+### Changed
+- **Version bumped to 1.1** — versionName is now `1.1.${gitVersionCode}`
+- **Visualizer intensity default lowered to Low (0.5)** — effects start at lowest level instead of Medium
+- **Auto-cycle interval default changed to 2 minutes** — was Off; added 10-minute and 15-minute options
+
+---
+
+## 2026-03-26 (session 15 cont3)
+
+### Added
+- **CubeMode echo trail** — last 8 frames of main and inner cube positions are replayed each frame with decreasing alpha, giving a motion-trail/echo effect; implemented via ring buffer (renderer clears the screen every frame, so framebuffer persistence cannot be relied on)
+- **CubeMode satellite bounds clamping** — orbit radius is clamped per-frame so satellite cubes never leave the screen, accounting for screen size and current cube scale
+
+### Changed
+- **Removed separate Update Channel row** — channel is now shown inline in the version string (e.g. "Version 1.0.42 · dev channel"); the read-only channel preference row is gone
+
+### Fixed
+- **Version always 1.0.1 / update check never finding updates** — CI checkout was a shallow clone (`fetch-depth` defaulting to 1), so `git rev-list --count HEAD` always returned 1; added `fetch-depth: 0` to the build job checkout
+
+### Changed
+- **Version shows update channel** — About entry now displays e.g. "Version 1.0.42 · dev channel" instead of just the version number
+
+---
+
 ## 2026-03-26 (session 14)
 
 ### Added
