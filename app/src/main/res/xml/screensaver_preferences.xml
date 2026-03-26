@@ -50,15 +50,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:key="cat_about" android:title="About">
-        <ListPreference
-            android:key="update_channel"
-            android:title="@string/update_channel_label"
-            android:entries="@array/update_channel_entries"
-            android:entryValues="@array/update_channel_values"
-            android:summary="%s"
-            android:icon="@android:drawable/stat_sys_download"
-            android:enabled="false"
-            android:selectable="false" />
         <Preference
             android:key="check_for_updates"
             android:title="@string/check_for_updates"

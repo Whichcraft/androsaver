@@ -58,13 +58,6 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
-            // Channel is locked to the build flavor — always dev on dev builds, stable on stable.
-            val flavorChannel = if (BuildConfig.FLAVOR == "dev") Prefs.UPDATE_CHANNEL_DEV
-                                else Prefs.UPDATE_CHANNEL_STABLE
-            findPreference<ListPreference>(Prefs.UPDATE_CHANNEL)?.let { pref ->
-                pref.value = flavorChannel
-                pref.summary = getString(R.string.update_channel_auto, flavorChannel)
-            }
         }
 
         override fun onResume() {
