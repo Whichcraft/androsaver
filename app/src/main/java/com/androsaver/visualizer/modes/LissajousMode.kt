@@ -39,7 +39,7 @@ class LissajousMode : BaseMode() {
     private var rawBuf = FloatArray(TRAIL * 2)
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.08f)
+        draw.fadeBlack(0.18f)
 
         val fft  = audio.fft
         val beat = audio.beat
@@ -49,13 +49,13 @@ class LissajousMode : BaseMode() {
         val mid  = fft.meanSlice(6, 30)
         val high = fft.meanSlice(30, fft.size)
 
-        val ax = 3.0f + bass * 0.4f
-        val ay = 2.0f + mid  * 0.4f
-        val az = 5.0f + high * 0.4f
+        val ax = 3.0f + bass * 0.10f
+        val ay = 2.0f + mid  * 0.10f
+        val az = 5.0f + high * 0.10f
 
-        dx += 0.0003f + bass * 0.0008f
-        dz += 0.0002f + high * 0.0006f
-        t  += 0.010f  + beat * 0.01f
+        dx += 0.0003f + bass * 0.0002f
+        dz += 0.0002f + high * 0.0002f
+        t  += 0.010f  + beat * 0.005f
 
         if (hist.size >= TRAIL) hist.removeFirst()
         hist.addLast(Triple(sin(ax * t + dx), sin(ay * t + dy), sin(az * t + dz)))
