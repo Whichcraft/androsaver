@@ -2,6 +2,16 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-26 (session 15 cont18)
+
+### Fixed
+- **TunnelMode triangles** — projected at world origin so they drifted outside tunnel walls; now use `path(tri.pt)` to stay centered inside tunnel; also lowered BASS_THRESH 0.35→0.20 so bursts trigger more reliably
+
+### Changed
+- **SpiralMode** — reverted all session tuning back to pre-session state (RADIUS=1f, SPIN=1.6f, N_SYM=3, original speed/rMod/flash)
+
+---
+
 ## 2026-03-26 (session 15 cont17)
 
 ### Changed

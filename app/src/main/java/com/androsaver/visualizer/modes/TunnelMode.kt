@@ -19,7 +19,7 @@ class TunnelMode : BaseMode() {
         const val Z_FAR      = 10.0f
         const val Z_NEAR     = 0.18f
         const val DT         = 0.018f
-        const val BASS_THRESH = 0.35f
+        const val BASS_THRESH = 0.20f
         const val SPAWN_GAP   = 4       // min frames between bursts
     }
 
@@ -27,7 +27,8 @@ class TunnelMode : BaseMode() {
     private data class Tri(
         var z: Float,
         var rot: Float, val rvel: Float,
-        var hue: Float, val sizeFrac: Float
+        var hue: Float, val sizeFrac: Float,
+        val pt: Float   // path time at spawn = time + z; stays constant as both tick together
     )
 
     private val rings = ArrayList<Ring>(N_RINGS)
@@ -75,12 +76,14 @@ class TunnelMode : BaseMode() {
             val maxSize    = 0.28f  + intensity * 0.22f                // bigger triangles at high bass
             repeat(burstSize) { bi ->
                 val spin = (if (Math.random() < 0.5) 1 else -1) * (0.010f + Math.random().toFloat() * maxSpin)
+                val spawnZ = Z_FAR * (0.65f + bi * 0.05f)
                 tris.add(Tri(
-                    z        = Z_FAR * (0.65f + bi * 0.05f),
+                    z        = spawnZ,
                     rot      = (Math.random() * TAU).toFloat(),
                     rvel     = spin,
                     hue      = (hue + 0.3f + Math.random().toFloat() * 0.5f) % 1f,
-                    sizeFrac = 0.22f + Math.random().toFloat() * maxSize
+                    sizeFrac = 0.22f + Math.random().toFloat() * maxSize,
+                    pt       = time + spawnZ   // constant: time+z stays fixed as both advance by DT
                 ))
             }
             cooldown = SPAWN_GAP
@@ -123,8 +126,9 @@ class TunnelMode : BaseMode() {
             tri.z   -= DT
             tri.rot += tri.rvel
             if (tri.z < Z_NEAR) continue
-            // Triangles travel straight down the center axis (world origin)
-            val (tsx, tsy, tsc) = proj(0f, 0f, tri.z, draw.W, draw.H)
+            // Project at tunnel path center for this depth — stays inside the tunnel
+            val (tcx, tcy) = path(tri.pt)
+            val (tsx, tsy, tsc) = proj(tcx, tcy, tri.z, draw.W, draw.H)
             val nearT = maxOf(0f, 1f - tri.z / Z_FAR)
             val tr    = maxOf(4f, TUBE_R * tsc * tri.sizeFrac)
             val h     = (tri.hue + nearT * 0.2f) % 1f
