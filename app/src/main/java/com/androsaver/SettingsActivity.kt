@@ -14,6 +14,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.SwitchPreferenceCompat
+import com.androsaver.auth.DropboxAuthManager
 import kotlinx.coroutines.launch
 
 class SettingsActivity : AppCompatActivity() {
@@ -228,7 +229,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateDropboxStatus() {
-            val authorized = auth.DropboxAuthManager(requireContext()).isAuthorized()
+            val authorized = DropboxAuthManager(requireContext()).isAuthorized()
             findPreference<Preference>("dropbox_setup")?.summary = if (authorized)
                 getString(R.string.dropbox_authorized) else getString(R.string.dropbox_not_authorized)
         }
