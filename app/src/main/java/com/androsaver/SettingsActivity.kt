@@ -58,20 +58,13 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
-            // Set flavor-appropriate default for update channel if not yet saved
-            val defaultChannel = if (BuildConfig.FLAVOR == "dev") Prefs.UPDATE_CHANNEL_DEV
-                                  else Prefs.UPDATE_CHANNEL_STABLE
+            // Channel is locked to the build flavor — always dev on dev builds, stable on stable.
+            val flavorChannel = if (BuildConfig.FLAVOR == "dev") Prefs.UPDATE_CHANNEL_DEV
+                                else Prefs.UPDATE_CHANNEL_STABLE
             findPreference<ListPreference>(Prefs.UPDATE_CHANNEL)?.let { pref ->
-                if (prefs.getString(Prefs.UPDATE_CHANNEL, null) == null) pref.value = defaultChannel
+                pref.value = flavorChannel
+                pref.summary = getString(R.string.update_channel_auto, flavorChannel)
             }
-
-            findPreference<ListPreference>(Prefs.UPDATE_CHANNEL)
-                ?.setOnPreferenceChangeListener { _, _ ->
-                    pendingUpdateUrl = null
-                    updateAboutVersion()
-                    checkForUpdates()
-                    true
-                }
         }
 
         override fun onResume() {
@@ -92,6 +85,11 @@ class SettingsActivity : AppCompatActivity() {
                         .replace(R.id.settings_container, SourcesFragment())
                         .addToBackStack(null)
                         .commit()
+                    true
+                }
+                "check_for_updates" -> {
+                    findPreference<Preference>("check_for_updates")?.summary = getString(R.string.checking_for_updates)
+                    checkForUpdates()
                     true
                 }
                 "about_app" -> {
@@ -139,10 +137,16 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun checkForUpdates() {
             viewLifecycleOwner.lifecycleScope.launch {
-                val update = UpdateChecker.checkForUpdate(requireContext()) ?: return@launch
-                pendingUpdateUrl = update.apkUrl
-                findPreference<Preference>("about_app")?.summary =
-                    getString(R.string.update_available, update.versionName)
+                val update = UpdateChecker.checkForUpdate()
+                val checkPref = findPreference<Preference>("check_for_updates")
+                if (update != null) {
+                    pendingUpdateUrl = update.apkUrl
+                    checkPref?.summary = getString(R.string.update_available, update.versionName)
+                    findPreference<Preference>("about_app")?.summary =
+                        getString(R.string.update_available, update.versionName)
+                } else {
+                    checkPref?.summary = getString(R.string.up_to_date)
+                }
             }
         }
 

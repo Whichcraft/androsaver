@@ -132,4 +132,9 @@
     <string name="about_version_summary">Version %s</string>
     <string name="update_available">Update available: v%s — press to install</string>
     <string name="update_downloading">Downloading update…</string>
+    <string name="check_for_updates">Check for Updates</string>
+    <string name="checking_for_updates">Checking…</string>
+    <string name="up_to_date">Up to date</string>
+    <string name="update_channel_label">Update Channel</string>
+    <string name="update_channel_auto">%s (automatic)</string>
 </resources>
