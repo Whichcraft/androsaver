@@ -101,23 +101,6 @@ class SynologySource(private val context: Context) : ImageSource {
         }
     }
 
-    private fun buildTrustAllClient(): OkHttpClient {
-        val trustManager = object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        }
-        val sslContext = SSLContext.getInstance("SSL").apply {
-            init(null, arrayOf<TrustManager>(trustManager), SecureRandom())
-        }
-        return OkHttpClient.Builder()
-            .sslSocketFactory(sslContext.socketFactory, trustManager)
-            .hostnameVerifier { _, _ -> true }
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
-    }
-
     companion object {
         private const val TAG = "SynologySource"
     }

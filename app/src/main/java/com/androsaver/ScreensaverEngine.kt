@@ -285,9 +285,9 @@ class ScreensaverEngine(
             val items = mutableListOf<ImageItem>()
             for (src in sources) {
                 try {
-                    withTimeoutOrNull(60_000L) { src.getImageUrls() }
-                        ?.let { items.addAll(it) }
-                        ?: if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "${src.name} timed out")
+                    val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
+                    if (urls != null) items.addAll(urls)
+                    else if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "${src.name} timed out")
                 } catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error from ${src.name}", e) }
             }
             if (items.isEmpty()) {
@@ -354,9 +354,9 @@ class ScreensaverEngine(
                     val fresh = mutableListOf<ImageItem>()
                     for (src in sources) {
                         try {
-                            withTimeoutOrNull(60_000L) { src.getImageUrls() }
-                                ?.let { fresh.addAll(it) }
-                                ?: if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Refresh: ${src.name} timed out")
+                            val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
+                            if (urls != null) fresh.addAll(urls)
+                            else if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Refresh: ${src.name} timed out")
                         } catch (e: Exception) {
                             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Refresh error from ${src.name}", e)
                         }
