@@ -124,6 +124,15 @@
         <item>18</item><item>19</item><item>20</item><item>21</item><item>22</item><item>23</item>
     </string-array>
 
+    <string-array name="update_channel_entries">
+        <item>Stable</item>
+        <item>Dev</item>
+    </string-array>
+    <string-array name="update_channel_values">
+        <item>stable</item>
+        <item>dev</item>
+    </string-array>
+
     <string-array name="screensaver_mode_entries">
         <item>Slideshow</item>
         <item>Visualizer</item>
