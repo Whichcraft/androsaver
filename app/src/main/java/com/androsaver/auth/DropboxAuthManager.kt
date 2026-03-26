@@ -2,6 +2,7 @@ package com.androsaver.auth
 
 import android.content.Context
 import androidx.preference.PreferenceManager
+import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -9,12 +10,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
 import okhttp3.FormBody
-import okhttp3.OkHttpClient
 import okhttp3.Request
 
 class DropboxAuthManager(private val context: Context) {
 
-    private val client = OkHttpClient()
+    private val client = HttpClients.standard
     private val gson = Gson()
 
     /** Returns the URL the user must visit on another device to authorize. */

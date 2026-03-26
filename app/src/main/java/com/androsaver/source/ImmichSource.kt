@@ -4,25 +4,19 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.HttpClients
 import com.androsaver.Prefs
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 
 /** Fetches images from a self-hosted Immich instance via its REST API. */
 class ImmichSource(private val context: Context) : ImageSource {
 
     override val name = "Immich"
 
-    private val client = buildTrustAllClient()
+    private val client = HttpClients.trustAll
 
     override fun isConfigured(): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -113,23 +107,6 @@ class ImmichSource(private val context: Context) : ImageSource {
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Request failed: $url", e)
             null
         }
-    }
-
-    private fun buildTrustAllClient(): OkHttpClient {
-        val trustManager = object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        }
-        val sslContext = SSLContext.getInstance("SSL").apply {
-            init(null, arrayOf<TrustManager>(trustManager), SecureRandom())
-        }
-        return OkHttpClient.Builder()
-            .sslSocketFactory(sslContext.socketFactory, trustManager)
-            .hostnameVerifier { _, _ -> true }
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
     }
 
     companion object {
