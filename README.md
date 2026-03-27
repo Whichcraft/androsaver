@@ -346,6 +346,8 @@ These settings apply in **both** Slideshow and Visualizer mode.
 
 #### Visual Effects
 
+See [visualizer-music-reactivity.md](visualizer-music-reactivity.md) for a detailed breakdown of how each effect reacts to bass, mid, high, and beat signals.
+
 | Effect | Description |
 |--------|-------------|
 | **Yantra** | Psychedelic sacred-geometry mandala with 6 concentric polygon rings, web connections, and neon spokes; rings are near-static in silence and spin hard on loud audio; trail length grows with energy |
