@@ -1,0 +1,5 @@
+# Exclude dev-only files from git archive (GitHub release tarballs, zip downloads)
+CLAUDE.md                       export-ignore
+docs/                           export-ignore
+store/                          export-ignore
+visualizer-music-reactivity.md  export-ignore

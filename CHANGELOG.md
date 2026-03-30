@@ -2,6 +2,38 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-30 — version 1.3.0
+
+### Changed
+- Version bumped to 1.3 (patch counter reset to 0)
+
+---
+
+## 2026-03-30 (cont)
+
+### Changed
+- **security-crypto** — upgraded from `1.1.0-alpha06` → `1.1.0` (stable)
+- **BootReceiver** — now refreshes OAuth tokens for Google Drive, OneDrive, and Dropbox on device boot (was Google Drive only)
+
+### Fixed
+- **docs/architecture.md** — `BootReceiver` was incorrectly described as unused; it pre-refreshes the Google Drive OAuth token on boot
+- **docs/settings-reference.md** — `UPDATE_CHANNEL` clarified as internal/auto-set, not a user-facing preference
+
+---
+
+## 2026-03-30
+
+### Added
+- `CLAUDE.md` — project conventions, build commands, key patterns for Claude Code sessions; includes `.gitattributes` export-ignore rule
+- `docs/architecture.md` — full class map, data flow, build variants, permissions reference
+- `docs/image-sources.md` — all 7 image source classes with auth patterns and Prefs key names
+- `docs/visualizer-modes.md` — all 10 effect classes with audio reactivity summaries and guide for adding new modes
+- `docs/settings-reference.md` — all Prefs keys mapped to UI preference types and defaults
+- `docs/image-sources.md` — added "Adding a New Source" checklist
+- `CLAUDE.md` — document psysuals submodule purpose and backport workflow
+
+---
+
 ## 2026-03-26 — version 1.2.0
 
 ### Changed
