@@ -5,10 +5,11 @@ All notable changes to AndroSaver are documented here.
 ## 2026-03-30
 
 ### Added
-- `CLAUDE.md` — project conventions, build commands, key patterns for Claude Code sessions
+- `CLAUDE.md` — project conventions, build commands, key patterns for Claude Code sessions; includes `.gitattributes` export-ignore rule
 - `docs/architecture.md` — full class map, data flow, build variants, permissions reference
 - `docs/image-sources.md` — all 7 image source classes with auth patterns and Prefs key names
 - `docs/visualizer-modes.md` — all 10 effect classes with audio reactivity summaries and guide for adding new modes
+- `docs/settings-reference.md` — all Prefs keys mapped to UI preference types and defaults
 
 ---
 

@@ -40,6 +40,7 @@ See `docs/architecture.md` for full class map.
 
 - Work on `dev` branch; merge to `master` to ship
 - Always update `CHANGELOG.md` before pushing
+- Any new dev-only file (docs, notes, store copy, Claude instructions) must be added to `.gitattributes` with `export-ignore` — never ship dev files in release archives
 - See `docs/architecture.md` for full class/file reference
 
 ## Reference Docs
@@ -49,5 +50,6 @@ See `docs/architecture.md` for full class map.
 | `docs/architecture.md` | Full class map, package structure, key files |
 | `docs/image-sources.md` | All 7 image source classes and their auth patterns |
 | `docs/visualizer-modes.md` | All 10 effect classes and their audio reactivity |
+| `docs/settings-reference.md` | All Prefs keys, UI types, and defaults |
 | `visualizer-music-reactivity.md` | Detailed per-effect audio reactivity tables |
 | `CHANGELOG.md` | Development history |
