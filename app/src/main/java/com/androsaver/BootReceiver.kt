@@ -3,7 +3,9 @@ package com.androsaver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.androsaver.auth.DropboxAuthManager
 import com.androsaver.source.GoogleDriveSource
+import com.androsaver.source.OneDriveSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -13,8 +15,13 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            try { GoogleDriveSource(context).refreshAccessTokenSilently() }
-            finally { pending.finish() }
+            try {
+                GoogleDriveSource(context).refreshAccessTokenSilently()
+                OneDriveSource(context).refreshAccessTokenSilently()
+                DropboxAuthManager(context).getValidAccessToken()
+            } finally {
+                pending.finish()
+            }
         }
     }
 }
