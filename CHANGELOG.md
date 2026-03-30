@@ -6,6 +6,7 @@ All notable changes to AndroSaver are documented here.
 
 ### Changed
 - **security-crypto** — upgraded from `1.1.0-alpha06` → `1.1.0` (stable)
+- **BootReceiver** — now refreshes OAuth tokens for Google Drive, OneDrive, and Dropbox on device boot (was Google Drive only)
 
 ### Fixed
 - **docs/architecture.md** — `BootReceiver` was incorrectly described as unused; it pre-refreshes the Google Drive OAuth token on boot
