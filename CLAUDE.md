@@ -43,6 +43,14 @@ See `docs/architecture.md` for full class map.
 - Any new dev-only file (docs, notes, store copy, Claude instructions) must be added to `.gitattributes` with `export-ignore` — never ship dev files in release archives
 - See `docs/architecture.md` for full class/file reference
 
+## psysuals Submodule
+
+`psysuals/` is the upstream Python reference implementation of the visualizer (`psysualizer.py`, pygame + sounddevice). It is **not part of the Android app** — it runs on desktop as a development/preview tool.
+
+- When visualizer modes are tuned in AndroSaver, port equivalent changes back to `psysuals/psysualizer.py`
+- The two codebases share the same 10 mode names and audio reactivity logic, but use different rendering stacks (OpenGL ES 2.0 vs pygame)
+- Backport status: all known changes ported as of 2026-03-30 (see memory)
+
 ## Reference Docs
 
 | File | Contents |

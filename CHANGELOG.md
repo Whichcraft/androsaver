@@ -10,6 +10,8 @@ All notable changes to AndroSaver are documented here.
 - `docs/image-sources.md` — all 7 image source classes with auth patterns and Prefs key names
 - `docs/visualizer-modes.md` — all 10 effect classes with audio reactivity summaries and guide for adding new modes
 - `docs/settings-reference.md` — all Prefs keys mapped to UI preference types and defaults
+- `docs/image-sources.md` — added "Adding a New Source" checklist
+- `CLAUDE.md` — document psysuals submodule purpose and backport workflow
 
 ---
 

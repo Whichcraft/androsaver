@@ -78,3 +78,18 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - Stores downloaded images on-disk: ≤ 200 images / ≤ 300 MB
 - Used automatically as fallback when all sources fail (network unavailable)
 - EXIF orientation preserved in cache metadata
+
+---
+
+## Adding a New Source
+
+1. Create `com.androsaver.source.MySource.kt` implementing `ImageSource`
+2. Add credential/config constants to `Prefs.kt`
+3. Create a setup activity (e.g. `MySourceSetupActivity.kt`) for credential entry
+4. Register the source in `ScreensaverEngine` (add to the sources list)
+5. Add an enable toggle to `res/xml/sources_preferences.xml` (key = `Prefs.ENABLE_MY_SOURCE`)
+6. Add a setup entry Preference that launches `MySourceSetupActivity`
+7. Add all UI strings to `res/values/strings.xml`
+8. Add source name to `res/values/arrays.xml` if needed
+9. Declare `MySourceSetupActivity` in `AndroidManifest.xml`
+10. Update `docs/image-sources.md` with auth pattern and Prefs keys
