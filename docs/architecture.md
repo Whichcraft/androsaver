@@ -15,7 +15,7 @@
 | `UpdateInstaller.kt` | Downloads APK and installs via FileProvider |
 | `HttpClients.kt` | Shared OkHttp client instances |
 | `WeatherFetcher.kt` | OpenWeatherMap current conditions fetcher |
-| `BootReceiver.kt` | Receives BOOT_COMPLETED (currently unused / placeholder) |
+| `BootReceiver.kt` | Receives BOOT_COMPLETED; pre-refreshes Google Drive OAuth token on device boot (only Google Drive — OneDrive/Dropbox not refreshed) |
 
 ## Package: `com.androsaver.auth`
 

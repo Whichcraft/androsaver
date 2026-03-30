@@ -135,6 +135,4 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 
 ## App / Update
 
-| Prefs Constant | Key | Values |
-|---|---|---|
-| `UPDATE_CHANNEL` | `update_channel` | `stable`, `dev` |
+`UPDATE_CHANNEL` / `update_channel` is set automatically by build flavor (`dev` builds → dev channel, `prod` builds → stable channel). It is **not a user-facing preference** — there is no UI for it. The Prefs constant still exists for internal use by `UpdateChecker`.

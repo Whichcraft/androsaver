@@ -2,6 +2,17 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-03-30 (cont)
+
+### Changed
+- **security-crypto** — upgraded from `1.1.0-alpha06` → `1.1.0` (stable)
+
+### Fixed
+- **docs/architecture.md** — `BootReceiver` was incorrectly described as unused; it pre-refreshes the Google Drive OAuth token on boot
+- **docs/settings-reference.md** — `UPDATE_CHANNEL` clarified as internal/auto-set, not a user-facing preference
+
+---
+
 ## 2026-03-30
 
 ### Added
