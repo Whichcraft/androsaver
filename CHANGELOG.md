@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 5)
+
+### Fixed
+- **CorridorMode sparks** — bass coefficient raised 1.2→5 and beat threshold removed; sparks now spawn visibly from bass alone at all intensity levels (old formula gave 0 sparks at typical bass values below 0.84)
+
+---
+
 ## 2026-04-01 (cont 4)
 
 ### Added

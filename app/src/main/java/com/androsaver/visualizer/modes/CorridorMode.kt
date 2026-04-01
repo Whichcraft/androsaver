@@ -89,7 +89,7 @@ class CorridorMode : BaseMode() {
         val fov = minOf(W, H) * 0.72f
 
         // ── Spawn sparks ──────────────────────────────────────────────────────
-        val spawnN = (bass * 1.2f + if (beat > 0.25f) beat * 4.0f else 0f).toInt()
+        val spawnN = (bass * 5f + beat * 4f).toInt()
         repeat(spawnN) {
             if (sparks.size < MAX_SPARKS * 2) {
                 val z = Z_FAR * (0.55f + Math.random().toFloat() * 0.37f)
