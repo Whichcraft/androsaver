@@ -57,7 +57,8 @@ See `docs/architecture.md` for full class map.
 |------|----------|
 | `docs/architecture.md` | Full class map, package structure, key files |
 | `docs/image-sources.md` | All 7 image source classes and their auth patterns |
-| `docs/visualizer-modes.md` | All 10 effect classes and their audio reactivity |
+| `docs/visualizer-modes.md` | All 13 effect classes and their audio reactivity |
 | `docs/settings-reference.md` | All Prefs keys, UI types, and defaults |
+| `docs/psysuals-port-notes.md` | **Always read when porting psysuals updates** — Android adaptations, per-effect standing deltas, import checklist |
 | `visualizer-music-reactivity.md` | Detailed per-effect audio reactivity tables |
 | `CHANGELOG.md` | Development history |
