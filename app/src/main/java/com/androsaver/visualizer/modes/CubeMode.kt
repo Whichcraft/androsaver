@@ -77,10 +77,11 @@ class CubeMode : BaseMode() {
         val mid  = fft.meanSlice(5, 25).coerceIn(0f, 1f)
         val high = fft.meanSlice(25, fft.size).coerceIn(0f, 1f)
 
-        // v2.0.0 rotation velocity (smaller base, less damping, no spinDir)
-        rvx += 0.00165f + mid  * 0.012f + beat * 0.10f
-        rvy += 0.00248f + bass * 0.015f + beat * 0.12f
-        rvz += 0.00083f + high * 0.008f + beat * 0.05f
+        // Base idle terms from v1.4.x (calm on TV at default intensity);
+        // audio-reactive multipliers and damping from v2.0.0.
+        rvx += 0.00025f + mid  * 0.012f + beat * 0.10f
+        rvy += 0.00035f + bass * 0.015f + beat * 0.12f
+        rvz += 0.00018f + high * 0.008f + beat * 0.05f
         rvx *= 0.94f; rvy *= 0.94f; rvz *= 0.94f
         rx += rvx; ry += rvy; rz += rvz
 

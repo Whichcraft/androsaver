@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 13)
+
+### Fixed
+- **CubeMode** — base idle rotation constants reverted to v1.4.x values (`0.00025/0.00035/0.00018`); psysuals v2.0.0 values were ~6× higher, causing the inner cube to spin erratically at default intensity on full-screen TV. Audio-reactive multipliers and 0.94 damping kept from v2.0.0. Delta documented in `docs/psysuals-port-notes.md`.
+
+---
+
 ## 2026-04-01 (cont 12)
 
 ### Changed — psysuals v2.0.1
