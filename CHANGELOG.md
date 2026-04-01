@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01
+
+### Changed
+- **build.yml** — version bump to 1.3, patch base updated to 124
+- **docs/architecture.md** — merged `ImageItem` row into `ImageSource.kt` row; expanded permissions table with `INTERNET`, `ACCESS_NETWORK_STATE`, `MODIFY_AUDIO_SETTINGS`, `REQUEST_INSTALL_PACKAGES`, `RECEIVE_BOOT_COMPLETED`
+
+---
+
 ## 2026-03-30 — version 1.3.0
 
 ### Changed
