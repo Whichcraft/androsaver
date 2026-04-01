@@ -71,9 +71,12 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: git push origin HEAD:refs/tags/dev --force
 
-      - name: Delete existing dev release
+      - name: Delete all existing dev releases
         if: github.ref == 'refs/heads/dev'
-        run: gh release delete dev --yes || true
+        run: |
+          gh release list --json tagName,databaseId \
+            --jq '.[] | select(.tagName == "dev") | .databaseId' \
+            | xargs -I{} gh api -X DELETE repos/${{ github.repository }}/releases/{}
         env:
           GH_TOKEN: ${{ github.token }}
 
