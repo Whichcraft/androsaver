@@ -62,6 +62,15 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Setup:** Host + Port + HTTPS + Username + Password + Folder → `SynologySetupActivity`
 - **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_HTTPS`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
 
+## DefaultImagesSource
+
+- **File:** `com.androsaver.source.DefaultImagesSource`
+- **Directory:** `app/src/main/assets/default_images/` (bundled in APK)
+- **Auth:** None
+- **Activation:** Automatic — added to the source list only when no other source is enabled
+- **Supported formats:** JPEG, PNG, WebP, GIF, BMP
+- **To add images:** drop files into `app/src/main/assets/default_images/` and commit; they are included in the next build
+
 ## LocalStorageSource
 
 - **File:** `com.androsaver.source.LocalStorageSource`

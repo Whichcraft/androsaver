@@ -2,6 +2,12 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <Preference
+        android:key="autostart_hint"
+        android:title="Activate AndroSaver"
+        android:summary="Android TV: Settings → Device Preferences → Screen Saver → AndroSaver.  Fire TV: Settings → Display &amp; Sounds → Screen Saver → AndroSaver."
+        android:selectable="false" />
+
+    <Preference
         android:key="preview_screensaver"
         android:title="@string/preview_screensaver"
         android:summary="@string/preview_screensaver_summary"
@@ -31,6 +37,7 @@
 
     <PreferenceCategory android:key="cat_visualizer" android:title="Visualizer">
         <ListPreference android:key="visualizer_mode" android:title="Visual Effect" android:entries="@array/visualizer_mode_entries" android:entryValues="@array/visualizer_mode_values" android:defaultValue="auto" android:summary="%s" />
+        <MultiSelectListPreference android:key="viz_enabled_modes" android:title="Active Effects" android:summary="Which effects appear in Auto and Random modes" android:entries="@array/viz_effect_entries" android:entryValues="@array/viz_effect_values" />
         <ListPreference android:key="visualizer_intensity" android:title="Effect Intensity" android:summary="How strongly visuals react to the beat" android:entries="@array/visualizer_intensity_entries" android:entryValues="@array/visualizer_intensity_values" android:defaultValue="0.5" />
         <ListPreference android:key="viz_cycle_interval" android:title="Auto-Cycle Interval" android:entries="@array/viz_cycle_entries" android:entryValues="@array/viz_cycle_values" android:defaultValue="120000" android:summary="%s" />
         <ListPreference android:key="audio_genre" android:title="Music Genre" android:entries="@array/audio_genre_entries" android:entryValues="@array/audio_genre_values" android:defaultValue="any" android:summary="%s" />
