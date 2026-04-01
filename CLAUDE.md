@@ -43,6 +43,10 @@ See `docs/architecture.md` for full class map.
 - Any new dev-only file (docs, notes, store copy, Claude instructions) must be added to `.gitattributes` with `export-ignore` — never ship dev files in release archives
 - See `docs/architecture.md` for full class/file reference
 
+## Visualizer Tuning Notes
+
+- **CubeMode** — the inner cube (scale × 0.45) must not spin visibly faster than the outer cube at default intensity (beatGain=1.0). Both cubes share the same rotation state (`rx/ry/rz`), so this is maintained automatically. If rotation velocity constants are ever changed, verify at default intensity that the inner cube does not appear to spin erratically.
+
 ## psysuals Submodule
 
 `psysuals/` is the upstream Python reference implementation of the visualizer (`psysualizer.py`, pygame + sounddevice). It is **not part of the Android app** — it runs on desktop as a development/preview tool.
