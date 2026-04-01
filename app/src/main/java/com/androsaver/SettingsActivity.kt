@@ -62,11 +62,22 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
-            findPreference<EditTextPreference>(Prefs.WEATHER_CITY)?.setOnBindEditTextListener { editText ->
-                editText.inputType = InputType.TYPE_CLASS_TEXT
-                editText.imeOptions = EditorInfo.IME_ACTION_DONE
-                editText.maxLines = 1
+            listOf(Prefs.WEATHER_CITY, Prefs.WEATHER_API_KEY).forEach { key ->
+                findPreference<EditTextPreference>(key)?.apply {
+                    setOnBindEditTextListener { editText ->
+                        editText.inputType = InputType.TYPE_CLASS_TEXT
+                        editText.imeOptions = EditorInfo.IME_ACTION_DONE
+                        editText.maxLines = 1
+                    }
+                    setOnPreferenceChangeListener { _, _ -> updateWeatherSummary(); true }
+                }
             }
+            findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED)
+                ?.setOnPreferenceChangeListener { _, newValue ->
+                    updateWeatherSummary(enabled = newValue as Boolean)
+                    true
+                }
+            updateWeatherSummary()
 
             findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.apply {
                 summaryProvider = Preference.SummaryProvider<MultiSelectListPreference> { pref ->
@@ -84,6 +95,7 @@ class SettingsActivity : AppCompatActivity() {
         override fun onResume() {
             super.onResume()
             updateSourcesSummary()
+            updateWeatherSummary()
             updateAboutVersion()
             checkForUpdates()
         }
@@ -112,6 +124,20 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
                 else -> super.onPreferenceTreeClick(preference)
+            }
+        }
+
+        private fun updateWeatherSummary(enabled: Boolean? = null) {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val isOn  = enabled ?: prefs.getBoolean(Prefs.WEATHER_ENABLED, false)
+            val city  = prefs.getString(Prefs.WEATHER_CITY, "") ?: ""
+            val key   = prefs.getString(Prefs.WEATHER_API_KEY, "") ?: ""
+            val pref  = findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED) ?: return
+            pref.summary = when {
+                !isOn          -> "Display current temperature in the top-right corner"
+                city.isBlank() -> "⚠ Enter a city name below"
+                key.isBlank()  -> "⚠ API key required — free at openweathermap.org/api"
+                else           -> "Showing weather for $city"
             }
         }
 

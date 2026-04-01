@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-01 (cont 18)
+
+### Fixed
+- **Weather widget** — moved from top-left to top-right corner; text right-aligned
+- **Weather settings warning** — Show Weather summary now shows ⚠ when enabled but city or API key is missing; updates live as you type; shows "Showing weather for {city}" when fully configured
+- **Weather API key input** — Return key now confirms like the city field (was inserting newlines)
+
+---
+
 ## 2026-04-01 (cont 17)
 
 ### Added

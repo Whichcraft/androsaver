@@ -18,8 +18,8 @@
     <!-- Clock overlay: bottom-right corner -->
     <TextView android:id="@+id/clockOverlay" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|end" android:layout_margin="32dp" android:textColor="#CCFFFFFF" android:textSize="28sp" android:gravity="end" android:fontFamily="sans-serif-light" android:shadowColor="#CC000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="6" android:visibility="gone" />
 
-    <!-- Weather widget: top-left corner -->
-    <LinearLayout android:id="@+id/weatherWidget" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:layout_margin="32dp" android:orientation="vertical" android:visibility="gone">
+    <!-- Weather widget: top-right corner -->
+    <LinearLayout android:id="@+id/weatherWidget" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|end" android:layout_margin="32dp" android:orientation="vertical" android:gravity="end" android:visibility="gone">
         <TextView android:id="@+id/weatherTemp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#CCFFFFFF" android:textSize="36sp" android:textStyle="bold" android:shadowColor="#CC000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="6" />
         <TextView android:id="@+id/weatherDesc" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#AAFFFFFF" android:textSize="18sp" android:shadowColor="#CC000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="4" />
     </LinearLayout>
