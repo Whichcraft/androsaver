@@ -114,56 +114,53 @@ class CorridorMode : BaseMode() {
 
         draw.fadeBlack(0.11f)
 
-        // ── Build unified back-to-front draw list (frames + sparks together) ──
-        // Prevents near frames from overwriting nearer sparks.
-        data class DrawItem(val isFrame: Boolean, val z: Float, val frameIdx: Int, val sparkIdx: Int)
-        val drawList = ArrayList<DrawItem>(frames.size + sparks.size)
-        frames.forEachIndexed  { i, f  -> drawList.add(DrawItem(true,  f.z,  i, -1)) }
-        sparks.forEachIndexed  { i, sp -> drawList.add(DrawItem(false, sp.z, -1, i)) }
-        drawList.sortByDescending { it.z }
-
-        for (item in drawList) {
-            val z     = maxOf(item.z, 0.01f)
+        // ── Draw frames (back to front, normal blend) ─────────────────────────
+        // Sparks drawn after (additive blend) so they are always on top of frames.
+        for (f in frames.sortedByDescending { it.z }) {
+            val z     = maxOf(f.z, 0.01f)
             val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - z * 0.5f)   // sparks use time, not per-spark pt
+            val (pcx, pcy) = path(time - z * 0.5f)
+            val cxS = pcx * fov / z + W / 2f
+            val cyS = pcy * fov / z + H / 2f
 
-            if (item.isFrame) {
-                val cxS = pcx * fov / z + W / 2f
-                val cyS = pcy * fov / z + H / 2f
+            val fi     = minOf((nearT * fft.size * 0.8f).toInt(), fft.size - 1)
+            val h      = (hue + nearT) % 1f
+            val bright = (0.06f + nearT * 0.70f + fft[fi] * 0.20f + beat * nearT * 0.50f)
+                            .coerceIn(0f, 1f)
 
-                val fi     = minOf((nearT * fft.size * 0.8f).toInt(), fft.size - 1)
-                val h      = (hue + nearT) % 1f
-                val bright = (0.06f + nearT * 0.70f + fft[fi] * 0.20f + beat * nearT * 0.50f)
-                                .coerceIn(0f, 1f)
+            val halfH = WORLD_H * fov / z
+            val halfW = WORLD_H * ASPECT * fov / z
+            if (halfW < 3f || halfH < 3f) continue
 
-                val halfH = WORLD_H * fov / z
-                val halfW = WORLD_H * ASPECT * fov / z
-                if (halfW < 3f || halfH < 3f) continue
+            val radius = maxOf(2f, minOf(halfW / 3f, halfH / 3f, halfW - 1f, halfH - 1f))
 
-                val radius = maxOf(2f, minOf(halfW / 3f, halfH / 3f, halfW - 1f, halfH - 1f))
+            val infl  = 4f
+            val glR   = (radius + infl / 2f).coerceAtMost(minOf(halfW + infl, halfH + infl) - 1f)
+            val glPts = roundedRectPts(cxS, cyS, halfW + infl, halfH + infl, maxOf(2f, glR))
+            val gc    = GLDraw.hsl(h, l = bright * 0.22f)
+            draw.polygon(glPts, gc[0], gc[1], gc[2], 0.7f)
 
-                val infl  = 4f
-                val glR   = (radius + infl / 2f).coerceAtMost(minOf(halfW + infl, halfH + infl) - 1f)
-                val glPts = roundedRectPts(cxS, cyS, halfW + infl, halfH + infl, maxOf(2f, glR))
-                val gc    = GLDraw.hsl(h, l = bright * 0.22f)
-                draw.polygon(glPts, gc[0], gc[1], gc[2], 0.7f)
-
-                val mainPts = roundedRectPts(cxS, cyS, halfW, halfH, radius)
-                val mc      = GLDraw.hsl(h, l = bright)
-                draw.polygon(mainPts, mc[0], mc[1], mc[2], 1f)
-
-            } else {
-                val sp = sparks[item.sparkIdx]
-                val sx = (pcx + sp.ox) * fov / z + W / 2f
-                val sy = (pcy + sp.oy) * fov / z + H / 2f
-                val r  = maxOf(2f, fov / z * 0.05f)
-                val h  = (sp.hue + nearT * 0.35f) % 1f
-                val bright = 0.35f + nearT * 0.60f
-                val hc = GLDraw.hsl(h, l = bright * 0.25f)
-                draw.circle(sx, sy, r + 4f, hc[0], hc[1], hc[2], 0.6f, filled = true, segments = 10)
-                val bc = GLDraw.hsl(h, l = bright)
-                draw.circle(sx, sy, maxOf(1f, r), bc[0], bc[1], bc[2], 1f, filled = true, segments = 10)
-            }
+            val mainPts = roundedRectPts(cxS, cyS, halfW, halfH, radius)
+            val mc      = GLDraw.hsl(h, l = bright)
+            draw.polygon(mainPts, mc[0], mc[1], mc[2], 1f)
         }
+
+        // ── Draw sparks on top (additive blend — always above frames) ─────────
+        draw.setAdditiveBlend()
+        for (sp in sparks) {
+            val z     = maxOf(sp.z, 0.01f)
+            val nearT = maxOf(0f, 1f - z / Z_FAR)
+            val (pcx, pcy) = path(time - z * 0.5f)
+            val sx = (pcx + sp.ox) * fov / z + W / 2f
+            val sy = (pcy + sp.oy) * fov / z + H / 2f
+            val r  = maxOf(2f, fov / z * 0.05f)
+            val h  = (sp.hue + nearT * 0.35f) % 1f
+            val bright = 0.35f + nearT * 0.60f
+            val hc = GLDraw.hsl(h, l = bright * 0.25f)
+            draw.circle(sx, sy, r + 4f, hc[0], hc[1], hc[2], 0.6f, filled = true, segments = 10)
+            val bc = GLDraw.hsl(h, l = bright)
+            draw.circle(sx, sy, maxOf(1f, r), bc[0], bc[1], bc[2], 1f, filled = true, segments = 10)
+        }
+        draw.setNormalBlend()
     }
 }

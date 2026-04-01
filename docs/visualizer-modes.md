@@ -18,16 +18,18 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | # | Class | Display Name | Key Visual |
 |---|-------|-------------|------------|
 | 1 | `YantraMode` | Yantra | 6 concentric polygons (triangle→octagon) with web + spokes |
-| 2 | `CubeMode` | Cube | Nested wireframe cubes + satellite points |
-| 3 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
-| 4 | `TunnelMode` | Tunnel | First-person tunnel with triangle bursts |
-| 5 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
+| 2 | `CubeMode` | Cube | Nested wireframe cubes + 2 orbiting satellite cubes |
+| 3 | `TriFluxMode` | TriFlux | Triangle mosaic wall — tiles pop to foreground on beat |
+| 4 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
+| 5 | `TunnelMode` | Tunnel | First-person tunnel with triangle bursts |
 | 6 | `CorridorMode` | Corridor | First-person neon rounded-rectangle corridor + sparks |
 | 7 | `NovaMode` | Nova | 7-fold mirror kaleidoscope waveform |
 | 8 | `SpiralMode` | Spiral | 6-arm neon helix |
 | 9 | `BubblesMode` | Bubbles | Rising translucent bubbles |
-| 10 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 11 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 10 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
+| 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
+| 12 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 13 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
@@ -40,7 +42,11 @@ Six concentric polygons (3→8 sides). Rings rotate at speeds tied to frequency 
 
 ## CubeMode
 
-Two wireframe cubes (inner + outer), 3D rotation. Satellite points orbit vertices. Beat pulses cube scale. High frequency drives satellite speed. Silence: slow constant rotation.
+Two wireframe cubes (inner + outer), 3D rotation. Two orbiting satellite cubes (fixed 180° apart, independent rotation). Beat pulses cube scale; bass reinforces rotation velocity. Satellite trails drawn with additive blend for persistent glow. Silence: slow constant rotation.
+
+## TriFluxMode
+
+Triangle mosaic wall filling the screen. All triangles have animated rainbow edges. N_FILLED=5 tiles also receive a color fill. Two independent rainbow sweep bands glide diagonally across the grid. On bass beats, an interior tile pops to 4.5–8.5× size (up to 3 at once), bounces off screen edges, then springs back. Silence: gentle hue drift, sweeps still active.
 
 ## PlasmaMode
 
@@ -69,6 +75,10 @@ Waveform rendered with 7-fold rotational symmetry. Each spoke mirrors waveform a
 ## BubblesMode
 
 Translucent circles rise from bottom. Count and size driven by bass. Beat triggers synchronized pulse (all bubbles flash + expand). High frequency adds smaller bubbles. Bubbles wrap when they exit the top. Silence: a few large slow bubbles drift upward.
+
+## BranchesMode
+
+Recursive fractal lightning tree. Six neon arms radiate from screen centre at a slowly rotating base angle, each splitting recursively to depth 6 (Y-fork at trunk + two angled children). Mid frequencies jitter branch angles live; bass drives trunk length; beat fires up to 3 extra arms and flashes brightness. Trail fades slowly (TRAIL_ALPHA=16). Silence: arms contract, minimal jitter.
 
 ## BarsMode (Spectrum)
 

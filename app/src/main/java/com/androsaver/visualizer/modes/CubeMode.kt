@@ -6,7 +6,14 @@ import kotlin.math.*
 
 /**
  * CubeMode — Dual rotating wireframe cubes, each axis driven by a different band.
- * Port of Python class `Cube`.
+ * Port of psysuals `Cube` class (v2.0.0).
+ *
+ * v2.0.0 changes vs v1.4.x:
+ *  - Always 2 satellites fixed 180° apart (no variable beat-driven count)
+ *  - Satellites rotate independently (sat_rx, sat_ry) — never tied to main cube
+ *  - satScale capped at 0.55 to prevent oversized cubes
+ *  - Updated rotation damping and svel physics
+ *  - spinDir flip on bass removed
  */
 class CubeMode : BaseMode() {
 
@@ -31,8 +38,9 @@ class CubeMode : BaseMode() {
     private var scale = 1f; private var svel = 0f
     private var rvx = 0f; private var rvy = 0f; private var rvz = 0f
     private var orbAngle = 0f
-    private var spinDir  = 1f   // +1 or -1, flips on bass punch
-    private var prevBass = 0f
+
+    // Independent satellite rotation (v2.0.0)
+    private var satRx = 0f; private var satRy = 0f
 
     // Main cube trail ring buffer
     private val TRAIL_LEN = 14
@@ -41,10 +49,9 @@ class CubeMode : BaseMode() {
     private var trailCount = 0
 
     // Satellite trail: slower fade (longer persistence), drawn with additive blend
+    // Always 2 sats (v2.0.0); ring buffer still used for per-frame replay
     private val SAT_TRAIL_LEN = 30
-    // Each slot: list of (proj array, nSats) so variable count is handled correctly
-    private val satTrailProj  = Array(SAT_TRAIL_LEN) { Array(6) { Array(8) { 0f to 0f } } }
-    private val satTrailNSats = IntArray(SAT_TRAIL_LEN)
+    private val satTrailProj  = Array(SAT_TRAIL_LEN) { Array(2) { Array(8) { 0f to 0f } } }
     private var satTrailHead  = 0
     private var satTrailCount = 0
 
@@ -53,7 +60,8 @@ class CubeMode : BaseMode() {
         fadeHue = 0f
         scale = 1f; svel = 0f
         rvx = 0f; rvy = 0f; rvz = 0f
-        orbAngle = 0f; spinDir = 1f; prevBass = 0f
+        orbAngle = 0f
+        satRx = 0f; satRy = 0f
         trailHead = 0; trailCount = 0
         satTrailHead = 0; satTrailCount = 0
     }
@@ -69,22 +77,18 @@ class CubeMode : BaseMode() {
         val mid  = fft.meanSlice(5, 25).coerceIn(0f, 1f)
         val high = fft.meanSlice(25, fft.size).coerceIn(0f, 1f)
 
-        // Flip spin direction on each bass punch (rising edge)
-        if (bass > 0.4f && prevBass <= 0.4f) spinDir = -spinDir
-        prevBass = bass
-
-        rvx += spinDir * (0.00025f + mid  * 0.0015f + beat * 0.0156f)
-        rvy += spinDir * (0.00035f + bass * 0.0015f + beat * 0.0208f)
-        rvz += spinDir * (0.00018f + high * 0.0010f + beat * 0.0078f)
-        rvx *= 0.86f; rvy *= 0.86f; rvz *= 0.86f
+        // v2.0.0 rotation velocity (smaller base, less damping, no spinDir)
+        rvx += 0.00165f + mid  * 0.012f + beat * 0.10f
+        rvy += 0.00248f + bass * 0.015f + beat * 0.12f
+        rvz += 0.00083f + high * 0.008f + beat * 0.05f
+        rvx *= 0.94f; rvy *= 0.94f; rvz *= 0.94f
         rx += rvx; ry += rvy; rz += rvz
 
-        svel += beat * 1.69f + bass * 0.40f
-        svel += (1f - scale) * 0.20f
-        svel *= 0.72f
-        scale += svel
-        val maxScale = minOf(draw.W, draw.H) / 2f * 2.8f / (fov * 1.733f) * 0.90f
-        scale = scale.coerceIn(0.5f, maxScale)
+        // v2.0.0 scale physics
+        svel += beat * 0.32f + bass * 0.20f
+        svel += (1f - scale) * 0.18f
+        svel *= 0.68f
+        scale = maxOf(0.5f, scale + svel)
 
         // ── Compute projections for main (ci=0) and inner (ci=1) cubes ────────
         val cubeScales = floatArrayOf(scale, scale * 0.45f)
@@ -132,40 +136,32 @@ class CubeMode : BaseMode() {
             }
         }
 
-        // ── Orbiting satellite cubes ──────────────────────────────────────────
-        // Count scales with beat intensity: 2 at baseline, up to 6 at max beat
-        val nSats    = 2 + (beat.coerceAtMost(2f) * 2).toInt()   // 2 … 6
-        val satScale = scale * 0.28f
-        val baseOrbR = 2.6f
-        val sz0      = 3.8f  // approximate z-depth (matches project() offset)
-        orbAngle    += 0.012f + beat * 0.04f
+        // ── Orbiting satellite cubes (v2.0.0: always 2, independent rotation) ─
+        val satScale = minOf(scale * 0.28f, 0.55f)
+        val ORB_R    = 2.6f
+        orbAngle += 0.012f + beat * 0.04f
 
-        // Screen-space half-extent of a rotated satellite cube corner
-        val satHalfPx  = satScale * 1.5f * fov / sz0
-        val maxOrbitPx = minOf(draw.W, draw.H) / 2f - satHalfPx - 8f
+        // Independent slow rotation so satellites never look distorted at high intensity
+        satRx += 0.018f; satRy += 0.026f
 
-        // Compute current satellite projections
-        val currentSatProj = Array(nSats) { si ->
-            val effectiveOrbR = if (maxOrbitPx > 0f) minOf(baseOrbR, maxOrbitPx * sz0 / fov) else 0f
-            val theta = orbAngle + si.toFloat() / nSats * (2f * PI.toFloat())
-            val ox    = effectiveOrbR * cos(theta)
-            val oy    = effectiveOrbR * sin(theta)
+        // Compute current satellite projections (2 sats, 180° apart)
+        val currentSatProj = Array(2) { si ->
+            val theta = orbAngle + si * PI.toFloat()   // always 180° apart
+            val ox    = ORB_R * cos(theta)
+            val oy    = ORB_R * sin(theta)
             val verts3d = Array(8) { vi ->
                 rotateVertex(
                     vertsBase[vi][0] * satScale,
                     vertsBase[vi][1] * satScale,
                     vertsBase[vi][2] * satScale,
-                    rx, ry, rz
+                    satRx, satRy, 0f   // independent rotation, no Z
                 )
             }
             projectSat(verts3d, ox, oy, satScale, draw.W, draw.H, fov)
         }
 
         // Store into satellite trail ring buffer
-        for (si in 0 until minOf(nSats, 6)) {
-            for (vi in 0..7) satTrailProj[satTrailHead][si][vi] = currentSatProj[si][vi]
-        }
-        satTrailNSats[satTrailHead] = nSats
+        for (si in 0..1) for (vi in 0..7) satTrailProj[satTrailHead][si][vi] = currentSatProj[si][vi]
         if (satTrailCount < SAT_TRAIL_LEN) satTrailCount++
         satTrailHead = (satTrailHead + 1) % SAT_TRAIL_LEN
 
@@ -175,9 +171,8 @@ class CubeMode : BaseMode() {
         for (age in satTrailCount - 1 downTo 1) {
             val frameIdx = (satTrailHead - 1 - age + SAT_TRAIL_LEN * 2) % SAT_TRAIL_LEN
             val alpha    = (1f - age.toFloat() / satTrailCount.toFloat()) * 0.06f
-            val n        = satTrailNSats[frameIdx]
-            for (si in 0 until minOf(n, 6)) {
-                val hOff = si.toFloat() / n * 0.6f
+            for (si in 0..1) {
+                val hOff = si.toFloat() * 0.5f
                 val proj = satTrailProj[frameIdx][si]
                 for ((ei, edge) in edges.withIndex()) {
                     val (a, b) = edge
@@ -191,8 +186,8 @@ class CubeMode : BaseMode() {
 
         // Current satellites at full brightness
         val satL = (0.18f + minOf(svel, 1f) * 0.28f).coerceIn(0f, 1f)
-        for (si in 0 until nSats) {
-            val hOff = si.toFloat() / nSats * 0.6f
+        for (si in 0..1) {
+            val hOff = si.toFloat() * 0.5f
             val proj = currentSatProj[si]
             for ((ei, edge) in edges.withIndex()) {
                 val (a, b) = edge
@@ -245,10 +240,8 @@ class CubeMode : BaseMode() {
 
     /**
      * Project satellite cube without distortion.
-     * Orbit centre projected once with uniform 2-D scale (satellites orbit at z=0,
-     * so effective depth = 3.8); all vertices offset from that screen centre.
-     * Centre clamped so the satellite never leaves the screen.
-     * Returns array of 8 screen-space Pairs.
+     * Orbit centre projected once with uniform 2-D scale; all vertices offset
+     * from that screen centre. Centre clamped so satellite never leaves screen.
      */
     private fun projectSat(verts3d: Array<FloatArray>, ox: Float, oy: Float,
                            satScale: Float, W: Int, H: Int, fov: Float): Array<Pair<Float, Float>> {

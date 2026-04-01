@@ -2,6 +2,20 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 10)
+
+### Added
+- **TriFluxMode** — new effect (psysuals v2.0.0): triangle mosaic wall. All triangles are rainbow-edge wireframes; N_FILLED=5 tiles filled at any time. Bass beats pop interior tiles to the foreground at 4.5–8.5× scale (up to 3 active at once), bouncing off screen edges and spring-returning to grid. Two independent rainbow sweep bands traverse the grid.
+- **BranchesMode** — new effect (psysuals v2.0.0): recursive fractal lightning tree. 6 neon arms radiate from screen centre, each branching to depth 6. Mid frequencies jitter branch angles; bass drives trunk length; beat fires extra arms and a brightness burst.
+
+### Changed
+- **CubeMode** — port of psysuals v2.0.0: always 2 satellites fixed 180° apart (no variable beat-count); independent satellite rotation (`satRx`, `satRy`); `satScale` capped at 0.55; updated rotation damping (×0.94) and svel physics; spinDir flip removed
+- **CorridorMode** — port of psysuals v2.0.0: sparks now drawn after (on top of) corridor frames with additive blend, replacing the unified sorted draw list
+- **Mode list** — Plasma moved from slot 3 to slot 10; TriFlux inserted at slot 3; Branches added at slot 11; order now matches psysuals v2.0.0 `MODES` list
+- **psysuals submodule** — updated to v2.0.0
+
+---
+
 ## 2026-04-01 (cont 9)
 
 ### Changed
