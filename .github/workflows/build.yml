@@ -71,6 +71,12 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: git push origin HEAD:refs/tags/dev --force
 
+      - name: Delete existing dev release
+        if: github.ref == 'refs/heads/dev'
+        run: gh release delete dev --yes || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Publish to dev release
         if: github.ref == 'refs/heads/dev'
         uses: softprops/action-gh-release@v2

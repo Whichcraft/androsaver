@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont)
+
+### Fixed
+- **build.yml** — delete existing `dev` release before publishing to avoid "already_exists" tag conflict with `softprops/action-gh-release@v2`
+
+---
+
 ## 2026-04-01
 
 ### Changed
