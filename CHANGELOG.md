@@ -2,6 +2,16 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 8)
+
+### Changed
+- **Mode order** — Lissajous and Tunnel swapped to match psysuals v1.4.3 (Lissajous=4, Tunnel=5)
+- **TunnelMode** — port of psysuals v1.4.3: variable dt (bass×0.14 + beat×0.22); bass expands tube radius (+0.6×bass); ring brightness and line weight scale with bass; continuous spark spawning (bass×0.6 + beat×1.5); spark size strongly bass-reactive (1+bass×3+beat×1.5); sparks drawn with additive blending above tunnel rings via 40-frame trail ring buffer; spark cap 60
+- **CubeMode satellites** — port of psysuals v1.4.3: satellite trail ring buffer (30 frames) drawn with additive blend; satellites start dim and brighten with energy (lightness 0.38+svel×0.20 → 0.18+svel×0.28)
+- **psysuals submodule** — updated to v1.5.0
+
+---
+
 ## 2026-04-01 (cont 7)
 
 ### Fixed

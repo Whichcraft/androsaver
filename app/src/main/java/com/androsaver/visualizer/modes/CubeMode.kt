@@ -34,13 +34,19 @@ class CubeMode : BaseMode() {
     private var spinDir  = 1f   // +1 or -1, flips on bass punch
     private var prevBass = 0f
 
-    // Trail: ring buffer of projected vertex positions for main (ci=0) and inner (ci=1) cubes.
-    // The screen is cleared every frame by the renderer, so we re-draw past positions explicitly
-    // with decreasing alpha rather than relying on framebuffer persistence.
+    // Main cube trail ring buffer
     private val TRAIL_LEN = 14
     private val trailProj  = Array(TRAIL_LEN) { Array(2) { Array(8) { 0f to 0f } } }
     private var trailHead  = 0
     private var trailCount = 0
+
+    // Satellite trail: slower fade (longer persistence), drawn with additive blend
+    private val SAT_TRAIL_LEN = 30
+    // Each slot: list of (proj array, nSats) so variable count is handled correctly
+    private val satTrailProj  = Array(SAT_TRAIL_LEN) { Array(6) { Array(8) { 0f to 0f } } }
+    private val satTrailNSats = IntArray(SAT_TRAIL_LEN)
+    private var satTrailHead  = 0
+    private var satTrailCount = 0
 
     override fun reset() {
         rx = 0f; ry = 0f; rz = 0f
@@ -49,6 +55,7 @@ class CubeMode : BaseMode() {
         rvx = 0f; rvy = 0f; rvz = 0f
         orbAngle = 0f; spinDir = 1f; prevBass = 0f
         trailHead = 0; trailCount = 0
+        satTrailHead = 0; satTrailCount = 0
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -137,9 +144,9 @@ class CubeMode : BaseMode() {
         val satHalfPx  = satScale * 1.5f * fov / sz0
         val maxOrbitPx = minOf(draw.W, draw.H) / 2f - satHalfPx - 8f
 
-        for (si in 0 until nSats) {
+        // Compute current satellite projections
+        val currentSatProj = Array(nSats) { si ->
             val effectiveOrbR = if (maxOrbitPx > 0f) minOf(baseOrbR, maxOrbitPx * sz0 / fov) else 0f
-
             val theta = orbAngle + si.toFloat() / nSats * (2f * PI.toFloat())
             val ox    = effectiveOrbR * cos(theta)
             val oy    = effectiveOrbR * sin(theta)
@@ -151,9 +158,42 @@ class CubeMode : BaseMode() {
                     rx, ry, rz
                 )
             }
-            val proj = projectSat(verts3d, ox, oy, satScale, draw.W, draw.H, fov)
+            projectSat(verts3d, ox, oy, satScale, draw.W, draw.H, fov)
+        }
+
+        // Store into satellite trail ring buffer
+        for (si in 0 until minOf(nSats, 6)) {
+            for (vi in 0..7) satTrailProj[satTrailHead][si][vi] = currentSatProj[si][vi]
+        }
+        satTrailNSats[satTrailHead] = nSats
+        if (satTrailCount < SAT_TRAIL_LEN) satTrailCount++
+        satTrailHead = (satTrailHead + 1) % SAT_TRAIL_LEN
+
+        // ── Draw satellite trail + current satellites (additive blend) ─────────
+        draw.setAdditiveBlend()
+
+        for (age in satTrailCount - 1 downTo 1) {
+            val frameIdx = (satTrailHead - 1 - age + SAT_TRAIL_LEN * 2) % SAT_TRAIL_LEN
+            val alpha    = (1f - age.toFloat() / satTrailCount.toFloat()) * 0.06f
+            val n        = satTrailNSats[frameIdx]
+            for (si in 0 until minOf(n, 6)) {
+                val hOff = si.toFloat() / n * 0.6f
+                val proj = satTrailProj[frameIdx][si]
+                for ((ei, edge) in edges.withIndex()) {
+                    val (a, b) = edge
+                    val h     = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f
+                    val color = GLDraw.hsl(h, 1f, 0.18f + minOf(svel, 1f) * 0.28f)
+                    draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                        color[0], color[1], color[2], alpha)
+                }
+            }
+        }
+
+        // Current satellites at full brightness
+        val satL = (0.18f + minOf(svel, 1f) * 0.28f).coerceIn(0f, 1f)
+        for (si in 0 until nSats) {
             val hOff = si.toFloat() / nSats * 0.6f
-            val satL = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
+            val proj = currentSatProj[si]
             for ((ei, edge) in edges.withIndex()) {
                 val (a, b) = edge
                 val h     = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f
@@ -162,6 +202,8 @@ class CubeMode : BaseMode() {
                     color[0], color[1], color[2], 1f)
             }
         }
+
+        draw.setNormalBlend()
     }
 
     /**
