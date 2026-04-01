@@ -18,6 +18,15 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
         renderMode = RENDERMODE_CONTINUOUSLY
     }
 
+    /** Names of effects enabled for Auto/Random cycling. Empty set = all enabled. */
+    var enabledModeNames: Set<String> = emptySet()
+
+    private fun enabledIndices(): List<Int> {
+        val names = enabledModeNames
+        if (names.isEmpty()) return renderer.modes.indices.toList()
+        return renderer.modes.indices.filter { renderer.modes[it].name in names }
+    }
+
     fun startVisualizer() {
         audio.start()
         onResume()
@@ -28,14 +37,27 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
         audio.stop()
     }
 
-    /** Switch to the next mode (wraps around). */
+    /** Switch to the next enabled mode (wraps around). */
     fun nextMode() {
-        renderer.modeIndex = (renderer.modeIndex + 1) % renderer.modes.size
+        val enabled = enabledIndices()
+        if (enabled.isEmpty()) return
+        val cur = renderer.modeIndex
+        renderer.modeIndex = enabled.firstOrNull { it > cur } ?: enabled.first()
     }
 
-    /** Switch to the previous mode (wraps around). */
+    /** Switch to the previous enabled mode (wraps around). */
     fun previousMode() {
-        renderer.modeIndex = (renderer.modeIndex - 1 + renderer.modes.size) % renderer.modes.size
+        val enabled = enabledIndices()
+        if (enabled.isEmpty()) return
+        val cur = renderer.modeIndex
+        renderer.modeIndex = enabled.lastOrNull { it < cur } ?: enabled.last()
+    }
+
+    /** Switch to a random enabled mode. */
+    fun randomMode() {
+        val enabled = enabledIndices()
+        if (enabled.isEmpty()) return
+        renderer.modeIndex = enabled.random()
     }
 
     /** Switch to a mode by its name. No-op if name not found. */

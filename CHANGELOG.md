@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-01 (cont 16)
+
+### Added
+- **Random visual effect mode** — new option in the Visual Effect picker; picks a random enabled effect at startup and on each auto-cycle interval (vs Auto which cycles in order)
+- **Active Effects multi-select** — new setting under Visual Effect; uncheck effects to exclude them from Auto and Random cycling (and from ← → remote navigation); unchecked effects can still be selected directly by name; defaults to all active
+- **Autostart hint** — non-interactive info line at top of Settings explains the path to activate AndroSaver as the system screensaver (Android TV and Fire TV paths)
+
+---
+
 ## v2.0.0 — 2026-04-01
 
 ### Three new visualizer effects

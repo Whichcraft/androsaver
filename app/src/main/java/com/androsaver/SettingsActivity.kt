@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.ListPreference
+import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
@@ -56,6 +57,17 @@ class SettingsActivity : AppCompatActivity() {
                     audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
                 true
+            }
+
+            findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.apply {
+                summaryProvider = Preference.SummaryProvider<MultiSelectListPreference> { pref ->
+                    val selected = pref.values
+                    val total = pref.entries?.size ?: 0
+                    when {
+                        selected.isNullOrEmpty() || selected.size == total -> "All effects active"
+                        else -> "${selected.size} of $total effects active"
+                    }
+                }
             }
 
         }
