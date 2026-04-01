@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## v2.0.1 — 2026-04-01
+
+### Added
+- **Random visual effect mode** — new option in the Visual Effect picker; picks a random enabled effect at startup and on each auto-cycle interval
+- **Active Effects multi-select** — uncheck effects to exclude them from Auto/Random cycling and remote ← → navigation; defaults to all active
+- **Autostart hint** — info line at top of Settings with exact path to activate AndroSaver on Android TV and Fire TV
+
+---
+
 ## 2026-04-01 (cont 16)
 
 ### Added
