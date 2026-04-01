@@ -33,8 +33,7 @@ Setup activities: `GoogleDriveSetupActivity`, `GoogleAuthActivity`, `OneDriveSet
 
 | File | Source | Auth |
 |------|--------|------|
-| `ImageSource.kt` | Interface: `suspend fun getImageUrls(): List<ImageItem>` | — |
-| `ImageItem.kt` | Data class: url, headers, exifOrientation | — |
+| `ImageSource.kt` | Interface: `suspend fun getImageUrls(): List<ImageItem>`; also defines `ImageItem` data class (url, headers, exifOrientation) | — |
 | `GoogleDriveSource.kt` | Google Drive REST API v3 | OAuth token (auto-refresh) |
 | `OneDriveSource.kt` | Microsoft Graph API | OAuth token (auto-refresh) |
 | `DropboxSource.kt` | Dropbox API v2 | OAuth token (auto-refresh) |
@@ -104,10 +103,14 @@ Remote control (D-pad events in ScreensaverEngine):
 
 | Permission | Purpose |
 |-----------|---------|
-| `RECORD_AUDIO` | Music visualizer (Visualizer API captures global mix) |
-| `READ_MEDIA_IMAGES` | Device storage image source (API 33+) |
-| `READ_EXTERNAL_STORAGE` | Device storage image source (API < 33) |
 | `INTERNET` | All cloud sources + weather + update checker |
+| `ACCESS_NETWORK_STATE` | Network availability checks |
+| `RECORD_AUDIO` | Music visualizer (Visualizer API captures global mix) |
+| `MODIFY_AUDIO_SETTINGS` | Required alongside `RECORD_AUDIO` for Visualizer API |
+| `READ_MEDIA_IMAGES` | Device storage image source (API 33+) |
+| `READ_EXTERNAL_STORAGE` | Device storage image source (API < 33, `maxSdkVersion=32`) |
+| `REQUEST_INSTALL_PACKAGES` | Self-update: install downloaded APK |
+| `RECEIVE_BOOT_COMPLETED` | `BootReceiver` pre-refreshes OAuth tokens on device boot |
 
 ## Build Variants
 
