@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 6)
+
+### Fixed
+- **CorridorMode** — port of psysuals v1.4.1 fixes: sparks now bounded to ±85% of corridor half-extents (no longer escape tunnel walls); per-spark `pt` dropped, path uses `time` so sparks align with frames at same depth; frames and sparks merged into a single back-to-front draw list so near frames can no longer overwrite nearer sparks
+
+---
+
 ## 2026-04-01 (cont 5)
 
 ### Fixed
