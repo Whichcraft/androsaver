@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 7)
+
+### Fixed
+- **CubeMode satellites** — port of psysuals v1.4.2: replaced per-vertex perspective projection (`projectOffset`) with centre-based uniform 2D scale (`projectSat`); satellites no longer appear skewed/distorted; orbit centre clamped so satellites never leave the screen
+
+---
+
 ## 2026-04-01 (cont 6)
 
 ### Fixed

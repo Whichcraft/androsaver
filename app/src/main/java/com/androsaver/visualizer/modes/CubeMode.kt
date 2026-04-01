@@ -151,7 +151,7 @@ class CubeMode : BaseMode() {
                     rx, ry, rz
                 )
             }
-            val proj = Array(8) { vi -> projectOffset(verts3d[vi], ox, oy, draw.W, draw.H, fov) }
+            val proj = projectSat(verts3d, ox, oy, satScale, draw.W, draw.H, fov)
             val hOff = si.toFloat() / nSats * 0.6f
             val satL = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
             for ((ei, edge) in edges.withIndex()) {
@@ -201,11 +201,24 @@ class CubeMode : BaseMode() {
         return sx to sy
     }
 
-    /** Perspective projection with XY world-space offset (for satellite cubes). */
-    private fun projectOffset(v: FloatArray, ox: Float, oy: Float, W: Int, H: Int, fov: Float): Pair<Float, Float> {
-        val sz = maxOf(v[2] + 3.8f, 0.5f)
-        val sx = (v[0] + ox) * fov / sz + W / 2f
-        val sy = (v[1] + oy) * fov / sz + H / 2f
-        return sx to sy
+    /**
+     * Project satellite cube without distortion.
+     * Orbit centre projected once with uniform 2-D scale (satellites orbit at z=0,
+     * so effective depth = 3.8); all vertices offset from that screen centre.
+     * Centre clamped so the satellite never leaves the screen.
+     * Returns array of 8 screen-space Pairs.
+     */
+    private fun projectSat(verts3d: Array<FloatArray>, ox: Float, oy: Float,
+                           satScale: Float, W: Int, H: Int, fov: Float): Array<Pair<Float, Float>> {
+        val z      = 3.8f
+        val scaleS = fov / z
+        var cxS    = ox * scaleS + W / 2f
+        var cyS    = oy * scaleS + H / 2f
+        val extent = satScale * scaleS + 2f
+        cxS = cxS.coerceIn(extent, W - extent)
+        cyS = cyS.coerceIn(extent, H - extent)
+        return Array(verts3d.size) { vi ->
+            (cxS + verts3d[vi][0] * scaleS) to (cyS + verts3d[vi][1] * scaleS)
+        }
     }
 }
