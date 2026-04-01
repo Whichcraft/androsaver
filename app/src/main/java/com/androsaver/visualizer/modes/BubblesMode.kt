@@ -57,7 +57,7 @@ class BubblesMode : BaseMode() {
         val fft  = audio.fft
         val beat = audio.beat
         hue += 0.005f
-        val bass = fft.meanSlice(0, 8)
+        val bass = fft.meanSlice(0, 6)
         val mid  = fft.meanSlice(6, 30)
 
         // beatSel: capped at 1 for count/size selectors so intensity doesn't blow up counts

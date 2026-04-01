@@ -26,12 +26,15 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     val modes = listOf(
         YantraMode(),
         CubeMode(),
-        PlasmaMode(),
-        TunnelMode(),
+        TriFluxMode(),
         LissajousMode(),
+        TunnelMode(),
+        CorridorMode(),
         NovaMode(),
         SpiralMode(),
         BubblesMode(),
+        PlasmaMode(),
+        BranchesMode(),
         BarsMode(),
         WaterfallMode()
     )

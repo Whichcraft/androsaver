@@ -17,16 +17,19 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 
 | # | Class | Display Name | Key Visual |
 |---|-------|-------------|------------|
-| 1 | `YantraMode` | Yantra | 6 concentric polygons (triangle→octagon) with web + spokes |
-| 2 | `CubeMode` | Cube | Nested wireframe cubes + satellite points |
-| 3 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
-| 4 | `TunnelMode` | Tunnel | First-person tunnel with triangle bursts |
-| 5 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
-| 6 | `NovaMode` | Nova | 7-fold mirror kaleidoscope waveform |
-| 7 | `SpiralMode` | Spiral | 6-arm neon helix |
-| 8 | `BubblesMode` | Bubbles | Rising translucent bubbles |
-| 9 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 10 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 1 | `YantraMode` | Yantra | 7 concentric polygons (triangle→nonagon) with web + spokes |
+| 2 | `CubeMode` | Cube | Nested wireframe cubes + 2 orbiting satellite cubes |
+| 3 | `TriFluxMode` | TriFlux | Triangle mosaic wall — tiles pop to foreground on beat |
+| 4 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
+| 5 | `TunnelMode` | Tunnel | First-person tunnel with triangle bursts |
+| 6 | `CorridorMode` | Corridor | First-person neon rounded-rectangle corridor + sparks |
+| 7 | `NovaMode` | Nova | 7-fold mirror kaleidoscope waveform |
+| 8 | `SpiralMode` | Spiral | 6-arm neon helix |
+| 9 | `BubblesMode` | Bubbles | Rising translucent bubbles |
+| 10 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
+| 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
+| 12 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 13 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
@@ -35,11 +38,15 @@ Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
 
 ## YantraMode
 
-Six concentric polygons (3→8 sides). Rings rotate at speeds tied to frequency bands. Beat kicks radius outward (spring return). Web lines + spokes appear above beat threshold. Trail length tracks total energy. Silence: near-static drift.
+Seven concentric polygons (3→9 sides). Rings rotate at graduated per-ring speeds (faster toward the outside) tied to frequency bands. Beat kicks radius outward (spring return). Web lines + spokes appear above beat threshold. Trail length tracks total energy. Silence: visible baseline spin.
 
 ## CubeMode
 
-Two wireframe cubes (inner + outer), 3D rotation. Satellite points orbit vertices. Beat pulses cube scale. High frequency drives satellite speed. Silence: slow constant rotation.
+Two wireframe cubes (inner + outer), 3D rotation. Two orbiting satellite cubes (fixed 180° apart, independent rotation). Beat pulses cube scale; bass reinforces rotation velocity. Satellite trails drawn with additive blend for persistent glow. Silence: slow constant rotation.
+
+## TriFluxMode
+
+Triangle mosaic wall filling the screen. All triangles have animated rainbow edges. N_FILLED=5 tiles also receive a color fill. Two independent rainbow sweep bands glide diagonally across the grid. On bass beats, an interior tile pops to 4.5–8.5× size (up to 3 at once), bounces off screen edges, then springs back. Silence: gentle hue drift, sweeps still active.
 
 ## PlasmaMode
 
@@ -53,6 +60,10 @@ First-person tunnel perspective. Rings scroll toward viewer. Bass-triggered tria
 
 3D parametric trefoil knot rendered as a neon glowing line. Bass drives rotation X-axis, mid drives Y-axis, high drives Z-axis scale. Beat adds angular impulse. Glow achieved via multiple overlapping passes with alpha.
 
+## CorridorMode
+
+First-person ride through a neon rainbow corridor. 28 rounded-rectangle frames scroll toward the camera; hue sweeps from far (dark) to near (bright) across the full rainbow. Bass drives scroll speed. Beat flares nearest frames and continuously spawns glowing spark particles that streak toward the camera along a gently curving path. Silence: slow scroll, dim frames, few sparks.
+
 ## NovaMode
 
 Waveform rendered with 7-fold rotational symmetry. Each spoke mirrors waveform amplitude. Beat expands radius. Layers spin at different speeds. High energy → more layers active. Silence: slow spin, minimal amplitude.
@@ -64,6 +75,10 @@ Waveform rendered with 7-fold rotational symmetry. Each spoke mirrors waveform a
 ## BubblesMode
 
 Translucent circles rise from bottom. Count and size driven by bass. Beat triggers synchronized pulse (all bubbles flash + expand). High frequency adds smaller bubbles. Bubbles wrap when they exit the top. Silence: a few large slow bubbles drift upward.
+
+## BranchesMode
+
+Psychedelic fractal lightning tree. Nine neon arms radiate from screen centre at a slowly rotating base angle, each splitting recursively to depth 7. Triple-fork at trunk and first split level for a dense inner canopy. Every segment drawn twice — a wide dim halo and a white-hot bright core — for neon flare. Mid frequencies twist all branch angles live via three overlapping sine fields; bass drives trunk length; beat fires extra arms with a brightness burst. Silence: arms contract, minimal jitter.
 
 ## BarsMode (Spectrum)
 
