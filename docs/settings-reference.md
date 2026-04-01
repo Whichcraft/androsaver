@@ -32,9 +32,10 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 
 | Prefs Constant | Key | Type | Default | Notes |
 |---|---|---|---|---|
-| `VISUALIZER_MODE` | `visualizer_mode` | ListPreference | `auto` | `auto` + one per mode class |
+| `VISUALIZER_MODE` | `visualizer_mode` | ListPreference | `auto` | `auto`, `random`, or one mode name per class |
 | `VISUALIZER_INTENSITY` | `visualizer_intensity` | ListPreference | `0.5` | beat multiplier: Off=0×, Low=0.5×, Med=1×, High=1.5×, Max=2× |
-| `VIZ_CYCLE_INTERVAL` | `viz_cycle_interval` | ListPreference | `120000` (ms) | `0` = off |
+| `VIZ_CYCLE_INTERVAL` | `viz_cycle_interval` | ListPreference | `120000` (ms) | `0` = off; applies to both `auto` and `random` modes |
+| `VIZ_ENABLED_MODES` | `viz_enabled_modes` | MultiSelectListPreference | _(all)_ | Set of mode names included in Auto/Random cycling and ←→ navigation; empty = all enabled |
 | `AUDIO_GENRE` | `audio_genre` | ListPreference | `any` | `any`, `electronic`, `rock`, `classical` |
 
 ---
@@ -44,9 +45,9 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 | Prefs Constant | Key | Type | Default |
 |---|---|---|---|
 | `SHOW_CLOCK` | `show_clock` | SwitchPreference | `false` |
-| `WEATHER_ENABLED` | `weather_enabled` | SwitchPreference | `false` |
-| `WEATHER_CITY` | `weather_city` | EditTextPreference | — |
-| `WEATHER_API_KEY` | `weather_api_key` | EditTextPreference | — |
+| `WEATHER_ENABLED` | `weather_enabled` | SwitchPreference | `false` | Summary shows ⚠ when city or API key is missing |
+| `WEATHER_CITY` | `weather_city` | EditTextPreference | — | Return key confirms (no newline) |
+| `WEATHER_API_KEY` | `weather_api_key` | EditTextPreference | — | Free key from openweathermap.org/api; Return key confirms |
 
 ---
 
