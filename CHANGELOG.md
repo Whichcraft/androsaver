@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 9)
+
+### Changed
+- **Version bumped to 1.4** — `versionPatchBase` reset to 133 in `build.gradle` and `build.yml`; patch counter restarts from 0
+
+---
+
 ## 2026-04-01 (cont 8)
 
 ### Changed
