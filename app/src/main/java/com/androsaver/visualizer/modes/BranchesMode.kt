@@ -5,19 +5,21 @@ import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
 /**
- * BranchesMode — recursive fractal lightning tree.
- * Six neon arms radiate from screen centre, each splitting recursively to
- * depth 6. Mid frequencies jitter branch angles live; bass drives trunk
- * length; beat fires extra arms with a brightness burst.
- * Port of psysuals `Branches` class (v2.0.0).
+ * BranchesMode — recursive fractal lightning tree (psychedelic edition).
+ * Nine neon arms radiate from screen centre, each splitting recursively to
+ * depth 7. Triple-fork at trunk AND first split level for dense inner canopy.
+ * Every segment drawn twice (wide dim glow + bright core) for neon flare.
+ * Mid frequencies jitter all branch angles; bass drives trunk length; beat
+ * fires extra arms with a brightness burst.
+ * Port of psysuals `Branches` class (v2.0.1).
  */
 class BranchesMode : BaseMode() {
 
     override val name = "Branches"
 
     private companion object {
-        const val MAX_DEPTH = 6
-        const val BASE_ARMS = 6
+        const val MAX_DEPTH = 7
+        const val BASE_ARMS = 9
         const val TAU = (Math.PI * 2).toFloat()
     }
 
@@ -39,33 +41,43 @@ class BranchesMode : BaseMode() {
     ) {
         if (depth == 0 || length < 1.5f) return
 
-        val jitter = (sin(time * 2.3f + depth * 1.7f + angle) * mid * 0.55f
-                    + cos(time * 1.1f + depth * 2.9f)         * mid * 0.25f)
-        val drawLen = if (depth == MAX_DEPTH) length * 0.15f else length
+        // Three overlapping sine fields for organic jitter
+        val jitter = (sin(time * 2.3f + depth * 1.7f + angle) * mid * 0.80f
+                    + cos(time * 1.1f + depth * 2.9f)         * mid * 0.40f
+                    + sin(time * 3.7f + angle * 2.1f)         * mid * 0.25f)
+
+        // Trunk segment drawn very short; children still get full length
+        val drawLen = if (depth == MAX_DEPTH) length * 0.03f else length
         val ex = x + cos(angle + jitter) * drawLen
         val ey = y + sin(angle + jitter) * drawLen
 
         val depthT = depth.toFloat() / MAX_DEPTH
-        val h      = (hue + (1f - depthT) * 0.45f) % 1f
-        val bright = (0.25f + depthT * 0.50f + high * 0.20f + beatFlash * 0.30f).coerceIn(0f, 1f)
-        val color  = GLDraw.hsl(h, 1f, bright)
-        draw.line(x, y, ex, ey, color[0], color[1], color[2], 1f)
+        val h      = (hue + (1f - depthT) * 0.80f) % 1f
+        val bright = (0.28f + depthT * 0.52f + high * 0.22f + beatFlash * 0.35f).coerceIn(0f, 1f)
+        val lw     = maxOf(1, depth / 2)
 
-        val spread = PI.toFloat() / 2.8f + mid * 0.45f
-        val ratio  = 0.64f + high * 0.08f
+        // Neon glow: wide dim halo first, then bright core on top
+        val glowC = GLDraw.hsl(h, 1f, bright * 0.30f)
+        draw.line(x, y, ex, ey, glowC[0], glowC[1], glowC[2], 0.55f)
+        val coreC = GLDraw.hsl(h, 1f, bright)
+        draw.line(x, y, ex, ey, coreC[0], coreC[1], coreC[2], 1f)
+
+        val spread = PI.toFloat() / 2.6f + mid * 0.55f
+        val ratio  = 0.62f + high * 0.10f
         branch(draw, ex, ey, angle - spread / 2f, length * ratio, depth - 1,
                hue, time, mid, high, beatFlash)
         branch(draw, ex, ey, angle + spread / 2f, length * ratio, depth - 1,
                hue, time, mid, high, beatFlash)
-        if (depth == MAX_DEPTH) {
-            // Extra central branch at trunk level — creates Y-fork at base
+
+        // Triple-fork at trunk AND first split level — dense inner canopy
+        if (depth >= MAX_DEPTH - 1) {
             branch(draw, ex, ey, angle, length * ratio * 0.72f, depth - 1,
                    hue, time, mid, high, beatFlash)
         }
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(16f / 255f)
+        draw.fadeBlack(10f / 255f)
 
         val fft  = audio.fft
         val beat = audio.beat
@@ -73,21 +85,22 @@ class BranchesMode : BaseMode() {
         val mid  = fft.meanSlice(6, 30)
         val high = fft.meanSlice(30, fft.size)
 
-        hue       += 0.005f
-        time      += 0.018f + bass * 0.04f + beat * 0.08f
-        beatFlash  = beatFlash * 0.75f + beat * 0.25f
+        hue       += 0.012f
+        time      += 0.025f + bass * 0.06f + beat * 0.12f
+        beatFlash  = beatFlash * 0.72f + beat * 0.28f
 
         val cx = draw.W / 2f
         val cy = draw.H / 2f
 
-        val trunk = minOf(draw.W, draw.H) * 0.18f * (1f + bass * 0.70f + beat * 0.40f)
-        val nArms = BASE_ARMS + (minOf(beat, 2.5f) * 1.5f).toInt()
+        val sc    = minOf(draw.W, draw.H).toFloat()
+        val trunk = minOf(sc * 0.22f * (1f + bass * 0.70f + beat * 0.45f), sc * 0.27f)
+        val nArms = BASE_ARMS + (minOf(beat, 2.5f) * 2.2f).toInt()
 
         val baseRot = time * 0.06f
 
         for (i in 0 until nArms) {
             val angle  = baseRot + i.toFloat() / nArms * TAU
-            val armHue = (hue + i.toFloat() / nArms * 0.35f) % 1f
+            val armHue = (hue + i.toFloat() / nArms * 0.75f) % 1f
             branch(draw, cx, cy, angle, trunk, MAX_DEPTH, armHue, time, mid, high, beatFlash)
         }
     }

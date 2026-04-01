@@ -2,6 +2,16 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 12)
+
+### Changed — psysuals v2.0.1
+- **BranchesMode** — psychedelic edition: MAX_DEPTH 6→7; BASE_ARMS 6→9; triple-fork extended to trunk+first-split (was trunk only); neon glow: each segment drawn twice (wide dim halo + bright core); jitter adds third sine term; hue sweep 0.45→0.80 across depth; trunk 0.03× stub (was 0.15×) with cap at 0.27×min(W,H); `spread` π/2.6 (was π/2.8); trail fade 16→10; `hue += 0.012`, faster time; arm hue spread 0.35→0.75; extra arms on beat ×2.2 (was ×1.5)
+- **TriFluxMode** — grid extended one tile past all screen edges so no clipped triangles appear at borders (x0=−tw, y0=−th; N_COLS+2 cols, N_ROWS+3 rows)
+- **YantraMode** — higher base brightness, smaller intensity steps: ring bright 0.42+e×0.35+beat×0.585 → 0.52+e×0.25+beat×0.50 (rings visible even at silence)
+- **psysuals submodule** — updated to v2.0.1
+
+---
+
 ## 2026-04-01 (cont 11)
 
 ### Fixed

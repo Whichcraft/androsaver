@@ -64,25 +64,29 @@ class TriFluxMode : BaseMode() {
 
     private fun buildGrid(W: Int, H: Int) {
         tiles.clear()
-        val tw   = W.toFloat() / N_COLS
-        val th   = tw * sqrt(3f) / 2f
-        val nRows = (H / th).toInt() + 2
+        val tw       = W.toFloat() / N_COLS
+        val th       = tw * sqrt(3f) / 2f
+        // Extend one tile past every edge so no clipped triangles appear at borders
+        val nColsExt = N_COLS + 2
+        val nRows    = (H / th).toInt() + 3
+        val x0       = -tw; val y0 = -th
 
         for (r in 0 until nRows) {
-            val yTop = r * th; val yBot = yTop + th
-            for (k in 0..N_COLS) {
+            val yTop = y0 + r * th; val yBot = yTop + th
+            for (k in 0..nColsExt) {
+                val x = x0 + k * tw
                 // Up-pointing triangle
                 val upV = arrayOf(
-                    floatArrayOf(k * tw + tw / 2f, yTop),
-                    floatArrayOf(k * tw,            yBot),
-                    floatArrayOf((k + 1) * tw,      yBot)
+                    floatArrayOf(x + tw / 2f, yTop),
+                    floatArrayOf(x,            yBot),
+                    floatArrayOf(x + tw,       yBot)
                 )
                 tiles.add(makeTile(upV))
                 // Down-pointing triangle
                 val dnV = arrayOf(
-                    floatArrayOf(k * tw + tw / 2f,       yTop),
-                    floatArrayOf((k + 1) * tw + tw / 2f, yTop),
-                    floatArrayOf((k + 1) * tw,           yBot)
+                    floatArrayOf(x + tw / 2f,       yTop),
+                    floatArrayOf(x + tw + tw / 2f,  yTop),
+                    floatArrayOf(x + tw,             yBot)
                 )
                 tiles.add(makeTile(dnV))
             }
