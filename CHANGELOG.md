@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 2)
+
+### Fixed
+- **.gitattributes** — added `export-ignore` for `psysuals/` and `.claude/`; both were missing and would have been included in GitHub release source archives
+
+---
+
 ## 2026-04-01 (cont)
 
 ### Fixed
