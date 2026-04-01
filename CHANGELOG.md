@@ -2,6 +2,148 @@
 
 All notable changes to AndroSaver are documented here.
 
+---
+
+## v2.0.0 — 2026-04-01
+
+### Three new visualizer effects
+
+This is the big one. Three spectacular new effects join the lineup — the most ambitious visual update since the app launched.
+
+**TriFlux** — A wall of triangles covers the entire screen, every edge pulsing with a rolling rainbow. On beats, tiles hurl themselves to the foreground, bounce off screen edges, and snap back into the mosaic. Nothing sits still.
+
+**Branches** — A psychedelic fractal lightning tree erupts from screen centre. Nine neon arms split recursively to depth 7 — each segment drawn as a glowing halo and a white-hot core. Mid frequencies twist every branch angle live; beats fire extra arms and flood the screen with colour.
+
+**Corridor** — A first-person ride through an infinite neon rainbow corridor. Twenty-eight luminous frames rush toward you, hues sweeping the full spectrum. Bass drives speed; beats launch glowing spark particles that streak outward from centre.
+
+### Visualizer tune-up
+- **YantraMode** — 7th ring added; per-ring graduated rotation speed; tighter ring spacing; higher base brightness
+- **CubeMode** — always 2 satellite cubes fixed 180° apart with independent rotation and additive-blend trails; scale capped at 1.25× (bumps on beat, never grows huge); rotation velocity clamped to prevent runaway at heavy bass; satellite trail halved for snappier fade
+- **TunnelMode** — triangle spawn rate raised 4× (bass×4 + beat×6); interior star polygon halved for cleaner geometry; tube radius restored to original
+- **BranchesMode** — trunk stub halved for denser ball-like centre shape
+- **CorridorMode** — sparks always render above frames via additive blend pass; spawn rate raised for Android (bass×5)
+
+### Auto-cycle default
+- Auto-cycle interval now defaults to **2 minutes** (pre-selected in settings)
+
+---
+
+## 2026-04-01 (cont 15)
+
+### Changed — psysuals v2.0.3 + v2.0.4
+- **BranchesMode** — trunk stub halved `0.03→0.015` for denser ball-like shape at centre
+- **CubeMode** — scale capped at 1.25× (spring physics restored from v2.0.3; `max(0.5,scale)` → `coerceIn(0.5,1.25)`) so cube bumps on beat without growing large
+- **TunnelMode** — triangle spawn rate increased `bass×1.5+beat×3.0 → bass×4.0+beat×6.0`; interior star polygon halved `sR×0.52 → ×0.24`
+- **YantraMode** — 7th ring added (`N_RINGS 6→7`, signs/bands extended); per-ring base rotation speed `0.0004 → 0.010+i×0.003` (2.5× faster, gradient across rings); tighter ring spacing `base_r 0.13+i×0.83 → 0.28+i×0.62`; poff scale `0.70→0.38`
+- **psysuals submodule** — updated to v2.0.4
+
+### Changed
+- **Auto-cycle interval** — "2 minutes" now labelled "(default)" in the settings list; "Off" entry now shows "(switch with arrow buttons)"
+
+---
+
+## 2026-04-01 (cont 14)
+
+### Changed — psysuals v2.0.2
+- **CubeMode** — rotation velocity clamped after damping (`rvx/rvy` → ±0.08, `rvz` → ±0.05 rad/frame) to prevent runaway spinning on heavy beats; satellite trail ring buffer halved 30→15 frames (matches psysuals `_SAT_FADE` 8→16)
+- **psysuals submodule** — updated to v2.0.2
+
+---
+
+## 2026-04-01 (cont 13)
+
+### Fixed
+- **CubeMode** — base idle rotation constants reverted to v1.4.x values (`0.00025/0.00035/0.00018`); psysuals v2.0.0 values were ~6× higher, causing the inner cube to spin erratically at default intensity on full-screen TV. Audio-reactive multipliers and 0.94 damping kept from v2.0.0. Delta documented in `docs/psysuals-port-notes.md`.
+
+---
+
+## 2026-04-01 (cont 12)
+
+### Changed — psysuals v2.0.1
+- **BranchesMode** — psychedelic edition: MAX_DEPTH 6→7; BASE_ARMS 6→9; triple-fork extended to trunk+first-split (was trunk only); neon glow: each segment drawn twice (wide dim halo + bright core); jitter adds third sine term; hue sweep 0.45→0.80 across depth; trunk 0.03× stub (was 0.15×) with cap at 0.27×min(W,H); `spread` π/2.6 (was π/2.8); trail fade 16→10; `hue += 0.012`, faster time; arm hue spread 0.35→0.75; extra arms on beat ×2.2 (was ×1.5)
+- **TriFluxMode** — grid extended one tile past all screen edges so no clipped triangles appear at borders (x0=−tw, y0=−th; N_COLS+2 cols, N_ROWS+3 rows)
+- **YantraMode** — higher base brightness, smaller intensity steps: ring bright 0.42+e×0.35+beat×0.585 → 0.52+e×0.25+beat×0.50 (rings visible even at silence)
+- **psysuals submodule** — updated to v2.0.1
+
+---
+
+## 2026-04-01 (cont 11)
+
+### Fixed
+- **TunnelMode** — restore psysuals v2.0.0 (original) parameters: TUBE_R 2.0→2.8; dt formula bass×0.09+beat×0.18; spawn rate bass×1.5+beat×3.0 when beat>0.3 (was 0.6/1.5, rarely spawned at low intensity); triangle size pre-computed at spawn; cap raised to 120. Added interior rotating star polygon at each ring centre (n_star=3+(i%4), complementary hue). Removed v1.4.3-specific spark trail ring buffer.
+- **docs/psysuals-port-notes.md** — new standing reference: Android adaptation rules (surfaces→fadeBlack/ring-buffers, blend modes), per-effect deltas, import checklist. Referenced from CLAUDE.md so it is always consulted when porting future psysuals updates.
+
+---
+
+## 2026-04-01 (cont 10)
+
+### Added
+- **TriFluxMode** — new effect (psysuals v2.0.0): triangle mosaic wall. All triangles are rainbow-edge wireframes; N_FILLED=5 tiles filled at any time. Bass beats pop interior tiles to the foreground at 4.5–8.5× scale (up to 3 active at once), bouncing off screen edges and spring-returning to grid. Two independent rainbow sweep bands traverse the grid.
+- **BranchesMode** — new effect (psysuals v2.0.0): recursive fractal lightning tree. 6 neon arms radiate from screen centre, each branching to depth 6. Mid frequencies jitter branch angles; bass drives trunk length; beat fires extra arms and a brightness burst.
+
+### Changed
+- **CubeMode** — port of psysuals v2.0.0: always 2 satellites fixed 180° apart (no variable beat-count); independent satellite rotation (`satRx`, `satRy`); `satScale` capped at 0.55; updated rotation damping (×0.94) and svel physics; spinDir flip removed
+- **CorridorMode** — port of psysuals v2.0.0: sparks now drawn after (on top of) corridor frames with additive blend, replacing the unified sorted draw list
+- **Mode list** — Plasma moved from slot 3 to slot 10; TriFlux inserted at slot 3; Branches added at slot 11; order now matches psysuals v2.0.0 `MODES` list
+- **psysuals submodule** — updated to v2.0.0
+
+---
+
+## 2026-04-01 (cont 9)
+
+### Changed
+- **Version bumped to 1.4** — `versionPatchBase` reset to 133 in `build.gradle` and `build.yml`; patch counter restarts from 0
+
+---
+
+## 2026-04-01 (cont 8)
+
+### Changed
+- **Mode order** — Lissajous and Tunnel swapped to match psysuals v1.4.3 (Lissajous=4, Tunnel=5)
+- **TunnelMode** — port of psysuals v1.4.3: variable dt (bass×0.14 + beat×0.22); bass expands tube radius (+0.6×bass); ring brightness and line weight scale with bass; continuous spark spawning (bass×0.6 + beat×1.5); spark size strongly bass-reactive (1+bass×3+beat×1.5); sparks drawn with additive blending above tunnel rings via 40-frame trail ring buffer; spark cap 60
+- **CubeMode satellites** — port of psysuals v1.4.3: satellite trail ring buffer (30 frames) drawn with additive blend; satellites start dim and brighten with energy (lightness 0.38+svel×0.20 → 0.18+svel×0.28)
+- **psysuals submodule** — updated to v1.5.0
+
+---
+
+## 2026-04-01 (cont 7)
+
+### Fixed
+- **CubeMode satellites** — port of psysuals v1.4.2: replaced per-vertex perspective projection (`projectOffset`) with centre-based uniform 2D scale (`projectSat`); satellites no longer appear skewed/distorted; orbit centre clamped so satellites never leave the screen
+
+---
+
+## 2026-04-01 (cont 6)
+
+### Fixed
+- **CorridorMode** — port of psysuals v1.4.1 fixes: sparks now bounded to ±85% of corridor half-extents (no longer escape tunnel walls); per-spark `pt` dropped, path uses `time` so sparks align with frames at same depth; frames and sparks merged into a single back-to-front draw list so near frames can no longer overwrite nearer sparks
+
+---
+
+## 2026-04-01 (cont 5)
+
+### Fixed
+- **CorridorMode sparks** — bass coefficient raised 1.2→5 and beat threshold removed; sparks now spawn visibly from bass alone at all intensity levels (old formula gave 0 sparks at typical bass values below 0.84)
+
+---
+
+## 2026-04-01 (cont 4)
+
+### Added
+- **CorridorMode** — new visualizer effect ported from psysuals v1.4.0; concentric neon rounded-rectangle frames fly toward the camera with full rainbow sweep across depth; beat flares nearest frames; bass + beat spawn glowing spark particles; gentle curving path. 11th mode, inserted between Lissajous and Nova.
+
+---
+
+## 2026-04-01 (cont 3)
+
+### Changed
+- **CubeMode satellite count** — scales with beat intensity: 2 at baseline, up to 6 at max beat (`2 + int(beat.coerceAtMost(2f) * 2)`); satellite scale raised from 0.16→0.28 to match psysuals; orbit spacing uses nSats instead of fixed N_MAX=2. Port of psysuals commit a3acb0c.
+
+### Fixed
+- **BubblesMode bass band** — was `fft.meanSlice(0, 8)`, now `fft.meanSlice(0, 6)`; bins 6–7 overlap with the mid band (`fft[6:30]`). Port of psysuals bug fix (commit 8dbf0db).
+
+---
+
 ## 2026-04-01 (cont 2)
 
 ### Fixed

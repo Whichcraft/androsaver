@@ -43,6 +43,10 @@ See `docs/architecture.md` for full class map.
 - Any new dev-only file (docs, notes, store copy, Claude instructions) must be added to `.gitattributes` with `export-ignore` — never ship dev files in release archives
 - See `docs/architecture.md` for full class/file reference
 
+## Visualizer Tuning Notes
+
+- **CubeMode** — the inner cube (scale × 0.45) must not spin visibly faster than the outer cube at default intensity (beatGain=1.0). Both cubes share the same rotation state (`rx/ry/rz`), so this is maintained automatically. If rotation velocity constants are ever changed, verify at default intensity that the inner cube does not appear to spin erratically.
+
 ## psysuals Submodule
 
 `psysuals/` is the upstream Python reference implementation of the visualizer (`psysualizer.py`, pygame + sounddevice). It is **not part of the Android app** — it runs on desktop as a development/preview tool.
@@ -57,7 +61,8 @@ See `docs/architecture.md` for full class map.
 |------|----------|
 | `docs/architecture.md` | Full class map, package structure, key files |
 | `docs/image-sources.md` | All 7 image source classes and their auth patterns |
-| `docs/visualizer-modes.md` | All 10 effect classes and their audio reactivity |
+| `docs/visualizer-modes.md` | All 13 effect classes and their audio reactivity |
 | `docs/settings-reference.md` | All Prefs keys, UI types, and defaults |
+| `docs/psysuals-port-notes.md` | **Always read when porting psysuals updates** — Android adaptations, per-effect standing deltas, import checklist |
 | `visualizer-music-reactivity.md` | Detailed per-effect audio reactivity tables |
 | `CHANGELOG.md` | Development history |
