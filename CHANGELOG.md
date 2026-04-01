@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 11)
+
+### Fixed
+- **TunnelMode** — restore psysuals v2.0.0 (original) parameters: TUBE_R 2.0→2.8; dt formula bass×0.09+beat×0.18; spawn rate bass×1.5+beat×3.0 when beat>0.3 (was 0.6/1.5, rarely spawned at low intensity); triangle size pre-computed at spawn; cap raised to 120. Added interior rotating star polygon at each ring centre (n_star=3+(i%4), complementary hue). Removed v1.4.3-specific spark trail ring buffer.
+- **docs/psysuals-port-notes.md** — new standing reference: Android adaptation rules (surfaces→fadeBlack/ring-buffers, blend modes), per-effect deltas, import checklist. Referenced from CLAUDE.md so it is always consulted when porting future psysuals updates.
+
+---
+
 ## 2026-04-01 (cont 10)
 
 ### Added
