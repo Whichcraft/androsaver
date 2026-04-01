@@ -48,9 +48,9 @@ class CubeMode : BaseMode() {
     private var trailHead  = 0
     private var trailCount = 0
 
-    // Satellite trail: slower fade (longer persistence), drawn with additive blend
+    // Satellite trail: halved from 30→15 frames (v2.0.2: double _SAT_FADE → shorter persistence)
     // Always 2 sats (v2.0.0); ring buffer still used for per-frame replay
-    private val SAT_TRAIL_LEN = 30
+    private val SAT_TRAIL_LEN = 15
     private val satTrailProj  = Array(SAT_TRAIL_LEN) { Array(2) { Array(8) { 0f to 0f } } }
     private var satTrailHead  = 0
     private var satTrailCount = 0
@@ -82,7 +82,9 @@ class CubeMode : BaseMode() {
         rvx += 0.00025f + mid  * 0.012f + beat * 0.10f
         rvy += 0.00035f + bass * 0.015f + beat * 0.12f
         rvz += 0.00018f + high * 0.008f + beat * 0.05f
-        rvx *= 0.94f; rvy *= 0.94f; rvz *= 0.94f
+        rvx *= 0.94f; rvx = rvx.coerceIn(-0.08f, 0.08f)
+        rvy *= 0.94f; rvy = rvy.coerceIn(-0.08f, 0.08f)
+        rvz *= 0.94f; rvz = rvz.coerceIn(-0.05f, 0.05f)
         rx += rvx; ry += rvy; rz += rvz
 
         // v2.0.0 scale physics

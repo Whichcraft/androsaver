@@ -33,15 +33,16 @@ The v1.4.3 enhancements (bass-expanded tube, higher reactivity) were reverted
 upstream in v2.0.0; always track the canonical psysuals version.
 
 ### CubeMode
-No persistent `sat_surf`; use a **30-frame ring-buffer** for the satellite
-trail, drawn with `setAdditiveBlend()`.
+No persistent `sat_surf`; use a **15-frame ring-buffer** for the satellite
+trail (v2.0.2: `_SAT_FADE` doubled → half the persistence), drawn with
+`setAdditiveBlend()`.
 
 **Base rotation constants must stay at v1.4.x values** (`0.00025/0.00035/0.00018`)
 even when psysuals raises them.  The psysuals values (`0.00165/0.00248/0.00083`)
 are ~6× higher and cause the inner cube to spin erratically at default intensity
 on a full-screen TV display.  Keep only the audio-reactive multipliers
-(`mid*0.012`, `bass*0.015`, `high*0.008`, `beat*0.10/0.12/0.05`) and damping
-(`×0.94`) from the upstream version.
+(`mid*0.012`, `bass*0.015`, `high*0.008`, `beat*0.10/0.12/0.05`), damping
+(`×0.94`), and velocity clamp (`rvx/rvy ±0.08`, `rvz ±0.05`) from upstream.
 
 ### CorridorMode
 No persistent `spark_surf`; draw frames first (normal blend), then draw sparks

@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 14)
+
+### Changed — psysuals v2.0.2
+- **CubeMode** — rotation velocity clamped after damping (`rvx/rvy` → ±0.08, `rvz` → ±0.05 rad/frame) to prevent runaway spinning on heavy beats; satellite trail ring buffer halved 30→15 frames (matches psysuals `_SAT_FADE` 8→16)
+- **psysuals submodule** — updated to v2.0.2
+
+---
+
 ## 2026-04-01 (cont 13)
 
 ### Fixed
