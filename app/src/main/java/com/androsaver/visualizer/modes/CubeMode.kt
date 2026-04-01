@@ -126,9 +126,9 @@ class CubeMode : BaseMode() {
         }
 
         // ── Orbiting satellite cubes ──────────────────────────────────────────
-        val N_MAX    = 2
-        val nSats    = 2
-        val satScale = scale * 0.16f
+        // Count scales with beat intensity: 2 at baseline, up to 6 at max beat
+        val nSats    = 2 + (beat.coerceAtMost(2f) * 2).toInt()   // 2 … 6
+        val satScale = scale * 0.28f
         val baseOrbR = 2.6f
         val sz0      = 3.8f  // approximate z-depth (matches project() offset)
         orbAngle    += 0.012f + beat * 0.04f
@@ -138,13 +138,9 @@ class CubeMode : BaseMode() {
         val maxOrbitPx = minOf(draw.W, draw.H) / 2f - satHalfPx - 8f
 
         for (si in 0 until nSats) {
-            // Each slot gets an independent radial bounce via a per-slot phase offset
-            val bouncePhase = si.toFloat() / N_MAX * (2f * PI.toFloat()) * 1.5f
-            val bounce      = sin(orbAngle * 5f + bouncePhase) * 0.35f
-            val orbR        = (baseOrbR * (1f + bounce)).coerceAtLeast(0.3f)
-            val effectiveOrbR = if (maxOrbitPx > 0f) minOf(orbR, maxOrbitPx * sz0 / fov) else 0f
+            val effectiveOrbR = if (maxOrbitPx > 0f) minOf(baseOrbR, maxOrbitPx * sz0 / fov) else 0f
 
-            val theta = orbAngle + si.toFloat() / N_MAX * (2f * PI.toFloat())
+            val theta = orbAngle + si.toFloat() / nSats * (2f * PI.toFloat())
             val ox    = effectiveOrbR * cos(theta)
             val oy    = effectiveOrbR * sin(theta)
             val verts3d = Array(8) { vi ->
@@ -156,7 +152,7 @@ class CubeMode : BaseMode() {
                 )
             }
             val proj = Array(8) { vi -> projectOffset(verts3d[vi], ox, oy, draw.W, draw.H, fov) }
-            val hOff = si.toFloat() / N_MAX * 0.6f
+            val hOff = si.toFloat() / nSats * 0.6f
             val satL = (0.38f + minOf(svel, 1f) * 0.20f).coerceIn(0f, 1f)
             for ((ei, edge) in edges.withIndex()) {
                 val (a, b) = edge

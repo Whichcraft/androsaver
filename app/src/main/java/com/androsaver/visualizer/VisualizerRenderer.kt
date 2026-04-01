@@ -29,6 +29,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         PlasmaMode(),
         TunnelMode(),
         LissajousMode(),
+        CorridorMode(),
         NovaMode(),
         SpiralMode(),
         BubblesMode(),

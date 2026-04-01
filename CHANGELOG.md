@@ -2,6 +2,23 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 4)
+
+### Added
+- **CorridorMode** — new visualizer effect ported from psysuals v1.4.0; concentric neon rounded-rectangle frames fly toward the camera with full rainbow sweep across depth; beat flares nearest frames; bass + beat spawn glowing spark particles; gentle curving path. 11th mode, inserted between Lissajous and Nova.
+
+---
+
+## 2026-04-01 (cont 3)
+
+### Changed
+- **CubeMode satellite count** — scales with beat intensity: 2 at baseline, up to 6 at max beat (`2 + int(beat.coerceAtMost(2f) * 2)`); satellite scale raised from 0.16→0.28 to match psysuals; orbit spacing uses nSats instead of fixed N_MAX=2. Port of psysuals commit a3acb0c.
+
+### Fixed
+- **BubblesMode bass band** — was `fft.meanSlice(0, 8)`, now `fft.meanSlice(0, 6)`; bins 6–7 overlap with the mid band (`fft[6:30]`). Port of psysuals bug fix (commit 8dbf0db).
+
+---
+
 ## 2026-04-01 (cont 2)
 
 ### Fixed

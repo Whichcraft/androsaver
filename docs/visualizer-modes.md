@@ -22,11 +22,12 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 3 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
 | 4 | `TunnelMode` | Tunnel | First-person tunnel with triangle bursts |
 | 5 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
-| 6 | `NovaMode` | Nova | 7-fold mirror kaleidoscope waveform |
-| 7 | `SpiralMode` | Spiral | 6-arm neon helix |
-| 8 | `BubblesMode` | Bubbles | Rising translucent bubbles |
-| 9 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 10 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 6 | `CorridorMode` | Corridor | First-person neon rounded-rectangle corridor + sparks |
+| 7 | `NovaMode` | Nova | 7-fold mirror kaleidoscope waveform |
+| 8 | `SpiralMode` | Spiral | 6-arm neon helix |
+| 9 | `BubblesMode` | Bubbles | Rising translucent bubbles |
+| 10 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 11 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
@@ -52,6 +53,10 @@ First-person tunnel perspective. Rings scroll toward viewer. Bass-triggered tria
 ## LissajousMode
 
 3D parametric trefoil knot rendered as a neon glowing line. Bass drives rotation X-axis, mid drives Y-axis, high drives Z-axis scale. Beat adds angular impulse. Glow achieved via multiple overlapping passes with alpha.
+
+## CorridorMode
+
+First-person ride through a neon rainbow corridor. 28 rounded-rectangle frames scroll toward the camera; hue sweeps from far (dark) to near (bright) across the full rainbow. Bass drives scroll speed. Beat flares nearest frames and continuously spawns glowing spark particles that streak toward the camera along a gently curving path. Silence: slow scroll, dim frames, few sparks.
 
 ## NovaMode
 
