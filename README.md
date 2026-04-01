@@ -2,6 +2,16 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
+## What's New in v2.0
+
+**Three spectacular new visualizer effects** — the biggest visual update yet:
+
+- 🔺 **TriFlux** — A wall of triangles covering the entire screen, every edge pulsing with a rolling rainbow. On every beat, tiles hurl themselves to the foreground, bounce wildly off the screen edges, then snap back into the mosaic. Nothing sits still.
+- ⚡ **Branches** — A psychedelic fractal lightning tree erupts from screen centre: nine neon arms split recursively to depth 7, each segment drawn twice as a glowing halo and a white-hot core. Mid frequencies twist every branch angle in real time; beats fire extra arms and flood the screen with colour.
+- 🌈 **Corridor** — A first-person ride through an infinite neon rainbow corridor. Twenty-eight luminous frames rush toward you, their hues sweeping the full spectrum from far to near. Bass drives speed; every beat flares the nearest frames and launches glowing spark particles that streak from the centre outward.
+
+Plus a full tune-up of every existing effect — smoother physics, denser geometry, and much more satisfying beat response across the board.
+
 ## Features
 
 ### Photo Slideshow
@@ -23,7 +33,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 ### Music Visualizer
 Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
 
-- Ten audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **Plasma**, **Tunnel**, **Lissajous**, **Nova**, **Spiral**, **Bubbles**, **Spectrum**, **Waterfall**
+- Thirteen audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Spectrum**, **Waterfall**
 - Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
@@ -279,7 +289,7 @@ All sources can be enabled at the same time — images from all sources are merg
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Visual Effect** | Auto, Yantra, Cube, Plasma, Tunnel, Lissajous, Nova, Spiral, Bubbles, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
+| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
 | **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
 | **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
 | **Music Genre** | Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting to the music style |
@@ -350,14 +360,17 @@ See [visualizer-music-reactivity.md](visualizer-music-reactivity.md) for a detai
 
 | Effect | Description |
 |--------|-------------|
-| **Yantra** | Psychedelic sacred-geometry mandala with 6 concentric polygon rings, web connections, and neon spokes; rings are near-static in silence and spin hard on loud audio; trail length grows with energy |
-| **Cube** | Dual wireframe cubes with slow rotation, motion trails, and spectrum colour-fade; size pulses sharply on each beat |
-| **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
-| **Tunnel** | Smooth first-person ride through a curving neon tube; bass punches spawn bursts of triangles along the tunnel center line — more triangles and wilder spin at higher intensity |
+| **Yantra** | Psychedelic sacred-geometry mandala with 7 concentric polygon rings, web connections, and neon spokes; rings spin at graduated speeds and kick outward on every beat |
+| **Cube** | Dual wireframe cubes with slow rotation, motion trails, and spectrum colour-fade; two orbiting satellites leave additive-blend trails; size pulses on each beat |
+| **TriFlux** ✨ | A living mosaic of triangles covering the full screen — every edge pulses with a rolling rainbow sweep; on beats, tiles eject to the foreground, bounce off screen edges, and spring back |
 | **Lissajous** | 3D trefoil Lissajous knot with two-pass neon glow and hard beat spring burst |
+| **Tunnel** | Smooth first-person ride through a curving neon tube; bass punches spawn dense bursts of triangles with rotating star polygons at each ring centre |
+| **Corridor** ✨ | Infinite neon rainbow corridor — 28 luminous frames rush toward you; hue sweeps full spectrum far-to-near; bass drives speed; beats fire glowing spark particles that streak outward |
 | **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
 | **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |
 | **Bubbles** | Translucent full-screen rising bubbles driven by bass energy; synchronised beat pulse |
+| **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
+| **Branches** ✨ | Psychedelic fractal lightning tree — nine neon arms split recursively to depth 7 with glowing halos and bright cores; mid frequencies twist branch angles live; beats fire extra arms |
 | **Spectrum** | Log-spaced spectrum analyser with peak markers and waveform overlay |
 | **Waterfall** | Scrolling time-frequency spectrogram; beat flashes the leading edge |
 
@@ -382,8 +395,9 @@ ScreensaverService (DreamService)
         │   ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
         │   └── VisualizerView (GLSurfaceView)
         │       └── VisualizerRenderer (OpenGL ES 2.0)
-        │           └── 10 × BaseMode  ← Yantra, Cube, Plasma, Tunnel, Lissajous,
-        │                                 Nova, Spiral, Bubbles, Spectrum, Waterfall
+        │           └── 13 × BaseMode  ← Yantra, Cube, TriFlux, Lissajous, Tunnel,
+        │                                 Corridor, Nova, Spiral, Bubbles, Plasma,
+        │                                 Branches, Spectrum, Waterfall
         ├── Clock overlay            ← date/time updated every minute
         ├── WeatherFetcher           ← OpenWeatherMap, cached 30 min
         └── Schedule check          ← restricts active hours

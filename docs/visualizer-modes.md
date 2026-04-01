@@ -17,7 +17,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 
 | # | Class | Display Name | Key Visual |
 |---|-------|-------------|------------|
-| 1 | `YantraMode` | Yantra | 6 concentric polygons (triangle→octagon) with web + spokes |
+| 1 | `YantraMode` | Yantra | 7 concentric polygons (triangle→nonagon) with web + spokes |
 | 2 | `CubeMode` | Cube | Nested wireframe cubes + 2 orbiting satellite cubes |
 | 3 | `TriFluxMode` | TriFlux | Triangle mosaic wall — tiles pop to foreground on beat |
 | 4 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
@@ -38,7 +38,7 @@ Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
 
 ## YantraMode
 
-Six concentric polygons (3→8 sides). Rings rotate at speeds tied to frequency bands. Beat kicks radius outward (spring return). Web lines + spokes appear above beat threshold. Trail length tracks total energy. Silence: near-static drift.
+Seven concentric polygons (3→9 sides). Rings rotate at graduated per-ring speeds (faster toward the outside) tied to frequency bands. Beat kicks radius outward (spring return). Web lines + spokes appear above beat threshold. Trail length tracks total energy. Silence: visible baseline spin.
 
 ## CubeMode
 
@@ -78,7 +78,7 @@ Translucent circles rise from bottom. Count and size driven by bass. Beat trigge
 
 ## BranchesMode
 
-Recursive fractal lightning tree. Six neon arms radiate from screen centre at a slowly rotating base angle, each splitting recursively to depth 6 (Y-fork at trunk + two angled children). Mid frequencies jitter branch angles live; bass drives trunk length; beat fires up to 3 extra arms and flashes brightness. Trail fades slowly (TRAIL_ALPHA=16). Silence: arms contract, minimal jitter.
+Psychedelic fractal lightning tree. Nine neon arms radiate from screen centre at a slowly rotating base angle, each splitting recursively to depth 7. Triple-fork at trunk and first split level for a dense inner canopy. Every segment drawn twice — a wide dim halo and a white-hot bright core — for neon flare. Mid frequencies twist all branch angles live via three overlapping sine fields; bass drives trunk length; beat fires extra arms with a brightness burst. Silence: arms contract, minimal jitter.
 
 ## BarsMode (Spectrum)
 

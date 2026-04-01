@@ -2,6 +2,32 @@
 
 All notable changes to AndroSaver are documented here.
 
+---
+
+## v2.0.0 — 2026-04-01
+
+### Three new visualizer effects
+
+This is the big one. Three spectacular new effects join the lineup — the most ambitious visual update since the app launched.
+
+**TriFlux** — A wall of triangles covers the entire screen, every edge pulsing with a rolling rainbow. On beats, tiles hurl themselves to the foreground, bounce off screen edges, and snap back into the mosaic. Nothing sits still.
+
+**Branches** — A psychedelic fractal lightning tree erupts from screen centre. Nine neon arms split recursively to depth 7 — each segment drawn as a glowing halo and a white-hot core. Mid frequencies twist every branch angle live; beats fire extra arms and flood the screen with colour.
+
+**Corridor** — A first-person ride through an infinite neon rainbow corridor. Twenty-eight luminous frames rush toward you, hues sweeping the full spectrum. Bass drives speed; beats launch glowing spark particles that streak outward from centre.
+
+### Visualizer tune-up
+- **YantraMode** — 7th ring added; per-ring graduated rotation speed; tighter ring spacing; higher base brightness
+- **CubeMode** — always 2 satellite cubes fixed 180° apart with independent rotation and additive-blend trails; scale capped at 1.25× (bumps on beat, never grows huge); rotation velocity clamped to prevent runaway at heavy bass; satellite trail halved for snappier fade
+- **TunnelMode** — triangle spawn rate raised 4× (bass×4 + beat×6); interior star polygon halved for cleaner geometry; tube radius restored to original
+- **BranchesMode** — trunk stub halved for denser ball-like centre shape
+- **CorridorMode** — sparks always render above frames via additive blend pass; spawn rate raised for Android (bass×5)
+
+### Auto-cycle default
+- Auto-cycle interval now defaults to **2 minutes** (pre-selected in settings)
+
+---
+
 ## 2026-04-01 (cont 15)
 
 ### Changed — psysuals v2.0.3 + v2.0.4
