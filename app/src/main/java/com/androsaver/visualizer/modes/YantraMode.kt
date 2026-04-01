@@ -13,12 +13,12 @@ class YantraMode : BaseMode() {
     override val name = "Yantra"
 
     private companion object {
-        const val N_RINGS  = 6
+        const val N_RINGS  = 7
         const val N_SPOKES = 24
         const val TAU      = (Math.PI * 2).toFloat()
     }
 
-    private val signs  = intArrayOf(1, -1, 1, -1, 1, -1)
+    private val signs  = intArrayOf(1, -1, 1, -1, 1, -1, 1)
     private val rot    = FloatArray(N_RINGS)
     private val rvel   = FloatArray(N_RINGS)
     private val poff   = FloatArray(N_RINGS)
@@ -30,7 +30,7 @@ class YantraMode : BaseMode() {
         hue = 0f; time = 0f
         for (i in 0 until N_RINGS) {
             rot[i] = 0f
-            rvel[i] = signs[i] * 0.0004f   // near-static base; audio drives actual rotation
+            rvel[i] = signs[i] * (0.010f + i * 0.003f)
             poff[i] = 0f; pvel[i] = 0f
         }
     }
@@ -64,7 +64,8 @@ class YantraMode : BaseMode() {
 
         val bands = floatArrayOf(
             bass, (bass + mid) * 0.5f, mid,
-            (mid + high) * 0.5f, high, (bass + high) * 0.5f
+            (mid + high) * 0.5f, high, (bass + high) * 0.5f,
+            (mid + high) * 0.5f
         )
 
         // Physics update — near-static without audio, driven hard by energy and beat
@@ -79,8 +80,8 @@ class YantraMode : BaseMode() {
 
         // Collect ring vertices
         val allVerts = Array(N_RINGS) { i ->
-            val baseR = maxR * (0.13f + i.toFloat() / (N_RINGS - 1) * 0.83f)
-            val r = (baseR * (1f + poff[i] * 0.70f)).coerceAtMost(safeR)
+            val baseR = maxR * (0.28f + i.toFloat() / (N_RINGS - 1) * 0.62f)
+            val r = (baseR * (1f + poff[i] * 0.38f)).coerceAtMost(safeR)
             ringVerts(i, r, cx, cy)
         }
 

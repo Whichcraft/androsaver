@@ -69,7 +69,7 @@ class TunnelMode : BaseMode() {
         time += dt
 
         // ── Spawn triangles ───────────────────────────────────────────────────
-        val spawnN = (bass * 1.5f + if (beat > 0.3f) beat * 3.0f else 0f).toInt()
+        val spawnN = (bass * 4.0f + if (beat > 0.3f) beat * 6.0f else 0f).toInt()
         repeat(spawnN) {
             val spawnZ = Z_FAR * (0.65f + Math.random().toFloat() * 0.30f)
             val rvel   = (if (Math.random() < 0.5) 1f else -1f) *
@@ -127,7 +127,7 @@ class TunnelMode : BaseMode() {
             val nStar  = 3 + (i % 4)
             val sDir   = if (i % 2 == 0) 1f else -1f
             val sRot   = time * 0.45f * sDir + i * 0.52f
-            val sR     = maxOf(2f, sr1 * 0.52f)
+            val sR     = maxOf(2f, sr1 * 0.24f)
             val sH     = (h + 0.5f) % 1f
             val sL     = minOf(bright * 1.1f + mid * 0.2f, 0.92f)
             val sPts   = FloatArray(nStar * 2)

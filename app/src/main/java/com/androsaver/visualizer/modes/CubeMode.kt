@@ -91,7 +91,7 @@ class CubeMode : BaseMode() {
         svel += beat * 0.32f + bass * 0.20f
         svel += (1f - scale) * 0.18f
         svel *= 0.68f
-        scale = maxOf(0.5f, scale + svel)
+        scale = (scale + svel).coerceIn(0.5f, 1.25f)
 
         // ── Compute projections for main (ci=0) and inner (ci=1) cubes ────────
         val cubeScales = floatArrayOf(scale, scale * 0.45f)

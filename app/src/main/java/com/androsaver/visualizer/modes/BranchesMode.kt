@@ -47,7 +47,7 @@ class BranchesMode : BaseMode() {
                     + sin(time * 3.7f + angle * 2.1f)         * mid * 0.25f)
 
         // Trunk segment drawn very short; children still get full length
-        val drawLen = if (depth == MAX_DEPTH) length * 0.03f else length
+        val drawLen = if (depth == MAX_DEPTH) length * 0.015f else length
         val ex = x + cos(angle + jitter) * drawLen
         val ey = y + sin(angle + jitter) * drawLen
 

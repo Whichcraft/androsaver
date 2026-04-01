@@ -2,6 +2,20 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-04-01 (cont 15)
+
+### Changed — psysuals v2.0.3 + v2.0.4
+- **BranchesMode** — trunk stub halved `0.03→0.015` for denser ball-like shape at centre
+- **CubeMode** — scale capped at 1.25× (spring physics restored from v2.0.3; `max(0.5,scale)` → `coerceIn(0.5,1.25)`) so cube bumps on beat without growing large
+- **TunnelMode** — triangle spawn rate increased `bass×1.5+beat×3.0 → bass×4.0+beat×6.0`; interior star polygon halved `sR×0.52 → ×0.24`
+- **YantraMode** — 7th ring added (`N_RINGS 6→7`, signs/bands extended); per-ring base rotation speed `0.0004 → 0.010+i×0.003` (2.5× faster, gradient across rings); tighter ring spacing `base_r 0.13+i×0.83 → 0.28+i×0.62`; poff scale `0.70→0.38`
+- **psysuals submodule** — updated to v2.0.4
+
+### Changed
+- **Auto-cycle interval** — "2 minutes" now labelled "(default)" in the settings list; "Off" entry now shows "(switch with arrow buttons)"
+
+---
+
 ## 2026-04-01 (cont 14)
 
 ### Changed — psysuals v2.0.2
