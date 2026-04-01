@@ -5,11 +5,15 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
+import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
@@ -58,11 +62,40 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
+            listOf(Prefs.WEATHER_CITY, Prefs.WEATHER_API_KEY).forEach { key ->
+                findPreference<EditTextPreference>(key)?.apply {
+                    setOnBindEditTextListener { editText ->
+                        editText.inputType = InputType.TYPE_CLASS_TEXT
+                        editText.imeOptions = EditorInfo.IME_ACTION_DONE
+                        editText.maxLines = 1
+                    }
+                    setOnPreferenceChangeListener { _, _ -> updateWeatherSummary(); true }
+                }
+            }
+            findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED)
+                ?.setOnPreferenceChangeListener { _, newValue ->
+                    updateWeatherSummary(enabled = newValue as Boolean)
+                    true
+                }
+            updateWeatherSummary()
+
+            findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.apply {
+                summaryProvider = Preference.SummaryProvider<MultiSelectListPreference> { pref ->
+                    val selected = pref.values
+                    val total = pref.entries?.size ?: 0
+                    when {
+                        selected.isNullOrEmpty() || selected.size == total -> "All effects active"
+                        else -> "${selected.size} of $total effects active"
+                    }
+                }
+            }
+
         }
 
         override fun onResume() {
             super.onResume()
             updateSourcesSummary()
+            updateWeatherSummary()
             updateAboutVersion()
             checkForUpdates()
         }
@@ -91,6 +124,20 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
                 else -> super.onPreferenceTreeClick(preference)
+            }
+        }
+
+        private fun updateWeatherSummary(enabled: Boolean? = null) {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val isOn  = enabled ?: prefs.getBoolean(Prefs.WEATHER_ENABLED, false)
+            val city  = prefs.getString(Prefs.WEATHER_CITY, "") ?: ""
+            val key   = prefs.getString(Prefs.WEATHER_API_KEY, "") ?: ""
+            val pref  = findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED) ?: return
+            pref.summary = when {
+                !isOn          -> "Display current temperature in the top-right corner"
+                city.isBlank() -> "⚠ Enter a city name below"
+                key.isBlank()  -> "⚠ API key required — free at openweathermap.org/api"
+                else           -> "Showing weather for $city"
             }
         }
 

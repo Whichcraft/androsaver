@@ -45,7 +45,8 @@
     </string-array>
 
     <string-array name="visualizer_mode_entries">
-        <item>Auto (cycle all)</item>
+        <item>Auto (cycle in order)</item>
+        <item>Random</item>
         <item>Yantra</item>
         <item>Cube</item>
         <item>TriFlux</item>
@@ -63,6 +64,7 @@
 
     <string-array name="visualizer_mode_values">
         <item>auto</item>
+        <item>random</item>
         <item>Yantra</item>
         <item>Cube</item>
         <item>TriFlux</item>
@@ -75,6 +77,19 @@
         <item>Plasma</item>
         <item>Branches</item>
         <item>Spectrum</item>
+        <item>Waterfall</item>
+    </string-array>
+
+    <string-array name="viz_effect_entries">
+        <item>Yantra</item><item>Cube</item><item>TriFlux</item><item>Lissajous</item>
+        <item>Tunnel</item><item>Corridor</item><item>Nova</item><item>Spiral</item>
+        <item>Bubbles</item><item>Plasma</item><item>Branches</item><item>Spectrum</item>
+        <item>Waterfall</item>
+    </string-array>
+    <string-array name="viz_effect_values">
+        <item>Yantra</item><item>Cube</item><item>TriFlux</item><item>Lissajous</item>
+        <item>Tunnel</item><item>Corridor</item><item>Nova</item><item>Spiral</item>
+        <item>Bubbles</item><item>Plasma</item><item>Branches</item><item>Spectrum</item>
         <item>Waterfall</item>
     </string-array>
 

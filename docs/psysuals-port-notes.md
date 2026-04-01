@@ -68,5 +68,6 @@ Port directly.  `draw.fadeBlack(16f/255f)` for trail persistence.
    apply parameter changes using the table above.
 3. Apply per-effect standing adaptations from this document.
 4. Build (`./gradlew compileDevReleaseKotlin`) and fix any compile errors.
-5. Update `CHANGELOG.md` and `docs/visualizer-modes.md`.
-6. Commit on `dev`.
+5. Update `CHANGELOG.md`, `docs/visualizer-modes.md`, and `docs/architecture.md`.
+6. Run `qmd update && qmd embed`.
+7. Commit on `dev`.

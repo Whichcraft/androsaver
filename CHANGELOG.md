@@ -4,6 +4,44 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-01 (cont 18)
+
+### Fixed
+- **Weather widget** — moved from top-left to top-right corner; text right-aligned
+- **Weather settings warning** — Show Weather summary now shows ⚠ when enabled but city or API key is missing; updates live as you type; shows "Showing weather for {city}" when fully configured
+- **Weather API key input** — Return key now confirms like the city field (was inserting newlines)
+
+---
+
+## 2026-04-01 (cont 17)
+
+### Added
+- **Default images** — `app/src/main/assets/default_images/` directory; images placed there are bundled in the APK and shown automatically in slideshow mode when no source is configured; ignored as soon as any source is enabled
+- **Weather city Return key** — pressing Return/Done on the city text field now confirms the input instead of inserting a newline
+
+### Fixed / Documentation
+- **Music Genre Hint** — README now documents the exact FFT bin ranges and weight multipliers for each genre setting
+
+---
+
+## v2.0.1 — 2026-04-01
+
+### Added
+- **Random visual effect mode** — new option in the Visual Effect picker; picks a random enabled effect at startup and on each auto-cycle interval
+- **Active Effects multi-select** — uncheck effects to exclude them from Auto/Random cycling and remote ← → navigation; defaults to all active
+- **Autostart hint** — info line at top of Settings with exact path to activate AndroSaver on Android TV and Fire TV
+
+---
+
+## 2026-04-01 (cont 16)
+
+### Added
+- **Random visual effect mode** — new option in the Visual Effect picker; picks a random enabled effect at startup and on each auto-cycle interval (vs Auto which cycles in order)
+- **Active Effects multi-select** — new setting under Visual Effect; uncheck effects to exclude them from Auto and Random cycling (and from ← → remote navigation); unchecked effects can still be selected directly by name; defaults to all active
+- **Autostart hint** — non-interactive info line at top of Settings explains the path to activate AndroSaver as the system screensaver (Android TV and Fire TV paths)
+
+---
+
 ## v2.0.0 — 2026-04-01
 
 ### Three new visualizer effects

@@ -41,6 +41,7 @@ Setup activities: `GoogleDriveSetupActivity`, `GoogleAuthActivity`, `OneDriveSet
 | `NextcloudSource.kt` | WebDAV PROPFIND | Basic auth (app password) |
 | `SynologySource.kt` | Synology DSM FileStation REST | Session cookie (re-login every 25 min) |
 | `LocalStorageSource.kt` | Android MediaStore | `READ_MEDIA_IMAGES` permission |
+| `DefaultImagesSource.kt` | Bundled assets (`assets/default_images/`) — auto-used when no source is enabled | None |
 
 See `docs/image-sources.md` for detailed auth patterns.
 
@@ -55,18 +56,21 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `VisualizerRenderer.kt` | `GLSurfaceView.Renderer`; owns mode list; calls `mode.draw(gl, audio, tick)` each frame |
 | `BaseMode.kt` | Abstract base: `abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)` |
 
-### 10 Visualizer Modes (`com.androsaver.visualizer.modes`)
+### 13 Visualizer Modes (`com.androsaver.visualizer.modes`)
 
 | Class | Display name | Visual concept |
 |-------|-------------|----------------|
-| `YantraMode.kt` | Yantra | 6 concentric rotating polygons + web/spoke connections |
-| `CubeMode.kt` | Cube | Nested wireframe cubes with satellite points |
-| `PlasmaMode.kt` | Plasma | Full-screen sine interference pattern |
-| `TunnelMode.kt` | Tunnel | First-person tunnel with triangle bursts |
+| `YantraMode.kt` | Yantra | 7 concentric rotating polygons + web/spoke connections |
+| `CubeMode.kt` | Cube | Nested wireframe cubes + 2 orbiting satellite cubes (additive-blend trails) |
+| `TriFluxMode.kt` | TriFlux | Triangle mosaic wall — tiles eject on beat |
 | `LissajousMode.kt` | Lissajous | 3D trefoil knot with neon glow |
+| `TunnelMode.kt` | Tunnel | First-person tunnel with dense triangle bursts + star polygons |
+| `CorridorMode.kt` | Corridor | First-person neon rainbow corridor + spark particles |
 | `NovaMode.kt` | Nova | 7-fold mirror kaleidoscope waveform |
 | `SpiralMode.kt` | Spiral | 6-arm neon helix vortex |
 | `BubblesMode.kt` | Bubbles | Rising translucent bubbles |
+| `PlasmaMode.kt` | Plasma | Full-screen sine interference pattern |
+| `BranchesMode.kt` | Branches | Psychedelic fractal lightning tree, depth 7, neon glow |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |
 
@@ -92,7 +96,7 @@ DreamService.onDreamingStarted()
        │    └─ optional VisualizerView overlay (semi-transparent, 10–70% opacity)
        └─ [Visualizer] VisualizerView.start()
             ├─ AudioEngine: Visualizer API → FFT → AudioData (60 fps)
-            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()
+            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [13 modes]
 
 Remote control (D-pad events in ScreensaverEngine):
   Visualizer: ←/→ = prev/next mode | ↑/↓ = intensity | other = finish()
