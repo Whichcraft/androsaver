@@ -15,12 +15,13 @@ import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import androidx.preference.PreferenceManager
 import com.androsaver.databinding.DreamLayoutBinding
+import com.androsaver.source.DefaultImagesSource
+import com.androsaver.source.DropboxSource
 import com.androsaver.source.GoogleDriveSource
 import com.androsaver.source.ImageItem
 import com.androsaver.source.ImageSource
-import com.androsaver.source.LocalStorageSource
-import com.androsaver.source.DropboxSource
 import com.androsaver.source.ImmichSource
+import com.androsaver.source.LocalStorageSource
 import com.androsaver.source.NextcloudSource
 import com.androsaver.source.OneDriveSource
 import com.androsaver.source.SynologySource
@@ -343,6 +344,8 @@ class ScreensaverEngine(
         if (prefs.getBoolean(Prefs.ENABLE_NEXTCLOUD, false)) add(NextcloudSource(context))
         if (prefs.getBoolean(Prefs.ENABLE_SYNOLOGY, false)) add(SynologySource(context))
         if (prefs.getBoolean(Prefs.ENABLE_LOCAL_STORAGE, false)) add(LocalStorageSource(context))
+        // Bundled fallback — used automatically when nothing else is configured
+        if (isEmpty()) add(DefaultImagesSource(context))
     }
 
     private fun startSlideshow(prefs: SharedPreferences) {

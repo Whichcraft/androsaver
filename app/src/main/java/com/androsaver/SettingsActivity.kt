@@ -5,10 +5,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
@@ -57,6 +60,12 @@ class SettingsActivity : AppCompatActivity() {
                     audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
                 true
+            }
+
+            findPreference<EditTextPreference>(Prefs.WEATHER_CITY)?.setOnBindEditTextListener { editText ->
+                editText.inputType = InputType.TYPE_CLASS_TEXT
+                editText.imeOptions = EditorInfo.IME_ACTION_DONE
+                editText.maxLines = 1
             }
 
             findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.apply {

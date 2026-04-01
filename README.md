@@ -210,6 +210,12 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
 
 Enable the **Device Photos** toggle in Settings. No additional setup is required — AndroSaver reads images from the device's external storage via MediaStore (up to 500 photos, sorted by most recent).
 
+### Default Images
+
+When **no image source is enabled**, AndroSaver automatically falls back to a set of bundled images stored in `app/src/main/assets/default_images/` in this repository. Drop any JPEG, PNG, WebP, GIF, or BMP files into that folder and commit — they will be included in the next build and shown on any device where no source has been configured.
+
+This lets you ship the app with a ready-to-use set of demo or placeholder photos out of the box. As soon as any source (Drive, Dropbox, Device Photos, etc.) is enabled, the bundled images are ignored.
+
 ### Weather
 
 1. Get a free API key from [openweathermap.org](https://openweathermap.org/api).
@@ -308,16 +314,18 @@ Intensity changes made with the remote are saved and reflected in Settings. Swit
 
 #### Music Genre Hint
 
-The genre setting adjusts how the beat-detection algorithm weights bass frequency bins. It does not change the visual style directly — it changes what the algorithm considers a *beat*, making visuals more or less reactive to different frequency ranges:
+The genre setting adjusts how the beat-detection algorithm weights bass frequency bins. It does not change the visual style directly — it changes what the algorithm considers a *beat*, making visuals more or less reactive to different frequency ranges.
 
-| Genre | Effect |
-|-------|--------|
-| **Any** | Flat weighting across all bass frequencies (default) |
-| **Electronic** | Boosts sub-bass (~0–170 Hz) by 50%, reduces upper bass/low-mids (~430–860 Hz) — more sensitive to kick drums and synth bass |
-| **Rock** | Boosts mid-bass range (~85–345 Hz) by 30% — better response to electric guitar and driven kick |
-| **Classical** | Reduces overall bass sensitivity, boosts upper harmonics — suited to orchestral content with little sub-bass |
+Beat detection works on the lowest 20 FFT bins (roughly 0–860 Hz at 44100 Hz / 512-bin FFT). Each bin gets a weight multiplier; the weighted average of those 20 bins is compared against a short-term running average to detect transients. Genre changes only the per-bin weights:
 
-If the visuals feel sluggish or over-reactive, try switching the genre hint to match what is playing.
+| Genre | Bins boosted | Bins reduced | Net effect |
+|-------|-------------|--------------|------------|
+| **Any** | — (all ×1.0) | — | Flat — treats all bass frequencies equally |
+| **Electronic** | 0–4 (~0–172 Hz) ×1.5 | 10–19 (~430–860 Hz) ×0.7 | Sub-bass boost + upper-bass cut — highly sensitive to 4-on-the-floor kick and synth bass; ignores mid-bass mud |
+| **Rock** | 2–8 (~86–344 Hz) ×1.3 | — | Punchy mid-bass boost — better response to kick/snare hits and overdriven bass guitar; leaves sub-bass untouched |
+| **Classical** | 10–19 (~430–860 Hz) ×1.4 | 0–9 (~0–387 Hz) ×0.6 | Strong sub-bass cut + upper-bass/low-mid boost — avoids false beats from bass-heavy mastering; responds to orchestral transients in the 400–800 Hz range |
+
+If the visuals feel sluggish or fire on every bass rumble, try switching genre to match what is playing.
 
 #### Remote Control (while slideshow is running)
 
