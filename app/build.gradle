@@ -19,12 +19,12 @@ def versionPatchBase = 144
 
 android {
     namespace 'com.androsaver'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.androsaver"
         minSdk 21
-        targetSdk 34
+        targetSdk 35
         versionCode gitVersionCode
         versionName "2.0.${gitVersionCode - versionPatchBase}"
     }
