@@ -43,6 +43,13 @@ See `docs/architecture.md` for full class map.
 - Any new dev-only file (docs, notes, store copy, Claude instructions) must be added to `.gitattributes` with `export-ignore` — never ship dev files in release archives
 - See `docs/architecture.md` for full class/file reference
 
+### Release Cycle (follow in order)
+
+1. **Update docs** — update `CHANGELOG.md` and any affected `docs/` reference files
+2. **Update qmd index** — run `qmd update` so the index reflects all changes
+3. **Push to dev** — commit and push to the `dev` branch
+4. **Merge to master** — merge `dev` → `master` to ship the release
+
 ## Visualizer Tuning Notes
 
 - **CubeMode** — the inner cube (scale × 0.45) must not spin visibly faster than the outer cube at default intensity (beatGain=1.0). Both cubes share the same rotation state (`rx/ry/rz`), so this is maintained automatically. If rotation velocity constants are ever changed, verify at default intensity that the inner cube does not appear to spin erratically.

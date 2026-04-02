@@ -4,6 +4,14 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-02
+
+### Changed
+- **Target SDK** — bumped `compileSdk` and `targetSdk` from 34 → 35 (Android 15); `minSdk` remains 21
+- **Release cycle** — documented release steps in `CLAUDE.md`
+
+---
+
 ## 2026-04-01 (cont 18)
 
 ### Fixed
