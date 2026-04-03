@@ -6,6 +6,10 @@ All notable changes to AndroSaver are documented here.
 
 ## 2026-04-03
 
+### Added
+- **Spaceflight** — psychedelic hyperspace trip: 340 rainbow warp streaks burst outward from the ship's focal point; beat fires expanding neon rings; planets grow from tiny dots to enormous spheres; ship banks through jinks, climbs and barrel rolls with twin engine blooms. Port of psysuals v2.1.0.
+- **Butterflies** — up to 3 pairs of neon butterflies: solo enters first, partner joins and orbits lovingly; wing-flap syncs when close; sparkles on strong beats; pairs drift off-screen and new ones enter continuously. Port of psysuals v2.1.0.
+
 ### Changed
 - **Yantra** — port psysuals v2.0.3: web lines brighter (base 0.18→0.30), ring energy coefficient 0.25→0.32, spoke base lightness 0.18→0.30 and beat term 0.975→0.50; Branches/Cube/Tunnel already in sync
 
