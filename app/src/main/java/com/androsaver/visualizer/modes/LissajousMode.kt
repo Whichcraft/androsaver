@@ -127,6 +127,17 @@ class LissajousMode : BaseMode() {
                 }
                 draw.colorLineStrip(pts, colors)
             }
+
+            // Head dot at the tip of each arm
+            val hpx = pts[(n - 1) * 2]; val hpy = pts[(n - 1) * 2 + 1]
+            val r   = maxOf(3f, 7f + beat * 3.66f)
+            val c   = GLDraw.hsl((hue + sym.toFloat() / N_SYM * 0.33f) % 1f, l = 0.88f)
+            draw.circle(hpx, hpy, r,       c[0], c[1], c[2], 1f, segments = 16)
+            draw.circle(hpx, hpy, r / 3f,  1f,   1f,   1f,   1f, segments = 12)
+            if (beat > 0.5f) {
+                val hc = GLDraw.hsl((hue + sym.toFloat() / N_SYM * 0.33f + 0.5f) % 1f, l = 0.45f + beat * 0.25f)
+                draw.circle(hpx, hpy, r * 1.8f, hc[0], hc[1], hc[2], 0.5f, filled = false, segments = 16)
+            }
         }
 
     }
