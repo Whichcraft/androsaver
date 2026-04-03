@@ -4,6 +4,13 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-03
+
+### Changed
+- **Visual Effect Cycle** — renamed from "Visual Effect"; list now shows Off / On / Random instead of individual effect names (effect selection moved to Active Effects)
+
+---
+
 ## 2026-04-02
 
 ### Changed

@@ -32,10 +32,10 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 
 | Prefs Constant | Key | Type | Default | Notes |
 |---|---|---|---|---|
-| `VISUALIZER_MODE` | `visualizer_mode` | ListPreference | `auto` | `auto`, `random`, or one mode name per class |
+| `VISUALIZER_MODE` | `visualizer_mode` | ListPreference | `auto` | `off` (no cycling), `auto` (cycle in order), `random` (cycle randomly) |
 | `VISUALIZER_INTENSITY` | `visualizer_intensity` | ListPreference | `0.5` | beat multiplier: Off=0×, Low=0.5×, Med=1×, High=1.5×, Max=2× |
 | `VIZ_CYCLE_INTERVAL` | `viz_cycle_interval` | ListPreference | `120000` (ms) | `0` = off; applies to both `auto` and `random` modes |
-| `VIZ_ENABLED_MODES` | `viz_enabled_modes` | MultiSelectListPreference | _(all)_ | Set of mode names included in Auto/Random cycling and ←→ navigation; empty = all enabled |
+| `VIZ_ENABLED_MODES` | `viz_enabled_modes` | MultiSelectListPreference | _(all)_ | Set of mode names included in the cycle; empty = all enabled |
 | `AUDIO_GENRE` | `audio_genre` | ListPreference | `any` | `any`, `electronic`, `rock`, `classical` |
 
 ---
