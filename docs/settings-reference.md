@@ -36,7 +36,7 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 | `VISUALIZER_INTENSITY` | `visualizer_intensity` | ListPreference | `0.5` | beat multiplier: Off=0×, Low=0.5×, Med=1×, High=1.5×, Max=2× |
 | `VIZ_CYCLE_INTERVAL` | `viz_cycle_interval` | ListPreference | `120000` (ms) | `0` = off; applies to both `auto` and `random` modes |
 | `VIZ_ENABLED_MODES` | `viz_enabled_modes` | MultiSelectListPreference | _(all)_ | Set of mode names included in the cycle; empty = all enabled |
-| `AUDIO_GENRE` | `audio_genre` | ListPreference | `any` | `any`, `electronic`, `rock`, `classical` |
+| `AUDIO_GENRE` | `audio_genre` | ListPreference | `any` | `auto` (detect from FFT spectrum every 30 s), `any`, `electronic`, `rock`, `classical` |
 
 ---
 

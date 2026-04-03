@@ -18,6 +18,10 @@ class AudioEngine {
     companion object {
         private const val TAG = "VisualizerAudio"
         const val FFT_BINS = 512
+        private const val DETECT_MIN_FRAMES = 300   // ~20 s at max capture rate
+        private const val DETECT_SUB_BINS   = 5     // bins 0-4  (~0-215 Hz at 44100/1024)
+        private const val DETECT_BASS_BINS  = 15    // bins 0-14 (~0-645 Hz)
+        private const val DETECT_MID_BINS   = 100   // bins 15-99 (~645-4300 Hz)
     }
 
     private var visualizer: Visualizer? = null
@@ -26,6 +30,10 @@ class AudioEngine {
     private val energyHistory = ArrayDeque<Float>()
     private var energySum = 0.0          // running sum for O(1) average
     private val _data = AtomicReference(AudioData())
+
+    // Long-term accumulator for genre detection
+    private val detectAccum = FloatArray(FFT_BINS)
+    private var detectFrames = 0
 
     // Latest waveform/fft bytes — combined when both arrive
     @Volatile private var lastWave: FloatArray? = null
@@ -71,6 +79,49 @@ class AudioEngine {
         }
     }
 
+    /**
+     * Returns a detected genre string once enough frames have been accumulated,
+     * or null if still collecting data. Resets the accumulator after each detection
+     * so the genre can adapt if the music changes.
+     */
+    fun detectGenre(): String? {
+        if (detectFrames < DETECT_MIN_FRAMES) return null
+
+        var subSum = 0f
+        for (i in 0 until DETECT_SUB_BINS) subSum += detectAccum[i]
+        val subBass = subSum / DETECT_SUB_BINS
+
+        var bassSum = 0f
+        for (i in 0 until DETECT_BASS_BINS) bassSum += detectAccum[i]
+        val bass = bassSum / DETECT_BASS_BINS
+
+        var midSum = 0f
+        for (i in DETECT_BASS_BINS until DETECT_BASS_BINS + DETECT_MID_BINS) midSum += detectAccum[i]
+        val mids = midSum / DETECT_MID_BINS
+
+        // Normalise by frame count
+        val normSub  = subBass / detectFrames
+        val normBass = bass    / detectFrames
+        val normMids = mids    / detectFrames
+
+        val subRatio  = normSub  / (normBass + 0.001f)
+        val bassRatio = normBass / (normBass + normMids + 0.001f)
+
+        resetDetection()
+
+        return when {
+            subRatio  > 0.55f && bassRatio > 0.50f -> "electronic"
+            bassRatio > 0.50f && subRatio  < 0.45f -> "rock"
+            bassRatio < 0.35f                       -> "classical"
+            else                                    -> "any"
+        }
+    }
+
+    fun resetDetection() {
+        detectAccum.fill(0f)
+        detectFrames = 0
+    }
+
     fun stop() {
         visualizer?.apply {
             try { enabled = false; release() } catch (_: Exception) {}
@@ -86,6 +137,11 @@ class AudioEngine {
         for (i in 0 until minOf(rawFft.size, FFT_BINS)) {
             smoothFft[i] = smoothFft[i] * 0.50f + rawFft[i] * 0.50f
         }
+
+        // Accumulate for genre detection (raw, unweighted)
+        val accLen = minOf(rawFft.size, FFT_BINS)
+        for (i in 0 until accLen) detectAccum[i] += rawFft[i]
+        detectFrames++
 
         // Beat energy = mean of bass bins 0..19 (≈ 0–860 Hz with 512 bins at 44100 Hz)
         var bassSum = 0f

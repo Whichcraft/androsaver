@@ -6,6 +6,9 @@ All notable changes to AndroSaver are documented here.
 
 ## 2026-04-03
 
+### Added
+- **Auto-detect music genre** — new "Auto-detect" option in Music Genre setting; analyzes the FFT spectrum every 30 seconds (after ~20 s of audio) and automatically applies the best genre hint (Electronic / Rock / Classical / Any)
+
 ### Fixed
 - **Update checker version** — CI was generating `1.4.x` instead of `2.0.x`; now matches `build.gradle` formula (base 144)
 
