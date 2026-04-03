@@ -76,6 +76,7 @@ class ScreensaverEngine(
     private var overlayVisualizerView: VisualizerView? = null
     private var vizCycleRunnable: Runnable? = null
     private var vizCycleMs: Long = 0L
+    private var genreDetectRunnable: Runnable? = null
     private var clockRunnable: Runnable? = null
     private var weatherRunnable: Runnable? = null
     private val kenBurnsAnimators = mutableMapOf<ImageView, ValueAnimator>()
@@ -238,7 +239,18 @@ class ScreensaverEngine(
 
         vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
         val genre = prefs.getString(Prefs.AUDIO_GENRE, "any") ?: "any"
-        vv.audio.applyGenreHint(genre)
+        if (genre == "auto") {
+            vv.audio.applyGenreHint("any")
+            genreDetectRunnable = object : Runnable {
+                override fun run() {
+                    vv.audio.detectGenre()?.let { vv.audio.applyGenreHint(it) }
+                    handler.postDelayed(this, 30_000L)
+                }
+            }
+            handler.postDelayed(genreDetectRunnable!!, 30_000L)
+        } else {
+            vv.audio.applyGenreHint(genre)
+        }
 
         binding.visualizerContainer.addView(vv)
         binding.visualizerContainer.visibility = View.VISIBLE
@@ -269,6 +281,8 @@ class ScreensaverEngine(
     private fun stopVisualizerMode() {
         vizCycleRunnable?.let { handler.removeCallbacks(it) }
         vizCycleRunnable = null
+        genreDetectRunnable?.let { handler.removeCallbacks(it) }
+        genreDetectRunnable = null
         visualizerView?.stopVisualizer()
         visualizerView = null
     }
