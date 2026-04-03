@@ -55,9 +55,9 @@ jobs:
       - name: Write version manifest
         run: |
           VERSION_CODE=$(git rev-list --count HEAD)
-          VERSION_PATCH_BASE=133
+          VERSION_PATCH_BASE=144
           VERSION_PATCH=$((VERSION_CODE - VERSION_PATCH_BASE))
-          VERSION_NAME="1.4.${VERSION_PATCH}"
+          VERSION_NAME="2.0.${VERSION_PATCH}"
           if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             TAG="dev"
           else

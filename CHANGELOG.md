@@ -6,6 +6,9 @@ All notable changes to AndroSaver are documented here.
 
 ## 2026-04-03
 
+### Fixed
+- **Update checker version** — CI was generating `1.4.x` instead of `2.0.x`; now matches `build.gradle` formula (base 144)
+
 ### Changed
 - **Visual Effect Cycle** — renamed from "Visual Effect"; list now shows Off / On / Random instead of individual effect names (effect selection moved to Active Effects)
 
