@@ -6,6 +6,9 @@ All notable changes to AndroSaver are documented here.
 
 ## 2026-04-03
 
+### Changed
+- **Yantra** — port psysuals v2.0.3: web lines brighter (base 0.18→0.30), ring energy coefficient 0.25→0.32, spoke base lightness 0.18→0.30 and beat term 0.975→0.50; Branches/Cube/Tunnel already in sync
+
 ### Added
 - **Lissajous head dots** — restored 3 filled dots at the tip of each arm; pulse with beat; ring halo on strong kicks
 - **Auto-detect music genre** — new "Auto-detect" option in Music Genre setting; analyzes the FFT spectrum every 30 seconds (after ~20 s of audio) and automatically applies the best genre hint (Electronic / Rock / Classical / Any)
