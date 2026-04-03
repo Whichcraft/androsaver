@@ -233,7 +233,7 @@ class ScreensaverEngine(
         when (modePref) {
             "auto"   -> { /* start at index 0; nextMode() cycles enabled modes */ }
             "random" -> vv.randomMode()
-            else     -> vv.setMode(modePref)
+            else     -> { /* off: stay on first enabled mode */ }
         }
 
         vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
