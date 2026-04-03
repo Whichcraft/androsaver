@@ -6,7 +6,8 @@ import kotlin.math.*
 
 /**
  * Psychedelic sacred-geometry mandala.
- * Six concentric polygon rings, alternating rotation, web lines, neon spokes, central pulse.
+ * Seven concentric polygon rings, alternating rotation, web lines, neon spokes, central pulse.
+ * Port of psysuals Yantra (v2.0.3).
  */
 class YantraMode : BaseMode() {
 
@@ -91,7 +92,7 @@ class YantraMode : BaseMode() {
             val vIn  = allVerts[i];    val nIn  = vIn.size / 2
             val e = minOf(bands[i], 1f)
             val h = (hue + i.toFloat() / N_RINGS * 0.5f) % 1f
-            val c = GLDraw.hsl(h, l = 0.18f + e * 0.28f)
+            val c = GLDraw.hsl(h, l = 0.30f + e * 0.20f)
             for (k in 0 until nOut) {
                 val nearest = kotlin.math.round(k.toFloat() / nOut * nIn).toInt() % nIn
                 draw.line(vOut[k * 2], vOut[k * 2 + 1],
@@ -104,7 +105,7 @@ class YantraMode : BaseMode() {
         for (i in N_RINGS - 1 downTo 0) {
             val e = minOf(bands[i], 1f)
             val h = (hue + i.toFloat() / N_RINGS * 0.55f) % 1f
-            val bright = 0.52f + e * 0.25f + beat * 0.50f
+            val bright = 0.52f + e * 0.32f + beat * 0.50f
             val c = GLDraw.hsl(h, l = bright)
             draw.polygon(allVerts[i], c[0], c[1], c[2], 1f, filled = false)
             // Star connections (every 2nd vertex)
@@ -128,7 +129,7 @@ class YantraMode : BaseMode() {
             val x2 = cx + cos(a) * outerR
             val y2 = cy + sin(a) * outerR
             val h = (hue + s.toFloat() / N_SPOKES * 0.35f + high * 0.2f) % 1f
-            val lSpoke = 0.18f + beat * 0.975f + high * 0.18f
+            val lSpoke = 0.30f + beat * 0.50f + high * 0.15f
             if (beat > 0.05f) {
                 val c = GLDraw.hsl(h, l = lSpoke)
                 draw.line(cx, cy, x2, y2, c[0], c[1], c[2], minOf(1f, beat * 1.755f))
