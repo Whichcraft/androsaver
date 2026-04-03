@@ -7,6 +7,7 @@ All notable changes to AndroSaver are documented here.
 ## 2026-04-03
 
 ### Added
+- **Lissajous head dots** — restored 3 filled dots at the tip of each arm; pulse with beat; ring halo on strong kicks
 - **Auto-detect music genre** — new "Auto-detect" option in Music Genre setting; analyzes the FFT spectrum every 30 seconds (after ~20 s of audio) and automatically applies the best genre hint (Electronic / Rock / Classical / Any)
 
 ### Fixed
