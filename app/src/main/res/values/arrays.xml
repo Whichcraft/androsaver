@@ -102,10 +102,10 @@
         <item>0</item><item>60000</item><item>120000</item><item>300000</item><item>600000</item><item>900000</item>
     </string-array>
     <string-array name="audio_genre_entries">
-        <item>Any</item><item>Electronic</item><item>Rock</item><item>Classical</item>
+        <item>Auto-detect</item><item>Any</item><item>Electronic</item><item>Rock</item><item>Classical</item>
     </string-array>
     <string-array name="audio_genre_values">
-        <item>any</item><item>electronic</item><item>rock</item><item>classical</item>
+        <item>auto</item><item>any</item><item>electronic</item><item>rock</item><item>classical</item>
     </string-array>
     <string-array name="hour_entries">
         <item>12 AM</item><item>1 AM</item><item>2 AM</item><item>3 AM</item><item>4 AM</item>
