@@ -4,6 +4,13 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-05 (psysuals v2.4.0)
+
+### Fixed
+- **Butterflies** — boundary repulsion rewritten: margin capped at `min(50×scale, W/5, H/5)`; proportional position push + heading steer toward `atan2(ry,rx)` so butterflies escape walls smoothly instead of snapping to cardinal headings
+
+---
+
 ## 2026-04-05 — v2.1.0 (psysuals v2.3.0)
 
 ### Added
