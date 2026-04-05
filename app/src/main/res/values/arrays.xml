@@ -60,13 +60,15 @@
         <item>Yantra</item><item>Cube</item><item>TriFlux</item><item>Lissajous</item>
         <item>Tunnel</item><item>Corridor</item><item>Nova</item><item>Spiral</item>
         <item>Bubbles</item><item>Plasma</item><item>Branches</item><item>Spaceflight</item>
-        <item>Butterflies</item><item>Spectrum</item><item>Waterfall</item>
+        <item>Butterflies</item><item>FlowField</item><item>Vortex</item>
+        <item>Spectrum</item><item>Waterfall</item>
     </string-array>
     <string-array name="viz_effect_values">
         <item>Yantra</item><item>Cube</item><item>TriFlux</item><item>Lissajous</item>
         <item>Tunnel</item><item>Corridor</item><item>Nova</item><item>Spiral</item>
         <item>Bubbles</item><item>Plasma</item><item>Branches</item><item>Spaceflight</item>
-        <item>Butterflies</item><item>Spectrum</item><item>Waterfall</item>
+        <item>Butterflies</item><item>FlowField</item><item>Vortex</item>
+        <item>Spectrum</item><item>Waterfall</item>
     </string-array>
 
     <string-array name="transition_entries">

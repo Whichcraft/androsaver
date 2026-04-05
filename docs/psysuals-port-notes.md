@@ -58,6 +58,16 @@ buffer of per-frame spark screen snapshots (sx, sy, r, h, bright) replayed with
 buffer or merge it into the main fade — sparks must trail significantly longer
 than the corridor frames.
 
+### FlowFieldMode
+Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)` — equivalent on a dark background.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.
+
+Seed detection: particles are initialised on the first draw call when W/H are known (tick==0 or all-zero check).
+
+### VortexMode
+Port directly for the fireworks mechanics (rockets + embers with gravity/drag).  The pygame pixel-feedback zoom-rotate wormhole (`pygame.transform.rotozoom`) requires FBO and is **not ported** — replaced with `draw.fadeBlack(15f/255f)` giving ~17-frame persistence on the framebuffer.  Embers use `setAdditiveBlend()`.
+
+If FBO support is ever added to GLDraw, the wormhole can be re-added as: each frame zoom+rotate the previous FBO texture onto the current FBO, multiply down by 240/255.
+
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers
 it.  Two-pass draw (non-active tiles first, then active on top) replaces the
