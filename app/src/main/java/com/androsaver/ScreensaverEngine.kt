@@ -283,14 +283,18 @@ class ScreensaverEngine(
         vizCycleRunnable = null
         genreDetectRunnable?.let { handler.removeCallbacks(it) }
         genreDetectRunnable = null
-        visualizerView?.stopVisualizer()
+        visualizerView?.let { vv ->
+            vv.stopVisualizer()
+            binding.visualizerContainer.removeView(vv)
+        }
         visualizerView = null
+        binding.visualizerContainer.visibility = View.GONE
     }
 
     // ── Slideshow mode ────────────────────────────────────────────────────────
 
     private fun startSlideshowMode(prefs: SharedPreferences) {
-        // Restore image views in case a previous run was in visualizer mode (which hides them)
+        binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.VISIBLE
         if (prefs.getBoolean(Prefs.VIZ_OVERLAY_ENABLED, false)) {
@@ -425,7 +429,7 @@ class ScreensaverEngine(
         val outgoing  = if (activeView == 1) binding.imageView1 else binding.imageView2
         activeView = if (activeView == 1) 2 else 1
 
-        val glideUrl: Any = if (item.url.startsWith("content://")) {
+        val glideUrl: Any = if (item.url.startsWith("content://") || item.url.startsWith("file://")) {
             android.net.Uri.parse(item.url)
         } else if (item.headers.isNotEmpty()) {
             val b = LazyHeaders.Builder()

@@ -4,6 +4,14 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-05 (mode switching)
+
+### Fixed
+- **Slideshow mode**: `visualizerContainer` is now explicitly hidden and emptied when stopping the visualizer and when starting slideshow mode; previously if there was any lifecycle edge case where both ran in the same session, the visualizer could remain visible on top of photos
+- **Bundled images**: `file://` asset URLs (used by the built-in default photos) were incorrectly wrapped in `GlideUrl` (HTTP-only), causing them to fail to load; they are now correctly parsed as `Uri`
+
+---
+
 ## 2026-04-05
 
 ### Fixed
