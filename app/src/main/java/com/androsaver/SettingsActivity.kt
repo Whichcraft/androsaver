@@ -120,6 +120,18 @@ class SettingsActivity : AppCompatActivity() {
                         viewLifecycleOwner.lifecycleScope.launch {
                             UpdateInstaller.downloadAndInstall(requireContext(), url)
                         }
+                    } else {
+                        findPreference<Preference>("about_app")?.summary = getString(R.string.update_checking)
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val update = UpdateChecker.checkForUpdate()
+                            if (update != null) {
+                                pendingUpdateUrl = update.apkUrl
+                                findPreference<Preference>("about_app")?.summary =
+                                    getString(R.string.update_available, update.versionName)
+                            } else {
+                                updateAboutVersion()
+                            }
+                        }
                     }
                     true
                 }

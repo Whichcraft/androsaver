@@ -131,6 +131,7 @@
     <!-- About / Updates -->
     <string name="about_version_summary">Version %1$s · %2$s channel</string>
     <string name="update_available">Update available: v%s — press to install</string>
+    <string name="update_checking">Checking for updates…</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="up_to_date">Up to date</string>
     <string name="update_channel_label">Update Channel</string>
