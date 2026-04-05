@@ -26,9 +26,14 @@ class PreviewActivity : AppCompatActivity() {
         engine.start(PreferenceManager.getDefaultSharedPreferences(this))
     }
 
-    override fun onStop() {
-        super.onStop()
-        finish()  // always destroy when no longer visible so the visualizer doesn't run in the background
+    override fun onPause() {
+        super.onPause()
+        engine.pauseVisualizer()  // stop audio + GL when not in foreground
+    }
+
+    override fun onResume() {
+        super.onResume()
+        engine.resumeVisualizer()
     }
 
     override fun onDestroy() {

@@ -105,6 +105,12 @@ class ScreensaverEngine(
         if (prefs.getBoolean(Prefs.WEATHER_ENABLED, false)) startWeather(prefs)
     }
 
+    /** Pause the visualizer audio + GL when the host goes to background (e.g. Home press). */
+    fun pauseVisualizer() { visualizerView?.stopVisualizer() }
+
+    /** Resume the visualizer audio + GL when the host comes back to foreground. */
+    fun resumeVisualizer() { visualizerView?.startVisualizer() }
+
     fun stop() {
         stopSlideshow()
         stopImageRefresh()
