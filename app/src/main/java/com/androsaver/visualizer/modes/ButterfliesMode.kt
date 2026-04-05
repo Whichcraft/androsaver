@@ -92,19 +92,23 @@ class ButterfliesMode : BaseMode() {
                 wanderDes
             }
 
-            val m = (110f * scale).toInt()
-            var inBoundary = false
-            var target = desired
-            if      (x < m)           { target = 0f;          inBoundary = true }
-            else if (x > screenW - m) { target = PI_F;        inBoundary = true }
-            if      (y < m)           { target = PI_F * 0.5f; inBoundary = true }
-            else if (y > screenH - m) { target = -PI_F * 0.5f; inBoundary = true }
-            if (inBoundary) {
-                heading += ((target - heading + PI_F) % TAU - PI_F).coerceIn(-0.22f, 0.22f) * 0.35f
-                wanderDes = target
+            // Boundary repulsion — margin capped so it never overlaps on small screens
+            val m = minOf((50f * scale).toInt(), screenW.toInt() / 5, screenH.toInt() / 5)
+            var rx = 0f; var ry = 0f
+            if      (x < m)            rx = (m - x) / m
+            else if (x > screenW - m)  rx = (screenW - m - x) / m
+            if      (y < m)            ry = (m - y) / m
+            else if (y > screenH - m)  ry = (screenH - m - y) / m
+
+            if (rx != 0f || ry != 0f) {
+                val push = scale * maxOf(abs(rx), abs(ry)) * 2.5f
+                x += rx * push; y += ry * push
+                val repulseAng = atan2(ry, rx)
+                heading += ((repulseAng - heading + PI_F) % TAU - PI_F).coerceIn(-0.35f, 0.35f) * 0.50f
+                wanderDes = repulseAng
                 wanderCd  = (60 + Math.random() * 120).toInt()
             } else {
-                heading += ((target - heading + PI_F) % TAU - PI_F).coerceIn(-0.10f, 0.10f) * 0.14f
+                heading += ((desired - heading + PI_F) % TAU - PI_F).coerceIn(-0.10f, 0.10f) * 0.14f
             }
 
             val spd = (1.5f + bass * 0.8f + beat * 0.4f) * scale
