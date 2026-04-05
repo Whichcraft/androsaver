@@ -4,6 +4,13 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-05
+
+### Fixed
+- **Corridor spark trailing** — sparks now trail ~25 frames (matching psysuals `_SPARK_FADE=10`) via a 25-frame screen-position ring buffer replayed with additive blend, instead of fading with the same 0.11f rate as the corridor frames
+
+---
+
 ## 2026-04-03
 
 ### Added

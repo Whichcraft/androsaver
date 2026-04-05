@@ -9,19 +9,28 @@ import kotlin.math.*
  * Concentric rounded-rectangle frames fly toward the camera with a full rainbow
  * sweep across depth; beat flares nearest frames and spawns glowing sparks.
  * Port of psysuals `Corridor` class (v1.4.1).
+ *
+ * Spark trailing: psysuals uses a dedicated spark_surf faded at alpha=10/255 per frame,
+ * giving ~25 frames persistence.  Android has one framebuffer, so we maintain a
+ * SPARK_HIST_LEN-frame ring buffer of spark screen snapshots and replay them with
+ * additive blend at decreasing alpha — equivalent to _SPARK_FADE=10 in psysuals.
  */
 class CorridorMode : BaseMode() {
 
     override val name = "Corridor"
 
     private companion object {
-        const val N_FRAMES   = 28
-        const val Z_FAR      = 12f
-        const val Z_NEAR     = 0.28f
-        const val WORLD_H    = 2.0f
-        const val ASPECT     = 1.65f
-        const val MAX_SPARKS = 100
-        const val TAU        = (Math.PI * 2).toFloat()
+        const val N_FRAMES       = 28
+        const val Z_FAR          = 12f
+        const val Z_NEAR         = 0.28f
+        const val WORLD_H        = 2.0f
+        const val ASPECT         = 1.65f
+        const val MAX_SPARKS     = 100
+        const val TAU            = (Math.PI * 2).toFloat()
+        // psysuals _SPARK_FADE=10 → ~255/10 = 25 frames persistence
+        const val SPARK_HIST_LEN = 25
+        // floats per spark snapshot: sx, sy, r, h, bright  (5 fields)
+        const val SPARK_FIELDS   = 5
     }
 
     private data class Frame(var z: Float)
@@ -33,11 +42,18 @@ class CorridorMode : BaseMode() {
     private var hue  = 0f
     private var time = 0f
 
+    // Spark history ring buffer — each slot is a FloatArray of SPARK_FIELDS*N packed values
+    private val sparkHist     = Array<FloatArray?>(SPARK_HIST_LEN) { null }
+    private val sparkHistSize = IntArray(SPARK_HIST_LEN)   // actual spark count in each slot
+    private var sparkHistHead = 0
+
     override fun reset() {
         hue = 0f; time = 0f
         frames.clear(); sparks.clear()
         val spacing = (Z_FAR - Z_NEAR) / N_FRAMES
         for (i in 0 until N_FRAMES) frames.add(Frame(Z_NEAR + i * spacing))
+        for (i in 0 until SPARK_HIST_LEN) { sparkHist[i] = null; sparkHistSize[i] = 0 }
+        sparkHistHead = 0
     }
 
     private fun path(t: Float): Pair<Float, Float> =
@@ -145,21 +161,48 @@ class CorridorMode : BaseMode() {
             draw.polygon(mainPts, mc[0], mc[1], mc[2], 1f)
         }
 
-        // ── Draw sparks on top (additive blend — always above frames) ─────────
-        draw.setAdditiveBlend()
+        // ── Compute current-frame spark screen positions ───────────────────────
+        val curCount = sparks.size
+        val needed   = curCount * SPARK_FIELDS
+        var curBuf   = sparkHist[sparkHistHead]
+        if (curBuf == null || curBuf.size < needed) {
+            curBuf = FloatArray(maxOf(needed, MAX_SPARKS * SPARK_FIELDS))
+        }
+        var bi = 0
         for (sp in sparks) {
             val z     = maxOf(sp.z, 0.01f)
             val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - z * 0.5f)
-            val sx = (pcx + sp.ox) * fov / z + W / 2f
-            val sy = (pcy + sp.oy) * fov / z + H / 2f
-            val r  = maxOf(2f, fov / z * 0.05f)
-            val h  = (sp.hue + nearT * 0.35f) % 1f
-            val bright = 0.35f + nearT * 0.60f
-            val hc = GLDraw.hsl(h, l = bright * 0.25f)
-            draw.circle(sx, sy, r + 4f, hc[0], hc[1], hc[2], 0.6f, filled = true, segments = 10)
-            val bc = GLDraw.hsl(h, l = bright)
-            draw.circle(sx, sy, maxOf(1f, r), bc[0], bc[1], bc[2], 1f, filled = true, segments = 10)
+            val (pcx, pcy) = path(time - sp.z * 0.5f)
+            curBuf[bi++] = (pcx + sp.ox) * fov / z + W / 2f    // sx
+            curBuf[bi++] = (pcy + sp.oy) * fov / z + H / 2f    // sy
+            curBuf[bi++] = maxOf(2f, fov / z * 0.05f)           // r
+            curBuf[bi++] = (sp.hue + nearT * 0.35f) % 1f        // h
+            curBuf[bi++] = 0.35f + nearT * 0.60f                // bright
+        }
+        sparkHist[sparkHistHead]     = curBuf
+        sparkHistSize[sparkHistHead] = curCount
+        sparkHistHead = (sparkHistHead + 1) % SPARK_HIST_LEN
+
+        // ── Draw spark ring buffer (oldest→newest) + current frame, additive ──
+        // Simulates psysuals _SPARK_FADE=10: ~25-frame persistence on spark_surf.
+        draw.setAdditiveBlend()
+        for (age in SPARK_HIST_LEN - 1 downTo 0) {
+            val slotIdx = (sparkHistHead - 1 - age + SPARK_HIST_LEN * 2) % SPARK_HIST_LEN
+            val buf     = sparkHist[slotIdx] ?: continue
+            val cnt     = sparkHistSize[slotIdx]
+            if (cnt == 0) continue
+            // alpha decays linearly: oldest frame gets ~10/255, newest gets full
+            val ageFrac = age.toFloat() / SPARK_HIST_LEN.toFloat()
+            val aMul    = 1f - ageFrac   // 0 (oldest) → 1 (current)
+            var p = 0
+            repeat(cnt) {
+                val sx     = buf[p++]; val sy     = buf[p++]
+                val r      = buf[p++]; val h      = buf[p++]; val bright = buf[p++]
+                val hc = GLDraw.hsl(h, l = bright * 0.25f)
+                draw.circle(sx, sy, r + 4f, hc[0], hc[1], hc[2], 0.6f * aMul, filled = true, segments = 10)
+                val bc = GLDraw.hsl(h, l = bright)
+                draw.circle(sx, sy, maxOf(1f, r), bc[0], bc[1], bc[2], aMul, filled = true, segments = 10)
+            }
         }
         draw.setNormalBlend()
     }

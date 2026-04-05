@@ -50,13 +50,21 @@ with `setAdditiveBlend()` so sparks are always on top.  Spark spawn rate from
 psysuals uses `bass * 1.2`; raise to `bass * 5f` in Android because beat
 signal tends to be lower and sparks were invisible at low intensity.
 
+**Spark trail ring buffer** — psysuals uses a dedicated `spark_surf` faded at
+`_SPARK_FADE=10` (≈0.039f), giving ~25 frames of persistence vs. the 9 frames
+from the main `fadeBlack(0.11f)`.  Android replaces this with a 25-frame ring
+buffer of per-frame spark screen snapshots (sx, sy, r, h, bright) replayed with
+`setAdditiveBlend()` at linearly decreasing alpha.  Do not remove this ring
+buffer or merge it into the main fade — sparks must trail significantly longer
+than the corridor frames.
+
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers
 it.  Two-pass draw (non-active tiles first, then active on top) replaces the
 psysuals z-order that comes for free from direct surface drawing.
 
 ### BranchesMode
-Port directly.  `draw.fadeBlack(16f/255f)` for trail persistence.
+Port directly.  `draw.fadeBlack(10f/255f)` for trail persistence (matches `TRAIL_ALPHA=10`).
 
 ---
 
