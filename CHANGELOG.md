@@ -4,6 +4,13 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-05 (preview lifecycle fix)
+
+### Fixed
+- **Preview drops out after ~3 s** — `finish()` in `onStop()` was too aggressive; the Android TV system briefly triggers `onStop()` on the preview activity (e.g. when the DreamService activates), immediately killing it. Replaced with `onPause()`/`onResume()` that pause and resume only the visualizer audio + GL thread, so the preview stays alive but the visualizer goes silent when the activity is in the background.
+
+---
+
 ## 2026-04-05 (remove visualizer overlay)
 
 ### Removed
