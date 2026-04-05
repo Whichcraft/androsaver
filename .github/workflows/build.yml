@@ -55,9 +55,10 @@ jobs:
       - name: Write version manifest
         run: |
           VERSION_CODE=$(git rev-list --count HEAD)
-          VERSION_PATCH_BASE=162
+          VERSION_PATCH_BASE=$(grep 'versionPatchBase' app/build.gradle | grep -oE '[0-9]+')
+          VERSION_PREFIX=$(grep 'versionName' app/build.gradle | grep -oP '"\K[0-9]+\.[0-9]+(?=\.\$)')
           VERSION_PATCH=$((VERSION_CODE - VERSION_PATCH_BASE))
-          VERSION_NAME="2.1.${VERSION_PATCH}"
+          VERSION_NAME="${VERSION_PREFIX}.${VERSION_PATCH}"
           if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             TAG="dev"
           else
