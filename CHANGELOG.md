@@ -9,6 +9,7 @@ All notable changes to AndroSaver are documented here.
 ### Fixed
 - **Update checker** — CI was generating `2.0.x` instead of `2.1.x`; `version.json` now uses `VERSION_PATCH_BASE=162` matching `build.gradle`
 - **Version row** — tapping the version row now triggers a live update check (shows "Checking…") when no update is already pending, instead of doing nothing
+- **CI version formula** — CI now reads `versionPatchBase` and version prefix directly from `build.gradle` so future version bumps in `build.gradle` automatically propagate to `version.json` without a separate CI edit
 
 ---
 
