@@ -28,8 +28,6 @@
 
     <PreferenceCategory android:key="cat_slideshow" android:title="Slideshow">
         <SwitchPreferenceCompat android:key="ken_burns_enabled" android:title="Ken Burns Effect" android:summary="Slow pan and zoom while each photo is displayed" android:defaultValue="true" />
-        <SwitchPreferenceCompat android:key="viz_overlay_on_slideshow" android:title="Visualizer Overlay" android:summary="Show audio-reactive visuals behind photos" android:defaultValue="false" />
-        <ListPreference android:key="viz_overlay_opacity" android:title="Overlay Opacity" android:entries="@array/overlay_opacity_entries" android:entryValues="@array/overlay_opacity_values" android:defaultValue="0.3" android:summary="%s" android:dependency="viz_overlay_on_slideshow" />
         <ListPreference android:key="transition_duration" android:title="Time per Image" android:entries="@array/duration_entries" android:entryValues="@array/duration_values" android:defaultValue="10000" android:summary="%s" />
         <ListPreference android:key="transition_speed" android:title="Transition Speed" android:entries="@array/transition_speed_entries" android:entryValues="@array/transition_speed_values" android:defaultValue="1500" android:summary="%s" />
         <ListPreference android:key="transition_effect" android:title="Transition Effect" android:entries="@array/transition_entries" android:entryValues="@array/transition_values" android:defaultValue="crossfade" android:summary="%s" />

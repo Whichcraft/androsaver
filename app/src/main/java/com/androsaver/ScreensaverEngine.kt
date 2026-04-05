@@ -73,7 +73,6 @@ class ScreensaverEngine(
     private var imageRefreshRunnable: Runnable? = null
     private var consecutiveLoadFailures = 0
     private var visualizerView: VisualizerView? = null
-    private var overlayVisualizerView: VisualizerView? = null
     private var vizCycleRunnable: Runnable? = null
     private var vizCycleMs: Long = 0L
     private var genreDetectRunnable: Runnable? = null
@@ -112,9 +111,6 @@ class ScreensaverEngine(
         stopVisualizerMode()
         stopClock()
         stopWeather()
-        overlayVisualizerView?.stopVisualizer()
-        overlayVisualizerView = null
-        binding.vizOverlayContainer.visibility = View.GONE
         kenBurnsAnimators.values.forEach { it.cancel() }
         kenBurnsAnimators.clear()
         Glide.with(context).onStop()
@@ -297,15 +293,6 @@ class ScreensaverEngine(
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.VISIBLE
-        if (prefs.getBoolean(Prefs.VIZ_OVERLAY_ENABLED, false)) {
-            val overlay = VisualizerView(context)
-            overlayVisualizerView = overlay
-            val opacity = prefs.getString(Prefs.VIZ_OVERLAY_OPACITY, "0.3")?.toFloatOrNull() ?: 0.3f
-            overlay.alpha = opacity
-            binding.vizOverlayContainer.addView(overlay)
-            binding.vizOverlayContainer.visibility = View.VISIBLE
-            overlay.startVisualizer()
-        }
         loadImages(prefs)
     }
 

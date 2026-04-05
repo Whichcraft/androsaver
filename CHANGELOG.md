@@ -4,6 +4,13 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-05 (remove visualizer overlay)
+
+### Removed
+- **Visualizer Overlay** — removed the "Visualizer Overlay" feature from slideshow mode entirely; it was the source of the visualizer-still-running-in-background bug and added complexity without benefit
+
+---
+
 ## 2026-04-05 (preview lifecycle)
 
 ### Fixed
