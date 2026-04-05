@@ -4,7 +4,7 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## 2026-04-05 (psysuals v2.3.0)
+## 2026-04-05 — v2.1.0 (psysuals v2.3.0)
 
 ### Added
 - **FlowField** — 4 000 particles surfing a 3-layer sine/cosine noise field; rainbow trails on slow-fade background; beat phase-jumps all flow lines. Port of psysuals v2.3.0.
