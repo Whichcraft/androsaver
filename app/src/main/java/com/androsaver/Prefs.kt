@@ -70,8 +70,6 @@ object Prefs {
     // Slideshow extras
     const val SHOW_CLOCK           = "show_clock"
     const val KEN_BURNS_ENABLED    = "ken_burns_enabled"
-    const val VIZ_OVERLAY_ENABLED  = "viz_overlay_on_slideshow"
-    const val VIZ_OVERLAY_OPACITY  = "viz_overlay_opacity"
     const val ENABLE_LOCAL_STORAGE = "source_local_storage"
 
     // Schedule

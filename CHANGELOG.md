@@ -4,6 +4,20 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-05 (remove visualizer overlay)
+
+### Removed
+- **Visualizer Overlay** — removed the "Visualizer Overlay" feature from slideshow mode entirely; it was the source of the visualizer-still-running-in-background bug and added complexity without benefit
+
+---
+
+## 2026-04-05 (preview lifecycle)
+
+### Fixed
+- **Visualizer running in background** — `PreviewActivity` ("Start Now") now calls `finish()` in `onStop()`, so the visualizer (audio engine + GL thread) is always torn down the moment the preview is no longer visible; previously it kept running when the user pressed Home and returned to Settings
+
+---
+
 ## 2026-04-05 (mode switching)
 
 ### Fixed
