@@ -13,6 +13,9 @@ All notable changes to AndroSaver are documented here.
 ### Changed
 - **Butterflies** — 80% larger (scale 4→7.2 solo, 3.8→6.84 partner); stronger edge-avoidance steering (turn rate 0.10/0.14 → 0.22/0.35 when in boundary zone, immediately resets wander target). Port of psysuals v2.2.0.
 
+### Removed
+- **Spaceflight** — removed from psysuals v2.2.0; removed from Android accordingly
+
 ---
 
 ## 2026-04-05
