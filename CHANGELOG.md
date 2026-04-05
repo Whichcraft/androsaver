@@ -4,6 +4,27 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-05 — v2.1.0 (psysuals v2.3.0)
+
+### Added
+- **FlowField** — 4 000 particles surfing a 3-layer sine/cosine noise field; rainbow trails on slow-fade background; beat phase-jumps all flow lines. Port of psysuals v2.3.0.
+- **Vortex** — firework rockets launch from bottom, arc under gravity, explode into 80-120 glowing embers. Beat fires extra rockets. Port of psysuals v2.3.0. (Feedback zoom-rotate wormhole omitted — requires FBO not available in GLDraw; replaced with 40-frame slow fade.)
+
+### Changed
+- **Butterflies** — 80% larger (scale 4→7.2 solo, 3.8→6.84 partner); stronger edge-avoidance steering (turn rate 0.10/0.14 → 0.22/0.35 when in boundary zone, immediately resets wander target). Port of psysuals v2.2.0.
+
+### Removed
+- **Spaceflight** — removed from psysuals v2.2.0; removed from Android accordingly
+
+---
+
+## 2026-04-05
+
+### Fixed
+- **Corridor spark trailing** — sparks now trail ~25 frames (matching psysuals `_SPARK_FADE=10`) via a 25-frame screen-position ring buffer replayed with additive blend, instead of fading with the same 0.11f rate as the corridor frames
+
+---
+
 ## 2026-04-03
 
 ### Added

@@ -35,8 +35,9 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         BubblesMode(),
         PlasmaMode(),
         BranchesMode(),
-        SpaceflightMode(),
         ButterfliesMode(),
+        FlowFieldMode(),
+        VortexMode(),
         BarsMode(),
         WaterfallMode()
     )

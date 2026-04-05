@@ -51,7 +51,7 @@ class ButterfliesMode : BaseMode() {
     private inner class Butterfly(
         var x: Float, var y: Float,
         var hue: Float,
-        val scale: Float = 4.0f
+        val scale: Float = 7.2f
     ) {
         var heading   = Math.random().toFloat() * TAU
         var wingPhase = Math.random().toFloat() * TAU
@@ -93,14 +93,19 @@ class ButterfliesMode : BaseMode() {
             }
 
             val m = (110f * scale).toInt()
-            val target = when {
-                x < m             -> 0f
-                x > screenW - m   -> PI_F
-                y < m             -> PI_F * 0.5f
-                y > screenH - m   -> -PI_F * 0.5f
-                else              -> desired
+            var inBoundary = false
+            var target = desired
+            if      (x < m)           { target = 0f;          inBoundary = true }
+            else if (x > screenW - m) { target = PI_F;        inBoundary = true }
+            if      (y < m)           { target = PI_F * 0.5f; inBoundary = true }
+            else if (y > screenH - m) { target = -PI_F * 0.5f; inBoundary = true }
+            if (inBoundary) {
+                heading += ((target - heading + PI_F) % TAU - PI_F).coerceIn(-0.22f, 0.22f) * 0.35f
+                wanderDes = target
+                wanderCd  = (60 + Math.random() * 120).toInt()
+            } else {
+                heading += ((target - heading + PI_F) % TAU - PI_F).coerceIn(-0.10f, 0.10f) * 0.14f
             }
-            heading += ((target - heading + PI_F) % TAU - PI_F).coerceIn(-0.10f, 0.10f) * 0.14f
 
             val spd = (1.5f + bass * 0.8f + beat * 0.4f) * scale
             x += cos(heading) * spd; y += sin(heading) * spd
@@ -168,7 +173,7 @@ class ButterfliesMode : BaseMode() {
 
             if (love == null && age >= joinDelay) {
                 val (ex, ey) = edgeSpawn()
-                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = 3.8f)
+                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = 6.84f)
             }
             if (age >= lifetime && !departing) {
                 departing = true; sl.startDepart(); love?.startDepart()
@@ -183,8 +188,8 @@ class ButterfliesMode : BaseMode() {
                     orbitAngle = orbitAng,
                     orbitR     = orbitR)
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
-                if (dist < 130f * 4f) {
-                    val sync = 1f - dist / (130f * 4f)
+                if (dist < 130f * 7.2f) {
+                    val sync = 1f - dist / (130f * 7.2f)
                     lv.wingPhase -= (lv.wingPhase - sl.wingPhase) * sync * 0.12f
                 }
             }

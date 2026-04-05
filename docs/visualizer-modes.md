@@ -28,8 +28,11 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 9 | `BubblesMode` | Bubbles | Rising translucent bubbles |
 | 10 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
 | 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
-| 12 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 13 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 12 | `ButterfliesMode` | Butterflies | Neon butterfly pairs entering, orbiting, departing |
+| 13 | `FlowFieldMode` | FlowField | 4 000 particles riding a sine/cosine noise field |
+| 14 | `VortexMode` | Vortex | Firework rockets exploding into glowing embers |
+| 15 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 16 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
@@ -79,6 +82,18 @@ Translucent circles rise from bottom. Count and size driven by bass. Beat trigge
 ## BranchesMode
 
 Psychedelic fractal lightning tree. Nine neon arms radiate from screen centre at a slowly rotating base angle, each splitting recursively to depth 7. Triple-fork at trunk and first split level for a dense inner canopy. Every segment drawn twice — a wide dim halo and a white-hot bright core — for neon flare. Mid frequencies twist all branch angles live via three overlapping sine fields; bass drives trunk length; beat fires extra arms with a brightness burst. Silence: arms contract, minimal jitter.
+
+## ButterfliesMode
+
+Up to 3 pairs of neon butterflies. Solo enters from a screen edge, partner joins after a delay and orbits lovingly. Wings flap with bass; pairs synchronise wing phase when close. Beat fires sparkles. After a random lifetime the pair wanders off-screen and a new pair enters. Scale 7.2 (solo) / 6.84 (partner).
+
+## FlowFieldMode
+
+4 000 particles surfing a continuously-evolving 3-layer sine/cosine noise field. Particles wrap at screen edges and paint rainbow trails on a very slowly fading background (fadeBlack 8/255 ≈ 40-frame persistence). Bass warps field intensity and particle speed; beat fires a phase jump that instantly reshapes all flow lines into a new pattern. Silence: particles drift gently across screen.
+
+## VortexMode
+
+Firework rockets launch from the bottom of the screen, arc upward under gravity with drag, and explode into 80–120 glowing embers at the apex. Embers drift under gravity while fading out. Beat fires extra rockets; auto-launch every ~85 frames between beats. Trails linger on a slow-fade dark background. Silence: rockets auto-launch at regular intervals.
 
 ## BarsMode (Spectrum)
 
