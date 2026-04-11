@@ -7,19 +7,24 @@ import kotlin.math.*
 /**
  * Butterflies — up to three pairs dancing to the music.
  * Each pair: a solo butterfly flutters in first; its partner joins after
- * 10–30 s and orbits it lovingly. After a random lifetime the pair wanders
+ * 10–30 s. Once together they chase each other in a tightening mutual
+ * orbit — solo steers toward love's position and love steers toward solo's,
+ * creating a playful spiral pursuit. After a random lifetime the pair wanders
  * off-screen and a new pair enters. Wing flapping syncs when partners are
  * close; sparkles fire on strong beats.
- * Port of psysuals Butterflies (v2.1.0).
+ * Port of psysuals Butterflies (v2.7.0).
  */
 class ButterfliesMode : BaseMode() {
 
     override val name = "Butterflies"
 
     private companion object {
-        const val TAU       = (Math.PI * 2).toFloat()
-        const val PI_F      = Math.PI.toFloat()
-        const val MAX_PAIRS = 3
+        const val TAU        = (Math.PI * 2).toFloat()
+        const val PI_F       = Math.PI.toFloat()
+        const val MAX_PAIRS  = 3
+        // 70 % of the original v2.1.0 sizes
+        const val SOLO_SCALE = 7.2f  * 0.70f   // 5.04
+        const val LOVE_SCALE = 6.84f * 0.70f   // 4.788 ≈ 4.79
     }
 
     // Screen dimensions updated each frame so inner classes can use them
@@ -67,8 +72,7 @@ class ButterfliesMode : BaseMode() {
         fun startDepart() { if (departAng == null) departAng = Math.random().toFloat() * TAU }
 
         fun update(bass: Float, beat: Float,
-                   orbitPos: Pair<Float, Float>? = null,
-                   orbitAngle: Float = 0f, orbitR: Float = 180f) {
+                   chasePos: Pair<Float, Float>? = null) {
             wingPhase += 0.09f + bass * 0.16f + beat * 0.06f
 
             if (departAng != null) {
@@ -79,10 +83,8 @@ class ButterfliesMode : BaseMode() {
                 return
             }
 
-            val desired = if (orbitPos != null) {
-                val gx = orbitPos.first  + cos(orbitAngle) * orbitR
-                val gy = orbitPos.second + sin(orbitAngle) * orbitR
-                atan2(gy - y, gx - x)
+            val desired = if (chasePos != null) {
+                atan2(chasePos.second - y, chasePos.first - x)
             } else {
                 wanderCd--
                 if (wanderCd <= 0) {
@@ -155,8 +157,8 @@ class ButterfliesMode : BaseMode() {
         private val joinDelay = (600  + Math.random() * 1200).toInt()
         private val lifetime  = (2400 + Math.random() * 3000).toInt()
         private var age       = -spawnDelay
-        private var orbitAng  = 0f
-        private var orbitR    = 260f
+        private var orbitAng  = Math.random().toFloat() * TAU
+        private var orbitR    = 240f   // shrinks to 40
         var solo: Butterfly?  = null
         var love: Butterfly?  = null
         private var departing = false
@@ -169,7 +171,7 @@ class ButterfliesMode : BaseMode() {
             age++
             if (solo == null && age >= 0) {
                 val (ex, ey) = edgeSpawn()
-                solo = Butterfly(ex, ey, hue = globalHue)
+                solo = Butterfly(ex, ey, hue = globalHue, scale = SOLO_SCALE)
             }
             val sl = solo ?: return
             sl.hue = globalHue
@@ -177,25 +179,34 @@ class ButterfliesMode : BaseMode() {
 
             if (love == null && age >= joinDelay) {
                 val (ex, ey) = edgeSpawn()
-                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = 6.84f)
+                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = LOVE_SCALE)
             }
             if (age >= lifetime && !departing) {
                 departing = true; sl.startDepart(); love?.startDepart()
             }
-            orbitAng += 0.007f + beat * 0.012f
-            if (orbitR > 160f) orbitR -= 0.04f
-
-            sl.update(bass, beat)
-            love?.let { lv ->
-                lv.update(bass, beat,
-                    orbitPos   = sl.x to sl.y,
-                    orbitAngle = orbitAng,
-                    orbitR     = orbitR)
+            val lv = love
+            if (lv != null && !departing) {
+                // Mutual chase: orbit angle rotates faster as radius shrinks
+                val angSpeed = 0.012f + beat * 0.020f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
+                orbitAng += angSpeed
+                if (orbitR > 40f) orbitR -= 0.06f
+                val r = orbitR
+                // Solo chases: point offset from love at opposite angle
+                val soloTarget = (lv.x + cos(orbitAng + PI_F) * r) to (lv.y + sin(orbitAng + PI_F) * r)
+                // Love chases: point offset from solo at the orbit angle
+                val loveTarget = (sl.x + cos(orbitAng) * r) to (sl.y + sin(orbitAng) * r)
+                sl.update(bass, beat, chasePos = soloTarget)
+                lv.update(bass, beat, chasePos = loveTarget)
+                // Wing sync when close
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
-                if (dist < 130f * 7.2f) {
-                    val sync = 1f - dist / (130f * 7.2f)
+                val syncRange = 130f * SOLO_SCALE
+                if (dist < syncRange) {
+                    val sync = 1f - dist / syncRange
                     lv.wingPhase -= (lv.wingPhase - sl.wingPhase) * sync * 0.12f
                 }
+            } else {
+                sl.update(bass, beat)
+                love?.update(bass, beat)
             }
         }
 
