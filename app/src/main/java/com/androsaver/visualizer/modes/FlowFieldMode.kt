@@ -51,8 +51,9 @@ class FlowFieldMode : BaseMode() {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
         val fft  = audio.fft
         val beat = audio.beat
-        val bass = fft.meanSlice(0, 6)
-        val mids = fft.meanSlice(10, 40)
+        val bass   = fft.meanSlice(0, 6)
+        val mids   = fft.meanSlice(10, 40)
+        val treble = fft.meanSlice(100, 256)
 
         // Seed particles on first frame
         if (tick == 0 || (px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
@@ -76,12 +77,23 @@ class FlowFieldMode : BaseMode() {
 
         val spd = 1.6f + bass * 1.4f + boost
 
+        val scatter = treble * 3.2f
+
         // Move particles and draw them as tiny dots (additive)
         draw.setAdditiveBlend()
         for (i in 0 until N) {
             val ang = fieldAngle(i, bass)
-            px[i] = ((px[i] + cos(ang) * spd) % W + W) % W
-            py[i] = ((py[i] + sin(ang) * spd) % H + H) % H
+
+            // Bass gravity: pull toward screen centre
+            val attractX = (W * 0.5f - px[i]) * (bass * 0.0018f)
+            val attractY = (H * 0.5f - py[i]) * (bass * 0.0018f)
+
+            // Treble scatter: random kick in any direction
+            val scatterX = (Math.random().toFloat() * 2f - 1f) * scatter
+            val scatterY = (Math.random().toFloat() * 2f - 1f) * scatter
+
+            px[i] = ((px[i] + cos(ang) * spd + attractX + scatterX) % W + W) % W
+            py[i] = ((py[i] + sin(ang) * spd + attractY + scatterY) % H + H) % H
 
             val h = (hue + px[i] / W * 0.30f + py[i] / H * 0.18f) % 1f
             val c = GLDraw.hsl(h, s = 0.90f, l = 0.62f)
