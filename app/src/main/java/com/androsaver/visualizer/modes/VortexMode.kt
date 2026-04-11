@@ -18,9 +18,12 @@ class VortexMode : BaseMode() {
     override val name = "Vortex"
 
     private companion object {
-        const val GRAV            = 0.13f
-        const val DRAG            = 0.991f
-        const val LAUNCH_INTERVAL = 85
+        const val GRAV          = 0.13f
+        const val DRAG          = 0.991f
+        // Auto-launch interval at gain=1.0. Scales linearly with gain so that
+        // higher intensity → longer interval (fewer bg rockets) and lower → shorter.
+        // Formula: interval = BASE_INTERVAL * gain  (clamped 20..200)
+        const val BASE_INTERVAL = 40
     }
 
     private data class Rocket(
@@ -85,9 +88,10 @@ class VortexMode : BaseMode() {
             repeat(n) { launch(W, H) }
         }
 
-        // Auto-launch
+        // Auto-launch — interval scales with gain: low gain → more rockets, high gain → fewer
+        val interval = (BASE_INTERVAL * audio.gain.coerceAtLeast(0.1f)).toInt().coerceIn(20, 200)
         autoT++
-        if (autoT >= LAUNCH_INTERVAL) { autoT = 0; launch(W, H) }
+        if (autoT >= interval) { autoT = 0; launch(W, H) }
 
         // Slow fade — embers should linger ~40 frames (matches psysuals BLEND_RGB_MULT 240/255)
         draw.fadeBlack(15f / 255f)

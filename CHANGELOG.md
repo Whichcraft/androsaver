@@ -4,6 +4,16 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-12 (psysuals v2.7.0 port)
+
+### Changed
+- **TunnelMode** — triangles now spawn only in the far third of the tube (z 0.80–0.98, was 0.65–0.95) and spawn rate is halved (`bass*2 + beat*3`, was `bass*4 + beat*6`, beat threshold raised 0.3→0.5). Live cap reduced from 120 to 50, so the mid-range stays clear between beats.
+- **ButterfliesMode** — both butterflies in a pair now chase each other in a mutual pursuit spiral (solo steers toward love, love steers toward solo, each targeting a rotating offset point). Orbit radius tightens from 240 px to 40 px over the pair's lifetime. Both butterflies are 70 % of their former size (solo 7.2→5.04, love 6.84→4.79). Wing-sync range scales with the new size.
+- **VortexMode** — auto-launch interval halved at default gain (40 frames, was 85). Interval now scales linearly with `audio.gain` so higher intensity settings yield fewer background rockets while beat-triggered rockets remain unchanged.
+- **AudioData** — added `gain: Float = 1f` field (populated by `VisualizerRenderer` from `beatGain`) so modes can access the current effect-gain multiplier directly.
+
+---
+
 ## 2026-04-05 (preview lifecycle fix)
 
 ### Fixed

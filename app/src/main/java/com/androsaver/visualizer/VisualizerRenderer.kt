@@ -68,7 +68,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         val mode  = modes[modeIndex]
 
         val scaledAudio = if (beatGain == 1.0f) audio
-                          else audio.copy(beat = (audio.beat * beatGain).coerceIn(0f, 2f))
+                          else audio.copy(beat = (audio.beat * beatGain).coerceIn(0f, 2f), gain = beatGain)
         draw.beginFrame()
         mode.draw(draw, scaledAudio, tick)
         draw.endFrame()
