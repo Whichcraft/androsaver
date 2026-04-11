@@ -24,3 +24,6 @@ google-services.json
 
 # Claude Code working files
 .claude/
+
+# QMD search index
+qmd.sqlite

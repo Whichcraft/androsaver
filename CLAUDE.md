@@ -46,7 +46,7 @@ See `docs/architecture.md` for full class map.
 ### Release Cycle (follow in order)
 
 1. **Update docs** — update `CHANGELOG.md` and any affected `docs/` reference files
-2. **Update qmd index** — run `qmd update` so the index reflects all changes
+2. **Update qmd index** — run `qmd update && qmd embed` so the index and embeddings reflect all changes
 3. **Push to dev** — commit and push to the `dev` branch
 4. **Merge to master** — merge `dev` → `master` to ship the release
 
