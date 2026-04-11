@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-12 (audio-reactive improvements)
+
+### Changed
+- **FlowField** — added two new audio-driven forces: bass energy pulls all particles gently toward screen centre (gravity), treble energy pushes particles in random directions (scatter). Results in pulsing convergence on kicks and chaotic dispersion on hi-hats.
+- **Lissajous** — treble energy now brightens the glow passes (`high * 0.14` added to `l1Bright`), so hi-hat bursts make the knot shimmer whiter. In psysuals the t-step also scales with detected BPM (faster knot at higher tempo).
+- **Bubbles** — added `bassFlash` variable that spikes on strong bass hits and inflates all rendered bubble radii for ~10 frames (×0.45 multiplier on flash value). Added mega-bubble spawn logic: on `beat > 0.7`, 1–3 extra-large bubbles (2.2–4× base radius) erupt with higher rise velocity.
+
+---
+
 ## 2026-04-12 (psysuals v2.7.0 port)
 
 ### Changed
