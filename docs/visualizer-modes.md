@@ -5,7 +5,7 @@ All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
 abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)
 ```
 
-`AudioData` provides: `bass`, `mid`, `high` (0–1 normalized FFT bands), `beat` (0–2, onset strength × intensity multiplier), `waveform[]`, `fft[]`.
+`AudioData` provides: `bass`, `mid`, `high` (0–1 normalized FFT bands), `beat` (0–2, onset strength × intensity multiplier), `gain` (current beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
 
 Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → band extraction + beat detection → `AudioData` delivered at ~60 fps.
 
@@ -57,11 +57,11 @@ Shader-based full-screen plasma (sine interference). Always animating — never 
 
 ## TunnelMode
 
-First-person tunnel perspective. Rings scroll toward viewer. Bass-triggered triangle bursts at tunnel mouth. Beat flashes ring brightness. Path follows a center curve (not screen corners). Silence: rings scroll slowly.
+First-person tunnel perspective. Rings scroll toward viewer. Bass triggers triangle bursts that spawn only in the far third of the tube (z 0.80–0.98); spawn rate `bass*2 + beat*3` (beat threshold 0.5); live cap 50 triangles. Beat flashes ring brightness. Path follows a centre curve. Silence: rings scroll slowly, no triangles.
 
 ## LissajousMode
 
-3D parametric trefoil knot rendered as a neon glowing line. Bass drives rotation X-axis, mid drives Y-axis, high drives Z-axis scale. Beat adds angular impulse. Glow achieved via multiple overlapping passes with alpha.
+3D parametric trefoil knot rendered as a neon glowing line with 3-fold symmetry. Two glow passes: thin outer halo + bright inner core. Treble energy brightens the inner pass (`l1Bright += high * 0.14`), so hi-hats make the knot shimmer whiter. Beat adds angular impulse and inflates a spring scale. Bass/mid/high slowly shift the knot's frequency ratios; phase offsets drift continuously. Silence: slow constant trace + gentle rotation.
 
 ## CorridorMode
 
@@ -77,7 +77,7 @@ Waveform rendered with 7-fold rotational symmetry. Each spoke mirrors waveform a
 
 ## BubblesMode
 
-Translucent circles rise from bottom. Count and size driven by bass. Beat triggers synchronized pulse (all bubbles flash + expand). High frequency adds smaller bubbles. Bubbles wrap when they exit the top. Silence: a few large slow bubbles drift upward.
+Translucent circles rise from bottom. Count and size driven by bass. Beat triggers synchronized pulse (all bubbles flash + expand). High frequency adds smaller bubbles. `bassFlash` variable: spikes when bass > 0.65 and inflates all rendered radii ×0.45 for ~10 frames. On beat > 0.7: 1–3 mega-bubbles erupt (2.2–4.2× base radius, 1.4× rise speed). Bubbles wrap at top. Silence: a few large slow bubbles drift upward.
 
 ## BranchesMode
 
@@ -85,15 +85,15 @@ Psychedelic fractal lightning tree. Nine neon arms radiate from screen centre at
 
 ## ButterfliesMode
 
-Up to 3 pairs of neon butterflies. Solo enters from a screen edge, partner joins after a delay and orbits lovingly. Wings flap with bass; pairs synchronise wing phase when close. Beat fires sparkles. After a random lifetime the pair wanders off-screen and a new pair enters. Scale 7.2 (solo) / 6.84 (partner).
+Up to 3 pairs of neon butterflies. Solo enters from a screen edge; partner joins after a delay. Each butterfly steers toward the other's offset point (mutual pursuit spiral). Orbit radius starts at 240 px and tightens to 40 px over the pair's lifetime. Size reduced to 5.04 (solo) / 4.79 (partner). Wings flap with bass; pairs synchronise wing phase when close. Beat fires sparkles. After a random lifetime the pair wanders off-screen and a new pair enters.
 
 ## FlowFieldMode
 
-4 000 particles surfing a continuously-evolving 3-layer sine/cosine noise field. Particles wrap at screen edges and paint rainbow trails on a very slowly fading background (fadeBlack 8/255 ≈ 40-frame persistence). Bass warps field intensity and particle speed; beat fires a phase jump that instantly reshapes all flow lines into a new pattern. Silence: particles drift gently across screen.
+4 000 particles surfing a continuously-evolving 3-layer sine/cosine noise field. Rainbow trails on a very slow fade (8/255 ≈ 40-frame persistence). Per-particle forces: bass pulls all particles gently toward screen centre (gravity `(centre − pos) × bass × 0.0018`); treble pushes particles in random directions (scatter `± treble × 3.2` per axis). Beat fires a phase jump that instantly reshapes all flow lines. Silence: particles drift gently, no gravity or scatter.
 
 ## VortexMode
 
-Firework rockets launch from the bottom of the screen, arc upward under gravity with drag, and explode into 80–120 glowing embers at the apex. Embers drift under gravity while fading out. Beat fires extra rockets; auto-launch every ~85 frames between beats. Trails linger on a slow-fade dark background. Silence: rockets auto-launch at regular intervals.
+Firework rockets launch from the bottom, arc upward under gravity (0.13) with drag (0.991), and explode into 80–120 glowing embers at the apex. Embers fade under gravity. Beat fires extra rockets. Auto-launch interval = `BASE_INTERVAL (40) × audio.gain`, clamped 20–200 frames — higher intensity → fewer background rockets, lower → more. Embers use additive blend. Silence: rockets auto-launch at regular intervals.
 
 ## BarsMode (Spectrum)
 

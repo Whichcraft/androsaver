@@ -63,10 +63,23 @@ Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)` —
 
 Seed detection: particles are initialised on the first draw call when W/H are known (tick==0 or all-zero check).
 
+**Bass gravity + treble scatter** (added v2.8.0): per-particle, apply two extra forces each frame:
+- Bass attract: `(W*0.5 - px) * bass*0.0018` (toward centre)
+- Treble scatter: `Random(-1,1) * treble*3.2` (random direction per axis)
+
+Port these identically from psysuals `effects/flowfield.py`.  Both forces are additive to the normal field-angle displacement.
+
 ### VortexMode
 Port directly for the fireworks mechanics (rockets + embers with gravity/drag).  The pygame pixel-feedback zoom-rotate wormhole (`pygame.transform.rotozoom`) requires FBO and is **not ported** — replaced with `draw.fadeBlack(15f/255f)` giving ~17-frame persistence on the framebuffer.  Embers use `setAdditiveBlend()`.
 
-If FBO support is ever added to GLDraw, the wormhole can be re-added as: each frame zoom+rotate the previous FBO texture onto the current FBO, multiply down by 240/255.
+**Gain-aware interval** (added v2.7.0): `interval = (BASE_INTERVAL * audio.gain).toInt().coerceIn(20, 200)` where `BASE_INTERVAL = 40`.  `audio.gain` is the `beatGain` multiplier passed in via `AudioData`.  Do not port the psysuals version's fixed `LAUNCH_INTERVAL` — the Android version intentionally scales with gain.
+
+Note: `GLDraw` now has FBO bloom support, but the vortex wormhole is still not ported — bloom is a post-processing effect applied to all modes, not a per-mode FBO blit.
+
+### ButterfliesMode
+**Mutual pursuit spiral** (added v2.7.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius).  Orbit radius starts at 240 px and decrements 0.06 px/frame toward 40 px.  Both butterflies are 70% of the upstream scale (solo 7.2→5.04, love 6.84→4.79).  Wing-sync threshold scales with the new size.
+
+Do **not** port the psysuals `orbit_pos` fixed-point orbit logic — the Android version uses a different mutual-chase implementation that is equivalent in result but avoids the psysuals helper function.
 
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers

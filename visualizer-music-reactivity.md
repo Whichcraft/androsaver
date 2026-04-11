@@ -8,6 +8,7 @@ How each effect responds to audio. All effects receive three frequency bands and
 | **Mid** | FFT bins 6–30 (~250 Hz – 2 kHz) | 0.0 – 1.0 |
 | **High** | FFT bins 30–512 (~2 kHz – 20 kHz) | 0.0 – 1.0 |
 | **Beat** | Onset strength (scaled by the Effect Intensity setting) | 0.0 – 2.0 |
+| **Gain** | Current beatGain multiplier (Effect Intensity setting value) | 0.0 – 2.0 |
 
 The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multiplier applied only to the beat signal before it reaches the effect. FFT values are always unscaled. At **Low** (default) the beat multiplier is 0.5×; at **Max** it is 2.0×.
 
@@ -70,24 +71,139 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 
 ## Tunnel
 
-**What it looks like:** First-person ride through a curved neon tube. The tube itself is geometry-only. Bass punches spawn rotating triangles that fly toward the viewer along the tunnel center line.
+**What it looks like:** First-person ride through a curved neon tube with rotating star polygons at each ring centre. Triangles spawn deep in the tube and fly toward the viewer.
 
 **Music reactivity:**
 
 | Visual element | Reacts to |
 |----------------|-----------|
-| Triangle spawn | Bass rising-edge trigger at threshold 0.20; one burst per crossing |
-| Burst size | Scales with bass intensity: 2 triangles at threshold, up to 15 at 3.5× threshold |
-| Triangle spin speed | Scales with bass intensity: faster and wilder at higher bass |
-| Triangle size | Scales with bass intensity: larger at higher bass |
-| Triangle brightness | Beat makes triangles brighter as they approach the camera |
-| Triangle trail | All triangles fade with the global fadeBlack (α 0.11) |
+| Triangle spawn rate | `(bass × 2.0 + beat × 3.0).toInt()` per frame; beat threshold 0.5 |
+| Triangle spawn depth | Far third only (z 0.80–0.98); never spawns near the camera |
+| Triangle size | `(0.45 + random × 0.65) × (1.0 + bass × 1.5)` — larger at higher bass |
+| Triangle brightness | Scales with nearness and `beat × nearT × 0.50` |
+| Live triangle cap | 50 — older triangles are dropped when cap is exceeded |
+| Ring brightness | `0.06 + nearT × 0.70 + fft[fi] × 0.20 + beat × nearT × 0.50` |
+| Scroll speed | `dt = 0.03 + bass × 0.09 + beat × 0.18` |
+| Star polygon rotation | Constant per-ring angular velocity; direction alternates per ring |
 
-**Tunnel walls:** Constant speed, no music reactivity. The smoothness of the ride is always the same regardless of what is playing.
+**Tunnel walls:** Constant star-polygon geometry; brightness scales with distance and local FFT bin.
 
-**Triangle tracking:** Each triangle records the tunnel path position at the moment of spawn. As it approaches the camera it stays locked to the tunnel's curving center line, so it always appears inside the tube.
+**Silence behaviour:** No new triangles spawn. Existing ones continue toward the camera. Rings scroll slowly.
 
-**Silence behaviour:** No new triangles spawn. Existing ones continue flying toward the camera and eventually disappear. The tunnel ride itself never stops.
+---
+
+## TriFlux
+
+**What it looks like:** A mosaic of triangles filling the screen. All triangles have animated rainbow edges. On strong bass beats, individual tiles pop to large size, bounce off screen edges, and spring back.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Edge hue cycling | Constant drift + beat accelerates hue |
+| Diagonal sweep bands | Two independent rainbow sweeps always glide across the grid regardless of audio |
+| Tile pop size | Bass: 4.5–8.5× normal size, up to 3 tiles simultaneously |
+| Tile pop trigger | Bass crossing threshold; rising-edge detection |
+| Tile bounce | Popped tiles bounce off screen edges with velocity reversal |
+| Tile spring return | Spring force pulls popped tile back to home position |
+
+**Silence behaviour:** Edge rainbow drift and diagonal sweeps continue. No tile pops.
+
+---
+
+## Corridor
+
+**What it looks like:** First-person ride through a neon rainbow corridor of rounded rectangles. Glowing sparks streak toward the camera along a curving path.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Scroll speed | Bass drives corridor frame scroll speed |
+| Frame brightness (near) | Beat flares the nearest frames brighter |
+| Spark spawn rate | `bass × 5.0` sparks per frame (raised from psysuals `bass × 1.2` to compensate for lower Android beat signal) |
+| Spark size | Bass makes sparks larger at spawn |
+| Spark trail | 25-frame ring buffer replayed with additive blend + linearly decaying alpha |
+| Hue cycling | Continuous slow drift |
+
+**Silence behaviour:** Corridor scrolls slowly. Very few sparks. Frames are dim.
+
+---
+
+## Branches
+
+**What it looks like:** Nine neon arms radiate from the centre and split recursively to depth 7. Each segment is drawn as a wide dim halo + white-hot bright core for neon flare.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Trunk length | Bass drives trunk base length |
+| Branch angle jitter | Mid frequencies modulate all branch angles via 3 overlapping sine fields |
+| Beat burst | Beat fires extra arm forks with a brightness spike |
+| Base rotation | Slow constant rotation of all arms together |
+| Branch length at each depth | Scales by a fixed ratio; bass influences only the trunk |
+
+**Silence behaviour:** Arms contract to minimal length. Very slow residual jitter from the sine fields.
+
+---
+
+## Butterflies
+
+**What it looks like:** Up to 3 pairs of neon butterflies. Each pair performs a mutual pursuit spiral that tightens over its lifetime, then the pair wanders off-screen.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Wing flap speed | Bass — both butterflies in a pair flap faster on bass hits |
+| Wing sync | When the two butterflies are close, their wing phase converges |
+| Beat sparkles | Beat fires sparkle particles around both butterflies |
+| Orbit angular speed | `0.012 + beat × 0.020 + 0.003 × (1 − orbitR/240)` — tightens as orbit shrinks |
+| Orbit radius | Starts at 240 px, decrements 0.06 px/frame to 40 px minimum |
+| Pair lifetime | Random; new pair replaces it after it wanders off-screen |
+
+**Silence behaviour:** Butterflies drift slowly with minimal wing motion. Orbit tightens at base speed.
+
+---
+
+## FlowField
+
+**What it looks like:** 4 000 particles riding a continuously-evolving 3-layer sine/cosine noise field, painting rainbow trails on a very slow fade background.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Field intensity + particle speed | Bass warps field angle amplitude and particle step size |
+| Bass gravity | `(centre − position) × bass × 0.0018` per axis — particles converge toward centre on kick drums |
+| Treble scatter | `Random(−1,1) × treble × 3.2` per axis — hi-hats push particles in random directions |
+| Phase jump | Beat fires an instant large phase shift that reshapes all flow lines |
+| Trail persistence | Fixed `fadeBlack(8/255)` ≈ 40-frame persistence |
+| Hue | Particle hue derived from its angle in the field; shifts continuously |
+
+**Silence behaviour:** Particles drift gently along the base field. No gravity, no scatter.
+
+---
+
+## Vortex
+
+**What it looks like:** Firework rockets arc upward under gravity, then explode into 80–120 glowing embers that drift and fade.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Beat rockets | Beat > 0.6: `1 + (beat × 2).toInt()` extra rockets fired immediately |
+| Auto-launch interval | `BASE_INTERVAL(40) × gain`, clamped 20–200 frames; lower intensity → more frequent rockets |
+| Rocket velocity | Fixed random range (vy −15 to −10, vx ±2); not audio-reactive |
+| Ember count per explosion | 80–120 randomly |
+| Ember speed | Gaussian-approximated random (range ~3.6–9.0) |
+| Ember lifetime | 50–100 frames randomly |
+| Hue cycling | Slow drift + `bass × 0.002` per frame |
+| Trail persistence | `fadeBlack(15/255)` ≈ 17-frame persistence |
+
+**Silence behaviour:** Auto-launch continues at `BASE_INTERVAL × gain` frames. Rockets and embers behave identically regardless of audio except for beat-triggered extras.
 
 ---
 
@@ -104,6 +220,7 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 | Animation speed | Beat accelerates how fast the trace advances along the knot |
 | Scale (overall size) | Beat inflates a spring; the knot shrinks back between beats |
 | 3D rotation speed | Beat adds angular impulse to both X and Y rotation axes |
+| **Glow brightness** | High (treble) energy brightens the inner glow pass: `l1Bright = min(0.90 + beat×0.08 + high×0.14, 0.98)` — hi-hats make the knot shimmer whiter |
 | Hue advance speed | Beat nudges the hue slightly, so colours change faster on louder passages |
 | Trail / glow persistence | Controlled by fadeBlack (α 0.18); older parts of the knot fade to black fairly quickly |
 
@@ -169,6 +286,8 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 | Per-bubble beat flash | When beat > 0.5, each bubble gains a bright outer ring scaled by beat strength |
 | Extra neon rings | Only visible when beat > 1.0 (requires Effect Intensity above Low); up to two extra expanding rings per bubble |
 | Mid-frequency size modulation | Mid energy adds a small per-frame size boost to all visible bubbles |
+| **Bass flash** | When bass > 0.65: `bassFlash` spikes to `bass × 2.8`, decays 0.18/frame over ~10 frames; inflates all rendered radii by `bassFlash × 0.45` |
+| **Mega-bubbles** | When beat > 0.7: 1–3 mega-bubbles spawn at `r × (2.2 + bass × 2.0)` radius with `vy × 1.4` rise speed |
 
 **Silence behaviour:** No new bubbles spawn. Existing bubbles continue rising with their individual velocities and drift with wobble. The global pulse spring decays to zero. Bubbles gradually float off the top of the screen until the pool empties.
 
