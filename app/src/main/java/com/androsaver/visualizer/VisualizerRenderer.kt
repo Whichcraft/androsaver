@@ -13,6 +13,11 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
     private val draw = GLDraw(1280, 720)
     private var tick = 0
+    private var lastFrameNs = 0L
+
+    /** Exponential moving average of frame render time in milliseconds (EMA α=0.1). */
+    var frameTimeMs = 0f
+        private set
 
     /** Index into [modes] of the currently active mode. */
     var modeIndex: Int = 0
@@ -59,6 +64,13 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        val frameStart = System.nanoTime()
+        if (lastFrameNs > 0L) {
+            val elapsed = (frameStart - lastFrameNs) / 1_000_000f
+            frameTimeMs = frameTimeMs * 0.9f + elapsed * 0.1f
+        }
+        lastFrameNs = frameStart
+
         if (resetPending) {
             modes[modeIndex].reset()
             resetPending = false
