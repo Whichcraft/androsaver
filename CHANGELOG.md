@@ -4,6 +4,18 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-12 (bloom, frame timing, genre mode switching)
+
+### Added
+- **Bloom post-processing** — `GLDraw` now renders each frame to an off-screen FBO, applies a 2-pass separable 9-tap Gaussian blur at half resolution (ping-pong between two half-res FBOs), then composites the blurred result additively onto the screen. Public controls: `bloomEnabled`, `bloomStrength` (0.5 default), `bloomThreshold` (0.35 default). Falls back gracefully if FBO creation fails.
+- **Frame time tracking** — `VisualizerRenderer.frameTimeMs` exposes an EMA-smoothed (α=0.1) per-frame render time in milliseconds, updated each `onDrawFrame()`.
+- **Genre-driven mode switching** — when visualizer mode is `auto` and audio genre detection is `auto`, the genre detect runnable (fires every 30 s) now calls `vv.setMode()` when the detected genre changes. Genre→mode map: `electronic`→FlowField/Vortex/Plasma/Tunnel, `rock`→Branches/TriFlux/Nova, `classical`→Yantra/Lissajous/Spiral. Respects the user's enabled-modes filter; resets the cycle timer on switch.
+
+### Fixed
+- **GC pressure in GLDraw** — replaced per-frame `ByteBuffer.allocateDirect()` in `flushBatch()` (120 short-lived allocations/sec at 60 fps) with pre-allocated `FloatBuffer` fields reused each frame. Also ensures blend-mode switches call `flushBatches()` (not `endFrame()`) so bloom runs exactly once per frame.
+
+---
+
 ## 2026-04-12 (audio-reactive improvements)
 
 ### Changed
