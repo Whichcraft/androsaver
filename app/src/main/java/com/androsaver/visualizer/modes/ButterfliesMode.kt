@@ -154,14 +154,16 @@ class ButterfliesMode : BaseMode() {
     // ── Pair ─────────────────────────────────────────────────────────────────
 
     private inner class ButterflyPair(spawnDelay: Int) {
-        private val joinDelay = (600  + Math.random() * 1200).toInt()
-        private val lifetime  = (2400 + Math.random() * 3000).toInt()
-        private var age       = -spawnDelay
-        private var orbitAng  = Math.random().toFloat() * TAU
-        private var orbitR    = 240f   // shrinks to 40
-        var solo: Butterfly?  = null
-        var love: Butterfly?  = null
-        private var departing = false
+        private val joinDelay  = (600  + Math.random() * 1200).toInt()
+        private val lifetime   = (2400 + Math.random() * 3000).toInt()
+        private var age        = -spawnDelay
+        private var orbitAng   = Math.random().toFloat() * TAU
+        private var orbitR     = 240f   // shrinks to 40
+        private var breakCd    = (800  + Math.random() * 800).toInt()
+        private var breakTimer = 0
+        var solo: Butterfly?   = null
+        var love: Butterfly?   = null
+        private var departing  = false
 
         val dead: Boolean get() = departing &&
             (solo == null || solo!!.offScreen) &&
@@ -186,23 +188,40 @@ class ButterfliesMode : BaseMode() {
             }
             val lv = love
             if (lv != null && !departing) {
-                // Mutual chase: orbit angle rotates faster as radius shrinks
-                val angSpeed = 0.012f + beat * 0.020f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
-                orbitAng += angSpeed
-                if (orbitR > 40f) orbitR -= 0.06f
-                val r = orbitR
-                // Solo chases: point offset from love at opposite angle
-                val soloTarget = (lv.x + cos(orbitAng + PI_F) * r) to (lv.y + sin(orbitAng + PI_F) * r)
-                // Love chases: point offset from solo at the orbit angle
-                val loveTarget = (sl.x + cos(orbitAng) * r) to (sl.y + sin(orbitAng) * r)
-                sl.update(bass, beat, chasePos = soloTarget)
-                lv.update(bass, beat, chasePos = loveTarget)
-                // Wing sync when close
-                val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
-                val syncRange = 130f * SOLO_SCALE
-                if (dist < syncRange) {
-                    val sync = 1f - dist / syncRange
-                    lv.wingPhase -= (lv.wingPhase - sl.wingPhase) * sync * 0.12f
+                // Wander-break countdown: periodically both butterflies roam freely
+                if (breakTimer > 0) {
+                    breakTimer--
+                } else {
+                    breakCd--
+                    if (breakCd <= 0) {
+                        breakTimer = (200 + Math.random() * 300).toInt()
+                        breakCd    = (900 + Math.random() * 900).toInt()
+                        orbitR     = minOf(orbitR + 80f, 200f)
+                    }
+                }
+                if (breakTimer > 0) {
+                    // Free wander — no mutual chase
+                    sl.update(bass, beat)
+                    lv.update(bass, beat)
+                } else {
+                    // Mutual chase: orbit angle rotates faster as radius shrinks
+                    val angSpeed = 0.012f + beat * 0.020f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
+                    orbitAng += angSpeed
+                    if (orbitR > 40f) orbitR -= 0.06f
+                    val r = orbitR
+                    // Solo chases: point offset from love at opposite angle
+                    val soloTarget = (lv.x + cos(orbitAng + PI_F) * r) to (lv.y + sin(orbitAng + PI_F) * r)
+                    // Love chases: point offset from solo at the orbit angle
+                    val loveTarget = (sl.x + cos(orbitAng) * r) to (sl.y + sin(orbitAng) * r)
+                    sl.update(bass, beat, chasePos = soloTarget)
+                    lv.update(bass, beat, chasePos = loveTarget)
+                    // Wing sync when close
+                    val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
+                    val syncRange = 130f * SOLO_SCALE
+                    if (dist < syncRange) {
+                        val sync = 1f - dist / syncRange
+                        lv.wingPhase -= (lv.wingPhase - sl.wingPhase) * sync * 0.12f
+                    }
                 }
             } else {
                 sl.update(bass, beat)

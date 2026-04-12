@@ -311,6 +311,50 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 
 ---
 
+## Aurora
+
+**What it looks like:** Five translucent sinusoidal ribbon curtains undulate horizontally across the screen in a slow-shifting Northern Lights palette. Ribbons are drawn with additive blend; overlapping curtains bloom together.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Ribbon amplitude | `H × (0.04 + bass × 0.12 + bloom × 0.07)` — bass billows the curtains |
+| Shimmer speed | `1 + treble × 4 + beat × 1.5` — multiplies all harmonic phase velocities |
+| Ribbon height / thickness | `H × (0.09 + mid × 0.05)` — mid thickens the ribbons |
+| Beat bloom | Beat > 0.8 (rising edge): `bloom = 1.0`, hue nudged +0.10; bloom decays −0.03/frame |
+| Glow intensity | `0.10 + bloom × 0.08` |
+| Core intensity | `0.28 + bloom × 0.22 + bass × 0.08` |
+| Edge line brightness | `min(0.80 + bloom × 0.18, 0.98)` |
+| Hue drift | `+0.003 + mid × 0.002` per frame |
+| Trail persistence | `fadeBlack(14/255)` ≈ 18-frame persistence |
+
+**Silence behaviour:** Curtains continue to undulate at base shimmer speed (1.0). Amplitude collapses to minimum (0.04 × H). No bloom. Hue drifts at 0.003/frame.
+
+---
+
+## Lattice
+
+**What it looks like:** A 14×9 crystal grid of glowing nodes connected by double-stroke beam lines. Left columns respond to bass, right columns to treble. On every strong beat, a shockwave ring expands from the centre and causes nearby nodes to flare white.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Node brightness | `fft[bin(col)] + 0.08 (idle floor)` — per-node FFT bin mapped left=bass, right=treble |
+| Beam brightness | Average of two adjacent nodes' brightness; outer stroke at 0.22–0.38 L, inner at 0.48–0.80 L |
+| Shockwave | Beat > 0.6 (rising edge): `shockR = 0`; ring expands at `6 × (1 + bass × 2 + beat × 0.8)` px/frame |
+| Shock flare | Nodes within 22 px of wavefront: `shock = 1 − |dist − shockR| / 22`; flare radius `rCore + shock × 9`, lightness `0.88 + shock × 0.12` |
+| Grid scale breath | `svel += (1 + bass × 0.04 − scale) × 0.18`; `svel *= 0.70`; scale clamped 0.90–1.12 |
+| Hue drift | `+0.0025 + mid × 0.001` per frame; radial offset +0 (centre) to +0.55 (corner) |
+| Node glow radius | `max(3, 5 + bright × 10)` px |
+| Node core radius | `max(1, 2 + bright × 4)` px |
+| Trail persistence | `fadeBlack(20/255)` ≈ 13-frame persistence |
+
+**Silence behaviour:** Grid glows dimly at idle floor (0.08 per node). Scale stays near 1.0. Hue rotates slowly. No shockwave until next beat.
+
+---
+
 ## Waterfall
 
 **What it looks like:** Scrolling time-frequency spectrogram — new frequency data appears at the top and scrolls downward, leaving a visual history of the last ~100 frames.

@@ -31,8 +31,10 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 12 | `ButterfliesMode` | Butterflies | Neon butterfly pairs entering, orbiting, departing |
 | 13 | `FlowFieldMode` | FlowField | 4 000 particles riding a sine/cosine noise field |
 | 14 | `VortexMode` | Vortex | Firework rockets exploding into glowing embers |
-| 15 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 16 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
+| 16 | `LatticeMode` | Lattice | 14×9 FFT-mapped crystal grid with shockwave ring on beat |
+| 17 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 18 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
@@ -85,7 +87,7 @@ Psychedelic fractal lightning tree. Nine neon arms radiate from screen centre at
 
 ## ButterfliesMode
 
-Up to 3 pairs of neon butterflies. Solo enters from a screen edge; partner joins after a delay. Each butterfly steers toward the other's offset point (mutual pursuit spiral). Orbit radius starts at 240 px and tightens to 40 px over the pair's lifetime. Size reduced to 5.04 (solo) / 4.79 (partner). Wings flap with bass; pairs synchronise wing phase when close. Beat fires sparkles. After a random lifetime the pair wanders off-screen and a new pair enters.
+Up to 3 pairs of neon butterflies. Solo enters from a screen edge; partner joins after a delay. Each butterfly steers toward the other's offset point (mutual pursuit spiral). Orbit radius starts at 240 px and tightens to 40 px over the pair's lifetime. Periodically the pair breaks from orbit — both butterflies wander freely for 200–500 frames (no mutual chase) while the orbit radius expands +80 px (cap 200 px), then they resume pursuit. Size reduced to 5.04 (solo) / 4.79 (partner). Wings flap with bass; pairs synchronise wing phase when close. Beat fires sparkles. After a random lifetime the pair wanders off-screen and a new pair enters.
 
 ## FlowFieldMode
 
@@ -94,6 +96,14 @@ Up to 3 pairs of neon butterflies. Solo enters from a screen edge; partner joins
 ## VortexMode
 
 Firework rockets launch from the bottom, arc upward under gravity (0.13) with drag (0.991), and explode into 80–120 glowing embers at the apex. Embers fade under gravity. Beat fires extra rockets. Auto-launch interval = `BASE_INTERVAL (40) × audio.gain`, clamped 20–200 frames — higher intensity → fewer background rockets, lower → more. Embers use additive blend. Silence: rockets auto-launch at regular intervals.
+
+## AuroraMode
+
+Five translucent sinusoidal ribbon curtains undulate horizontally across the screen. Each ribbon sums three harmonics at different wave-numbers and drift speeds, producing organic Northern Lights motion. Bass billows amplitude; treble drives shimmer speed; mid sets ribbon height/thickness; beat triggers a bloom flash and nudges the hue. Ribbons are drawn with additive blend (glow polygon + core polygon) so overlapping curtains brighten each other. A sharp bright edge line traces the top of each ribbon in normal blend. Trail fade is very slow (14/255 ≈ 18 frames). Silence: curtains drift gently at base shimmer speed.
+
+## LatticeMode
+
+A 14×9 grid of 126 glowing nodes mapped to FFT frequency bins (bass columns on the left, treble on the right). Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 20/255 ≈ 13 frames. Silence: dim grid with slow hue rotation, no shockwave.
 
 ## BarsMode (Spectrum)
 

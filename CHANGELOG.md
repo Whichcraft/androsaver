@@ -4,6 +4,33 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## v2.2.0 — 2026-04-12
+
+### Added
+- **AuroraMode** — 5 sinusoidal ribbon curtains (Northern Lights); bass amplitude, treble shimmer, mid height, beat bloom; additive-blend glow + core + edge lineStrip
+- **LatticeMode** — 14×9 FFT-mapped crystal grid; double-stroke beams; shockwave ring + node flare on beat; bass scale breath
+
+### Changed
+- **ButterfliesMode** — periodic wander breaks (breakCd/breakTimer): paired butterflies roam freely for 200–500 frames then resume orbit; orbit radius expands +80 px on each break (cap 200 px)
+- **Bloom post-processing** — `GLDraw` composites a 2-pass half-resolution Gaussian blur additively onto every frame; `bloomEnabled`, `bloomStrength`, `bloomThreshold` controls
+- **Genre auto-switching** — when mode is `auto` and genre is `auto`, detects genre every 30 s and switches visualizer family (electronic→FlowField/Vortex/Plasma/Tunnel, rock→Branches/TriFlux/Nova, classical→Yantra/Lissajous/Spiral)
+- **psysuals submodule** updated e2ef78d → c0f3c33 (v2.12.0)
+- Mode count: 16 → 18 (Aurora and Lattice inserted after Vortex)
+
+---
+
+## 2026-04-12 (Aurora, Lattice, Butterflies wander breaks — psysuals v2.12.0 port)
+
+### Added
+- **AuroraMode** — Northern Lights curtains: 5 sinusoidal ribbons with 3 harmonics each, undulate across the screen. Bass billows amplitude, treble drives shimmer speed, mid sets ribbon height, beat triggers bloom flash + hue shift. Additive-blend glow polygon + core polygon + bright edge lineStrip per ribbon. Port of psysuals `aurora.py`.
+- **LatticeMode** — Crystal grid of 14×9 glowing nodes mapped to FFT frequency bins (bass on left columns, treble on right). Double-stroke beams connect adjacent nodes; beam brightness tracks local spectral energy. Beat fires a shockwave ring that flares nodes near the wavefront white. Bass drives subtle whole-grid scale breath. Port of psysuals `lattice.py`.
+
+### Changed
+- **ButterfliesMode** — paired butterflies now take periodic wander breaks: after a random interval (800–1600 frames) both butterflies roam freely for 200–500 frames (no mutual chase). On each break the orbit radius expands by +80 px (capped at 200 px), so pairs gradually spread apart before resuming pursuit. Port of psysuals butterflies wander-break logic (v2.10.0+).
+- **psysuals submodule** — updated from v2.8.0 (e2ef78d) to v2.12.0 (c0f3c33).
+
+---
+
 ## 2026-04-12 (bloom, frame timing, genre mode switching)
 
 ### Added

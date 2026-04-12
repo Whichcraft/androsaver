@@ -79,7 +79,27 @@ Note: `GLDraw` now has FBO bloom support, but the vortex wormhole is still not p
 ### ButterfliesMode
 **Mutual pursuit spiral** (added v2.7.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius).  Orbit radius starts at 240 px and decrements 0.06 px/frame toward 40 px.  Both butterflies are 70% of the upstream scale (solo 7.2→5.04, love 6.84→4.79).  Wing-sync threshold scales with the new size.
 
+**Wander breaks** (added v2.10.0+): `ButterflyPair` has two fields — `breakCd` (initial 800–1600) and `breakTimer` (initial 0).  Each orbit frame: if `breakTimer > 0`, decrement it (free-wander phase); else decrement `breakCd`, and when it reaches 0 set `breakTimer = 200–500`, `breakCd = 900–1800`, `orbitR = min(orbitR + 80, 200)`.  While `breakTimer > 0`, both butterflies call `update(bass, beat)` with no `chasePos` instead of the orbit code.
+
 Do **not** port the psysuals `orbit_pos` fixed-point orbit logic — the Android version uses a different mutual-chase implementation that is equivalent in result but avoids the psysuals helper function.
+
+### AuroraMode
+Port of `effects/aurora.py`.  Key differences:
+
+- **DEFS encoding** — Python uses a nested list of tuples; Android encodes each ribbon as a flat `FloatArray(11)`: `[y_frac, hue_off, k0, spd0, aw0, k1, spd1, aw1, k2, spd2, aw2]`.  Offsets 2/5/8 = k_mult, 3/6/9 = speed, 4/7/10 = amp_weight.
+- **Geometry caching** — Python recomputes `xs` and `ks` in `__init__` once.  Android caches them in `initGeom(W: Int)` keyed on `draw.W`; recomputes only when width changes (e.g. orientation change or mode resume on a different screen).
+- **No pygame surface** — Python draws all ribbons to a temporary `pygame.Surface` and blits additively to the main surface.  Android calls `draw.setAdditiveBlend()` once before the ribbon loop and `draw.setNormalBlend()` after; all ribbons are drawn directly in additive mode.
+- **Edge lines** — Python calls `pygame.draw.lines(..., width=2)` for each ribbon's top edge.  Android uses `draw.lineStrip(topPts, r, g, b, 1f)` — no width parameter, effectively 1 px.  The top-edge FloatArrays are accumulated during the ribbon loop (before the blend-mode switch) and drawn after.
+- **Type safety** — `initGeom` receives `W: Int` but internally uses `W.toFloat()` for all float arithmetic.  `draw.W.toFloat()` is used for `W` in `draw()`.  Never mix typed Int variables with Float arithmetic without explicit `.toFloat()`.
+
+### LatticeMode
+Port of `effects/lattice.py`.  Key differences:
+
+- **Grid data** — Python uses a list of dicts.  Android uses parallel `FloatArray`/`IntArray` fields (`nodeOx`, `nodeOy`, `nodeCol`, `nodeHOff`) allocated once at `N_NODES = 126` capacity.  Rebuilt in `initGrid(W, H)` keyed on `cachedW/cachedH`.
+- **Per-frame scratch arrays** — `sxArr`, `syArr`, `bright` are pre-allocated `FloatArray(N_NODES)` fields reused each frame to avoid GC.
+- **fftBin mapping** — Python: `int(col / (COLS-1) * min(fft_len-1, int(fft_len * FFT_USE)))`.  Android: `(col.toFloat() / (COLS-1).toFloat() * maxBin.toFloat()).toInt()` with `maxBin = min(fftLen-1, (fftLen.toFloat() * FFT_USE).toInt())`.  Explicit `.toFloat()` at every Int×Float boundary.
+- **Scale breath** — Python: `self._scale = max(0.90, min(self._scale + self._svel, 1.12))`.  Android: `scale = (scale + svel).coerceIn(0.90f, 1.12f)`.
+- **Double-stroke beams** — Python draws width-3 (dark) then width-1 (bright) `pygame.draw.line`.  Android calls `draw.line(...)` twice at the same coordinates with different lightness values and alpha 0.65 / 1.0.  The visual result is equivalent on a dark background.
 
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers
