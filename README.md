@@ -2,15 +2,15 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
-## What's New in v2.0
+## What's New in v2.2
 
-**Three spectacular new visualizer effects** — the biggest visual update yet:
+**Two brand-new visualizer effects and a full visual overhaul:**
 
-- 🔺 **TriFlux** — A wall of triangles covering the entire screen, every edge pulsing with a rolling rainbow. On every beat, tiles hurl themselves to the foreground, bounce wildly off the screen edges, then snap back into the mosaic. Nothing sits still.
-- ⚡ **Branches** — A psychedelic fractal lightning tree erupts from screen centre: nine neon arms split recursively to depth 7, each segment drawn twice as a glowing halo and a white-hot core. Mid frequencies twist every branch angle in real time; beats fire extra arms and flood the screen with colour.
-- 🌈 **Corridor** — A first-person ride through an infinite neon rainbow corridor. Twenty-eight luminous frames rush toward you, their hues sweeping the full spectrum from far to near. Bass drives speed; every beat flares the nearest frames and launches glowing spark particles that streak from the centre outward.
-
-Plus a full tune-up of every existing effect — smoother physics, denser geometry, and much more satisfying beat response across the board.
+- **Aurora** — Northern Lights curtains sweep across the screen. Five sinusoidal ribbons with three overlapping harmonics each produce genuinely organic, ever-shifting curtain motion. Bass billows the ribbons; treble drives shimmer speed; beats fire a bloom flash. Drawn with additive blend so overlapping curtains glow brighter together.
+- **Lattice** — A 14×9 crystal grid of glowing nodes wired together by double-stroke beam lines. Each column maps to a different FFT frequency bin, so the grid lights up from left (bass) to right (treble) as the music plays. On every strong beat a shockwave ring expands from the centre and flares every node it touches white-hot.
+- **Bloom post-processing** — every frame is composited through a 2-pass Gaussian blur at half resolution and added back onto the screen, giving neon glow to all 18 effects without per-mode changes.
+- **Butterflies wander breaks** — paired butterflies now periodically break from their mutual orbit and wander freely before resuming the chase, making long sessions much more varied.
+- **Genre-driven auto-switching** — when Genre is set to Auto-detect, the app switches visualizer style every 30 seconds to match the detected music genre (electronic, rock, classical).
 
 ## Features
 
@@ -33,7 +33,7 @@ Plus a full tune-up of every existing effect — smoother physics, denser geomet
 ### Music Visualizer
 Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
 
-- Thirteen audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Spectrum**, **Waterfall**
+- Eighteen audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Vortex**, **Aurora**, **Lattice**, **Spectrum**, **Waterfall**
 - Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
@@ -295,7 +295,7 @@ All sources can be enabled at the same time — images from all sources are merg
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
+| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Butterflies, FlowField, Vortex, Aurora, Lattice, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
 | **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
 | **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
 | **Music Genre** | Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting to the music style |
