@@ -33,7 +33,7 @@ Plus a full tune-up of every existing effect — smoother physics, denser geomet
 ### Music Visualizer
 Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
 
-- Thirteen audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Spectrum**, **Waterfall**
+- Eighteen audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Vortex**, **Aurora**, **Lattice**, **Spectrum**, **Waterfall**
 - Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
@@ -295,7 +295,7 @@ All sources can be enabled at the same time — images from all sources are merg
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
+| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Butterflies, FlowField, Vortex, Aurora, Lattice, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
 | **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
 | **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
 | **Music Genre** | Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting to the music style |
