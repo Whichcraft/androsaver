@@ -4,6 +4,18 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-04-12 (Aurora, Lattice, Butterflies wander breaks — psysuals v2.12.0 port)
+
+### Added
+- **AuroraMode** — Northern Lights curtains: 5 sinusoidal ribbons with 3 harmonics each, undulate across the screen. Bass billows amplitude, treble drives shimmer speed, mid sets ribbon height, beat triggers bloom flash + hue shift. Additive-blend glow polygon + core polygon + bright edge lineStrip per ribbon. Port of psysuals `aurora.py`.
+- **LatticeMode** — Crystal grid of 14×9 glowing nodes mapped to FFT frequency bins (bass on left columns, treble on right). Double-stroke beams connect adjacent nodes; beam brightness tracks local spectral energy. Beat fires a shockwave ring that flares nodes near the wavefront white. Bass drives subtle whole-grid scale breath. Port of psysuals `lattice.py`.
+
+### Changed
+- **ButterfliesMode** — paired butterflies now take periodic wander breaks: after a random interval (800–1600 frames) both butterflies roam freely for 200–500 frames (no mutual chase). On each break the orbit radius expands by +80 px (capped at 200 px), so pairs gradually spread apart before resuming pursuit. Port of psysuals butterflies wander-break logic (v2.10.0+).
+- **psysuals submodule** — updated from v2.8.0 (e2ef78d) to v2.12.0 (c0f3c33).
+
+---
+
 ## 2026-04-12 (bloom, frame timing, genre mode switching)
 
 ### Added
