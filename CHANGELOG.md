@@ -4,6 +4,21 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## v2.2.0 — 2026-04-12
+
+### Added
+- **AuroraMode** — 5 sinusoidal ribbon curtains (Northern Lights); bass amplitude, treble shimmer, mid height, beat bloom; additive-blend glow + core + edge lineStrip
+- **LatticeMode** — 14×9 FFT-mapped crystal grid; double-stroke beams; shockwave ring + node flare on beat; bass scale breath
+
+### Changed
+- **ButterfliesMode** — periodic wander breaks (breakCd/breakTimer): paired butterflies roam freely for 200–500 frames then resume orbit; orbit radius expands +80 px on each break (cap 200 px)
+- **Bloom post-processing** — `GLDraw` composites a 2-pass half-resolution Gaussian blur additively onto every frame; `bloomEnabled`, `bloomStrength`, `bloomThreshold` controls
+- **Genre auto-switching** — when mode is `auto` and genre is `auto`, detects genre every 30 s and switches visualizer family (electronic→FlowField/Vortex/Plasma/Tunnel, rock→Branches/TriFlux/Nova, classical→Yantra/Lissajous/Spiral)
+- **psysuals submodule** updated e2ef78d → c0f3c33 (v2.12.0)
+- Mode count: 16 → 18 (Aurora and Lattice inserted after Vortex)
+
+---
+
 ## 2026-04-12 (Aurora, Lattice, Butterflies wander breaks — psysuals v2.12.0 port)
 
 ### Added
