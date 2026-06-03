@@ -115,6 +115,10 @@ No persistent temporary surface (`self._tmp`) is used; GL ES 2.0 draw batches re
 ### LatticeMode
 No pygame `rotozoom` feedback loop is supported; simulated using a slow overlay fade (`draw.fadeBlack(25f/255f)`) to match trail persistence. Glowing grid connection lines are rendered by drawing overlapping outer/core line segments instead of thick line primitives.
 
+**Dynamic Normalization** (added v3.3.0): implements `colPeaks` FloatArray(COLS) to track per-column FFT peaks with slow decay (0.996) and instant attack. A noise gate `max(fft - 0.015f, 0f)` is applied before scaling by peak. This ensures all columns remain active and balanced regardless of audio spectrum bias.
+
+**Layout cutout**: the leftmost column (col 0) is moved off-screen and its nodes/beams are skipped during rendering to create a cleaner asymmetric entry flow.
+
 ---
 
 ## Checklist after every psysuals import

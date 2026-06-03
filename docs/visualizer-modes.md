@@ -103,7 +103,7 @@ Five translucent sinusoidal ribbon curtains undulate horizontally across the scr
 
 ## LatticeMode
 
-A 14×9 grid of 126 glowing nodes mapped to FFT frequency bins (bass columns on the left, treble on the right). Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 20/255 ≈ 13 frames. Silence: dim grid with slow hue rotation, no shockwave.
+A crystal grid of glowing nodes and connection beams (leftmost column cutout). Implements dynamic frequency peak normalization and a noise gate for balanced column activity. Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 25/255 ≈ 10 frames. Base faint structure remains visible during silence. Silence: dim grid with slow hue rotation, no shockwave.
 
 ## BarsMode (Spectrum)
 

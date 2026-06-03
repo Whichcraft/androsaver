@@ -72,10 +72,10 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `PlasmaMode.kt` | Plasma | Full-screen sine interference pattern |
 | `BranchesMode.kt` | Branches | Psychedelic fractal lightning tree, depth 7, neon glow |
 | `ButterfliesMode.kt` | Butterflies | Neon butterfly pairs in mutual pursuit spiral; orbit tightens over lifetime |
-| `FlowFieldMode.kt` | FlowField | 4 000 particles on sine/cosine noise field; bass gravity + treble scatter |
+| `FlowFieldMode.kt` | FlowField | 12 000 particles on sine/cosine noise field; bass gravity + treble scatter |
 | `VortexMode.kt` | Vortex | Firework rockets arcing under gravity, exploding into embers; gain-aware interval |
 | `AuroraMode.kt` | Aurora | Five horizontally undulating Northern Lights curtains |
-| `LatticeMode.kt` | Lattice | 14x9 crystal grid of glowing nodes and beam lines |
+| `LatticeMode.kt` | Lattice | 14x9 crystal grid with peak normalization and shockwave ring |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |
 
