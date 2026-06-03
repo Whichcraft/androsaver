@@ -457,6 +457,7 @@ class ScreensaverEngine(
         }
 
         val glideRequest = Glide.with(context).load(glideUrl)
+            .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
         // Apply explicit EXIF rotation for local/cached images where orientation is pre-read.
         // Remote HTTP images (orientation == 0) are handled by Glide's Downsampler.
         val request = if (item.orientation != 0 && item.orientation != ExifInterface.ORIENTATION_NORMAL)

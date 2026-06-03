@@ -20,20 +20,23 @@ class FlowFieldMode : BaseMode() {
     override val name = "FlowField"
 
     private companion object {
-        const val N      = 4000
+        const val N_MAX  = 16000
         const val FS     = 0.0022f   // spatial frequency of the noise field
-        const val LAYERS = 3
+        const val LAYERS = 2
     }
 
-    private val px    = FloatArray(N)
-    private val py    = FloatArray(N)
+    private var px    = FloatArray(0)
+    private var py    = FloatArray(0)
+    private var n     = 0
     private var hue   = 0f
     private var t     = 0f
     private var boost = 0f
 
     override fun reset() {
         hue = 0f; t = 0f; boost = 0f
-        // randomise particle positions — filled in first draw when W/H known
+        px = FloatArray(0)
+        py = FloatArray(0)
+        n = 0
     }
 
     private fun fieldAngle(i: Int, bass: Float): Float {
@@ -56,8 +59,11 @@ class FlowFieldMode : BaseMode() {
         val treble = fft.meanSlice(100, 256)
 
         // Seed particles on first frame
-        if (tick == 0 || (px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
-            for (i in 0 until N) {
+        if (tick == 0 || px.isEmpty() || px[0] == 0f && py[0] == 0f && px[1] == 0f) {
+            n = (4000 * W * H / (1920 * 1080)).toInt().coerceIn(1000, N_MAX)
+            px = FloatArray(n)
+            py = FloatArray(n)
+            for (i in 0 until n) {
                 px[i] = Math.random().toFloat() * W
                 py[i] = Math.random().toFloat() * H
             }
@@ -70,18 +76,18 @@ class FlowFieldMode : BaseMode() {
             t     += 0.5f + beat * 0.4f   // phase jump reshapes all lines
             boost  = 2.0f + beat * 2.0f
         }
-        boost = maxOf(0f, boost - 0.08f)
+        boost = maxOf(0f, boost - 0.12f)
 
         // Slow fade — pygame BLEND_RGB_MULT(247/255) ≈ fadeBlack(8/255)
         draw.fadeBlack(8f / 255f)
 
-        val spd = 1.6f + bass * 1.4f + boost
+        val spd = 1.8f + bass * 1.6f + boost
 
         val scatter = treble * 3.2f
 
         // Move particles and draw them as tiny dots (additive)
         draw.setAdditiveBlend()
-        for (i in 0 until N) {
+        for (i in 0 until n) {
             val ang = fieldAngle(i, bass)
 
             // Bass gravity: pull toward screen centre

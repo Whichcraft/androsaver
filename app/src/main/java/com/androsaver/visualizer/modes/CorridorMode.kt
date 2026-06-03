@@ -22,7 +22,7 @@ class CorridorMode : BaseMode() {
     private companion object {
         const val N_FRAMES       = 28
         const val Z_FAR          = 12f
-        const val Z_NEAR         = 0.28f
+        const val Z_NEAR         = 0.06f
         const val WORLD_H        = 2.0f
         const val ASPECT         = 1.65f
         const val MAX_SPARKS     = 100

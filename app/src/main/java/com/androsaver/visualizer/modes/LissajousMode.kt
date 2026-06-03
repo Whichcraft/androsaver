@@ -53,25 +53,26 @@ class LissajousMode : BaseMode() {
         val ay = 2.0f + mid  * 0.05f
         val az = 5.0f + high * 0.05f
 
+        val clampedBeat = minOf(1.5f, beat)
         dx += 0.0003f + bass * 0.0001f
         dz += 0.0002f + high * 0.0001f
-        t  += 0.010f  + beat * 0.008f
+        t  += 0.010f  + clampedBeat * 0.006f
 
         if (hist.size >= TRAIL) hist.removeFirst()
         hist.addLast(Triple(sin(ax * t + dx), sin(ay * t + dy), sin(az * t + dz)))
 
         // Spring scale burst
-        svel  += beat * 0.08f
+        svel  += clampedBeat * 0.06f
         svel  += (1f - scale) * 0.26f
         svel  *= 0.60f
         scale += svel
         scale  = maxOf(0.35f, scale)
 
-        hue += beat * 0.006f
+        hue += clampedBeat * 0.006f
 
         // Rotation inertia
-        rvx += beat * 0.003f + 0.00005f; rvx *= 0.97f; rx += rvx
-        rvy += beat * 0.004f + 0.00007f; rvy *= 0.97f; ry += rvy
+        rvx += clampedBeat * 0.0022f + 0.00005f; rvx *= 0.97f; rx += rvx
+        rvy += clampedBeat * 0.0032f + 0.00007f; rvy *= 0.97f; ry += rvy
 
         val n = hist.size
         if (n < 2) return
@@ -97,7 +98,6 @@ class LissajousMode : BaseMode() {
 
         val cx = draw.W / 2f; val cy = draw.H / 2f
 
-        // Treble brightens the glow: hi-hat energy makes the knot shimmer whiter
         val l1Bright = minOf(0.90f + beat * 0.08f + high * 0.14f, 0.98f)
 
         // Two glow passes: (lw_factor, l_tail, l_head)

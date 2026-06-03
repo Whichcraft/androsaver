@@ -1,5 +1,8 @@
 # Exclude dev-only files from git archive (GitHub release tarballs, zip downloads)
 CLAUDE.md                       export-ignore
+GEMINI.md                       export-ignore
+CODEX.md                        export-ignore
+ANTIGRAVITY.md                  export-ignore
 .claude/                        export-ignore
 docs/                           export-ignore
 store/                          export-ignore

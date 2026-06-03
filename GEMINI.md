@@ -1,4 +1,4 @@
-# AndroSaver — Claude Instructions
+# AndroSaver — Gemini Instructions
 
 ## Project
 

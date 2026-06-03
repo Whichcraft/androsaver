@@ -371,3 +371,137 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 **This effect shows audio history, not just the current moment.** Silence appears as dark rows. Loud transients leave bright horizontal bands. The scrolling speed is constant — one row per frame regardless of tempo.
 
 **Silence behaviour:** Dark rows scroll downward. Any previously bright rows fade as they age (brightness decays by 70% as rows reach the bottom). The screen gradually darkens over ~100 frames of silence.
+
+---
+
+## TriFlux
+
+**What it looks like:** A screen-filling triangle mosaic wall with animated rainbow edges, diagonal color sweeps, and beat-popped foreground tiles.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Sweep speed | Constant diagonal sweep, speed scales slightly with total energy |
+| Beat-ejected tiles | Strong bass beats trigger random interior tiles to pop to 4.5–8.5× size, bounce off screen boundaries, and spring back into the grid |
+| Ejection count | Up to 3 active bouncing tiles at a time on heavy beats |
+| Glow/Outline color | Hue cycle drifts constantly; outline brightness flares on beats |
+
+**Silence behaviour:** Bouncing tiles settle back into the grid. The diagonal rainbow sweep remains active at a slow baseline pace.
+
+---
+
+## Corridor
+
+**What it looks like:** Concentric neon rounded-rectangle frames scrolling toward the camera with a depth-based rainbow gradient, and beat-spawned glowing sparks.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Scroll speed | Bass drives scroll speed (faster movement through the corridor) |
+| Frame brightness | Beat flares the nearest frames; brightness decays as they scroll past |
+| Spark spawn | Beat launches glowing spark particles from the far center |
+| Spark trail | Sparks trail for ~25 frames replayed with additive blend, fading linearly |
+
+**Silence behaviour:** Scrolling slows to a base crawl. Spark spawning stops. Corridor frames fade to a dim, low-light state.
+
+---
+
+## Branches
+
+**What it looks like:** Psychedelic recursive fractal lightning tree with 9 neon arms branching to depth 7.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Trunk/Branch length | Bass drives the length of the trunk and primary segments |
+| Branch angles | Mid frequencies modulate branch angles via three overlapping sine fields (organic swaying motion) |
+| Active arms | Beat triggers a brightness burst and spawns extra base arms |
+
+**Silence behaviour:** Branch angles settle, swaying stops. The tree contracts to its minimum size and remains in a dim state.
+
+---
+
+## Butterflies
+
+**What it looks like:** Up to 3 pairs of neon butterflies entering from screen edges, performing a mutual chase dance, and flying off.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Wing flapping | Bass and beat drive the wing phase flapping speed |
+| Sparkles / Glow | Strong beats (beat > 0.8) spawn glowing sparkles between partners when they are close |
+| Flight velocity | Bass and beat slightly accelerate flight speed |
+
+**Silence behaviour:** Wing flapping slows to a gentle glide. No sparkles spawn. Butterflies continue their wander path and exit the screen.
+
+---
+
+## FlowField
+
+**What it looks like:** Thousands of particles surfing a multi-layered noise field, painting persistent rainbow trails.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Particle speed | Bass and beat boost particle speed along flow vectors |
+| Vector field complexity | Bass warps vector field scaling and angles |
+| Flow line reset | Beat (beat > 0.55) triggers a phase jump that instantly reshapes flow paths |
+| Trail color | Hue cycles dynamically based on particle screen positions and bass |
+
+**Silence behaviour:** Particles glide slowly along static noise field lines. Trails fade gradually.
+
+---
+
+## Vortex
+
+**What it looks like:** Firework rockets launching from the bottom and exploding into glowing embers at their apex.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Beat launch | Beat triggers immediate launches of 1 to 3 rockets |
+| Auto launch | Launches occur automatically at regular intervals scaled by intensity between beats |
+| Embers speed/spread | Explosion force scales with beat; gravity pulls embers down |
+
+**Silence behaviour:** Embers fade and disappear. Rockets auto-launch at a slow baseline interval (every 40 frames).
+
+---
+
+## Aurora
+
+**What it looks like:** Five undulating northern lights curtains (sinusoidal ribbons) sweeping horizontally.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Wave amplitude | Bass drives wave displacement (curtains billow and expand) |
+| Shimmer speed | Treble drives phase speed of all underlying harmonics |
+| Curtain thickness | Mid drives vertical ribbon thickness |
+| Bloom flash | Beat triggers a bright glow burst and shifts the base color hue |
+
+**Silence behaviour:** Curtains wave very slowly with base speed. Displacements and thickness collapse to a thin, quiet baseline.
+
+---
+
+## Lattice
+
+**What it looks like:** A 14x9 crystal grid of glowing nodes and connection beams.
+
+**Music reactivity:**
+
+| Visual element | Reacts to |
+|----------------|-----------|
+| Node brightness | Nodes glow based on their assigned FFT bin energy |
+| Scale pulse | Beat and bass kick the grid scale outward (spring return) |
+| Shockwaves | Bass and beat trigger concentric shockwaves from the center |
+| Beams glow | Interconnecting beams glow proportionally to node energies |
+
+**Silence behaviour:** Shockwaves cease. Nodes settle to a low idle brightness (`_IDLE`). Grid scale returns to 1.0.
+

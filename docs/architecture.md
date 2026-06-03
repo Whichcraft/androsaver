@@ -56,7 +56,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `VisualizerRenderer.kt` | `GLSurfaceView.Renderer`; owns mode list; calls `mode.draw(gl, audio, tick)` each frame; exposes `frameTimeMs` (EMA-smoothed render time in ms) |
 | `BaseMode.kt` | Abstract base: `abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)` |
 
-### 16 Visualizer Modes (`com.androsaver.visualizer.modes`)
+### 18 Visualizer Modes (`com.androsaver.visualizer.modes`)
 
 | Class | Display name | Visual concept |
 |-------|-------------|----------------|
@@ -74,6 +74,8 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `ButterfliesMode.kt` | Butterflies | Neon butterfly pairs in mutual pursuit spiral; orbit tightens over lifetime |
 | `FlowFieldMode.kt` | FlowField | 4 000 particles on sine/cosine noise field; bass gravity + treble scatter |
 | `VortexMode.kt` | Vortex | Firework rockets arcing under gravity, exploding into embers; gain-aware interval |
+| `AuroraMode.kt` | Aurora | Five horizontally undulating Northern Lights curtains |
+| `LatticeMode.kt` | Lattice | 14x9 crystal grid of glowing nodes and beam lines |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |
 
@@ -99,7 +101,7 @@ DreamService.onDreamingStarted()
        │    └─ optional VisualizerView overlay (semi-transparent, 10–70% opacity)
        └─ [Visualizer] VisualizerView.start()
             ├─ AudioEngine: Visualizer API → FFT → AudioData (60 fps)
-            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [16 modes]
+            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [18 modes]
 
 Remote control (D-pad events in ScreensaverEngine):
   Visualizer: ←/→ = prev/next mode | ↑/↓ = intensity | other = finish()

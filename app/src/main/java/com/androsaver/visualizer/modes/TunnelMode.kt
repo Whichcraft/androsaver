@@ -19,7 +19,7 @@ class TunnelMode : BaseMode() {
         const val N_SIDES = 20
         const val TUBE_R  = 2.8f
         const val Z_FAR   = 10.0f
-        const val Z_NEAR  = 0.18f
+        const val Z_NEAR  = 0.06f
         const val TAU     = (Math.PI * 2).toFloat()
     }
 
@@ -68,7 +68,7 @@ class TunnelMode : BaseMode() {
         val dt = 0.03f + bass * 0.09f + beat * 0.18f
         time += dt
 
-        // ── Spawn triangles (far third only, capped so mid-range stays clear) ─
+        // ── Spawn triangles ───────────────────────────────────────────────────
         val spawnN = (bass * 2.0f + if (beat > 0.5f) beat * 3.0f else 0f).toInt()
         repeat(spawnN) {
             val spawnZ = Z_FAR * (0.80f + Math.random().toFloat() * 0.18f)
