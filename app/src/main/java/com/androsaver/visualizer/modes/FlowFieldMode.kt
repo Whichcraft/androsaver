@@ -20,7 +20,7 @@ class FlowFieldMode : BaseMode() {
     override val name = "FlowField"
 
     private companion object {
-        const val N_MAX  = 16000
+        const val N_MAX  = 50000
         const val FS     = 0.0022f   // spatial frequency of the noise field
         const val LAYERS = 2
     }
@@ -59,8 +59,8 @@ class FlowFieldMode : BaseMode() {
         val treble = fft.meanSlice(100, 256)
 
         // Seed particles on first frame
-        if (tick == 0 || px.isEmpty() || px[0] == 0f && py[0] == 0f && px[1] == 0f) {
-            n = (4000 * W * H / (1920 * 1080)).toInt().coerceIn(1000, N_MAX)
+        if (tick == 0 || px.isEmpty() || (px.size > 1 && px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
+            n = (12000 * W * H / (1920 * 1080)).toInt().coerceIn(3000, N_MAX)
             px = FloatArray(n)
             py = FloatArray(n)
             for (i in 0 until n) {

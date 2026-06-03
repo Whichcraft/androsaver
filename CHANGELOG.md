@@ -4,6 +4,21 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-03 (psysuals v3.2.0 release + post-release sync)
+
+### Added
+- **Aurora** — Five horizontally undulating Northern Lights curtains made of multi-harmonic sinusoidal ribbons. Simplified rendering (removed edge-tapering) to match latest psysuals reference.
+- **Lattice** — A 14x9 crystal grid of glowing nodes. Implemented dynamic frequency peak normalization with noise gate for balanced column activity, and added base faint lines/nodes for persistent structure. Ported latest psysuals layout (leftmost column off-screen).
+
+### Changed
+- **Butterflies** — Significantly reduced join and spawn delays for snappier pair entry and interaction.
+- **FlowField** — Increased particle count baseline to 12000 (max 50000) for richer density on high-resolution screens.
+- **Cube** — Backported AndroSaver's calibrated idle rotation constants (`0.00025`, `0.00035`, `0.00018`) to the psysuals reference to prevent erratic spinning on large displays.
+- **psysuals submodule** — Updated to latest commit (`71661d2`) including all v3.2.0+ improvements.
+- **Instructions** — Synchronised `GEMINI.md`, `CODEX.md`, and `ANTIGRAVITY.md` instruction files matching `CLAUDE.md`.
+
+---
+
 ## 2026-06-03 (psysuals v3.2.0 release)
 
 ### Added

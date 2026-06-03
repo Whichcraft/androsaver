@@ -144,7 +144,7 @@ class ButterfliesMode : BaseMode() {
     // ── Pair ─────────────────────────────────────────────────────────────────
 
     private inner class ButterflyPair(spawnDelay: Int) {
-        private val joinDelay = (600  + Math.random() * 1200).toInt()
+        private val joinDelay = (120  + Math.random() * 180).toInt()
         private val lifetime  = (2400 + Math.random() * 3000).toInt()
         private var age       = -spawnDelay
         private var orbitAng  = (Math.random().toFloat() * TAU)
@@ -260,8 +260,8 @@ class ButterfliesMode : BaseMode() {
         pairs.clear()
         globalHue = Math.random().toFloat()
         val offsets = intArrayOf(0,
-            (300 + Math.random() * 400).toInt(),
-            (800 + Math.random() * 600).toInt())
+            (30 + Math.random() * 60).toInt(),
+            (80 + Math.random() * 80).toInt())
         for (i in 0 until MAX_PAIRS) {
             pairs.add(ButterflyPair(spawnDelay = offsets[i]))
         }
@@ -277,7 +277,7 @@ class ButterfliesMode : BaseMode() {
 
         pairs.removeAll { it.dead }
         while (pairs.size < MAX_PAIRS) {
-            pairs.add(ButterflyPair(spawnDelay = (60 + Math.random() * 140).toInt()))
+            pairs.add(ButterflyPair(spawnDelay = (20 + Math.random() * 40).toInt()))
         }
 
         for ((i, pair) in pairs.withIndex()) {

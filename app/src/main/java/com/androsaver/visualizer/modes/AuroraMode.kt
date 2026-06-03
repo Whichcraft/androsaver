@@ -139,11 +139,9 @@ class AuroraMode : BaseMode() {
                     totW += harms[j].weight
                 }
                 wave = wave / totW * amp
-                val fade = sin(PI_F * x / W)
-                val halfThick = (rh * fade) * 0.5f
-                ytTmp[i] = cy + wave - halfThick
-                ybTmp[i] = cy + wave + halfThick
-                padTmp[i] = halfThick
+                ytTmp[i] = cy + wave
+                ybTmp[i] = cy + wave + rh
+                padTmp[i] = maxOf(2f, rh * 0.5f)
             }
 
             // Assemble polygons and lines using the pre-computed arrays
