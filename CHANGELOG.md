@@ -4,6 +4,16 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 — fix: suppress Kotlin compiler warnings
+
+- **UpdateInstaller**: `@Suppress("DEPRECATION")` on `ACTION_INSTALL_PACKAGE` intent (no API replacement available for Android 5+ target range).
+- **BranchesMode**, **CorridorMode**, **LissajousMode**: removed unused local variables (`lw`, `lw`, `glowLwMul`).
+- **ButterfliesMode**: marked unused `beat` parameter with `@Suppress("UNUSED_PARAMETER")`.
+- **CoralMode**: replaced unused `depth` destructuring slot with `_`.
+- **SynapseMode**: replaced `edges.withIndex()` with plain `for (e in edges)` (index was unused).
+
+---
+
 ## 2026-06-15 — v2.5.0: psysuals v3.8.0 backport — 12 new visualizer effects
 
 ### Added (psysuals v3.8.0 backport)
