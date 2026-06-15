@@ -97,7 +97,8 @@ class LissajousMode : BaseMode() {
 
         val cx = draw.W / 2f; val cy = draw.H / 2f
 
-        val l1Bright = minOf(0.90f + beat * 0.08f, 0.98f)
+        // Treble brightens the glow: hi-hat energy makes the knot shimmer whiter
+        val l1Bright = minOf(0.90f + beat * 0.08f + high * 0.14f, 0.98f)
 
         // Two glow passes: (lw_factor, l_tail, l_head)
         val passes = arrayOf(Pair(0.08f, 0.22f), Pair(0.50f, l1Bright))

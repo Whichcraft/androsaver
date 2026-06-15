@@ -68,10 +68,10 @@ class TunnelMode : BaseMode() {
         val dt = 0.03f + bass * 0.09f + beat * 0.18f
         time += dt
 
-        // ── Spawn triangles ───────────────────────────────────────────────────
-        val spawnN = (bass * 4.0f + if (beat > 0.3f) beat * 6.0f else 0f).toInt()
+        // ── Spawn triangles (far third only, capped so mid-range stays clear) ─
+        val spawnN = (bass * 2.0f + if (beat > 0.5f) beat * 3.0f else 0f).toInt()
         repeat(spawnN) {
-            val spawnZ = Z_FAR * (0.65f + Math.random().toFloat() * 0.30f)
+            val spawnZ = Z_FAR * (0.80f + Math.random().toFloat() * 0.18f)
             val rvel   = (if (Math.random() < 0.5) 1f else -1f) *
                          (0.04f + Math.random().toFloat() * 0.08f)
             val size   = (0.45f + Math.random().toFloat() * 0.65f) * (1.0f + bass * 1.5f)
@@ -162,7 +162,7 @@ class TunnelMode : BaseMode() {
             draw.polygon(pts, cr, cg, cb, 1f, filled = false)
             liveTris.add(tri)
         }
-        tris.clear(); tris.addAll(if (liveTris.size > 120) liveTris.takeLast(120) else liveTris)
+        tris.clear(); tris.addAll(if (liveTris.size > 50) liveTris.takeLast(50) else liveTris)
     }
 
     private fun hsl3(h: Float, s: Float = 1f, l: Float = 0.5f): Triple<Float, Float, Float> {

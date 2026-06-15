@@ -61,6 +61,7 @@
         <item>Tunnel</item><item>Corridor</item><item>Nova</item><item>Spiral</item>
         <item>Bubbles</item><item>Plasma</item><item>Branches</item>
         <item>Butterflies</item><item>FlowField</item><item>Vortex</item>
+        <item>Aurora</item><item>Lattice</item>
         <item>Spectrum</item><item>Waterfall</item>
     </string-array>
     <string-array name="viz_effect_values">
@@ -68,6 +69,7 @@
         <item>Tunnel</item><item>Corridor</item><item>Nova</item><item>Spiral</item>
         <item>Bubbles</item><item>Plasma</item><item>Branches</item>
         <item>Butterflies</item><item>FlowField</item><item>Vortex</item>
+        <item>Aurora</item><item>Lattice</item>
         <item>Spectrum</item><item>Waterfall</item>
     </string-array>
 

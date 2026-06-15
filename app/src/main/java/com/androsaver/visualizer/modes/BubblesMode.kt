@@ -22,9 +22,10 @@ class BubblesMode : BaseMode() {
 
     private val pool  = ArrayList<Bubble>(MAX)
     private val alive = ArrayList<Bubble>(MAX)   // reused each frame to avoid allocation
-    private var hue   = 0f
-    private var pulse = 0f
-    private var pvel  = 0f
+    private var hue       = 0f
+    private var pulse     = 0f
+    private var pvel      = 0f
+    private var bassFlash = 0f   // spikes on strong bass, inflates rendered bubble size
 
     private fun makeBubble(W: Int, H: Int, y: Float? = null): Bubble {
         val r = 8f + Math.random().toFloat() * 37f
@@ -41,7 +42,7 @@ class BubblesMode : BaseMode() {
     }
 
     override fun reset() {
-        pool.clear(); hue = 0f; pulse = 0f; pvel = 0f
+        pool.clear(); hue = 0f; pulse = 0f; pvel = 0f; bassFlash = 0f
     }
 
     private fun init(W: Int, H: Int) {
@@ -59,6 +60,10 @@ class BubblesMode : BaseMode() {
         hue += 0.005f
         val bass = fft.meanSlice(0, 6)
         val mid  = fft.meanSlice(6, 30)
+
+        // Bass flash: spike on strong hits, inflate all rendered bubbles for ~10 frames
+        if (bass > 0.65f) bassFlash = maxOf(bassFlash, bass * 2.8f)
+        bassFlash = maxOf(0f, bassFlash - 0.18f)
 
         // beatSel: capped at 1 for count/size selectors so intensity doesn't blow up counts
         val beatSel = beat.coerceAtMost(1f)
@@ -82,6 +87,20 @@ class BubblesMode : BaseMode() {
             }
         }
 
+        // Mega-bubbles on strong bass hits: 1-3 extra large luminous bubbles
+        if (beat > 0.7f && pool.size < MAX) {
+            val megaCount = (1 + (beat - 0.7f) * 4f).toInt()
+            repeat(megaCount) {
+                if (pool.size < MAX) {
+                    val b = makeBubble(W, H)
+                    b.r   *= (2.2f + bass * 2.0f)
+                    b.vy  *= 1.4f
+                    b.hue  = (hue + Math.random().toFloat() * 0.5f) % 1f
+                    pool.add(b)
+                }
+            }
+        }
+
         alive.clear()
         for (b in pool) {
             b.x  += b.vx + sin(tick * b.wobble + b.phase) * 0.9f
@@ -90,7 +109,7 @@ class BubblesMode : BaseMode() {
             if (b.y + b.r < 0) continue
 
             val life  = (b.y / H).coerceIn(0f, 1f)
-            val r     = maxOf(2f, b.r * (1f + pulse * 1.10f + mid * 0.15f))
+            val r     = maxOf(2f, b.r * (1f + pulse * 1.10f + mid * 0.15f + bassFlash * 0.45f))
             val alpha = life * 0.63f  // matches pygame's 160/255
 
             // Multi-layer halos (outermost first)

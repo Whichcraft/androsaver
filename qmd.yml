@@ -1,0 +1,12 @@
+collections:
+  source:
+    path: ./app/src/main/java/com/androsaver
+    pattern: "**/*.kt"
+  docs:
+    path: ./docs
+    pattern: "**/*.md"
+  root:
+    path: .
+    pattern: "*.md"
+    ignore:
+      - "psysuals/**"

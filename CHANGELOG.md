@@ -4,6 +4,64 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## v2.2.0 — 2026-04-12
+
+### Added
+- **AuroraMode** — 5 sinusoidal ribbon curtains (Northern Lights); bass amplitude, treble shimmer, mid height, beat bloom; additive-blend glow + core + edge lineStrip
+- **LatticeMode** — 14×9 FFT-mapped crystal grid; double-stroke beams; shockwave ring + node flare on beat; bass scale breath
+
+### Changed
+- **ButterfliesMode** — periodic wander breaks (breakCd/breakTimer): paired butterflies roam freely for 200–500 frames then resume orbit; orbit radius expands +80 px on each break (cap 200 px)
+- **Bloom post-processing** — `GLDraw` composites a 2-pass half-resolution Gaussian blur additively onto every frame; `bloomEnabled`, `bloomStrength`, `bloomThreshold` controls
+- **Genre auto-switching** — when mode is `auto` and genre is `auto`, detects genre every 30 s and switches visualizer family (electronic→FlowField/Vortex/Plasma/Tunnel, rock→Branches/TriFlux/Nova, classical→Yantra/Lissajous/Spiral)
+- **psysuals submodule** updated e2ef78d → c0f3c33 (v2.12.0)
+- Mode count: 16 → 18 (Aurora and Lattice inserted after Vortex)
+
+---
+
+## 2026-04-12 (Aurora, Lattice, Butterflies wander breaks — psysuals v2.12.0 port)
+
+### Added
+- **AuroraMode** — Northern Lights curtains: 5 sinusoidal ribbons with 3 harmonics each, undulate across the screen. Bass billows amplitude, treble drives shimmer speed, mid sets ribbon height, beat triggers bloom flash + hue shift. Additive-blend glow polygon + core polygon + bright edge lineStrip per ribbon. Port of psysuals `aurora.py`.
+- **LatticeMode** — Crystal grid of 14×9 glowing nodes mapped to FFT frequency bins (bass on left columns, treble on right). Double-stroke beams connect adjacent nodes; beam brightness tracks local spectral energy. Beat fires a shockwave ring that flares nodes near the wavefront white. Bass drives subtle whole-grid scale breath. Port of psysuals `lattice.py`.
+
+### Changed
+- **ButterfliesMode** — paired butterflies now take periodic wander breaks: after a random interval (800–1600 frames) both butterflies roam freely for 200–500 frames (no mutual chase). On each break the orbit radius expands by +80 px (capped at 200 px), so pairs gradually spread apart before resuming pursuit. Port of psysuals butterflies wander-break logic (v2.10.0+).
+- **psysuals submodule** — updated from v2.8.0 (e2ef78d) to v2.12.0 (c0f3c33).
+
+---
+
+## 2026-04-12 (bloom, frame timing, genre mode switching)
+
+### Added
+- **Bloom post-processing** — `GLDraw` now renders each frame to an off-screen FBO, applies a 2-pass separable 9-tap Gaussian blur at half resolution (ping-pong between two half-res FBOs), then composites the blurred result additively onto the screen. Public controls: `bloomEnabled`, `bloomStrength` (0.5 default), `bloomThreshold` (0.35 default). Falls back gracefully if FBO creation fails.
+- **Frame time tracking** — `VisualizerRenderer.frameTimeMs` exposes an EMA-smoothed (α=0.1) per-frame render time in milliseconds, updated each `onDrawFrame()`.
+- **Genre-driven mode switching** — when visualizer mode is `auto` and audio genre detection is `auto`, the genre detect runnable (fires every 30 s) now calls `vv.setMode()` when the detected genre changes. Genre→mode map: `electronic`→FlowField/Vortex/Plasma/Tunnel, `rock`→Branches/TriFlux/Nova, `classical`→Yantra/Lissajous/Spiral. Respects the user's enabled-modes filter; resets the cycle timer on switch.
+
+### Fixed
+- **GC pressure in GLDraw** — replaced per-frame `ByteBuffer.allocateDirect()` in `flushBatch()` (120 short-lived allocations/sec at 60 fps) with pre-allocated `FloatBuffer` fields reused each frame. Also ensures blend-mode switches call `flushBatches()` (not `endFrame()`) so bloom runs exactly once per frame.
+
+---
+
+## 2026-04-12 (audio-reactive improvements)
+
+### Changed
+- **FlowField** — added two new audio-driven forces: bass energy pulls all particles gently toward screen centre (gravity), treble energy pushes particles in random directions (scatter). Results in pulsing convergence on kicks and chaotic dispersion on hi-hats.
+- **Lissajous** — treble energy now brightens the glow passes (`high * 0.14` added to `l1Bright`), so hi-hat bursts make the knot shimmer whiter. In psysuals the t-step also scales with detected BPM (faster knot at higher tempo).
+- **Bubbles** — added `bassFlash` variable that spikes on strong bass hits and inflates all rendered bubble radii for ~10 frames (×0.45 multiplier on flash value). Added mega-bubble spawn logic: on `beat > 0.7`, 1–3 extra-large bubbles (2.2–4× base radius) erupt with higher rise velocity.
+
+---
+
+## 2026-04-12 (psysuals v2.7.0 port)
+
+### Changed
+- **TunnelMode** — triangles now spawn only in the far third of the tube (z 0.80–0.98, was 0.65–0.95) and spawn rate is halved (`bass*2 + beat*3`, was `bass*4 + beat*6`, beat threshold raised 0.3→0.5). Live cap reduced from 120 to 50, so the mid-range stays clear between beats.
+- **ButterfliesMode** — both butterflies in a pair now chase each other in a mutual pursuit spiral (solo steers toward love, love steers toward solo, each targeting a rotating offset point). Orbit radius tightens from 240 px to 40 px over the pair's lifetime. Both butterflies are 70 % of their former size (solo 7.2→5.04, love 6.84→4.79). Wing-sync range scales with the new size.
+- **VortexMode** — auto-launch interval halved at default gain (40 frames, was 85). Interval now scales linearly with `audio.gain` so higher intensity settings yield fewer background rockets while beat-triggered rockets remain unchanged.
+- **AudioData** — added `gain: Float = 1f` field (populated by `VisualizerRenderer` from `beatGain`) so modes can access the current effect-gain multiplier directly.
+
+---
+
 ## 2026-04-05 (preview lifecycle fix)
 
 ### Fixed

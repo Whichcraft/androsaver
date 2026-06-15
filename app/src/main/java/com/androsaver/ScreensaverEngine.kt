@@ -52,6 +52,12 @@ class ScreensaverEngine(
         private const val TAG = "ScreensaverEngine"
         // Refresh image URLs 5 minutes before the Synology DSM session expires (~30 min).
         private const val IMAGE_REFRESH_INTERVAL_MS = 25 * 60 * 1000L
+        // Genre → preferred visualizer mode names (ordered by priority).
+        private val GENRE_MODES = mapOf(
+            "electronic" to listOf("FlowField", "Vortex", "Plasma", "Tunnel"),
+            "rock"       to listOf("Branches", "TriFlux", "Nova"),
+            "classical"  to listOf("Yantra", "Lissajous", "Spiral")
+        )
         private val RANDOM_EFFECTS = listOf("crossfade","fade_black","slide_left","slide_right","zoom_in","zoom_out")
         val INTENSITY_STEPS = floatArrayOf(0.0f, 0.5f, 1.0f, 1.5f, 2.0f)
         // [startScale, endScale, startTxFrac, startTyFrac, endTxFrac, endTyFrac]
@@ -76,6 +82,7 @@ class ScreensaverEngine(
     private var vizCycleRunnable: Runnable? = null
     private var vizCycleMs: Long = 0L
     private var genreDetectRunnable: Runnable? = null
+    private var lastDetectedGenre = ""
     private var clockRunnable: Runnable? = null
     private var weatherRunnable: Runnable? = null
     private val kenBurnsAnimators = mutableMapOf<ImageView, ValueAnimator>()
@@ -243,9 +250,26 @@ class ScreensaverEngine(
         val genre = prefs.getString(Prefs.AUDIO_GENRE, "any") ?: "any"
         if (genre == "auto") {
             vv.audio.applyGenreHint("any")
+            lastDetectedGenre = ""
             genreDetectRunnable = object : Runnable {
                 override fun run() {
-                    vv.audio.detectGenre()?.let { vv.audio.applyGenreHint(it) }
+                    val detected = vv.audio.detectGenre()
+                    if (detected != null) {
+                        vv.audio.applyGenreHint(detected)
+                        if (detected != lastDetectedGenre && modePref == "auto") {
+                            lastDetectedGenre = detected
+                            val candidates = GENRE_MODES[detected]
+                            if (!candidates.isNullOrEmpty()) {
+                                val enabledNames = vv.enabledModeNames.ifEmpty {
+                                    vv.renderer.modeNames.toSet()
+                                }
+                                val target = candidates.firstOrNull { it in enabledNames }
+                                    ?: candidates.random()
+                                vv.setMode(target)
+                                resetVizCycleTimer()
+                            }
+                        }
+                    }
                     handler.postDelayed(this, 30_000L)
                 }
             }
