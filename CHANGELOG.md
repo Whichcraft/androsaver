@@ -22,6 +22,8 @@ All notable changes to AndroSaver are documented here.
 
 ### Fixed
 - **Visualizer navigation**: new effects added in a later version are now automatically included in left/right cycling even if `VIZ_ENABLED_MODES` was saved before the new effects existed. The stored set is migrated on first screensaver start after an update.
+- **MobiusMode**: removed invalid named arguments from `floatArrayOf()` call (Kotlin does not support named args on vararg functions).
+- **YantraMode**: stagger initial ring rotation offsets so rings don't all start at 0° — fixes thick overlapping lines at screensaver start.
 
 ### Notes (Android adaptation deltas vs. upstream psysuals)
 - Clifford: N=8 000 (upstream 40 000) — performance.
