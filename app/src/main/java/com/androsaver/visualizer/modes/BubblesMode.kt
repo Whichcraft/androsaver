@@ -22,10 +22,10 @@ class BubblesMode : BaseMode() {
 
     private val pool  = ArrayList<Bubble>(MAX)
     private val alive = ArrayList<Bubble>(MAX)   // reused each frame to avoid allocation
-    private var hue       = 0f
-    private var pulse     = 0f
-    private var pvel      = 0f
-    private var bassFlash = 0f   // spikes on strong bass, inflates rendered bubble size
+    private var hue   = 0f
+    private var pulse = 0f
+    private var pvel  = 0f
+    private var bassFlash = 0f
 
     private fun makeBubble(W: Int, H: Int, y: Float? = null): Bubble {
         val r = 8f + Math.random().toFloat() * 37f
@@ -55,61 +55,63 @@ class BubblesMode : BaseMode() {
         val W = draw.W; val H = draw.H
         init(W, H)
 
-        val fft  = audio.fft
         val beat = audio.beat
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
         hue += 0.005f
-        val bass = fft.meanSlice(0, 6)
-        val mid  = fft.meanSlice(6, 30)
-
-        // Bass flash: spike on strong hits, inflate all rendered bubbles for ~10 frames
-        if (bass > 0.65f) bassFlash = maxOf(bassFlash, bass * 2.8f)
-        bassFlash = maxOf(0f, bassFlash - 0.18f)
 
         // beatSel: capped at 1 for count/size selectors so intensity doesn't blow up counts
         val beatSel = beat.coerceAtMost(1f)
 
-        // Global beat spring (uses full beat so bumpiness still scales with intensity)
-        pvel  += beat * 0.70f + bass * 0.45f
-        pvel  += -pulse * 0.55f
-        pvel  *= 0.62f
+        // Global beat spring
+        pvel  += bass * 0.75f
+        pvel  += -pulse * 0.35f
+        pvel  *= 0.52f
         pulse += pvel
 
-        // Spawn on beat/bass — use beatSel to cap count at high intensity
-        val spawnCount = (1 + beatSel * 4 + bass * 1.5f).toInt()
+        // Spawn on beat/bass and treble transients
+        val spawnCount = (2 + beatSel * 12 + bass * 6 + high * 8).toInt()
         repeat(spawnCount) {
             if (pool.size < MAX) {
                 val b = makeBubble(W, H)
-                b.vy  *= (1f + beatSel * 0.8f)
-                b.r   *= (1f + bass * 0.7f)
-                // wider hue spread at higher intensity → more colours
-                b.hue  = (hue + Math.random().toFloat() * (0.25f + beat * 0.50f)) % 1f
+                b.vy  *= (1f + beatSel * 0.8f + mid * 0.6f)
+                b.r   *= (1f + bass * 1.2f)
+                b.hue  = (hue + Math.random().toFloat() * (0.35f + beatSel * 0.30f)) % 1f
                 pool.add(b)
             }
         }
 
-        // Mega-bubbles on strong bass hits: 1-3 extra large luminous bubbles
+        // Mega-bubbles on strong bass hits
         if (beat > 0.7f && pool.size < MAX) {
-            val megaCount = (1 + (beat - 0.7f) * 4f).toInt()
-            repeat(megaCount) {
+            val count = (1 + (beat - 0.7f) * 4).toInt()
+            repeat(count) {
                 if (pool.size < MAX) {
                     val b = makeBubble(W, H)
-                    b.r   *= (2.2f + bass * 2.0f)
-                    b.vy  *= 1.4f
-                    b.hue  = (hue + Math.random().toFloat() * 0.5f) % 1f
+                    b.r  *= (2.2f + bass * 2.0f)
+                    b.vy *= (1.4f + mid * 0.5f)
+                    b.hue = (hue + Math.random().toFloat() * 0.5f) % 1f
                     pool.add(b)
                 }
             }
         }
 
+        if (bass > 0.65f) {
+            bassFlash = maxOf(bassFlash, bass * 2.8f)
+        }
+        bassFlash = maxOf(0f, bassFlash - 0.18f)
+
         alive.clear()
         for (b in pool) {
-            b.x  += b.vx + sin(tick * b.wobble + b.phase) * 0.9f
-            b.y  += b.vy
+            // Treble adds horizontal high-frequency wobble/jitter to bubble paths
+            b.x  += b.vx + sin(tick * b.wobble + b.phase) * 0.9f * (1f + high * 2.5f)
+            // Mids accelerate bubble rising speed
+            b.y  += b.vy * (1f + mid * 0.8f)
             b.hue = (b.hue + 0.004f) % 1f
             if (b.y + b.r < 0) continue
 
             val life  = (b.y / H).coerceIn(0f, 1f)
-            val r     = maxOf(2f, b.r * (1f + pulse * 1.10f + mid * 0.15f + bassFlash * 0.45f))
+            val r     = maxOf(2f, b.r * (1f + pulse * 0.90f + mid * 0.35f + high * 0.20f + bassFlash * 0.45f))
             val alpha = life * 0.63f  // matches pygame's 160/255
 
             // Multi-layer halos (outermost first)

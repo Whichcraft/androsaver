@@ -35,7 +35,8 @@ class WaterfallMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val beat = audio.beat
-        hue = (hue + 0.003f + beat * 0.015f) % 1f
+        val mid  = audio.mid
+        hue = (hue + 0.003f + beat * 0.015f + mid * 0.008f) % 1f
 
         val fft = audio.fft
         val W = draw.W.toFloat()
@@ -65,7 +66,7 @@ class WaterfallMode : BaseMode() {
             val y = ri * bh
             if (y > H) break
             val age = ri.toFloat() / maxOf(buf.size, 1)
-            val rowBoost = flash * maxOf(0f, 1f - age * 6f)
+            val rowBoost = flash * maxOf(0f, 1f - age * 6f) + mid * 0.12f * maxOf(0f, 1f - age * 2f)
             for (ci in 0 until cols) {
                 val e = r[ci]
                 val x = ci * bw

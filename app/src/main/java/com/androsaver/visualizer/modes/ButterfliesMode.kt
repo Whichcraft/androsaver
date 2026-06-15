@@ -7,24 +7,21 @@ import kotlin.math.*
 /**
  * Butterflies — up to three pairs dancing to the music.
  * Each pair: a solo butterfly flutters in first; its partner joins after
- * 10–30 s. Once together they chase each other in a tightening mutual
- * orbit — solo steers toward love's position and love steers toward solo's,
- * creating a playful spiral pursuit. After a random lifetime the pair wanders
+ * 10–30 s and orbits it lovingly. After a random lifetime the pair wanders
  * off-screen and a new pair enters. Wing flapping syncs when partners are
  * close; sparkles fire on strong beats.
- * Port of psysuals Butterflies (v2.7.0).
+ * Port of psysuals Butterflies (v2.1.0).
  */
 class ButterfliesMode : BaseMode() {
 
     override val name = "Butterflies"
 
     private companion object {
-        const val TAU        = (Math.PI * 2).toFloat()
-        const val PI_F       = Math.PI.toFloat()
-        const val MAX_PAIRS  = 3
-        // 70 % of the original v2.1.0 sizes
-        const val SOLO_SCALE = 7.2f  * 0.70f   // 5.04
-        const val LOVE_SCALE = 6.84f * 0.70f   // 4.788 ≈ 4.79
+        const val TAU       = (Math.PI * 2).toFloat()
+        const val PI_F      = Math.PI.toFloat()
+        const val MAX_PAIRS = 3
+        const val SOLO_SCALE = 5.04f
+        const val LOVE_SCALE = 4.79f
     }
 
     // Screen dimensions updated each frame so inner classes can use them
@@ -56,7 +53,7 @@ class ButterfliesMode : BaseMode() {
     private inner class Butterfly(
         var x: Float, var y: Float,
         var hue: Float,
-        val scale: Float = 7.2f
+        val scale: Float = SOLO_SCALE
     ) {
         var heading   = Math.random().toFloat() * TAU
         var wingPhase = Math.random().toFloat() * TAU
@@ -71,9 +68,8 @@ class ButterfliesMode : BaseMode() {
 
         fun startDepart() { if (departAng == null) departAng = Math.random().toFloat() * TAU }
 
-        fun update(bass: Float, beat: Float,
-                   chasePos: Pair<Float, Float>? = null) {
-            wingPhase += 0.09f + bass * 0.16f + beat * 0.06f
+        fun update(bass: Float, beat: Float, mid: Float = 0f, high: Float = 0f, chasePos: Pair<Float, Float>? = null) {
+            wingPhase += 0.09f + bass * 0.20f + mid * 0.35f + high * 0.15f
 
             if (departAng != null) {
                 val da = departAng!!
@@ -95,7 +91,7 @@ class ButterfliesMode : BaseMode() {
             }
 
             // Boundary repulsion — margin capped so it never overlaps on small screens
-            val m = minOf((50f * scale).toInt(), screenW.toInt() / 5, screenH.toInt() / 5)
+            val m = minOf((50f * scale).toInt(), screenW / 5, screenH / 5)
             var rx = 0f; var ry = 0f
             if      (x < m)            rx = (m - x) / m
             else if (x > screenW - m)  rx = (screenW - m - x) / m
@@ -113,11 +109,11 @@ class ButterfliesMode : BaseMode() {
                 heading += ((desired - heading + PI_F) % TAU - PI_F).coerceIn(-0.10f, 0.10f) * 0.14f
             }
 
-            val spd = (1.5f + bass * 0.8f + beat * 0.4f) * scale
+            val spd = (1.5f + bass * 0.8f + mid * 0.60f) * scale
             x += cos(heading) * spd; y += sin(heading) * spd
 
             val cl = 28f * scale
-            x = x.coerceIn(cl, screenW - cl); y = y.coerceIn(cl, screenH - cl)
+            x = x.coerceIn(cl, screenW.toFloat() - cl); y = y.coerceIn(cl, screenH.toFloat() - cl)
         }
 
         fun draw(draw: GLDraw, outlineHue: Float) {
@@ -141,35 +137,29 @@ class ButterfliesMode : BaseMode() {
             draw.line(hx, hy, tx, ty, bc[0], bc[1], bc[2], 1f)
             val hc = GLDraw.hsl(hue, l = 0.22f)
             draw.circle(hx, hy, maxOf(2f, 3f * scale), hc[0], hc[1], hc[2], 1f, segments = 12)
-            for (s in floatArrayOf(-1f, 1f)) {
-                val aAng = heading + s * 0.38f
-                val aex = hx + cos(aAng) * 9f * scale; val aey = hy + sin(aAng) * 9f * scale
-                draw.line(hx, hy, aex, aey, bc[0], bc[1], bc[2], 0.9f)
-                val ac = GLDraw.hsl((hue + 0.15f) % 1f, l = 0.70f)
-                draw.circle(aex, aey, maxOf(1f, 2f * scale), ac[0], ac[1], ac[2], 1f, segments = 10)
-            }
+            // Antennas are skipped for better FPS to match psysuals v3.0.0+
         }
     }
 
     // ── Pair ─────────────────────────────────────────────────────────────────
 
     private inner class ButterflyPair(spawnDelay: Int) {
-        private val joinDelay  = (600  + Math.random() * 1200).toInt()
-        private val lifetime   = (2400 + Math.random() * 3000).toInt()
-        private var age        = -spawnDelay
-        private var orbitAng   = Math.random().toFloat() * TAU
-        private var orbitR     = 240f   // shrinks to 40
-        private var breakCd    = (800  + Math.random() * 800).toInt()
+        private val joinDelay = (120  + Math.random() * 180).toInt()
+        private val lifetime  = (2400 + Math.random() * 3000).toInt()
+        private var age       = -spawnDelay
+        private var orbitAng  = (Math.random().toFloat() * TAU)
+        private var orbitR    = 240f
+        var solo: Butterfly?  = null
+        var love: Butterfly?  = null
+        private var departing = false
+        private var breakCd    = (800 + Math.random() * 800).toInt()
         private var breakTimer = 0
-        var solo: Butterfly?   = null
-        var love: Butterfly?   = null
-        private var departing  = false
 
         val dead: Boolean get() = departing &&
             (solo == null || solo!!.offScreen) &&
             (love == null || love!!.offScreen)
 
-        fun update(bass: Float, beat: Float, globalHue: Float) {
+        fun update(bass: Float, beat: Float, mid: Float = 0f, high: Float = 0f, globalHue: Float) {
             age++
             if (solo == null && age >= 0) {
                 val (ex, ey) = edgeSpawn()
@@ -186,9 +176,9 @@ class ButterfliesMode : BaseMode() {
             if (age >= lifetime && !departing) {
                 departing = true; sl.startDepart(); love?.startDepart()
             }
+
             val lv = love
             if (lv != null && !departing) {
-                // Wander-break countdown: periodically both butterflies roam freely
                 if (breakTimer > 0) {
                     breakTimer--
                 } else {
@@ -199,49 +189,51 @@ class ButterfliesMode : BaseMode() {
                         orbitR     = minOf(orbitR + 80f, 200f)
                     }
                 }
+
                 if (breakTimer > 0) {
-                    // Free wander — no mutual chase
-                    sl.update(bass, beat)
-                    lv.update(bass, beat)
+                    sl.update(bass, beat, mid, high)
+                    lv.update(bass, beat, mid, high)
                 } else {
-                    // Mutual chase: orbit angle rotates faster as radius shrinks
-                    val angSpeed = 0.012f + beat * 0.020f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
+                    val angSpeed = 0.012f + beat * 0.020f + mid * 0.015f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
                     orbitAng += angSpeed
-                    if (orbitR > 40f) orbitR -= 0.06f
-                    val r = orbitR
-                    // Solo chases: point offset from love at opposite angle
-                    val soloTarget = (lv.x + cos(orbitAng + PI_F) * r) to (lv.y + sin(orbitAng + PI_F) * r)
-                    // Love chases: point offset from solo at the orbit angle
-                    val loveTarget = (sl.x + cos(orbitAng) * r) to (sl.y + sin(orbitAng) * r)
-                    sl.update(bass, beat, chasePos = soloTarget)
-                    lv.update(bass, beat, chasePos = loveTarget)
-                    // Wing sync when close
-                    val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
-                    val syncRange = 130f * SOLO_SCALE
-                    if (dist < syncRange) {
-                        val sync = 1f - dist / syncRange
-                        lv.wingPhase -= (lv.wingPhase - sl.wingPhase) * sync * 0.12f
+                    if (orbitR > 40f) {
+                        orbitR -= 0.06f
                     }
+                    val r = orbitR
+                    val soloTarget = Pair(lv.x + cos(orbitAng + PI_F) * r, lv.y + sin(orbitAng + PI_F) * r)
+                    val loveTarget = Pair(sl.x + cos(orbitAng) * r, sl.y + sin(orbitAng) * r)
+                    sl.update(bass, beat, mid, high, chasePos = soloTarget)
+                    lv.update(bass, beat, mid, high, chasePos = loveTarget)
                 }
             } else {
-                sl.update(bass, beat)
-                love?.update(bass, beat)
+                sl.update(bass, beat, mid, high)
+                lv?.update(bass, beat, mid, high)
+            }
+
+            if (lv != null) {
+                val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
+                val syncRange = 130f * SOLO_SCALE
+                if (dist < syncRange) {
+                    val sync = 1f - dist / syncRange
+                    lv.wingPhase -= (lv.wingPhase - sl.wingPhase) * sync * 0.12f
+                }
             }
         }
 
-        fun draw(draw: GLDraw, beat: Float, globalHue: Float) {
+        fun draw(draw: GLDraw, beat: Float, globalHue: Float, high: Float = 0f) {
             val sl = solo ?: return
             val lv = love
-            if (lv != null && beat > 0.8f && !departing) {
+            if (lv != null && (beat > 0.8f || high > 0.45f) && !departing) {
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
                 if (dist < 300f) {
                     val mx = (sl.x + lv.x) / 2f; val my = (sl.y + lv.y) / 2f
                     val sc = GLDraw.hsl((globalHue + 0.12f) % 1f, l = 0.80f)
-                    repeat(4) {
+                    val sparkleN = (4 + beat * 6 + high * 10).toInt()
+                    repeat(sparkleN) {
                         val sx = mx + (Math.random().toFloat() - 0.5f) * 50f
                         val sy = my + (Math.random().toFloat() - 0.5f) * 50f
-                        draw.circle(sx, sy, 2f + Math.random().toFloat() * 3f,
-                            sc[0], sc[1], sc[2], 1f, segments = 8)
+                        val r  = 2f + Math.random().toFloat() * (3f + high * 6f)
+                        draw.circle(sx, sy, r, sc[0], sc[1], sc[2], 1f, segments = 8)
                     }
                 }
             }
@@ -269,8 +261,8 @@ class ButterfliesMode : BaseMode() {
         pairs.clear()
         globalHue = Math.random().toFloat()
         val offsets = intArrayOf(0,
-            (300 + Math.random() * 400).toInt(),
-            (800 + Math.random() * 600).toInt())
+            (30 + Math.random() * 60).toInt(),
+            (80 + Math.random() * 80).toInt())
         for (i in 0 until MAX_PAIRS) {
             pairs.add(ButterflyPair(spawnDelay = offsets[i]))
         }
@@ -282,17 +274,19 @@ class ButterfliesMode : BaseMode() {
 
         globalHue = (globalHue + 0.0014f) % 1f
         val beat = audio.beat
-        val bass = audio.fft.meanSlice(0, 6)
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
 
         pairs.removeAll { it.dead }
         while (pairs.size < MAX_PAIRS) {
-            pairs.add(ButterflyPair(spawnDelay = (60 + Math.random() * 140).toInt()))
+            pairs.add(ButterflyPair(spawnDelay = (20 + Math.random() * 40).toInt()))
         }
 
         for ((i, pair) in pairs.withIndex()) {
             val gh = (globalHue + i.toFloat() / MAX_PAIRS) % 1f
-            pair.update(bass, beat, gh)
-            pair.draw(draw, beat, gh)
+            pair.update(bass, beat, mid, high, gh)
+            pair.draw(draw, beat, gh, high)
         }
     }
 }

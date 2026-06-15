@@ -41,10 +41,10 @@ class BranchesMode : BaseMode() {
     ) {
         if (depth == 0 || length < 1.5f) return
 
-        // Three overlapping sine fields for organic jitter
+        // Mids drive medium sway, treble drives high-frequency shiver
         val jitter = (sin(time * 2.3f + depth * 1.7f + angle) * mid * 0.80f
                     + cos(time * 1.1f + depth * 2.9f)         * mid * 0.40f
-                    + sin(time * 3.7f + angle * 2.1f)         * mid * 0.25f)
+                    + sin(time * 6.5f + angle * 3.3f)         * high * 0.35f)
 
         // Trunk segment drawn very short; children still get full length
         val drawLen = if (depth == MAX_DEPTH) length * 0.015f else length
@@ -54,7 +54,8 @@ class BranchesMode : BaseMode() {
         val depthT = depth.toFloat() / MAX_DEPTH
         val h      = (hue + (1f - depthT) * 0.80f) % 1f
         val bright = (0.28f + depthT * 0.52f + high * 0.22f + beatFlash * 0.35f).coerceIn(0f, 1f)
-        val lw     = maxOf(1, depth / 2)
+        // Segment thickness reacts to high-frequency transients
+        val lw     = maxOf(1, depth / 2) + (high * 1.5f).toInt()
 
         // Neon glow: wide dim halo first, then bright core on top
         val glowC = GLDraw.hsl(h, 1f, bright * 0.30f)
@@ -62,8 +63,9 @@ class BranchesMode : BaseMode() {
         val coreC = GLDraw.hsl(h, 1f, bright)
         draw.line(x, y, ex, ey, coreC[0], coreC[1], coreC[2], 1f)
 
-        val spread = PI.toFloat() / 2.6f + mid * 0.55f
-        val ratio  = 0.62f + high * 0.10f
+        // Mids and treble increase branch spread angle and branch decay ratio
+        val spread = PI.toFloat() / 2.6f + mid * 0.55f + high * 0.20f
+        val ratio  = 0.62f + high * 0.12f
         branch(draw, ex, ey, angle - spread / 2f, length * ratio, depth - 1,
                hue, time, mid, high, beatFlash)
         branch(draw, ex, ey, angle + spread / 2f, length * ratio, depth - 1,
@@ -79,22 +81,22 @@ class BranchesMode : BaseMode() {
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         draw.fadeBlack(10f / 255f)
 
-        val fft  = audio.fft
         val beat = audio.beat
-        val bass = fft.meanSlice(0, 6)
-        val mid  = fft.meanSlice(6, 30)
-        val high = fft.meanSlice(30, fft.size)
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
 
         hue       += 0.012f
-        time      += 0.025f + bass * 0.06f + beat * 0.12f
-        beatFlash  = beatFlash * 0.72f + beat * 0.28f
+        time      += 0.025f + bass * 0.06f + mid * 0.04f + high * 0.02f
+        beatFlash  = beatFlash * 0.72f + bass * 0.28f
 
         val cx = draw.W / 2f
         val cy = draw.H / 2f
 
         val sc    = minOf(draw.W, draw.H).toFloat()
-        val trunk = minOf(sc * 0.22f * (1f + bass * 0.70f + beat * 0.45f), sc * 0.27f)
-        val nArms = BASE_ARMS + (minOf(beat, 2.5f) * 2.2f).toInt()
+        val trunk = minOf(sc * 0.22f * (1f + bass * 0.70f + mid * 0.25f), sc * 0.27f)
+        // Extra arms on strong beats and high frequencies (up to +7)
+        val nArms = BASE_ARMS + (minOf(bass, 2.5f) * 2.2f + high * 1.8f).toInt()
 
         val baseRot = time * 0.06f
 

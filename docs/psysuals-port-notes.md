@@ -19,7 +19,10 @@ psysuals uses pygame surfaces.
 | `pygame.draw.circle(surf, color, center, r)` | `draw.circle(cx, cy, r, r, g, b, alpha, filled=true)` |
 | `pygame.draw.line` | `draw.line(x1, y1, x2, y2, r, g, b, alpha)` |
 | `config.WIDTH / HEIGHT` | `draw.W / draw.H` |
-| `np.mean(fft[:6])` | `fft.meanSlice(0, 6)` |
+| `beat` (bass signal) | `audio.beat` |
+| `config.MID_ENERGY` | `audio.mid` (normalized EMA of bins 20–99) |
+| `config.TREBLE_ENERGY` | `audio.treble` (normalized EMA of bins 100–255) |
+| `np.mean(fft[:6])` (old pre-v3.4.0 pattern) | `audio.beat` (use `audio.mid`/`audio.treble` for frequency bands) |
 | `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → FloatArray(3) |
 
 ---
@@ -109,6 +112,16 @@ psysuals z-order that comes for free from direct surface drawing.
 ### BranchesMode
 Port directly.  `draw.fadeBlack(10f/255f)` for trail persistence (matches `TRAIL_ALPHA=10`).
 
+### AuroraMode
+No persistent temporary surface (`self._tmp`) is used; GL ES 2.0 draw batches render directly to the active framebuffer. The ribbon top edge lines are saved during the main pass and drawn under normal blending mode after the main ribbon fill passes are completed under additive blending.
+
+### LatticeMode
+No pygame `rotozoom` feedback loop is supported; simulated using a slow overlay fade (`draw.fadeBlack(25f/255f)`) to match trail persistence. Glowing grid connection lines are rendered by drawing overlapping outer/core line segments instead of thick line primitives.
+
+**Dynamic Normalization** (added v3.3.0): implements `colPeaks` FloatArray(COLS) to track per-column FFT peaks with slow decay (0.996) and instant attack. A noise gate `max(fft - 0.015f, 0f)` is applied before scaling by peak. This ensures all columns remain active and balanced regardless of audio spectrum bias.
+
+**Layout cutout**: the leftmost column (col 0) is moved off-screen and its nodes/beams are skipped during rendering to create a cleaner asymmetric entry flow.
+
 ---
 
 ## Checklist after every psysuals import
@@ -118,7 +131,7 @@ Port directly.  `draw.fadeBlack(10f/255f)` for trail persistence (matches `TRAIL
 2. For each changed / new effect file, diff against the current Kotlin port and
    apply parameter changes using the table above.
 3. Apply per-effect standing adaptations from this document.
-4. Build (`./gradlew compileDevReleaseKotlin`) and fix any compile errors.
+4. Build (validated via GitHub CI/CD pipeline on push, or locally with appropriate SDK configuration) and fix any compile errors.
 5. Update `CHANGELOG.md`, `docs/visualizer-modes.md`, and `docs/architecture.md`.
 6. Run `qmd update && qmd embed`.
 7. Commit on `dev`.
