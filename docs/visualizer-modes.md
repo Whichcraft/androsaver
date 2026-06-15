@@ -5,7 +5,7 @@ All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
 abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)
 ```
 
-`AudioData` provides: `beat` (0–2, onset strength × beatGain), `mid` (normalized EMA of bins 20–99, ~860–4300 Hz), `treble` (normalized EMA of bins 100–255, ~4300–11000 Hz), `gain` (beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
+`AudioData` provides: `beat` (0–2, onset strength × beatGain), `mid` (deviation above rolling avg for bins 20–99, ~860–4300 Hz; 0 at steady state, positive on peaks), `treble` (same for bins 100–255, ~4300–11000 Hz), `gain` (beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
 
 Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → band extraction + beat detection → `AudioData` delivered at ~60 fps.
 
