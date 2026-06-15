@@ -20,6 +20,9 @@ All notable changes to AndroSaver are documented here.
 - **Coral** — bioluminescent fractal coral growing from the bottom edge.
 - **Heartbeat** — expanding polygon rings with beat-driven morphing.
 
+### Fixed
+- **Visualizer navigation**: new effects added in a later version are now automatically included in left/right cycling even if `VIZ_ENABLED_MODES` was saved before the new effects existed. The stored set is migrated on first screensaver start after an update.
+
 ### Notes (Android adaptation deltas vs. upstream psysuals)
 - Clifford: N=8 000 (upstream 40 000) — performance.
 - Magnetar: N=4 000 (upstream 6 000) — performance.
