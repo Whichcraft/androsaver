@@ -22,7 +22,7 @@ class CorridorMode : BaseMode() {
     private companion object {
         const val N_FRAMES       = 28
         const val Z_FAR          = 12f
-        const val Z_NEAR         = 0.28f
+        const val Z_NEAR         = 0.06f
         const val WORLD_H        = 2.0f
         const val ASPECT         = 1.65f
         const val MAX_SPARKS     = 100
@@ -56,8 +56,10 @@ class CorridorMode : BaseMode() {
         sparkHistHead = 0
     }
 
-    private fun path(t: Float): Pair<Float, Float> =
-        sin(t * 0.19f) * 0.5f to cos(t * 0.14f) * 0.35f
+    private fun path(t: Float, mid: Float = 0f): Pair<Float, Float> {
+        val scale = 1f + mid * 0.50f
+        return sin(t * 0.19f) * 0.5f * scale to cos(t * 0.14f) * 0.35f * scale
+    }
 
     /**
      * Build a closed polygon (flat x0,y0,x1,y1,... array) tracing a rounded rectangle
@@ -87,20 +89,20 @@ class CorridorMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        val fft  = audio.fft
         val beat = audio.beat
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
         val W = draw.W; val H = draw.H
 
         hue  += 0.005f
-        val bass = fft.meanSlice(0, 6)
-        val dt   = 0.028f + bass * 0.08f + beat * 0.16f
+        val dt   = 0.028f + bass * 0.08f + mid * 0.06f + high * 0.04f
         time    += dt
 
         val fov = minOf(W, H) * 0.72f
 
-        // ── Spawn sparks ──────────────────────────────────────────────────────
-        // ox/oy bounded to ±85% of corridor half-extents so sparks stay inside
-        val spawnN = (bass * 5f + beat * 4f).toInt()
+        // ── Spawn sparks — driven by treble transients and bass ───────────────
+        val spawnN = (bass * 4f + high * 6f).toInt()
         repeat(spawnN) {
             if (sparks.size < MAX_SPARKS * 2) {
                 val z = Z_FAR * (0.55f + Math.random().toFloat() * 0.37f)
@@ -135,13 +137,13 @@ class CorridorMode : BaseMode() {
         for (f in frames.sortedByDescending { it.z }) {
             val z     = maxOf(f.z, 0.01f)
             val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - z * 0.5f)
+            val (pcx, pcy) = path(time - z * 0.5f, mid = mid)
             val cxS = pcx * fov / z + W / 2f
             val cyS = pcy * fov / z + H / 2f
 
-            val fi     = minOf((nearT * fft.size * 0.8f).toInt(), fft.size - 1)
             val h      = (hue + nearT) % 1f
-            val bright = (0.06f + nearT * 0.70f + fft[fi] * 0.20f + beat * nearT * 0.50f)
+            val lw     = maxOf(1f, 1f + bass * 3f * nearT + mid * 1.5f * nearT)
+            val bright = (0.06f + nearT * 0.70f + mid * 0.15f * nearT + bass * nearT * 0.50f)
                             .coerceIn(0f, 1f)
 
             val halfH = WORLD_H * fov / z
@@ -150,7 +152,7 @@ class CorridorMode : BaseMode() {
 
             val radius = maxOf(2f, minOf(halfW / 3f, halfH / 3f, halfW - 1f, halfH - 1f))
 
-            val infl  = 4f
+            val infl  = 4f + mid * 8f
             val glR   = (radius + infl / 2f).coerceAtMost(minOf(halfW + infl, halfH + infl) - 1f)
             val glPts = roundedRectPts(cxS, cyS, halfW + infl, halfH + infl, maxOf(2f, glR))
             val gc    = GLDraw.hsl(h, l = bright * 0.22f)
@@ -172,12 +174,12 @@ class CorridorMode : BaseMode() {
         for (sp in sparks) {
             val z     = maxOf(sp.z, 0.01f)
             val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - sp.z * 0.5f)
-            curBuf[bi++] = (pcx + sp.ox) * fov / z + W / 2f    // sx
-            curBuf[bi++] = (pcy + sp.oy) * fov / z + H / 2f    // sy
-            curBuf[bi++] = maxOf(2f, fov / z * 0.05f)           // r
-            curBuf[bi++] = (sp.hue + nearT * 0.35f) % 1f        // h
-            curBuf[bi++] = 0.35f + nearT * 0.60f                // bright
+            val (pcx, pcy) = path(time - sp.z * 0.5f, mid = mid)
+            curBuf[bi++] = (pcx + sp.ox) * fov / z + W / 2f         // sx
+            curBuf[bi++] = (pcy + sp.oy) * fov / z + H / 2f         // sy
+            curBuf[bi++] = maxOf(2f, fov / z * 0.05f * (1f + high * 1.5f))  // r scales with treble
+            curBuf[bi++] = (sp.hue + nearT * 0.35f) % 1f             // h
+            curBuf[bi++] = 0.35f + nearT * 0.60f + high * 0.25f      // bright
         }
         sparkHist[sparkHistHead]     = curBuf
         sparkHistSize[sparkHistHead] = curCount

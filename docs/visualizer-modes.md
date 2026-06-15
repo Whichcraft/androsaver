@@ -5,7 +5,7 @@ All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
 abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)
 ```
 
-`AudioData` provides: `bass`, `mid`, `high` (0–1 normalized FFT bands), `beat` (0–2, onset strength × intensity multiplier), `gain` (current beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
+`AudioData` provides: `beat` (0–2, onset strength × beatGain), `mid` (normalized EMA of bins 20–99, ~860–4300 Hz), `treble` (normalized EMA of bins 100–255, ~4300–11000 Hz), `gain` (beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
 
 Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → band extraction + beat detection → `AudioData` delivered at ~60 fps.
 
@@ -29,7 +29,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 10 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
 | 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
 | 12 | `ButterfliesMode` | Butterflies | Neon butterfly pairs entering, orbiting, departing |
-| 13 | `FlowFieldMode` | FlowField | 4 000 particles riding a sine/cosine noise field |
+| 13 | `FlowFieldMode` | FlowField | 25 000 particles riding a sine/cosine noise field (baseline; scales to 100 000) |
 | 14 | `VortexMode` | Vortex | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
 | 16 | `LatticeMode` | Lattice | 14×9 FFT-mapped crystal grid with shockwave ring on beat |
@@ -103,7 +103,7 @@ Five translucent sinusoidal ribbon curtains undulate horizontally across the scr
 
 ## LatticeMode
 
-A 14×9 grid of 126 glowing nodes mapped to FFT frequency bins (bass columns on the left, treble on the right). Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 20/255 ≈ 13 frames. Silence: dim grid with slow hue rotation, no shockwave.
+A crystal grid of glowing nodes and connection beams (leftmost column cutout). Implements dynamic frequency peak normalization and a noise gate for balanced column activity. Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 25/255 ≈ 10 frames. Base faint structure remains visible during silence. Silence: dim grid with slow hue rotation, no shockwave.
 
 ## BarsMode (Spectrum)
 

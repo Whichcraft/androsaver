@@ -176,9 +176,10 @@ class TriFluxMode : BaseMode() {
 
         draw.fadeBlack(28f / 255f)
 
-        val fft  = audio.fft
         val beat = audio.beat
-        val bass = fft.meanSlice(0, 6).coerceIn(0f, 1f)
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
 
         hue += 0.003f
 
@@ -195,7 +196,7 @@ class TriFluxMode : BaseMode() {
         }
 
         // ── Bass beat: pop an interior tile to front ──────────────────────────
-        val bassBeat = beat > 0.2f && bass > 0.25f
+        val bassBeat = beat > 0.25f
         if (bassBeat) {
             if (activeIds.size < N_ACTIVE_MAX) {
                 val candidates = interiorIndices(W, H).filter { it !in activeIds }
@@ -235,7 +236,7 @@ class TriFluxMode : BaseMode() {
 
         // ── Advance sweeps ────────────────────────────────────────────────────
         for (sw in sweeps) {
-            sw.pos += sw.vel
+            sw.pos += sw.vel * (1f + mid * 1.5f)
             if (sw.pos > sweepDiag + sweepWidth) {
                 sw.pos   = -sweepWidth
                 sw.angle = (Math.random() * TAU).toFloat()
@@ -268,7 +269,7 @@ class TriFluxMode : BaseMode() {
                 if (dist < sweepWidth) {
                     val swT    = 1f - dist / sweepWidth
                     val sweepH  = (hue + d / sweepDiag) % 1f
-                    val sweepBr = 0.20f + swT * 0.55f
+                    val sweepBr = 0.20f + swT * 0.55f + mid * 0.15f
                     val sc = GLDraw.hsl(sweepH, 1f, sweepBr)
                     draw.polygon(pts, sc[0], sc[1], sc[2], (swT * 0.85f).coerceIn(0f, 1f), filled = true)
                 }
@@ -276,7 +277,7 @@ class TriFluxMode : BaseMode() {
 
             if (i in filledIds) {
                 val h      = (tile.hue + hue) % 1f
-                val bright = minOf(tile.bright + bass * 0.20f, 0.72f)
+                val bright = minOf(tile.bright + bass * 0.20f + mid * 0.10f, 0.75f)
                 val fc = GLDraw.hsl(h, 1f, bright)
                 draw.polygon(pts, fc[0], fc[1], fc[2], 0.85f, filled = true)
             }
@@ -293,11 +294,11 @@ class TriFluxMode : BaseMode() {
             val alive = tile.life > 0
             if (alive) {
                 tile.life--
-                val target    = 4.5f + bass * 4.0f
+                val target    = 4.5f + bass * 4.0f + mid * 1.5f
                 tile.svel    += (target - tile.scale) * 0.22f; tile.svel *= 0.70f
                 tile.scale    = minOf(tile.scale + tile.svel, 12f)
                 tile.rot     += tile.rotVel
-                tile.rotVel  += bass * 0.016f * if (tile.rotVel >= 0) 1f else -1f
+                tile.rotVel  += (bass * 0.016f + high * 0.024f) * if (tile.rotVel >= 0) 1f else -1f
                 tile.rotVel  *= 0.96f
                 tile.cx += tile.cvx; tile.cy += tile.cvy
                 tile.cvx *= 0.97f;   tile.cvy *= 0.97f
@@ -333,7 +334,7 @@ class TriFluxMode : BaseMode() {
             }
 
             val h      = (tile.hue + hue) % 1f
-            val bright = minOf(tile.bright + bass * 0.40f + 0.25f, 0.92f)
+            val bright = minOf(tile.bright + bass * 0.40f + mid * 0.15f + 0.25f, 0.92f)
 
             // Solid black backing so nothing bleeds through
             draw.polygon(pts, 0f, 0f, 0f, 1f, filled = true)

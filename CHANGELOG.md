@@ -4,6 +4,75 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 — v2.3.0 (psysuals v3.4.0–v3.5.2 full port to Android)
+
+### Added
+- **AudioData** — Two new normalized audio signal fields: `mid` (bins 20–99, normalized by EMA) and `treble` (bins 100–255, normalized by EMA), computed in `AudioEngine`.
+
+### Changed (all 18 visualizer effects ported to psysuals v3.4.0 multi-band audio)
+Each effect now reacts distinctively to bass (`beat`), mids (`audio.mid`), and treble (`audio.treble`) instead of raw FFT slices. Key per-effect highlights:
+
+- **Aurora** — Ribbon width/brightness driven by mid; speed/ripple by treble. Edge lines removed (v3.5.x).
+- **Bars (Spectrum)** — Hue drift adds mid term; waveform amplitude expands dynamically with treble.
+- **Branches** — Spread/ratio, jitter, arm count, and time warp all driven by distinct mid/treble signals.
+- **Bubbles** — Spawn count, velocity, radius pulse driven by mid and treble independently.
+- **Butterflies** — Wing flap speed, flight speed, orbit ang speed, and sparkle count/radius all driven by mid/treble. `update()` signature extended to accept mid/high.
+- **Corridor** — Path wobble amplitude (mid), spark brightness/radius (treble), frame glow, spawn count.
+- **Cube** — Rotation inertia, vertex jitter, orb radius, satellite rotation driven by mid/treble.
+- **FlowField** — Particle count raised to baseline 25000 (max 100000); treble adds radial burst; mid controls speed and 0.3% particle recycling.
+- **Lattice** — Leftmost column restored; scaled energies driven by mid; shock brightness by treble.
+- **Lissajous** — Knot frequency ratios, phase drift, rotation inertia, glow multiplier, and ring trigger driven by mid/treble.
+- **Nova** — Layer rotation driven by mid; triangle jitter and ring expansion by treble.
+- **Plasma** — Time speed distributed across bass/mid/treble (was single beat term).
+- **Spiral** — Path wobble, arm twist, helix radius, dot sizes, and flare trigger driven by mid/treble.
+- **TriFlux** — Sweep speed driven by mid; active tile scale target, rotation reinforce, and filled brightness driven by mid/treble.
+- **Tunnel** — Path wobble amplitude (treble), dt, spawn, triangle rvel, ring brightness, star size/brightness all driven by mid/treble.
+- **Vortex** — Hue drift adds treble; explode ember count/speed scale with treble; ember brightness adds treble. Beat threshold raised to 0.7.
+- **Waterfall** — Hue drift adds mid; row boost adds mid-weighted glow for recent rows.
+- **Yantra** — Physics spring/damping constants updated; ring rotation driven by mid; vertex radius jitter by treble; spoke wobble, spoke radial jitter, central pulse, inner circle all driven by mid/treble.
+
+### Changed
+- **psysuals submodule** — Updated from v3.3.0 (`b482e9a`) to v3.5.2 (`d55d0dc`). Key upstream changes:
+  - **v3.4.0** — Creative multi-band audio reactivity: all 18 effects upgraded to use normalized audio engine bands.
+  - **v3.5.0/3.5.1** — Bug fixes: vortex ember life off-by-one (BUG-016), FlowField particle optimizations, Aurora edge lines removed.
+  - **v3.5.2** — Bug fixes: auto-gain spike on silence (BUG-017), crossfade off-by-one (BUG-018), settings atomic writes (BUG-019), audio callback exception handling (BUG-020), GL blend mode corrections (BUG-021), benchmark tick reset (BUG-022).
+
+---
+
+## 2026-06-03 (psysuals v3.2.0 release + post-release sync)
+
+### Added
+- **Aurora** — Five horizontally undulating Northern Lights curtains made of multi-harmonic sinusoidal ribbons. Simplified rendering (removed edge-tapering) to match latest psysuals reference.
+- **Lattice** — A 14x9 crystal grid of glowing nodes. Implemented dynamic frequency peak normalization with noise gate for balanced column activity, and added base faint lines/nodes for persistent structure. Ported latest psysuals layout (leftmost column off-screen).
+
+### Changed
+- **Butterflies** — Significantly reduced join and spawn delays for snappier pair entry and interaction.
+- **FlowField** — Increased particle count baseline to 12000 (max 50000) for richer density on high-resolution screens.
+- **Cube** — Backported AndroSaver's calibrated idle rotation constants (`0.00025`, `0.00035`, `0.00018`) to the psysuals reference to prevent erratic spinning on large displays.
+- **psysuals submodule** — Updated to latest commit (`71661d2`) including all v3.2.0+ improvements.
+- **Instructions** — Synchronised `GEMINI.md`, `CODEX.md`, and `ANTIGRAVITY.md` instruction files matching `CLAUDE.md`.
+
+---
+
+## 2026-06-03 (psysuals v3.2.0 release)
+
+### Added
+- **Aurora** — Five horizontally undulating Northern Lights curtains made of multi-harmonic sinusoidal ribbons. Port of psysuals v3.2.0.
+- **Lattice** — A 14x9 crystal grid of glowing nodes (reacting to frequency bins) with expanding concentric shockwaves and grid-pulsing on beat. Port of psysuals v3.2.0.
+
+### Changed
+- **Corridor** — Z_NEAR updated to `0.06f` (from `0.28f`) to match psysuals.
+- **Tunnel** — Z_NEAR updated to `0.06f` (from `0.18f`), spawning/depth math updated, active triangles capped at 50 to improve performance.
+- **Bubbles** — Added global bass flash for bubble size inflation and mega-bubble spawns on strong bass hits.
+- **Butterflies** — Rewrote mutual chase and wander-break logic, adjusted scale constants to `5.04f`/`4.79f`, and commented out antennas drawing for better FPS.
+- **Cube** — Updated scale physics (removed bass multiplier term).
+- **FlowField** — Changed LAYERS to 2, updated speed and boost decay, and dynamically scaled particle counts based on screen area.
+- **Lissajous** — Implemented clamped beat response for stability, reduced beat coefficients, and treble-energy-driven glow brightness.
+- **Vortex** — Reduced auto-launch interval, updated beat thresholds, thinned rocket trails, and smaller/shorter-lived embers.
+- **Instructions** — Created synchronised `GEMINI.md`, `CODEX.md`, and `ANTIGRAVITY.md` instruction files matching `CLAUDE.md`, configured git exclusion list in `.gitattributes`.
+
+---
+
 ## v2.2.0 — 2026-04-12
 
 ### Added
@@ -56,7 +125,7 @@ All notable changes to AndroSaver are documented here.
 
 ### Changed
 - **TunnelMode** — triangles now spawn only in the far third of the tube (z 0.80–0.98, was 0.65–0.95) and spawn rate is halved (`bass*2 + beat*3`, was `bass*4 + beat*6`, beat threshold raised 0.3→0.5). Live cap reduced from 120 to 50, so the mid-range stays clear between beats.
-- **ButterfliesMode** — both butterflies in a pair now chase each other in a mutual pursuit spiral (solo steers toward love, love steers toward solo, each targeting a rotating offset point). Orbit radius tightens from 240 px to 40 px over the pair's lifetime. Both butterflies are 70 % of their former size (solo 7.2→5.04, love 6.84→4.79). Wing-sync range scales with the new size.
+- **ButterfliesMode** — both butterflies in a pair now chase each other in a mutual pursuit spiral (solo steers toward love, love steers toward solo, each targeting a rotating offset point). Orbit radius tightens from 240 px to 40 px over the pair's lifetime. Both butterflies are 70 % of their former size (solo 5.04, love 4.79). Wing-sync range scales with the new size.
 - **VortexMode** — auto-launch interval halved at default gain (40 frames, was 85). Interval now scales linearly with `audio.gain` so higher intensity settings yield fewer background rockets while beat-triggered rockets remain unchanged.
 - **AudioData** — added `gain: Float = 1f` field (populated by `VisualizerRenderer` from `beatGain`) so modes can access the current effect-gain multiplier directly.
 

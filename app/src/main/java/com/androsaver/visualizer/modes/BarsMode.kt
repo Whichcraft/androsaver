@@ -31,11 +31,12 @@ class BarsMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        hue = (hue + 0.003f) % 1f
-
         val fft = audio.fft
         val beat = audio.beat
+        val mid  = audio.mid
+        val high = audio.treble
         val waveform = audio.waveform
+        hue = (hue + 0.003f + mid * 0.005f) % 1f
         val W = draw.W.toFloat()
         val H = draw.H.toFloat()
 
@@ -88,14 +89,15 @@ class BarsMode : BaseMode() {
             )
         }
 
-        // Waveform overlay
+        // Waveform overlay (amplitude and thickness react to treble)
         val wLen = waveform.size
         val step = maxOf(1, wLen / draw.W)
+        val amp  = 120f + high * 120f
         val pts = mutableListOf<Float>()
         val count = wLen / step
         for (i in 0 until count) {
             val sx = i.toFloat() * W / count
-            val sy = H / 2f + waveform[i * step] * (120f * H / 720f)
+            val sy = H / 2f + waveform[i * step] * amp
             pts.add(sx)
             pts.add(sy)
         }
