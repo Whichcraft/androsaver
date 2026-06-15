@@ -77,6 +77,7 @@ class ScreensaverEngine(
     private var activeView = 1
     private var slideshowRunnable: Runnable? = null
     private var imageRefreshRunnable: Runnable? = null
+    private var retryRunnable: Runnable? = null
     private var consecutiveLoadFailures = 0
     private var visualizerView: VisualizerView? = null
     private var vizCycleRunnable: Runnable? = null
@@ -396,6 +397,8 @@ class ScreensaverEngine(
     private fun stopSlideshow() {
         slideshowRunnable?.let { handler.removeCallbacks(it) }
         slideshowRunnable = null
+        retryRunnable?.let { handler.removeCallbacks(it) }
+        retryRunnable = null
     }
 
     // ── Periodic image refresh ────────────────────────────────────────────────
@@ -438,6 +441,8 @@ class ScreensaverEngine(
     }
 
     private fun showNextImage() {
+        retryRunnable?.let { handler.removeCallbacks(it) }
+        retryRunnable = null
         if (imageItems.isEmpty()) return
         val item = imageItems[currentIndex]
         currentIndex = (currentIndex + 1) % imageItems.size
@@ -486,7 +491,9 @@ class ScreensaverEngine(
                     if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Failed: ${item.url}")
                     consecutiveLoadFailures++
                     if (consecutiveLoadFailures < imageItems.size) {
-                        handler.postDelayed({ showNextImage() }, 300L)
+                        val r = Runnable { showNextImage() }
+                        retryRunnable = r
+                        handler.postDelayed(r, 300L)
                     } else {
                         if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "All images failed to load")
                         consecutiveLoadFailures = 0

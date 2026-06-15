@@ -80,7 +80,7 @@ Port directly for the fireworks mechanics (rockets + embers with gravity/drag). 
 Note: `GLDraw` now has FBO bloom support, but the vortex wormhole is still not ported — bloom is a post-processing effect applied to all modes, not a per-mode FBO blit.
 
 ### ButterfliesMode
-**Mutual pursuit spiral** (added v2.7.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius).  Orbit radius starts at 240 px and decrements 0.06 px/frame toward 40 px.  Both butterflies are 70% of the upstream scale (solo 7.2→5.04, love 6.84→4.79).  Wing-sync threshold scales with the new size.
+**Mutual pursuit spiral** (added v2.7.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius).  Orbit radius starts at **120 px** (halved from 240 in v3.7.0) and decrements 0.06 px/frame toward 40 px.  **Two sizes** (v3.7.0): pairs alternate big (70% of original: solo 5.04, love 4.79) and small (35% of original: solo 2.52, love 2.39) in a `[big, small, big]` pattern.  Wing-sync range uses the per-pair `soloScale`, not a hardcoded constant.  **Bidirectional wing sync** (v3.7.0): both `lv.wingPhase` and `sl.wingPhase` adjust toward each other (`diff * sync * 0.12f`).
 
 **Wander breaks** (added v2.10.0+): `ButterflyPair` has two fields — `breakCd` (initial 800–1600) and `breakTimer` (initial 0).  Each orbit frame: if `breakTimer > 0`, decrement it (free-wander phase); else decrement `breakCd`, and when it reaches 0 set `breakTimer = 200–500`, `breakCd = 900–1800`, `orbitR = min(orbitR + 80, 200)`.  While `breakTimer > 0`, both butterflies call `update(bass, beat)` with no `chasePos` instead of the orbit code.
 
@@ -89,20 +89,20 @@ Do **not** port the psysuals `orbit_pos` fixed-point orbit logic — the Android
 ### AuroraMode
 Port of `effects/aurora.py`.  Key differences:
 
-- **DEFS encoding** — Python uses a nested list of tuples; Android encodes each ribbon as a flat `FloatArray(11)`: `[y_frac, hue_off, k0, spd0, aw0, k1, spd1, aw1, k2, spd2, aw2]`.  Offsets 2/5/8 = k_mult, 3/6/9 = speed, 4/7/10 = amp_weight.
-- **Geometry caching** — Python recomputes `xs` and `ks` in `__init__` once.  Android caches them in `initGeom(W: Int)` keyed on `draw.W`; recomputes only when width changes (e.g. orientation change or mode resume on a different screen).
-- **No pygame surface** — Python draws all ribbons to a temporary `pygame.Surface` and blits additively to the main surface.  Android calls `draw.setAdditiveBlend()` once before the ribbon loop and `draw.setNormalBlend()` after; all ribbons are drawn directly in additive mode.
-- **Edge lines** — Python calls `pygame.draw.lines(..., width=2)` for each ribbon's top edge.  Android uses `draw.lineStrip(topPts, r, g, b, 1f)` — no width parameter, effectively 1 px.  The top-edge FloatArrays are accumulated during the ribbon loop (before the blend-mode switch) and drawn after.
-- **Type safety** — `initGeom` receives `W: Int` but internally uses `W.toFloat()` for all float arithmetic.  `draw.W.toFloat()` is used for `W` in `draw()`.  Never mix typed Int variables with Float arithmetic without explicit `.toFloat()`.
+- **DEFS encoding** — Python uses a nested list of tuples; Android uses a list of `RibbonDef` / `Harmonic` data classes.
+- **Geometry caching** — Caches `xs` and `ks` arrays, rebuilt only when `draw.W` changes.
+- **No pygame surface** — Python draws all ribbons to a temporary `pygame.Surface` and blits additively to the main surface.  Android calls `draw.setAdditiveBlend()` once before the ribbon loop and `draw.setNormalBlend()` after.
+- **Edge lines NOT ported** — psysuals removed sharp top-edge line drawing in v3.5.x.  The Android port never drew them.  `savedTopPts`/`savedHues` fields removed in v3.7.0 backport (they were dead code).
 
 ### LatticeMode
 Port of `effects/lattice.py`.  Key differences:
 
-- **Grid data** — Python uses a list of dicts.  Android uses parallel `FloatArray`/`IntArray` fields (`nodeOx`, `nodeOy`, `nodeCol`, `nodeHOff`) allocated once at `N_NODES = 126` capacity.  Rebuilt in `initGrid(W, H)` keyed on `cachedW/cachedH`.
-- **Per-frame scratch arrays** — `sxArr`, `syArr`, `bright` are pre-allocated `FloatArray(N_NODES)` fields reused each frame to avoid GC.
-- **fftBin mapping** — Python: `int(col / (COLS-1) * min(fft_len-1, int(fft_len * FFT_USE)))`.  Android: `(col.toFloat() / (COLS-1).toFloat() * maxBin.toFloat()).toInt()` with `maxBin = min(fftLen-1, (fftLen.toFloat() * FFT_USE).toInt())`.  Explicit `.toFloat()` at every Int×Float boundary.
-- **Scale breath** — Python: `self._scale = max(0.90, min(self._scale + self._svel, 1.12))`.  Android: `scale = (scale + svel).coerceIn(0.90f, 1.12f)`.
-- **Double-stroke beams** — Python draws width-3 (dark) then width-1 (bright) `pygame.draw.line`.  Android calls `draw.line(...)` twice at the same coordinates with different lightness values and alpha 0.65 / 1.0.  The visual result is equivalent on a dark background.
+- **Dynamic grid** (v3.7.0): grid density scales with display width — `14×9` (default), `18×12` (≥1600px), `22×14` (≥2560px).  Implemented as `gridCols(W)` / `gridRows(W)` helper functions.  Column count passed to `getBin()` so center-out mapping scales with grid size.
+- **Center-out frequency mapping** (v3.7.0): `getBin(col, nCols, fftLen)` maps center columns to low frequencies (bass) and edge columns to high frequencies (treble).  `normalized = abs(col - center) / center`.
+- **Grid data** — Python uses a list of dicts.  Android uses a `Node` data class list, rebuilt when `lastW/lastH` change.
+- **Per-frame scratch arrays** — `sxArr`, `syArr`, `bright` are allocated per-frame (size matches `nodes.size`).
+- **Double-stroke beams** — Python draws width-3 (dark) then width-1 (bright) `pygame.draw.line`.  Android calls `draw.line(...)` twice at the same coordinates with different lightness values.  The visual result is equivalent on a dark background.
+- **colPeaks guard** — A size mismatch check (`if colPeaks.size != nCols`) ensures peaks are reset after a grid resolution change without requiring a full mode reset.
 
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers
@@ -112,15 +112,10 @@ psysuals z-order that comes for free from direct surface drawing.
 ### BranchesMode
 Port directly.  `draw.fadeBlack(10f/255f)` for trail persistence (matches `TRAIL_ALPHA=10`).
 
-### AuroraMode
-No persistent temporary surface (`self._tmp`) is used; GL ES 2.0 draw batches render directly to the active framebuffer. The ribbon top edge lines are saved during the main pass and drawn under normal blending mode after the main ribbon fill passes are completed under additive blending.
+### FlowFieldMode
+Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)`.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.
 
-### LatticeMode
-No pygame `rotozoom` feedback loop is supported; simulated using a slow overlay fade (`draw.fadeBlack(25f/255f)`) to match trail persistence. Glowing grid connection lines are rendered by drawing overlapping outer/core line segments instead of thick line primitives.
-
-**Dynamic Normalization** (added v3.3.0): implements `colPeaks` FloatArray(COLS) to track per-column FFT peaks with slow decay (0.996) and instant attack. A noise gate `max(fft - 0.015f, 0f)` is applied before scaling by peak. This ensures all columns remain active and balanced regardless of audio spectrum bias.
-
-**Layout cutout**: the leftmost column (col 0) is moved off-screen and its nodes/beams are skipped during rendering to create a cleaner asymmetric entry flow.
+**Edge recycling** (v3.7.0): replaces random 0.3% recycling.  Each frame, particles within 8% of any screen edge are relocated to a random position in the central 60% (20–80% of each dimension).  This prevents edge accumulation without causing the uniform teleport artifacts of random recycling.  Do not revert to random recycling.
 
 ---
 
