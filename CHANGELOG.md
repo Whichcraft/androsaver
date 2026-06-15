@@ -4,6 +4,8 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 — v2.5.1: compiler warning fixes
+
 ## 2026-06-15 — fix: suppress Kotlin compiler warnings
 
 - **UpdateInstaller**: `@Suppress("DEPRECATION")` on `ACTION_INSTALL_PACKAGE` intent (no API replacement available for Android 5+ target range).
