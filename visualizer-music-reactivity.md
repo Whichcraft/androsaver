@@ -169,7 +169,7 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 
 ## FlowField
 
-**What it looks like:** 4 000 particles riding a continuously-evolving 3-layer sine/cosine noise field, painting rainbow trails on a very slow fade background.
+**What it looks like:** 12 000 particles riding a continuously-evolving 3-layer sine/cosine noise field, painting rainbow trails on a very slow fade background.
 
 **Music reactivity:**
 
@@ -335,13 +335,13 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 
 ## Lattice
 
-**What it looks like:** A 14×9 crystal grid of glowing nodes connected by double-stroke beam lines. Left columns respond to bass, right columns to treble. On every strong beat, a shockwave ring expands from the centre and causes nearby nodes to flare white.
+**What it looks like:** A crystal grid of glowing nodes connected by double-stroke beam lines (leftmost column cutout). Left columns respond to bass, right columns to treble. Features dynamic peak normalization and a noise gate for balanced activity. On every strong beat, a shockwave ring expands from the centre and causes nearby nodes to flare white.
 
 **Music reactivity:**
 
 | Visual element | Reacts to |
 |----------------|-----------|
-| Node brightness | `fft[bin(col)] + 0.08 (idle floor)` — per-node FFT bin mapped left=bass, right=treble |
+| Node brightness | `fft[bin(col)]` with dynamic peak normalization and noise gate floor (0.015) |
 | Beam brightness | Average of two adjacent nodes' brightness; outer stroke at 0.22–0.38 L, inner at 0.48–0.80 L |
 | Shockwave | Beat > 0.6 (rising edge): `shockR = 0`; ring expands at `6 × (1 + bass × 2 + beat × 0.8)` px/frame |
 | Shock flare | Nodes within 22 px of wavefront: `shock = 1 − |dist − shockR| / 22`; flare radius `rCore + shock × 9`, lightness `0.88 + shock × 0.12` |
@@ -349,7 +349,8 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 | Hue drift | `+0.0025 + mid × 0.001` per frame; radial offset +0 (centre) to +0.55 (corner) |
 | Node glow radius | `max(3, 5 + bright × 10)` px |
 | Node core radius | `max(1, 2 + bright × 4)` px |
-| Trail persistence | `fadeBlack(20/255)` ≈ 13-frame persistence |
+| Trail persistence | `fadeBlack(25/255)` ≈ 10-frame persistence |
+| Faint base structure | Base faint lines and nodes (L 0.06–0.08) are always visible regardless of audio |
 
 **Silence behaviour:** Grid glows dimly at idle floor (0.08 per node). Scale stays near 1.0. Hue rotates slowly. No shockwave until next beat.
 
@@ -371,3 +372,6 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 **This effect shows audio history, not just the current moment.** Silence appears as dark rows. Loud transients leave bright horizontal bands. The scrolling speed is constant — one row per frame regardless of tempo.
 
 **Silence behaviour:** Dark rows scroll downward. Any previously bright rows fade as they age (brightness decays by 70% as rows reach the bottom). The screen gradually darkens over ~100 frames of silence.
+
+---
+

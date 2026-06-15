@@ -1,4 +1,4 @@
-# AndroSaver — Claude Instructions
+# AndroSaver — Codex Instructions
 
 ## Project
 
@@ -61,7 +61,7 @@ See `docs/architecture.md` for full class map.
 
 - When visualizer modes are tuned in AndroSaver, port equivalent changes back to `psysuals/psysualizer.py`
 - The two codebases share the same 18 mode names and audio reactivity logic, but use different rendering stacks (OpenGL ES 2.0 vs pygame)
-- Backport status: all known changes ported as of 2026-06-03 (latest psysuals imported)
+- Backport status: all known changes ported as of 2026-06-03 (latest psysuals improvements for Aurora, Butterflies, FlowField, and Lattice integrated; Cube idle rotation backported to reference)
 
 ## Reference Docs
 
