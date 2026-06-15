@@ -61,7 +61,7 @@ class MobiusMode : BaseMode() {
         val z2  = maxOf(zr2, -3f + 0.2f)
         val sc  = 3f / (3f + z2)
         val half = minOf(W, H) * 0.42f
-        return floatArrayOf(wx = xr * sc * half + W / 2f, wy = yr * sc * half + H / 2f)
+        return floatArrayOf(xr * sc * half + W / 2f, yr * sc * half + H / 2f)
     }
 
     /** Möbius 3-D point for fixed v, varying u array → fills pts2d. */
