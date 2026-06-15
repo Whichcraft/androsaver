@@ -4,7 +4,7 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## 2026-06-15 — psysuals v3.7.0 backport + Synology slideshow crash fix
+## 2026-06-15 — v2.4.0: psysuals v3.7.0 backport + Synology slideshow crash fix
 
 ### Fixed
 - **Slideshow / Synology**: HTTPS + self-signed TLS rejection (Glide now uses `trustAll` OkHttp client via `AndroSaverGlideModule`).
