@@ -4,6 +4,17 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 (psysuals submodule sync to v3.5.2)
+
+### Changed
+- **psysuals submodule** — Updated from v3.3.0 (`b482e9a`) to v3.5.2 (`d55d0dc`). Key upstream changes:
+  - **v3.4.0** — Creative multi-band audio reactivity: all 18 effects upgraded to use normalized audio engine bands (`beat`, `MID_ENERGY`, `TREBLE_ENERGY`) distinctively.
+  - **v3.5.0/3.5.1** — Bug fixes: vortex ember life off-by-one (BUG-016), FlowField particle optimizations, Aurora edge lines removed.
+  - **v3.5.2** — Bug fixes: auto-gain spike on silence (BUG-017), crossfade off-by-one (BUG-018), settings atomic writes (BUG-019), audio callback exception handling (BUG-020), GL blend mode corrections (BUG-021), benchmark tick reset (BUG-022).
+- Note: multi-band audio reactivity changes (v3.4.0) are not yet ported to the Android app.
+
+---
+
 ## 2026-06-03 (psysuals v3.2.0 release + post-release sync)
 
 ### Added
