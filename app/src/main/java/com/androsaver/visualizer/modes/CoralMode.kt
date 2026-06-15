@@ -105,7 +105,7 @@ class CoralMode : BaseMode() {
         draw.fadeBlack(6f / 255f)
 
         draw.setAdditiveBlend()
-        for ((x1, y1, x2, y2, age, maxAge, depth, hOff) in segs) {
+        for ((x1, y1, x2, y2, age, maxAge, _, hOff) in segs) {
             val fade   = maxOf(0f, 1f - age.toFloat() / maxAge)
             val h      = (hue + hOff) % 1f
             val bright = (0.18f + bass * 0.12f + pulse * 0.35f) * fade

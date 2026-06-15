@@ -76,7 +76,7 @@ class ButterfliesMode : BaseMode() {
 
         fun startDepart() { if (departAng == null) departAng = Math.random().toFloat() * TAU }
 
-        fun update(bass: Float, beat: Float, mid: Float = 0f, high: Float = 0f, chasePos: Pair<Float, Float>? = null) {
+        fun update(bass: Float, @Suppress("UNUSED_PARAMETER") beat: Float, mid: Float = 0f, high: Float = 0f, chasePos: Pair<Float, Float>? = null) {
             wingPhase += 0.09f + bass * 0.20f + mid * 0.35f + high * 0.15f
 
             if (departAng != null) {

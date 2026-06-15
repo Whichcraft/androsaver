@@ -54,8 +54,6 @@ class BranchesMode : BaseMode() {
         val depthT = depth.toFloat() / MAX_DEPTH
         val h      = (hue + (1f - depthT) * 0.80f) % 1f
         val bright = (0.28f + depthT * 0.52f + high * 0.22f + beatFlash * 0.35f).coerceIn(0f, 1f)
-        // Segment thickness reacts to high-frequency transients
-        val lw     = maxOf(1, depth / 2) + (high * 1.5f).toInt()
 
         // Neon glow: wide dim halo first, then bright core on top
         val glowC = GLDraw.hsl(h, 1f, bright * 0.30f)

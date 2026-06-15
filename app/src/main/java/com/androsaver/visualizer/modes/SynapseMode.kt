@@ -110,7 +110,7 @@ class SynapseMode : BaseMode() {
         draw.fadeBlack(18f / 255f)
 
         // Draw edges (dim background wiring)
-        for ((ei, e) in edges.withIndex()) {
+        for (e in edges) {
             val h   = (hue + e[0].toFloat() / N_NODES * 0.3f) % 1f
             val lum = 0.06f + glow[e[0]] * 0.14f
             val c   = GLDraw.hsl(h, l = lum)
