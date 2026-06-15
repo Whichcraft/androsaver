@@ -4,7 +4,7 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## 2026-06-15 (psysuals v3.4.0–v3.5.2 full port to Android)
+## 2026-06-15 — v2.3.0 (psysuals v3.4.0–v3.5.2 full port to Android)
 
 ### Added
 - **AudioData** — Two new normalized audio signal fields: `mid` (bins 20–99, normalized by EMA) and `treble` (bins 100–255, normalized by EMA), computed in `AudioEngine`.
