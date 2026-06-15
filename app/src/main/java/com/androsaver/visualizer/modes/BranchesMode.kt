@@ -11,7 +11,7 @@ import kotlin.math.*
  * Every segment drawn twice (wide dim glow + bright core) for neon flare.
  * Mid frequencies jitter all branch angles; bass drives trunk length; beat
  * fires extra arms with a brightness burst.
- * Port of psysuals `Branches` class (v2.0.1).
+ * Port of psysuals `Branches` class (v3.7.0).
  */
 class BranchesMode : BaseMode() {
 
@@ -42,9 +42,9 @@ class BranchesMode : BaseMode() {
         if (depth == 0 || length < 1.5f) return
 
         // Mids drive medium sway, treble drives high-frequency shiver
-        val jitter = (sin(time * 2.3f + depth * 1.7f + angle) * mid * 0.80f
-                    + cos(time * 1.1f + depth * 2.9f)         * mid * 0.40f
-                    + sin(time * 6.5f + angle * 3.3f)         * high * 0.35f)
+        val jitter = (sin(time * 2.3f + depth * 1.7f + angle) * mid * 0.45f
+                    + cos(time * 1.1f + depth * 2.9f)         * mid * 0.22f
+                    + sin(time * 6.5f + angle * 3.3f)         * high * 0.18f)
 
         // Trunk segment drawn very short; children still get full length
         val drawLen = if (depth == MAX_DEPTH) length * 0.015f else length
@@ -64,8 +64,8 @@ class BranchesMode : BaseMode() {
         draw.line(x, y, ex, ey, coreC[0], coreC[1], coreC[2], 1f)
 
         // Mids and treble increase branch spread angle and branch decay ratio
-        val spread = PI.toFloat() / 2.6f + mid * 0.55f + high * 0.20f
-        val ratio  = 0.62f + high * 0.12f
+        val spread = PI.toFloat() / 2.6f + mid * 0.28f + high * 0.10f
+        val ratio  = 0.62f + high * 0.06f
         branch(draw, ex, ey, angle - spread / 2f, length * ratio, depth - 1,
                hue, time, mid, high, beatFlash)
         branch(draw, ex, ey, angle + spread / 2f, length * ratio, depth - 1,
@@ -95,8 +95,8 @@ class BranchesMode : BaseMode() {
 
         val sc    = minOf(draw.W, draw.H).toFloat()
         val trunk = minOf(sc * 0.22f * (1f + bass * 0.70f + mid * 0.25f), sc * 0.27f)
-        // Extra arms on strong beats and high frequencies (up to +7)
-        val nArms = BASE_ARMS + (minOf(bass, 2.5f) * 2.2f + high * 1.8f).toInt()
+        // Extra arms on strong beats (up to +5); treble has minimal influence
+        val nArms = BASE_ARMS + (minOf(bass, 2.5f) * 2.2f + high * 0.8f).toInt()
 
         val baseRot = time * 0.06f
 

@@ -47,14 +47,14 @@ class LissajousMode : BaseMode() {
         val high = audio.treble
         hue += 0.006f
 
-        // Creative shape distortion mapping
+        // Creative shape distortion mapping (calmer motion — v3.7.0)
         val ax = 3.0f + bass * 0.20f
-        val ay = 2.0f + mid  * 0.35f
-        val az = 5.0f + high * 0.40f
+        val ay = 2.0f + mid  * 0.18f
+        val az = 5.0f + high * 0.22f
 
         val clampedBeat = minOf(1.5f, beat)
         dx += 0.0003f + bass * 0.0002f
-        dz += 0.0002f + high * 0.0004f
+        dz += 0.0002f + high * 0.0002f
         t  += 0.010f  + clampedBeat * 0.006f + mid * 0.004f
 
         if (hist.size >= TRAIL) hist.removeFirst()
@@ -69,9 +69,9 @@ class LissajousMode : BaseMode() {
 
         hue += clampedBeat * 0.006f
 
-        // Rotation inertia (mids add extra spin)
-        rvx += clampedBeat * 0.0022f + mid * 0.0015f + 0.00005f; rvx *= 0.97f; rx += rvx
-        rvy += clampedBeat * 0.0032f + mid * 0.0020f + 0.00007f; rvy *= 0.97f; ry += rvy
+        // Rotation inertia — tightened damping (0.97→0.94 per v3.7.0)
+        rvx += clampedBeat * 0.0022f + mid * 0.0007f + 0.00005f; rvx *= 0.94f; rx += rvx
+        rvy += clampedBeat * 0.0032f + mid * 0.0010f + 0.00007f; rvy *= 0.94f; ry += rvy
 
         val n = hist.size
         if (n < 2) return

@@ -12,7 +12,7 @@ import kotlin.math.*
  * persistent buffer.  Bass warps field intensity and particle speed; beat
  * fires a phase jump that instantly reshapes all flow lines.
  *
- * Port of psysuals `FlowField` class (v2.3.0).
+ * Port of psysuals `FlowField` class (v3.7.0).
  * pygame BLEND_RGB_MULT(247/255) ≈ fadeBlack(8/255) on a dark background.
  */
 class FlowFieldMode : BaseMode() {
@@ -20,7 +20,7 @@ class FlowFieldMode : BaseMode() {
     override val name = "FlowField"
 
     private companion object {
-        const val N_MAX  = 50000
+        const val N_MAX  = 100000
         const val FS     = 0.0022f   // spatial frequency of the noise field
         const val LAYERS = 2
     }
@@ -86,13 +86,15 @@ class FlowFieldMode : BaseMode() {
         // Treble burst: push particles outward from center when high > 0.45
         val doBurst = high > 0.45f
 
-        // Particle recycling: 0.3% per frame for even screen coverage
-        val numRecycle = (n * 0.003f).toInt()
-        if (numRecycle > 0) {
-            repeat(numRecycle) {
-                val idx = (Math.random() * n).toInt().coerceIn(0, n - 1)
-                px[idx] = Math.random().toFloat() * W
-                py[idx] = Math.random().toFloat() * H
+        // Recycle particles that accumulate near screen edges back into a central cloud.
+        // Edge margin: 8% of each dimension; relocate to central 60%.
+        val marginX = W * 0.08f; val marginY = H * 0.08f
+        val cxMin = W * 0.20f; val cxMax = W * 0.80f
+        val cyMin = H * 0.20f; val cyMax = H * 0.80f
+        for (i in 0 until n) {
+            if (px[i] < marginX || px[i] > W - marginX || py[i] < marginY || py[i] > H - marginY) {
+                px[i] = cxMin + Math.random().toFloat() * (cxMax - cxMin)
+                py[i] = cyMin + Math.random().toFloat() * (cyMax - cyMin)
             }
         }
 

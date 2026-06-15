@@ -67,11 +67,11 @@ class TunnelMode : BaseMode() {
         val high = audio.treble
         hue += 0.006f
 
-        val dt = 0.03f + bass * 0.09f + mid * 0.06f + high * 0.03f
+        val dt = 0.022f + bass * 0.09f + mid * 0.04f + high * 0.03f
         time += dt
 
         // ── Spawn triangles ───────────────────────────────────────────────────
-        val spawnN = (bass * 2.0f + if (mid > 0.4f) mid * 3.0f else 0f).toInt()
+        val spawnN = (bass * 1.2f + if (mid > 0.5f) mid * 1.5f else 0f).toInt()
         repeat(spawnN) {
             val spawnZ = Z_FAR * (0.80f + Math.random().toFloat() * 0.18f)
             val rvel   = (if (Math.random() < 0.5) 1f else -1f) *
@@ -162,7 +162,7 @@ class TunnelMode : BaseMode() {
             draw.polygon(pts, cr, cg, cb, 1f, filled = false)
             liveTris.add(tri)
         }
-        tris.clear(); tris.addAll(if (liveTris.size > 50) liveTris.takeLast(50) else liveTris)
+        tris.clear(); tris.addAll(if (liveTris.size > 30) liveTris.takeLast(30) else liveTris)
     }
 
     private fun hsl3(h: Float, s: Float = 1f, l: Float = 0.5f): Triple<Float, Float, Float> {

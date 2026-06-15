@@ -20,8 +20,16 @@ class ButterfliesMode : BaseMode() {
         const val TAU       = (Math.PI * 2).toFloat()
         const val PI_F      = Math.PI.toFloat()
         const val MAX_PAIRS = 3
-        const val SOLO_SCALE = 5.04f
-        const val LOVE_SCALE = 4.79f
+        // Big pair (70% of original), small pair (35% of original)
+        const val BIG_SOLO_SCALE   = 5.04f   // 7.2 × 0.70
+        const val BIG_LOVE_SCALE   = 4.79f   // 6.84 × 0.70
+        const val SMALL_SOLO_SCALE = 2.52f   // 7.2 × 0.35
+        const val SMALL_LOVE_SCALE = 2.39f   // 6.84 × 0.35
+        // Pair size assignment pattern: [big, small, big]
+        val PAIR_SOLO_SCALES = floatArrayOf(BIG_SOLO_SCALE, SMALL_SOLO_SCALE, BIG_SOLO_SCALE)
+        val PAIR_LOVE_SCALES = floatArrayOf(BIG_LOVE_SCALE, SMALL_LOVE_SCALE, BIG_LOVE_SCALE)
+        // Keep alias for wing-sync range (uses big scale as reference)
+        const val SOLO_SCALE = BIG_SOLO_SCALE
     }
 
     // Screen dimensions updated each frame so inner classes can use them
@@ -143,12 +151,16 @@ class ButterfliesMode : BaseMode() {
 
     // ── Pair ─────────────────────────────────────────────────────────────────
 
-    private inner class ButterflyPair(spawnDelay: Int) {
+    private inner class ButterflyPair(
+        spawnDelay: Int,
+        private val soloScale: Float = BIG_SOLO_SCALE,
+        private val loveScale: Float = BIG_LOVE_SCALE
+    ) {
         private val joinDelay = (120  + Math.random() * 180).toInt()
         private val lifetime  = (2400 + Math.random() * 3000).toInt()
         private var age       = -spawnDelay
         private var orbitAng  = (Math.random().toFloat() * TAU)
-        private var orbitR    = 240f
+        private var orbitR    = 120f   // reduced initial orbit radius (240→120 per v3.7.0)
         var solo: Butterfly?  = null
         var love: Butterfly?  = null
         private var departing = false
@@ -163,7 +175,7 @@ class ButterfliesMode : BaseMode() {
             age++
             if (solo == null && age >= 0) {
                 val (ex, ey) = edgeSpawn()
-                solo = Butterfly(ex, ey, hue = globalHue, scale = SOLO_SCALE)
+                solo = Butterfly(ex, ey, hue = globalHue, scale = soloScale)
             }
             val sl = solo ?: return
             sl.hue = globalHue
@@ -171,7 +183,7 @@ class ButterfliesMode : BaseMode() {
 
             if (love == null && age >= joinDelay) {
                 val (ex, ey) = edgeSpawn()
-                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = LOVE_SCALE)
+                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = loveScale)
             }
             if (age >= lifetime && !departing) {
                 departing = true; sl.startDepart(); love?.startDepart()
@@ -212,10 +224,12 @@ class ButterfliesMode : BaseMode() {
 
             if (lv != null) {
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
-                val syncRange = 130f * SOLO_SCALE
+                val syncRange = 130f * soloScale
                 if (dist < syncRange) {
                     val sync = 1f - dist / syncRange
-                    lv.wingPhase -= (lv.wingPhase - sl.wingPhase) * sync * 0.12f
+                    val diff = lv.wingPhase - sl.wingPhase
+                    lv.wingPhase -= diff * sync * 0.12f   // bidirectional sync (v3.7.0)
+                    sl.wingPhase += diff * sync * 0.12f
                 }
             }
         }

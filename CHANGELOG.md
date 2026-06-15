@@ -4,6 +4,23 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 — psysuals v3.7.0 backport + Synology slideshow crash fix
+
+### Fixed
+- **Slideshow / Synology**: HTTPS + self-signed TLS rejection (Glide now uses `trustAll` OkHttp client via `AndroSaverGlideModule`).
+- **Slideshow / Synology**: Runaway retry chain when all images fail (`retryRunnable` tracked and cancelled, preventing exponential `handler.postDelayed` pile-up → OOM).
+
+### Changed (psysuals v3.7.0 backport)
+- **Branches** — Jitter coefficients halved (`mid 0.80→0.45`, `mid 0.40→0.22`, `high 0.35→0.18`); spread coefficients halved (`mid 0.55→0.28`, `high 0.20→0.10`); ratio coeff halved (`high 0.12→0.06`); extra arm high-freq coeff reduced (`1.8→0.8`). Calmer, less frantic motion.
+- **Butterflies** — Dual-scale pair system: big (70% of original) and small (35% of original) pairs; initial orbit radius halved (`240→120`); bidirectional wing sync; per-pair sync range. BUG-023 fix: orbit/chase targets were swapped (non-functional).
+- **FlowField** — Edge recycling replaces random 0.3% recycling: particles within 8% screen margin relocated to central 60% cloud, preventing edge accumulation. N_MAX raised `50000→100000`.
+- **Lattice** — Dynamic grid density: 14×9 (default), 18×12 (≥1600px wide), 22×14 (≥2560px wide). Center-out frequency mapping: center columns → bass, edge columns → treble.
+- **Lissajous** — Calmer motion: halved mid/treble shape distortion coefficients; rotation damping tightened (`0.97→0.94`).
+- **Tunnel** — Fewer triangles (cap `50→30`), lower base speed (`0.03→0.022`), lower mid spawn rate (`3.0→1.5`).
+- **Aurora** — Removed dead code: `savedTopPts`/`savedHues` fields and `System.arraycopy` call (edge lines were already not drawn since v3.5.x port).
+
+---
+
 ## 2026-06-15 — fix: normalize mid/treble signals to deviation-above-baseline
 
 - **AudioEngine**: `audio.mid` and `audio.treble` now output deviation above their rolling
