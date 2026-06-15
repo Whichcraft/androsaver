@@ -45,6 +45,18 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         VortexMode(),
         AuroraMode(),
         LatticeMode(),
+        MyceliumMode(),
+        MagnetarMode(),
+        SlimeMoldMode(),
+        DrosteMode(),
+        CliffordMode(),
+        MobiusMode(),
+        ChromaticMode(),
+        PersistenceMode(),
+        OilSlickMode(),
+        SynapseMode(),
+        CoralMode(),
+        HeartbeatMode(),
         BarsMode(),
         WaterfallMode()
     )

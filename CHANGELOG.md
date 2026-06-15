@@ -4,6 +4,31 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 — v2.5.0: psysuals v3.8.0 backport — 12 new visualizer effects
+
+### Added (psysuals v3.8.0 backport)
+- **Mycelium** — spreading fungal hyphal network; tips branch and decay as they grow.
+- **Magnetar** — 4 000 particles riding an analytical rotating magnetic dipole field.
+- **SlimeMold** — Physarum-style 2 500-agent trail simulation with diffusion.
+- **Droste** — spiralling geometric shapes with long-persistence Escher-zoom illusion.
+- **Clifford** — strange attractor (8 000 walkers, morphing a/b/c/d parameters).
+- **Mobius** — 3-D wireframe Möbius strip with perspective projection.
+- **Chromatic** — expanding rings with R/G/B channel split (chromatic aberration).
+- **Persistence** — rotating nested polygons with long moiré trail.
+- **OilSlick** — full-screen sine-wave interference mapped to prismatic hue.
+- **Synapse** — 55-node neural-network graph with cascading signal pulses.
+- **Coral** — bioluminescent fractal coral growing from the bottom edge.
+- **Heartbeat** — expanding polygon rings with beat-driven morphing.
+
+### Notes (Android adaptation deltas vs. upstream psysuals)
+- Clifford: N=8 000 (upstream 40 000) — performance.
+- Magnetar: N=4 000 (upstream 6 000) — performance.
+- SlimeMold: N=2 500 (upstream 10 000), RES_DIV=8 grid — performance.
+- OilSlick: rendered as 120×68 rect grid (upstream RES_DIV=4 surfarray).
+- Droste: rotozoom FBO feedback not ported; replaced with fadeBlack(4f/255f).
+
+---
+
 ## 2026-06-15 — v2.4.0: psysuals v3.7.0 backport + Synology slideshow crash fix
 
 ### Fixed

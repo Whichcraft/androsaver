@@ -117,6 +117,42 @@ Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)`.  P
 
 **Edge recycling** (v3.7.0): replaces random 0.3% recycling.  Each frame, particles within 8% of any screen edge are relocated to a random position in the central 60% (20–80% of each dimension).  This prevents edge accumulation without causing the uniform teleport artifacts of random recycling.  Do not revert to random recycling.
 
+### MyceliumMode
+Port directly.  `draw.fadeBlack(8f/255f)` from `TRAIL_ALPHA=8`.  Segments use double `draw.line()` (dark + bright) to match the double `pygame.draw.line`.  ArrayList-based tip/segment lists instead of Python lists.
+
+### MagnetarMode
+N reduced 6 000 → 4 000 for Android performance.  surfarray/`BLEND_RGB_MAX` replaced: each particle drawn as `draw.circle(radius=1.5f, segments=4)` with `setAdditiveBlend()`.  `BLEND_RGB_MULT(230,228,235)` trail decay approximated with `draw.fadeBlack(15f/255f)`.
+
+### SlimeMoldMode
+N reduced 10 000 → 2 500; RES_DIV raised 4 → 8 (trail grid ~240×135 for 1080p).  NumPy vectorised sensing and movement replaced with scalar Kotlin loops.  Trail grid rendered as coloured rects.  3×3 diffusion approximated with 5-tap cross kernel.
+
+### DrosteMode
+`pygame.transform.rotozoom` FBO feedback loop **not ported** — no per-mode FBO blit available.  Replaced with `draw.fadeBlack(4f/255f)` (≈60-frame persistence) + accelerated `rotAcc` accumulation to maintain the Escher-zoom illusion purely through geometry ghost images.
+
+### CliffordMode
+N reduced 40 000 → 8 000 for Android performance.  NumPy vectorised map iterations replaced with scalar Kotlin loops over `FloatArray(N)`.  `BLEND_RGB_MULT(228,225,232)` trail decay approximated with `draw.fadeBlack(14f/255f)`.  Particles drawn as tiny circles (radius 1.5f, segments=4, additive blend).
+
+### MobiusMode
+Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d`/`pts2dV` arrays pre-allocated to avoid per-frame allocation.
+
+### ChromaticMode
+Port directly.  `TRAIL_ALPHA=0` (managed trail) → `draw.fadeBlack(18f/255f)` replaces `BLEND_RGB_MULT(226,222,226)`.  Three `draw.circle()` calls per ring for R/G/B split (unfilled, segments=40).  `BLEND_RGB_ADD` final blit not needed — additive already approximated by ring overlap.
+
+### PersistenceMode
+Port directly.  `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`.  `draw.polygon()` for both glow (wireframe) and col (wireframe) passes.
+
+### OilSlickMode
+surfarray/`BLEND_RGB_MAX` replaced with a 120×68 grid of `draw.rect()` calls.  No trail needed (redraws full grid every frame).  Coordinate grid pre-computation replaced with inline per-cell math.
+
+### SynapseMode
+Port directly.  `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`.  Signal pulses and node glows drawn with `setAdditiveBlend()` circles.
+
+### CoralMode
+Port directly.  `TRAIL_ALPHA=6` → `draw.fadeBlack(6f/255f)`.  Double-stroke segments (dark wide + bright thin) via two `draw.line()` calls.
+
+### HeartbeatMode
+Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon drawn with 120-point `FloatArray` passed to `draw.polygon()` twice (glow + col).
+
 ---
 
 ## Checklist after every psysuals import
