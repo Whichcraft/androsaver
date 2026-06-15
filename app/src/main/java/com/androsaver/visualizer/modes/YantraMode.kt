@@ -30,7 +30,10 @@ class YantraMode : BaseMode() {
     override fun reset() {
         hue = 0f; time = 0f
         for (i in 0 until N_RINGS) {
-            rot[i] = 0f
+            // Stagger initial rotations so rings aren't all aligned at tick 0.
+            // All-zero start causes web lines to converge radially, making the
+            // mandala look like one thick band for the first few seconds.
+            rot[i] = i.toFloat() / N_RINGS * TAU
             rvel[i] = signs[i] * (0.010f + i * 0.003f)
             poff[i] = 0f; pvel[i] = 0f
         }
