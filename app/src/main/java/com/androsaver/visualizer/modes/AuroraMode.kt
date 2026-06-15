@@ -7,7 +7,7 @@ import kotlin.math.*
 /**
  * AuroraMode — Northern Lights curtains.
  * Five translucent sinusoidal ribbons undulate horizontally across the screen.
- * Port of psysuals Aurora (v3.2.0).
+ * Port of psysuals Aurora (v3.7.0).
  */
 class AuroraMode : BaseMode() {
 
@@ -38,9 +38,6 @@ class AuroraMode : BaseMode() {
 
     private val phases = Array(DEFS.size) { FloatArray(3) }
     private val ks     = Array(DEFS.size) { FloatArray(3) }
-
-    private val savedTopPts = Array(DEFS.size) { FloatArray(0) }
-    private val savedHues   = FloatArray(DEFS.size)
 
     // Reusable buffers
     private var polyPts = FloatArray(0)
@@ -84,7 +81,6 @@ class AuroraMode : BaseMode() {
                 for (j in harms.indices) {
                     ks[ri][j] = kUnit * harms[j].km
                 }
-                savedTopPts[ri] = FloatArray(nPts * 2)
             }
 
             polyPts = FloatArray(nPts * 4)
@@ -171,8 +167,6 @@ class AuroraMode : BaseMode() {
             val ci = 0.28f + bloom * 0.22f + bass * 0.08f
             draw.polygon(polyPts, baseColor[0] * ci, baseColor[1] * ci, baseColor[2] * ci, 1f, filled = true)
 
-            System.arraycopy(topPts, 0, savedTopPts[ri], 0, topPts.size)
-            savedHues[ri] = ribbonHue
         }
 
         draw.setNormalBlend()

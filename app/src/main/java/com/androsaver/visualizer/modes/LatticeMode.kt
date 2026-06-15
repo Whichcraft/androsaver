@@ -6,19 +6,29 @@ import kotlin.math.*
 
 /**
  * LatticeMode — Crystal grid of glowing nodes and beam lines with feedback.
- * A 14x9 grid of nodes glows according to their assigned FFT frequency bin.
- * Port of psysuals Lattice (v3.2.0).
+ * Dynamic grid (14×9 / 18×12 / 22×14) with center-out frequency mapping
+ * (center columns = bass, edge columns = treble).
+ * Port of psysuals Lattice (v3.7.0).
  */
 class LatticeMode : BaseMode() {
 
     override val name = "Lattice"
 
     private companion object {
-        const val COLS    = 14
-        const val ROWS    = 9
         const val FFT_USE = 0.55f
         const val SHOCK_W = 22f
         const val IDLE    = 0.08f
+    }
+
+    private fun gridCols(W: Int) = when {
+        W >= 2560 -> 22
+        W >= 1600 -> 18
+        else      -> 14
+    }
+    private fun gridRows(W: Int) = when {
+        W >= 2560 -> 14
+        W >= 1600 -> 12
+        else      -> 9
     }
 
     private data class Node(
@@ -28,7 +38,7 @@ class LatticeMode : BaseMode() {
         val hOff: Float
     )
 
-    private val nodes = ArrayList<Node>(COLS * ROWS)
+    private val nodes = ArrayList<Node>(22 * 14)
     private var hue = 0.52f
     private var shockR = 9999f
     private var shockSpd = 0f
@@ -40,7 +50,7 @@ class LatticeMode : BaseMode() {
     private var maxR = 1f
     private var lastW = 0
     private var lastH = 0
-    private var colPeaks = FloatArray(COLS) { 0.2f }
+    private var colPeaks = FloatArray(14) { 0.2f }
 
     override fun reset() {
         hue = 0.52f
@@ -51,18 +61,23 @@ class LatticeMode : BaseMode() {
         lastW = 0
         lastH = 0
         nodes.clear()
-        colPeaks = FloatArray(COLS) { 0.2f }
+        colPeaks = FloatArray(14) { 0.2f }
     }
 
-    private fun getBin(col: Int, fftLen: Int): Int {
+    private fun getBin(col: Int, nCols: Int, fftLen: Int): Int {
         val start = 3 // skip DC component and sub-bass rumble
         val end = minOf(fftLen - 1, (fftLen * FFT_USE).toInt())
         if (end <= start) return 0
-        return start + ((col.toFloat() / (COLS - 1)) * (end - start)).toInt()
+        // Center-out mapping: center columns → low frequencies, edge columns → high
+        val center = (nCols - 1) / 2.0f
+        val normalized = abs(col - center) / maxOf(center, 1f)
+        return start + (normalized * (end - start)).toInt()
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W; val H = draw.H
+        val nCols = gridCols(W)
+        val nRows = gridRows(W)
         if (W != lastW || H != lastH) {
             lastW = W; lastH = H
             cx = W / 2f; cy = H / 2f
@@ -70,12 +85,12 @@ class LatticeMode : BaseMode() {
             shockSpd = 6f * (W / 640f)
 
             val x0 = W * 0.08f; val y0 = H * 0.10f
-            val cw = W * 0.84f / maxOf(COLS - 1, 1)
-            val ch = H * 0.80f / maxOf(ROWS - 1, 1)
+            val cw = W * 0.84f / maxOf(nCols - 1, 1)
+            val ch = H * 0.80f / maxOf(nRows - 1, 1)
 
             nodes.clear()
-            for (row in 0 until ROWS) {
-                for (col in 0 until COLS) {
+            for (row in 0 until nRows) {
+                for (col in 0 until nCols) {
                     val ox = x0 + col * cw
                     val oy = y0 + row * ch
                     val dist = hypot(ox - cx, oy - cy)
@@ -83,6 +98,8 @@ class LatticeMode : BaseMode() {
                     nodes.add(Node(ox, oy, col, row, dist, hOff))
                 }
             }
+            // Reset peaks when grid size changes
+            if (colPeaks.size != nCols) colPeaks = FloatArray(nCols) { 0.2f }
         }
 
         val fft = audio.fft
@@ -107,16 +124,19 @@ class LatticeMode : BaseMode() {
         // Decay (trails) — matches Python's BLEND_RGB_MULT (230/255 ≈ 0.90) -> fadeBlack(25/255)
         draw.fadeBlack(25f / 255f)
 
+        // Guard against size mismatch after a grid resize
+        if (colPeaks.size != nCols) colPeaks = FloatArray(nCols) { 0.2f }
+
         // Dynamic frequency peak normalization with noise gate
-        val rawEnergies = FloatArray(COLS) { col ->
-            maxOf(fft[getBin(col, fft.size)] - 0.015f, 0f)
+        val rawEnergies = FloatArray(nCols) { col ->
+            maxOf(fft[getBin(col, nCols, fft.size)] - 0.015f, 0f)
         }
-        for (col in 0 until COLS) {
+        for (col in 0 until nCols) {
             colPeaks[col] = maxOf(colPeaks[col] * 0.996f, rawEnergies[col])
             colPeaks[col] = maxOf(colPeaks[col], 0.08f)
         }
         // Node column brightness scaled by mids and raw energy
-        val scaledEnergies = FloatArray(COLS) { col ->
+        val scaledEnergies = FloatArray(nCols) { col ->
             (rawEnergies[col] / colPeaks[col]) * (0.50f + mid * 0.30f)
         }
 
@@ -139,13 +159,13 @@ class LatticeMode : BaseMode() {
 
         // Draw Beams (treble adds line width shimmer)
         draw.setAdditiveBlend()
-        for (row in 0 until ROWS) {
-            for (col in 0 until COLS) {
-                val ni = row * COLS + col
+        for (row in 0 until nRows) {
+            for (col in 0 until nCols) {
+                val ni = row * nCols + col
                 val nd = nodes[ni]
                 val nhue = (hue + nd.hOff) % 1f
 
-                if (col < COLS - 1) {
+                if (col < nCols - 1) {
                     val niR = ni + 1
 
                     // Base faint line
@@ -162,8 +182,8 @@ class LatticeMode : BaseMode() {
                         draw.line(sxArr[ni], syArr[ni], sxArr[niR], syArr[niR], cCore[0], cCore[1], cCore[2], 1f)
                     }
                 }
-                if (row < ROWS - 1) {
-                    val niD = ni + COLS
+                if (row < nRows - 1) {
+                    val niD = ni + nCols
 
                     // Base faint line
                     val cBase = GLDraw.hsl(nhue, s = 0.25f, l = 0.06f)
