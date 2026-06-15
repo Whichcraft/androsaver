@@ -96,11 +96,10 @@ class AuroraMode : BaseMode() {
             padTmp = FloatArray(nPts)
         }
 
-        val fft    = audio.fft
         val beat   = audio.beat
-        val bass   = fft.meanSlice(0, 6)
-        val mid    = fft.meanSlice(6, 30)
-        val treble = fft.meanSlice(100, 256)
+        val bass   = beat
+        val mid    = audio.mid
+        val treble = audio.treble
 
         hue = (hue + 0.003f + mid * 0.002f) % 1f
 
@@ -176,12 +175,6 @@ class AuroraMode : BaseMode() {
             savedHues[ri] = ribbonHue
         }
 
-        // Draw bright sharp edge lines on top with normal blend
         draw.setNormalBlend()
-        val bl = minOf(0.80f + bloom * 0.18f, 0.98f)
-        for (ri in DEFS.indices) {
-            val c = GLDraw.hsl(savedHues[ri], 1f, bl)
-            draw.lineStrip(savedTopPts[ri], c[0], c[1], c[2], 1f)
-        }
     }
 }

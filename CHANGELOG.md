@@ -4,14 +4,38 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## 2026-06-15 (psysuals submodule sync to v3.5.2)
+## 2026-06-15 (psysuals v3.4.0–v3.5.2 full port to Android)
+
+### Added
+- **AudioData** — Two new normalized audio signal fields: `mid` (bins 20–99, normalized by EMA) and `treble` (bins 100–255, normalized by EMA), computed in `AudioEngine`.
+
+### Changed (all 18 visualizer effects ported to psysuals v3.4.0 multi-band audio)
+Each effect now reacts distinctively to bass (`beat`), mids (`audio.mid`), and treble (`audio.treble`) instead of raw FFT slices. Key per-effect highlights:
+
+- **Aurora** — Ribbon width/brightness driven by mid; speed/ripple by treble. Edge lines removed (v3.5.x).
+- **Bars (Spectrum)** — Hue drift adds mid term; waveform amplitude expands dynamically with treble.
+- **Branches** — Spread/ratio, jitter, arm count, and time warp all driven by distinct mid/treble signals.
+- **Bubbles** — Spawn count, velocity, radius pulse driven by mid and treble independently.
+- **Butterflies** — Wing flap speed, flight speed, orbit ang speed, and sparkle count/radius all driven by mid/treble. `update()` signature extended to accept mid/high.
+- **Corridor** — Path wobble amplitude (mid), spark brightness/radius (treble), frame glow, spawn count.
+- **Cube** — Rotation inertia, vertex jitter, orb radius, satellite rotation driven by mid/treble.
+- **FlowField** — Particle count raised to baseline 25000 (max 100000); treble adds radial burst; mid controls speed and 0.3% particle recycling.
+- **Lattice** — Leftmost column restored; scaled energies driven by mid; shock brightness by treble.
+- **Lissajous** — Knot frequency ratios, phase drift, rotation inertia, glow multiplier, and ring trigger driven by mid/treble.
+- **Nova** — Layer rotation driven by mid; triangle jitter and ring expansion by treble.
+- **Plasma** — Time speed distributed across bass/mid/treble (was single beat term).
+- **Spiral** — Path wobble, arm twist, helix radius, dot sizes, and flare trigger driven by mid/treble.
+- **TriFlux** — Sweep speed driven by mid; active tile scale target, rotation reinforce, and filled brightness driven by mid/treble.
+- **Tunnel** — Path wobble amplitude (treble), dt, spawn, triangle rvel, ring brightness, star size/brightness all driven by mid/treble.
+- **Vortex** — Hue drift adds treble; explode ember count/speed scale with treble; ember brightness adds treble. Beat threshold raised to 0.7.
+- **Waterfall** — Hue drift adds mid; row boost adds mid-weighted glow for recent rows.
+- **Yantra** — Physics spring/damping constants updated; ring rotation driven by mid; vertex radius jitter by treble; spoke wobble, spoke radial jitter, central pulse, inner circle all driven by mid/treble.
 
 ### Changed
 - **psysuals submodule** — Updated from v3.3.0 (`b482e9a`) to v3.5.2 (`d55d0dc`). Key upstream changes:
-  - **v3.4.0** — Creative multi-band audio reactivity: all 18 effects upgraded to use normalized audio engine bands (`beat`, `MID_ENERGY`, `TREBLE_ENERGY`) distinctively.
+  - **v3.4.0** — Creative multi-band audio reactivity: all 18 effects upgraded to use normalized audio engine bands.
   - **v3.5.0/3.5.1** — Bug fixes: vortex ember life off-by-one (BUG-016), FlowField particle optimizations, Aurora edge lines removed.
   - **v3.5.2** — Bug fixes: auto-gain spike on silence (BUG-017), crossfade off-by-one (BUG-018), settings atomic writes (BUG-019), audio callback exception handling (BUG-020), GL blend mode corrections (BUG-021), benchmark tick reset (BUG-022).
-- Note: multi-band audio reactivity changes (v3.4.0) are not yet ported to the Android app.
 
 ---
 

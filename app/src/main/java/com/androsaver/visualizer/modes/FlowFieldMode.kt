@@ -52,15 +52,14 @@ class FlowFieldMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
-        val fft  = audio.fft
         val beat = audio.beat
-        val bass   = fft.meanSlice(0, 6)
-        val mids   = fft.meanSlice(10, 40)
-        val treble = fft.meanSlice(100, 256)
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
 
-        // Seed particles on first frame
+        // Seed particles on first frame — baseline 25000 for 1080p (v3.4.0)
         if (tick == 0 || px.isEmpty() || (px.size > 1 && px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
-            n = (12000 * W * H / (1920 * 1080)).toInt().coerceIn(3000, N_MAX)
+            n = (25000 * W * H / (1920 * 1080)).toInt().coerceIn(8000, N_MAX)
             px = FloatArray(n)
             py = FloatArray(n)
             for (i in 0 until n) {
@@ -69,11 +68,11 @@ class FlowFieldMode : BaseMode() {
             }
         }
 
-        hue  = (hue + 0.0013f + bass * 0.002f) % 1f
-        t   += 0.007f + mids * 0.010f
+        hue  = (hue + 0.0013f + bass * 0.002f + high * 0.001f) % 1f
+        t   += 0.007f + mid * 0.010f + high * 0.005f
 
         if (beat > 0.55f) {
-            t     += 0.5f + beat * 0.4f   // phase jump reshapes all lines
+            t     += 0.5f + beat * 0.4f
             boost  = 2.0f + beat * 2.0f
         }
         boost = maxOf(0f, boost - 0.12f)
@@ -81,25 +80,51 @@ class FlowFieldMode : BaseMode() {
         // Slow fade — pygame BLEND_RGB_MULT(247/255) ≈ fadeBlack(8/255)
         draw.fadeBlack(8f / 255f)
 
-        val spd = 1.8f + bass * 1.6f + boost
+        val spd    = 1.8f + bass * 1.6f + mid * 1.2f + boost
+        val scatter = high * 3.2f
 
-        val scatter = treble * 3.2f
+        // Treble burst: push particles outward from center when high > 0.45
+        val doBurst = high > 0.45f
+
+        // Particle recycling: 0.3% per frame for even screen coverage
+        val numRecycle = (n * 0.003f).toInt()
+        if (numRecycle > 0) {
+            repeat(numRecycle) {
+                val idx = (Math.random() * n).toInt().coerceIn(0, n - 1)
+                px[idx] = Math.random().toFloat() * W
+                py[idx] = Math.random().toFloat() * H
+            }
+        }
 
         // Move particles and draw them as tiny dots (additive)
         draw.setAdditiveBlend()
+        val cx = W * 0.5f; val cy = H * 0.5f
+        val minDim = minOf(W, H)
         for (i in 0 until n) {
             val ang = fieldAngle(i, bass)
 
             // Bass gravity: pull toward screen centre
-            val attractX = (W * 0.5f - px[i]) * (bass * 0.0018f)
-            val attractY = (H * 0.5f - py[i]) * (bass * 0.0018f)
+            val attractX = (cx - px[i]) * (bass * 0.0018f)
+            val attractY = (cy - py[i]) * (bass * 0.0018f)
 
             // Treble scatter: random kick in any direction
             val scatterX = (Math.random().toFloat() * 2f - 1f) * scatter
             val scatterY = (Math.random().toFloat() * 2f - 1f) * scatter
 
-            px[i] = ((px[i] + cos(ang) * spd + attractX + scatterX) % W + W) % W
-            py[i] = ((py[i] + sin(ang) * spd + attractY + scatterY) % H + H) % H
+            var nx = px[i] + cos(ang) * spd + attractX + scatterX
+            var ny = py[i] + sin(ang) * spd + attractY + scatterY
+
+            // Treble burst: radial push from center
+            if (doBurst) {
+                val dx = px[i] - cx; val dy = py[i] - cy
+                val dist = sqrt(dx * dx + dy * dy) + 1e-5f
+                val push = high * 22f * (1f - (dist / (minDim * 0.5f)).coerceAtMost(1f))
+                nx += (dx / dist) * push
+                ny += (dy / dist) * push
+            }
+
+            px[i] = ((nx % W) + W) % W
+            py[i] = ((ny % H) + H) % H
 
             val h = (hue + px[i] / W * 0.30f + py[i] / H * 0.18f) % 1f
             val c = GLDraw.hsl(h, s = 0.90f, l = 0.62f)

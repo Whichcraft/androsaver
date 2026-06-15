@@ -19,7 +19,10 @@ psysuals uses pygame surfaces.
 | `pygame.draw.circle(surf, color, center, r)` | `draw.circle(cx, cy, r, r, g, b, alpha, filled=true)` |
 | `pygame.draw.line` | `draw.line(x1, y1, x2, y2, r, g, b, alpha)` |
 | `config.WIDTH / HEIGHT` | `draw.W / draw.H` |
-| `np.mean(fft[:6])` | `fft.meanSlice(0, 6)` |
+| `beat` (bass signal) | `audio.beat` |
+| `config.MID_ENERGY` | `audio.mid` (normalized EMA of bins 20–99) |
+| `config.TREBLE_ENERGY` | `audio.treble` (normalized EMA of bins 100–255) |
+| `np.mean(fft[:6])` (old pre-v3.4.0 pattern) | `audio.beat` (use `audio.mid`/`audio.treble` for frequency bands) |
 | `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → FloatArray(3) |
 
 ---

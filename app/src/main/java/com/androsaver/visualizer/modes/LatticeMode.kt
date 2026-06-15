@@ -76,8 +76,7 @@ class LatticeMode : BaseMode() {
             nodes.clear()
             for (row in 0 until ROWS) {
                 for (col in 0 until COLS) {
-                    var ox = x0 + col * cw
-                    if (col == 0) ox = -W * 0.25f // Move leftmost column off-screen
+                    val ox = x0 + col * cw
                     val oy = y0 + row * ch
                     val dist = hypot(ox - cx, oy - cy)
                     val hOff = dist / maxR * 0.55f
@@ -88,19 +87,20 @@ class LatticeMode : BaseMode() {
 
         val fft = audio.fft
         val beat = audio.beat
-        val bass = fft.meanSlice(0, 6)
-        val mid = if (fft.size > 6) fft.meanSlice(6, minOf(30, fft.size)) else 0f
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
         val scaleFactor = W / 640f
 
-        hue = (hue + 0.0025f + mid * 0.001f) % 1f
+        hue = (hue + 0.0025f + mid * 0.005f + high * 0.002f) % 1f
 
         if (beat > 0.6f && beatPrev <= 0.6f) {
             shockR = 0f
         }
         beatPrev = beat
-        shockR += shockSpd * (1f + bass * 2f + beat * 0.8f)
+        shockR += shockSpd * (1f + bass * 2f + mid * 0.8f)
 
-        svel += (1f + bass * 0.04f - scale) * 0.18f
+        svel += (1f + bass * 0.04f + high * 0.02f - scale) * 0.18f
         svel *= 0.70f
         scale = (scale + svel).coerceIn(0.90f, 1.12f)
 
@@ -115,8 +115,9 @@ class LatticeMode : BaseMode() {
             colPeaks[col] = maxOf(colPeaks[col] * 0.996f, rawEnergies[col])
             colPeaks[col] = maxOf(colPeaks[col], 0.08f)
         }
+        // Node column brightness scaled by mids and raw energy
         val scaledEnergies = FloatArray(COLS) { col ->
-            (rawEnergies[col] / colPeaks[col]) * 0.68f
+            (rawEnergies[col] / colPeaks[col]) * (0.50f + mid * 0.30f)
         }
 
         val sxArr = FloatArray(nodes.size)
@@ -133,21 +134,20 @@ class LatticeMode : BaseMode() {
             val dist = hypot(sx - cx, sy - cy)
             val shockW = SHOCK_W * scaleFactor
             val shock = maxOf(0f, 1f - abs(dist - shockR) / shockW)
-            bright[ni] = minOf(energy + shock * (0.6f + bass * 0.4f), 1.6f)
+            bright[ni] = minOf(energy + shock * (0.6f + bass * 0.4f + high * 0.3f), 1.8f)
         }
 
-        // Draw Beams
+        // Draw Beams (treble adds line width shimmer)
         draw.setAdditiveBlend()
         for (row in 0 until ROWS) {
             for (col in 0 until COLS) {
-                if (col == 0) continue // Skip the leftmost column
                 val ni = row * COLS + col
                 val nd = nodes[ni]
                 val nhue = (hue + nd.hOff) % 1f
 
                 if (col < COLS - 1) {
                     val niR = ni + 1
-                    
+
                     // Base faint line
                     val cBase = GLDraw.hsl(nhue, s = 0.25f, l = 0.06f)
                     draw.line(sxArr[ni], syArr[ni], sxArr[niR], syArr[niR], cBase[0], cBase[1], cBase[2], 1f)
@@ -164,7 +164,7 @@ class LatticeMode : BaseMode() {
                 }
                 if (row < ROWS - 1) {
                     val niD = ni + COLS
-                    
+
                     // Base faint line
                     val cBase = GLDraw.hsl(nhue, s = 0.25f, l = 0.06f)
                     draw.line(sxArr[ni], syArr[ni], sxArr[niD], syArr[niD], cBase[0], cBase[1], cBase[2], 1f)
@@ -182,19 +182,18 @@ class LatticeMode : BaseMode() {
             }
         }
 
-        // Draw Nodes
+        // Draw Nodes (treble adds base radius shimmer)
         for (ni in nodes.indices) {
             val nd = nodes[ni]
-            if (nd.col == 0) continue // Skip the leftmost column
             val nhue = (hue + nd.hOff) % 1f
 
-            // Base faint node
+            // Base faint node (shimmers with treble)
             val cBase = GLDraw.hsl(nhue, s = 0.25f, l = 0.08f)
-            draw.circle(sxArr[ni], syArr[ni], 2f * scaleFactor, cBase[0], cBase[1], cBase[2], 1f, filled = true, segments = 8)
+            draw.circle(sxArr[ni], syArr[ni], (2f + high * 1.8f) * scaleFactor, cBase[0], cBase[1], cBase[2], 1f, filled = true, segments = 8)
 
             val b = bright[ni]
             if (b > 0.15f) {
-                val baseR = (2f + b * 5f) * scaleFactor
+                val baseR = (2f + b * 5f + high * 2.5f) * scaleFactor
                 val rCore = maxOf(1f, baseR)
                 val rMid = maxOf(2f, baseR * 1.8f)
                 val rOuter = maxOf(3f, baseR * 3f)
@@ -206,7 +205,7 @@ class LatticeMode : BaseMode() {
                 val cMid = GLDraw.hsl(nhue, l = minOf(b * 0.40f + 0.08f, 0.60f))
                 draw.circle(sxArr[ni], syArr[ni], rMid, cMid[0], cMid[1], cMid[2], 1f, filled = true, segments = 12)
                 // Core bright center
-                val cCore = GLDraw.hsl(nhue, l = minOf(b * 0.75f + 0.15f, 0.95f))
+                val cCore = GLDraw.hsl(nhue, l = minOf(b * 0.75f + 0.15f + high * 0.05f, 0.95f))
                 draw.circle(sxArr[ni], syArr[ni], rCore, cCore[0], cCore[1], cCore[2], 1f, filled = true, segments = 10)
             }
         }

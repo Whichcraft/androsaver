@@ -41,22 +41,21 @@ class LissajousMode : BaseMode() {
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         draw.fadeBlack(0.18f)
 
-        val fft  = audio.fft
         val beat = audio.beat
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
         hue += 0.006f
 
-        val bass = fft.meanSlice(0, 6)
-        val mid  = fft.meanSlice(6, 30)
-        val high = fft.meanSlice(30, fft.size)
-
-        val ax = 3.0f + bass * 0.05f
-        val ay = 2.0f + mid  * 0.05f
-        val az = 5.0f + high * 0.05f
+        // Creative shape distortion mapping
+        val ax = 3.0f + bass * 0.20f
+        val ay = 2.0f + mid  * 0.35f
+        val az = 5.0f + high * 0.40f
 
         val clampedBeat = minOf(1.5f, beat)
-        dx += 0.0003f + bass * 0.0001f
-        dz += 0.0002f + high * 0.0001f
-        t  += 0.010f  + clampedBeat * 0.006f
+        dx += 0.0003f + bass * 0.0002f
+        dz += 0.0002f + high * 0.0004f
+        t  += 0.010f  + clampedBeat * 0.006f + mid * 0.004f
 
         if (hist.size >= TRAIL) hist.removeFirst()
         hist.addLast(Triple(sin(ax * t + dx), sin(ay * t + dy), sin(az * t + dz)))
@@ -70,9 +69,9 @@ class LissajousMode : BaseMode() {
 
         hue += clampedBeat * 0.006f
 
-        // Rotation inertia
-        rvx += clampedBeat * 0.0022f + 0.00005f; rvx *= 0.97f; rx += rvx
-        rvy += clampedBeat * 0.0032f + 0.00007f; rvy *= 0.97f; ry += rvy
+        // Rotation inertia (mids add extra spin)
+        rvx += clampedBeat * 0.0022f + mid * 0.0015f + 0.00005f; rvx *= 0.97f; rx += rvx
+        rvy += clampedBeat * 0.0032f + mid * 0.0020f + 0.00007f; rvy *= 0.97f; ry += rvy
 
         val n = hist.size
         if (n < 2) return
@@ -98,9 +97,10 @@ class LissajousMode : BaseMode() {
 
         val cx = draw.W / 2f; val cy = draw.H / 2f
 
-        val l1Bright = minOf(0.90f + beat * 0.08f + high * 0.14f, 0.98f)
+        val l1Bright = minOf(0.90f + clampedBeat * 0.08f + high * 0.14f, 0.98f)
+        val glowLwMul = 4 + (high * 6).toInt()
 
-        // Two glow passes: (lw_factor, l_tail, l_head)
+        // Two glow passes: (l_tail, l_head)
         val passes = arrayOf(Pair(0.08f, 0.22f), Pair(0.50f, l1Bright))
 
         for (sym in 0 until N_SYM) {
@@ -129,15 +129,15 @@ class LissajousMode : BaseMode() {
                 draw.colorLineStrip(pts, colors)
             }
 
-            // Head dot at the tip of each arm
+            // Head dot at the tip of each arm (treble scales knot size and triggers outer ring)
             val hpx = pts[(n - 1) * 2]; val hpy = pts[(n - 1) * 2 + 1]
-            val r   = maxOf(3f, 7f + beat * 3.66f)
+            val r   = maxOf(3f, 7f + clampedBeat * 5.0f + high * 3.0f)
             val c   = GLDraw.hsl((hue + sym.toFloat() / N_SYM * 0.33f) % 1f, l = 0.88f)
             draw.circle(hpx, hpy, r,       c[0], c[1], c[2], 1f, segments = 16)
             draw.circle(hpx, hpy, r / 3f,  1f,   1f,   1f,   1f, segments = 12)
-            if (beat > 0.5f) {
-                val hc = GLDraw.hsl((hue + sym.toFloat() / N_SYM * 0.33f + 0.5f) % 1f, l = 0.45f + beat * 0.25f)
-                draw.circle(hpx, hpy, r * 1.8f, hc[0], hc[1], hc[2], 0.5f, filled = false, segments = 16)
+            if (clampedBeat > 0.3f || high > 0.4f) {
+                val hc = GLDraw.hsl((hue + sym.toFloat() / N_SYM * 0.33f + 0.5f) % 1f, l = 0.45f + clampedBeat * 0.25f + high * 0.15f)
+                draw.circle(hpx, hpy, r * (1.5f + high * 0.8f), hc[0], hc[1], hc[2], 0.5f, filled = false, segments = 16)
             }
         }
 

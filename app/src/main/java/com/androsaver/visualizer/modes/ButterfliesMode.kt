@@ -68,8 +68,8 @@ class ButterfliesMode : BaseMode() {
 
         fun startDepart() { if (departAng == null) departAng = Math.random().toFloat() * TAU }
 
-        fun update(bass: Float, beat: Float, chasePos: Pair<Float, Float>? = null) {
-            wingPhase += 0.09f + bass * 0.16f + beat * 0.06f
+        fun update(bass: Float, beat: Float, mid: Float = 0f, high: Float = 0f, chasePos: Pair<Float, Float>? = null) {
+            wingPhase += 0.09f + bass * 0.20f + mid * 0.35f + high * 0.15f
 
             if (departAng != null) {
                 val da = departAng!!
@@ -109,7 +109,7 @@ class ButterfliesMode : BaseMode() {
                 heading += ((desired - heading + PI_F) % TAU - PI_F).coerceIn(-0.10f, 0.10f) * 0.14f
             }
 
-            val spd = (1.5f + bass * 0.8f + beat * 0.4f) * scale
+            val spd = (1.5f + bass * 0.8f + mid * 0.60f) * scale
             x += cos(heading) * spd; y += sin(heading) * spd
 
             val cl = 28f * scale
@@ -159,7 +159,7 @@ class ButterfliesMode : BaseMode() {
             (solo == null || solo!!.offScreen) &&
             (love == null || love!!.offScreen)
 
-        fun update(bass: Float, beat: Float, globalHue: Float) {
+        fun update(bass: Float, beat: Float, mid: Float = 0f, high: Float = 0f, globalHue: Float) {
             age++
             if (solo == null && age >= 0) {
                 val (ex, ey) = edgeSpawn()
@@ -191,10 +191,10 @@ class ButterfliesMode : BaseMode() {
                 }
 
                 if (breakTimer > 0) {
-                    sl.update(bass, beat)
-                    lv.update(bass, beat)
+                    sl.update(bass, beat, mid, high)
+                    lv.update(bass, beat, mid, high)
                 } else {
-                    val angSpeed = 0.012f + beat * 0.020f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
+                    val angSpeed = 0.012f + beat * 0.020f + mid * 0.015f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
                     orbitAng += angSpeed
                     if (orbitR > 40f) {
                         orbitR -= 0.06f
@@ -202,12 +202,12 @@ class ButterfliesMode : BaseMode() {
                     val r = orbitR
                     val soloTarget = Pair(lv.x + cos(orbitAng + PI_F) * r, lv.y + sin(orbitAng + PI_F) * r)
                     val loveTarget = Pair(sl.x + cos(orbitAng) * r, sl.y + sin(orbitAng) * r)
-                    sl.update(bass, beat, chasePos = soloTarget)
-                    lv.update(bass, beat, chasePos = loveTarget)
+                    sl.update(bass, beat, mid, high, chasePos = soloTarget)
+                    lv.update(bass, beat, mid, high, chasePos = loveTarget)
                 }
             } else {
-                sl.update(bass, beat)
-                lv?.update(bass, beat)
+                sl.update(bass, beat, mid, high)
+                lv?.update(bass, beat, mid, high)
             }
 
             if (lv != null) {
@@ -220,19 +220,20 @@ class ButterfliesMode : BaseMode() {
             }
         }
 
-        fun draw(draw: GLDraw, beat: Float, globalHue: Float) {
+        fun draw(draw: GLDraw, beat: Float, globalHue: Float, high: Float = 0f) {
             val sl = solo ?: return
             val lv = love
-            if (lv != null && beat > 0.8f && !departing) {
+            if (lv != null && (beat > 0.8f || high > 0.45f) && !departing) {
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
                 if (dist < 300f) {
                     val mx = (sl.x + lv.x) / 2f; val my = (sl.y + lv.y) / 2f
                     val sc = GLDraw.hsl((globalHue + 0.12f) % 1f, l = 0.80f)
-                    repeat(4) {
+                    val sparkleN = (4 + beat * 6 + high * 10).toInt()
+                    repeat(sparkleN) {
                         val sx = mx + (Math.random().toFloat() - 0.5f) * 50f
                         val sy = my + (Math.random().toFloat() - 0.5f) * 50f
-                        draw.circle(sx, sy, 2f + Math.random().toFloat() * 3f,
-                            sc[0], sc[1], sc[2], 1f, segments = 8)
+                        val r  = 2f + Math.random().toFloat() * (3f + high * 6f)
+                        draw.circle(sx, sy, r, sc[0], sc[1], sc[2], 1f, segments = 8)
                     }
                 }
             }
@@ -273,7 +274,9 @@ class ButterfliesMode : BaseMode() {
 
         globalHue = (globalHue + 0.0014f) % 1f
         val beat = audio.beat
-        val bass = audio.fft.meanSlice(0, 6)
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
 
         pairs.removeAll { it.dead }
         while (pairs.size < MAX_PAIRS) {
@@ -282,8 +285,8 @@ class ButterfliesMode : BaseMode() {
 
         for ((i, pair) in pairs.withIndex()) {
             val gh = (globalHue + i.toFloat() / MAX_PAIRS) % 1f
-            pair.update(bass, beat, gh)
-            pair.draw(draw, beat, gh)
+            pair.update(bass, beat, mid, high, gh)
+            pair.draw(draw, beat, gh, high)
         }
     }
 }

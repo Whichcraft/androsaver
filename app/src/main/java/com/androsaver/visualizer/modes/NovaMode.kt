@@ -42,17 +42,17 @@ class NovaMode : BaseMode() {
         draw.fadeBlack(0.11f)
 
         val beat     = audio.beat
-        val fft      = audio.fft
         val waveform = audio.waveform
         val W        = draw.W
         val H        = draw.H
 
-        hue  = (hue + 0.007f) % 1f
-        time += 0.018f + beat * 0.025f
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
 
-        val bass = fft.meanSlice(0, 6)
-        val mid  = fft.meanSlice(6, 30)
-        val high = fft.meanSlice(30, fft.size)
+        hue  = (hue + 0.007f) % 1f
+        time += 0.018f + bass * 0.025f + mid * 0.015f
+
         val bands = floatArrayOf(bass, mid, high, (bass + mid + high) / 3f)
 
         val cx    = W / 2f
@@ -62,11 +62,11 @@ class NovaMode : BaseMode() {
         // Update layer physics
         for (i in 0 until N_LAYERS) {
             val e = bands[i].coerceIn(0f, 1f)
-            pvel[i] += beat * (0.32f + e * 0.14f)
+            pvel[i] += bass * (0.32f + e * 0.14f)
             pvel[i] += -poff[i] * 0.24f
             pvel[i] *= 0.63f
             poff[i] += pvel[i]
-            rot[i]  += rvel[i] * (1f + e * 2.8f + bass * 1.2f)
+            rot[i]  += rvel[i] * (1f + e * 2.8f + bass * 1.2f + mid * 1.0f)
         }
 
         // Downsample waveform to N_WAVE points
@@ -84,8 +84,8 @@ class NovaMode : BaseMode() {
             val baseR  = maxR * (0.22f + i.toFloat() / (N_LAYERS - 1) * 0.72f)
             val rOff   = poff[i] * baseR * 0.42f
             val h      = (hue + i.toFloat() / N_LAYERS * 0.45f) % 1f
-            val bright = (0.44f + e * 0.44f + beat * 0.10f).coerceIn(0f, 1f)
-            val amp    = baseR * (0.14f + e * 0.20f + beat * 0.10f)
+            val bright = (0.44f + e * 0.30f + mid * 0.15f + bass * 0.10f).coerceIn(0f, 1f)
+            val amp    = baseR * (0.14f + e * 0.20f + bass * 0.10f + high * 0.15f)
 
             val color = GLDraw.hsl(h, 1f, bright)
 
@@ -118,11 +118,12 @@ class NovaMode : BaseMode() {
             TriLayer( 0.012f, 0.58f, 0.25f),
             TriLayer(-0.008f, 0.82f, 0.55f)
         )
-        for (triLayer in triLayers) {
-            val tRot  = rot[0] * triLayer.tRvel / 0.005f
-            val tR    = maxR * triLayer.tRFrac * (1f + poff[0] * 0.25f)
+        for ((triIdx, triLayer) in triLayers.withIndex()) {
+            val tRot  = rot[0] * triLayer.tRvel / 0.005f + mid * 0.20f
+            // Treble adds radial jitter to outer triangle positions
+            val tR    = maxR * triLayer.tRFrac * (1f + poff[0] * 0.25f) + sin(time * 8f + triIdx) * (high * 20f)
             val tH    = (hue + triLayer.tHOff) % 1f
-            val tL    = (0.50f + bass * 0.30f + beat * 0.18f).coerceIn(0f, 1f)
+            val tL    = (0.50f + bass * 0.20f + mid * 0.15f + high * 0.15f).coerceIn(0f, 1f)
             val tColor = GLDraw.hsl(tH, 1f, tL)
 
             for (sym in 0 until N_SYM) {
@@ -149,10 +150,10 @@ class NovaMode : BaseMode() {
         // Central 3 rotating triangles (two counter-rotating layers)
         val cRot1 =  time * 1.8f
         val cRot2 = -time * 1.2f + PI.toFloat() / 3f
-        val cR = maxR * (0.06f + bass * 0.04f + beat * 0.06f)
+        val cR = maxR * (0.06f + bass * 0.04f + mid * 0.03f)
         for ((cRot, hOff) in listOf(cRot1 to 0.0f, cRot2 to 0.5f)) {
             val tH = (hue + hOff) % 1f
-            val tL = (0.55f + beat * 0.35f).coerceIn(0f, 1f)
+            val tL = (0.55f + bass * 0.25f + high * 0.20f).coerceIn(0f, 1f)
             val tColor = GLDraw.hsl(tH, 1f, tL)
             for (k in 0 until 3) {
                 val aMid = k.toFloat() / 3f * TAU + cRot

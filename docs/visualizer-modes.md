@@ -5,7 +5,7 @@ All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
 abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)
 ```
 
-`AudioData` provides: `bass`, `mid`, `high` (0–1 normalized FFT bands), `beat` (0–2, onset strength × intensity multiplier), `gain` (current beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
+`AudioData` provides: `beat` (0–2, onset strength × beatGain), `mid` (normalized EMA of bins 20–99, ~860–4300 Hz), `treble` (normalized EMA of bins 100–255, ~4300–11000 Hz), `gain` (beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
 
 Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → band extraction + beat detection → `AudioData` delivered at ~60 fps.
 
@@ -29,7 +29,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 10 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
 | 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
 | 12 | `ButterfliesMode` | Butterflies | Neon butterfly pairs entering, orbiting, departing |
-| 13 | `FlowFieldMode` | FlowField | 4 000 particles riding a sine/cosine noise field |
+| 13 | `FlowFieldMode` | FlowField | 25 000 particles riding a sine/cosine noise field (baseline; scales to 100 000) |
 | 14 | `VortexMode` | Vortex | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
 | 16 | `LatticeMode` | Lattice | 14×9 FFT-mapped crystal grid with shockwave ring on beat |

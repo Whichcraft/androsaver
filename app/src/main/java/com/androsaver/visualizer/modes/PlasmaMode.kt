@@ -126,13 +126,12 @@ class PlasmaMode : BaseMode() {
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         initGL()
 
-        val fft  = audio.fft
         val beat = audio.beat
+        val bass = beat
+        val mid  = audio.mid
+        val high = audio.treble
         hue  += 0.002f
-        val bass  = fft.meanSlice(0,  6)
-        val mid   = fft.meanSlice(6,  30)
-        val high  = fft.meanSlice(30, fft.size)
-        time += 0.018f + bass * 0.05f + beat * 0.08f
+        time += 0.018f + bass * 0.05f + mid * 0.03f + high * 0.02f
 
         GLES20.glUseProgram(program)
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo)

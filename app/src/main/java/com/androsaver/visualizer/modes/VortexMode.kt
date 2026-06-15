@@ -58,11 +58,11 @@ class VortexMode : BaseMode() {
         rockets.add(Rocket(x, H, vx, vy, h))
     }
 
-    private fun explode(x: Float, y: Float, rocketHue: Float) {
-        val n = 80 + (Math.random() * 40).toInt()
+    private fun explode(x: Float, y: Float, rocketHue: Float, treble: Float = 0f) {
+        val n = ((80 + (Math.random() * 40).toInt()) * (1f + treble * 1.5f)).toInt()
         repeat(n) {
             val ang  = Math.random().toFloat() * (2f * PI.toFloat())
-            val spd  = (Math.random() * 3.6f + Math.random() * 5.4f).toFloat()  // gauss approx
+            val spd  = (Math.random() * 3.6f + Math.random() * 5.4f).toFloat() * (1f + treble * 1.2f)
             val life = 50 + (Math.random() * 50).toInt()
             val h    = (rocketHue + Math.random().toFloat() * 0.18f - 0.09f + 1f) % 1f
             val r    = (2 + (Math.random() * 3).toInt()).toFloat()
@@ -76,14 +76,14 @@ class VortexMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
-        val fft  = audio.fft
         val beat = audio.beat
-        val bass = fft.meanSlice(0, 6)
+        val bass = beat
+        val high = audio.treble
 
-        hue = (hue + 0.0015f + bass * 0.002f) % 1f
+        hue = (hue + 0.0015f + bass * 0.002f + high * 0.001f) % 1f
 
         // Beat: extra rockets
-        if (beat > 0.6f) {
+        if (beat > 0.7f) {
             val n = 1 + (beat * 2f).toInt()
             repeat(n) { launch(W, H) }
         }
@@ -114,7 +114,7 @@ class VortexMode : BaseMode() {
             }
 
             if (rk.vy >= 0f || rk.y < -20f) {
-                explode(rk.x, rk.y, rk.hue)
+                explode(rk.x, rk.y, rk.hue, treble = high)
             } else if (rk.x in -20f..(W + 20f)) {
                 liveRockets.add(rk)
             }
@@ -130,7 +130,7 @@ class VortexMode : BaseMode() {
             em.x += em.vx; em.y += em.vy
             em.life--
             if (em.life > 0 && em.x in -60f..(W + 60f) && em.y < H + 60f) {
-                val brightness = 0.32f + (em.life.toFloat() / em.maxLife) * 0.52f
+                val brightness = 0.40f + (em.life.toFloat() / em.maxLife) * 0.50f + high * 0.15f
                 val c = GLDraw.hsl(em.hue, l = brightness)
                 draw.circle(em.x, em.y, em.radius, c[0], c[1], c[2], 1f, filled = true, segments = 6)
                 liveEmbers.add(em)
