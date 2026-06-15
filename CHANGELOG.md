@@ -4,6 +4,16 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 — fix: normalize mid/treble signals to deviation-above-baseline
+
+- **AudioEngine**: `audio.mid` and `audio.treble` now output deviation above their rolling
+  average (0 at steady-state music, positive only on louder-than-average moments), matching
+  the normalization already used by `audio.beat`. Previously they output the raw EMA ratio
+  (~1.0 constantly during music), which caused all effects to run 3–5× too fast.
+- Updated `docs/visualizer-modes.md` and `docs/psysuals-port-notes.md` signal semantics.
+
+---
+
 ## 2026-06-15 — dev/master sync
 
 - Merge master → dev to pull in `docs/visualizer-music-reactivity.md` created on master

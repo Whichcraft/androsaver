@@ -157,19 +157,22 @@ class AudioEngine {
         val avgEnergy = (energySum / energyHistory.size).toFloat()
         val beat = (bassEnergy / (avgEnergy + 0.001f) - 0.6f).coerceIn(0f, 1f)
 
-        // Mid energy: bins 20–99 (~860–4300 Hz), normalized by exponential moving average
+        // Mid energy: bins 20–99 (~860–4300 Hz).
+        // Output is deviation above rolling average: 0 at steady-state music, positive on peaks.
+        // This matches beat's normalization so multipliers in effects work correctly at all volumes.
         var midSum = 0f
         for (i in 20 until 100) midSum += smoothFft[i]
         val midEnergy = midSum / 80f
         midAvg = midAvg * 0.98f + midEnergy * 0.02f
-        val mid = midEnergy / (midAvg + 0.001f)
+        val mid = maxOf(0f, midEnergy / (midAvg + 0.001f) - 1f)
 
-        // Treble energy: bins 100–255 (~4300–11000 Hz), normalized by exponential moving average
+        // Treble energy: bins 100–255 (~4300–11000 Hz).
+        // Same deviation normalization as mid.
         var trebleSum = 0f
         for (i in 100 until 256) trebleSum += smoothFft[i]
         val trebleEnergy = trebleSum / 156f
         trebleAvg = trebleAvg * 0.98f + trebleEnergy * 0.02f
-        val treble = trebleEnergy / (trebleAvg + 0.001f)
+        val treble = maxOf(0f, trebleEnergy / (trebleAvg + 0.001f) - 1f)
 
         _data.set(AudioData(
             waveform = wave.copyInto(FloatArray(FFT_BINS)),
