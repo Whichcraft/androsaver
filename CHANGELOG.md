@@ -4,6 +4,12 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-15 — dev/master sync
+
+- Merge master → dev to pull in `docs/visualizer-music-reactivity.md` created on master
+
+---
+
 ## 2026-06-15 — v2.3.0 (psysuals v3.4.0–v3.5.2 full port to Android)
 
 ### Added

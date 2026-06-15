@@ -20,7 +20,7 @@ class ImageCache(private val context: Context) {
         private const val CACHE_DIR = "image_cache"
         private const val MANIFEST = "manifest.json"
         private const val MAX_ENTRIES = 200
-        private const val MAX_BYTES = 300L * 1024 * 1024
+        private const val MAX_BYTES = 150L * 1024 * 1024
     }
 
     private val gson = Gson()
