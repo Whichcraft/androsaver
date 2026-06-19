@@ -75,9 +75,12 @@ jobs:
       - name: Delete all existing dev releases
         if: github.ref == 'refs/heads/dev'
         run: |
-          gh release list --json tagName,databaseId,name \
-            --jq '.[] | select(.tagName == "dev" or .name == "Dev" or .name == "Dev Draft") | .databaseId' \
-            | xargs -I{} gh api -X DELETE repos/${{ github.repository }}/releases/{}
+          gh release list --json tagName,databaseId,name,isDraft > releases.txt
+          git config user.name "Tom Stocker"
+          git config user.email "neo@spacerat.ch"
+          git add releases.txt
+          git commit -m "debug: add releases.txt [skip ci]"
+          git push origin HEAD:dev
         env:
           GH_TOKEN: ${{ github.token }}
 
