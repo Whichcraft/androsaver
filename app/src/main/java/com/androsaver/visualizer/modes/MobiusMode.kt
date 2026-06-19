@@ -7,16 +7,14 @@ import kotlin.math.*
 /**
  * Möbius — a 3-D Möbius strip rendered with perspective projection.
  *
- * Latitude lines (constant v, varying u) and sparse longitude lines form a
- * wireframe.  Rotates slowly in 3-D; beat fires a "shiver" that briefly
- * widens the twist.
+ * Latitude lines (constant v, varying u) form a wireframe.
+ * Rotates slowly in 3-D; beat fires a "shiver" that briefly widens the twist.
  *
  *   Bass   → rotation speed
  *   Mid    → roll (tilt) speed
- *   Treble → longitude line density
  *   Beat   → shiver: twist amplitude spike
  *
- * Port of psysuals `effects/mobius.py` (v3.8.0).
+ * Port of psysuals `effects/mobius.py` (v3.9.0).
  * TRAIL_ALPHA=15 → fadeBlack(15f/255f).
  * 3-D rotation and perspective projection ported from numpy to Kotlin FloatArrays.
  */
@@ -27,7 +25,6 @@ class MobiusMode : BaseMode() {
     private companion object {
         const val N_LAT  = 60
         const val N_U    = 120
-        const val N_LON  = 30
         val TAU = (2.0 * PI).toFloat()
     }
 
@@ -41,11 +38,9 @@ class MobiusMode : BaseMode() {
     // Pre-computed u values [0 .. 2π] with N_U+1 points
     private val uArr   = FloatArray(N_U + 1) { it / N_U.toFloat() * TAU }
     private val vArr   = FloatArray(N_LAT)  { (it / (N_LAT - 1f)) - 0.5f }   // -0.5 .. 0.5
-    private val vLon   = FloatArray(N_LON)  { (it / (N_LON - 1f)) - 0.5f }
 
     // Scratch arrays for projected screen points (2 floats per point)
     private val pts2d  = FloatArray((N_U + 1) * 2)
-    private val pts2dV = FloatArray(N_LON * 2)
 
     override fun reset() {
         ry = 0f; rx = 0f; hue = 0.55f; uOff = 0f; shiver = 0f; beatPrev = 0f
@@ -77,23 +72,6 @@ class MobiusMode : BaseMode() {
             val p = project(x, y, z, W, H, cosy, siny, cosx, sinx)
             pts2d[i * 2]     = p[0]
             pts2d[i * 2 + 1] = p[1]
-        }
-    }
-
-    /** Möbius 3-D point for fixed u, varying v array → fills pts2dV. */
-    private fun fillLonLine(uVal: Float, twist: Float, W: Float, H: Float,
-                            cosy: Float, siny: Float, cosx: Float, sinx: Float) {
-        val cos_u = cos(uVal); val sin_u = sin(uVal)
-        val hu = uVal / 2f
-        for (i in vLon.indices) {
-            val v   = vLon[i]
-            val cohu = cos(hu) * twist
-            val x = (1f + v * cohu) * cos_u
-            val y = (1f + v * cohu) * sin_u
-            val z = v * sin(hu) * twist
-            val p = project(x, y, z, W, H, cosy, siny, cosx, sinx)
-            pts2dV[i * 2]     = p[0]
-            pts2dV[i * 2 + 1] = p[1]
         }
     }
 
@@ -131,23 +109,6 @@ class MobiusMode : BaseMode() {
                           pts2d[(i + 1) * 2], pts2d[(i + 1) * 2 + 1],
                           c[0], c[1], c[2], c[3])
             }
-        }
-
-        // Longitude lines (sparse)
-        val stride = maxOf(1, N_U / (4 + (high * 4).toInt()))
-        var i = 0
-        while (i < N_U) {
-            val uVal = uArr[i] + uOff
-            fillLonLine(uVal, twist, W, H, cosy, siny, cosx, sinx)
-            val h      = (hue + uArr[i] / TAU * 0.5f) % 1f
-            val bright = 0.12f + bass * 0.12f + shiver * 0.18f
-            val c = GLDraw.hsl(h, l = bright)
-            for (j in 0 until N_LON - 1) {
-                draw.line(pts2dV[j * 2], pts2dV[j * 2 + 1],
-                          pts2dV[(j + 1) * 2], pts2dV[(j + 1) * 2 + 1],
-                          c[0], c[1], c[2], c[3])
-            }
-            i += stride
         }
     }
 }

@@ -4,6 +4,21 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-19 — v2.5.2: psysuals v3.9.0 backport
+
+- **Submodule psysuals**: updated to latest commit (v3.9.0, commit 77d9699).
+- **Removed Modes**: Droste, OilSlick, and Coral modes have been removed from the active registry to match upstream.
+- **Mycelium**: updated to support multiple colonies (cores) with a swirling growth pattern.
+- **Clifford**: added strange attractor presets, dynamic framing, recovery, and 3 steps per frame.
+- **Mobius**: removed longitude wire lines for a cleaner ribbon presentation.
+- **Chromatic**: replaced concentric circles with wavy raindrop ripples and RGB outlines.
+- **Synapse**: precalculated outgoing edges and capped signal propagation fan-outs to stabilize active signal count.
+- **FlowField**: removed edge recycling, particles wrap naturally.
+- **Vortex**: trail decay updated to fadeBlack(20/255) to match the _FADE_ALPHA trail fade.
+- **Magnetar**: trail decay updated to fadeBlack(24/255) to match the _FADE_ALPHA trail fade.
+
+---
+
 ## 2026-06-15 — v2.5.1: compiler warning fixes
 
 ## 2026-06-15 — fix: suppress Kotlin compiler warnings

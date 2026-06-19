@@ -16,10 +16,10 @@ import kotlin.math.*
  *   Treble → particle colour saturation burst
  *   Beat   → equatorial shockwave
  *
- * Port of psysuals `effects/magnetar.py` (v3.8.0).
+ * Port of psysuals `effects/magnetar.py` (v3.9.0).
  * surfarray replaced: each particle drawn as a tiny circle with additive blend.
  * Particle count reduced from 6 000 to 4 000 for Android performance.
- * Trail: fadeBlack(15f/255f) approximates BLEND_RGB_MULT(230,228,235)/255.
+ * Trail: fadeBlack(24f/255f) approximates BLEND_RGB_MULT alpha overlay.
  */
 class MagnetarMode : BaseMode() {
 
@@ -94,7 +94,7 @@ class MagnetarMode : BaseMode() {
             py[i] = ((py[i] + vy) % H + H) % H
         }
 
-        draw.fadeBlack(15f / 255f)
+        draw.fadeBlack(24f / 255f)
 
         draw.setAdditiveBlend()
         for (i in 0 until N) {

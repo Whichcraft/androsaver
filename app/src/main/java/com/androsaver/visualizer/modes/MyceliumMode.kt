@@ -5,120 +5,233 @@ import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
 /**
- * Mycelium — spreading fungal hyphal network.
+ * Mycelium — psychedelic hyphae colonies with swirling spores.
  *
  * Active tips grow outward leaving decaying filament segments behind.
- * New branches sprout probabilistically; beat fires a central bloom burst.
+ * Rewritten in v3.9.0 to support multiple colonies (cores) with a swirling
+ * growth pattern for fuller screen coverage.
  *
- *   Bass   → growth speed + filament reach
- *   Mid    → branching probability + angle spread
- *   Treble → tip respawn rate
- *   Beat   → explosive central bloom
- *
- * Port of psysuals `effects/mycelium.py` (v3.8.0).
- * TRAIL_ALPHA=8 → fadeBlack(8f/255f).
- * Double-draw segments (dark wide + bright thin) matches psysuals double pygame.draw.line.
+ * Port of psysuals `effects/mycelium.py` (v3.9.0).
  */
 class MyceliumMode : BaseMode() {
 
     override val name = "Mycelium"
 
     private companion object {
-        const val MAX_SEGS = 500
-        const val MAX_TIPS = 150
+        const val MAX_SEGS = 600
+        const val MAX_TIPS = 180
+        const val CORE_COUNT = 5
+        val PI_F = Math.PI.toFloat()
+        val TAU = (2.0 * PI).toFloat()
     }
 
-    // Segment: x1, y1, x2, y2, age, maxAge, hueOff
-    private data class Seg(val x1: Float, val y1: Float, val x2: Float, val y2: Float,
-                           var age: Int, val maxAge: Int, val hueOff: Float)
+    private data class Core(val x: Float, val y: Float, val hOff: Float)
 
-    // Tip: x, y, angle, depth, hueOff
-    private data class Tip(val x: Float, val y: Float, val angle: Float,
-                           val depth: Int, val hueOff: Float)
+    private data class Tip(
+        val x: Float, val y: Float, val angle: Float,
+        val depth: Int, val hueOff: Float, val coreIdx: Int
+    )
 
-    private val segs = ArrayList<Seg>(MAX_SEGS)
+    private data class Seg(
+        val x1: Float, val y1: Float, val x2: Float, val y2: Float,
+        var age: Int, val maxAge: Int, val depth: Int, val hueOff: Float
+    )
+
+    private val cores = ArrayList<Core>(CORE_COUNT)
     private val tips = ArrayList<Tip>(MAX_TIPS)
-    private var hue  = 0f
+    private val segs = ArrayList<Seg>(MAX_SEGS)
+
+    private var hue = 0f
+    private var phase = 0f
+    private var pulse = 0f
+    private var lastW = 0
+    private var lastH = 0
 
     override fun reset() {
-        segs.clear(); tips.clear()
+        cores.clear()
+        tips.clear()
+        segs.clear()
         hue = Math.random().toFloat()
+        phase = 0f
+        pulse = 0f
+        lastW = 0
+        lastH = 0
     }
 
-    private fun reseed(cx: Float, cy: Float) {
-        tips.clear()
-        for (i in 0 until 7)
-            tips.add(Tip(cx, cy, i / 7f * TAU, 0, i / 7f * 0.4f))
+    private fun buildCores(W: Float, H: Float) {
+        cores.clear()
+        val cx = W / 2f
+        val cy = H / 2f
+        val rad = minOf(W, H) * 0.22f
+        val base = FloatArray(CORE_COUNT) { i -> i * (TAU / CORE_COUNT) }
+        for (i in 0 until CORE_COUNT) {
+            val ang = base[i] + (Math.random().toFloat() * 0.44f - 0.22f)
+            val dist = rad * (0.55f + Math.random().toFloat() * 0.60f)
+            cores.add(
+                Core(
+                    cx + cos(ang) * dist,
+                    cy + sin(ang) * dist,
+                    i.toFloat() / CORE_COUNT * 0.45f
+                )
+            )
+        }
+    }
+
+    private fun seedTips(W: Float, H: Float, count: Int, coreIdx: Int? = null) {
+        if (cores.isEmpty()) buildCores(W, H)
+        val n = minOf(count, MAX_TIPS - tips.size)
+        if (n <= 0) return
+        val minDim = minOf(W, H)
+        for (i in 0 until n) {
+            val idx = coreIdx ?: (0 until CORE_COUNT).random()
+            val ang = Math.random().toFloat() * TAU
+            val radius = 4f + Math.random().toFloat() * (minDim * 0.035f - 4f)
+            val hoff = Math.random().toFloat() * 0.15f
+            val core = cores[idx]
+            tips.add(
+                Tip(
+                    core.x + cos(ang) * radius,
+                    core.y + sin(ang) * radius,
+                    ang,
+                    0,
+                    (core.hOff + hoff) % 1f,
+                    idx
+                )
+            )
+        }
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        val W = draw.W.toFloat(); val H = draw.H.toFloat()
-        val cx = W / 2f; val cy = H / 2f
+        val W = draw.W.toFloat()
+        val H = draw.H.toFloat()
         val bass = audio.beat
-        val mid  = audio.mid
+        val mid = audio.mid
         val high = audio.treble
 
-        if (tick == 0) reseed(cx, cy)
+        if (cores.isEmpty() || lastW != draw.W || lastH != draw.H) {
+            lastW = draw.W
+            lastH = draw.H
+            buildCores(W, H)
+            tips.clear()
+            seedTips(W, H, 28)
+        }
 
         hue = (hue + 0.003f + mid * 0.002f) % 1f
+        phase += 0.010f + mid * 0.012f + high * 0.006f
+        pulse = maxOf(0f, pulse - 0.03f)
 
-        // Beat bloom from center
         if (bass > 0.65f && tips.size < MAX_TIPS) {
-            val count = (3 + bass * 5).toInt()
-            repeat(count) {
-                val angle = Math.random().toFloat() * TAU
-                tips.add(Tip(cx, cy, angle, 0, Math.random().toFloat() * 0.5f))
+            pulse = 1f
+            val launchCycles = 1 + (bass * 2.5f).toInt()
+            repeat(launchCycles) {
+                val seedCount = (5f + bass * 6f).toInt()
+                seedTips(W, H, seedCount, (0 until CORE_COUNT).random())
             }
         }
 
-        val speed   = 12f + bass * 35f
-        val spread  = 0.35f + mid * 0.45f
-        val branchP = 0.06f + high * 0.10f + mid * 0.04f
-        val segLife = 80 + (bass * 40).toInt()
+        val speed = 6.5f + bass * 18.0f + mid * 5.0f
+        val spread = 0.20f + mid * 0.30f + high * 0.10f
+        val branchP = 0.07f + mid * 0.10f + high * 0.08f
+        val segLife = 90 + (bass * 55f + high * 20f).toInt()
 
         val nextTips = ArrayList<Tip>(MAX_TIPS)
-        for ((tx, ty, ta, depth, hOff) in tips) {
-            if (depth >= 14) continue
-            val ta2 = ta + (Math.random().toFloat() * 2f - 1f) * spread * 0.25f
-            val length = speed * (0.8f + Math.random().toFloat() * 0.8f)
-            val ex = tx + cos(ta2) * length
-            val ey = ty + sin(ta2) * length
-            if (segs.size < MAX_SEGS) {
-                val maxAge = segLife + (-20..40).random()
-                segs.add(Seg(tx, ty, ex, ey, 0, maxAge, hOff))
-            }
-            if (ex in 0f..W && ey in 0f..H && nextTips.size < MAX_TIPS)
-                nextTips.add(Tip(ex, ey, ta2, depth + 1, hOff))
-            if (Math.random() < branchP && depth < 10 && nextTips.size < MAX_TIPS) {
-                val sign = if (Math.random() < 0.5) -1f else 1f
-                val bAng = ta2 + sign * (0.3f + Math.random().toFloat() * spread)
-                nextTips.add(Tip(ex, ey, bAng, depth + 1, (hOff + 0.12f) % 1f))
+        val tipCount = tips.size
+        if (tipCount > 0) {
+            for (idx in 0 until tipCount) {
+                val tip = tips[idx]
+                if (tip.depth >= 18) continue
+
+                val core = cores[tip.coreIdx]
+                val swirl = atan2(tip.y - core.y, tip.x - core.x) + PI_F * 0.5f
+                val field = sin(tip.x * 0.013f + phase + tip.coreIdx * 0.7f) * 0.55f +
+                        cos(tip.y * 0.011f - phase * 1.2f + tip.depth * 0.25f) * 0.35f
+
+                val gauss = gaussianRandom() * spread * 0.16f
+                val ta2 = tip.angle + (swirl + field - tip.angle) * 0.22f + gauss
+
+                val lenMul = 0.72f + Math.random().toFloat() * 0.50f
+                val length = maxOf(2.5f, speed * (1.0f - tip.depth * 0.030f) * lenMul)
+
+                val ex = ((tip.x + cos(ta2) * length) % W + W) % W
+                val ey = ((tip.y + sin(ta2) * length) % H + H) % H
+
+                if (segs.size < MAX_SEGS) {
+                    val segJitter = (-16..56).random()
+                    segs.add(Seg(tip.x, tip.y, ex, ey, 0, segLife + segJitter, tip.depth, tip.hueOff))
+                }
+
+                if (nextTips.size < MAX_TIPS) {
+                    nextTips.add(Tip(ex, ey, ta2, tip.depth + 1, tip.hueOff, tip.coreIdx))
+                }
+
+                if (Math.random() < branchP && tip.depth < 13 && nextTips.size < MAX_TIPS) {
+                    val sign = if (Math.random() < 0.5) -1f else 1f
+                    val branchAngle = 0.35f + Math.random().toFloat() * (0.60f + spread)
+                    val bAng = ta2 + sign * branchAngle
+                    val bCore = if (Math.random() > 0.18) tip.coreIdx else (0 until CORE_COUNT).random()
+                    nextTips.add(Tip(ex, ey, bAng, tip.depth + 1, (tip.hueOff + 0.10f) % 1f, bCore))
+                }
             }
         }
-        tips.clear(); tips.addAll(nextTips)
 
-        if (tips.isEmpty()) reseed(cx, cy)
+        tips.clear()
+        tips.addAll(nextTips.take(MAX_TIPS))
 
-        // Age and cull segments
+        if (tips.isEmpty()) {
+            buildCores(W, H)
+            seedTips(W, H, 28)
+        }
+
         segs.removeAll { it.age >= it.maxAge }
         for (s in segs) s.age++
 
         // Fade trail
         draw.fadeBlack(8f / 255f)
 
-        // Draw segments: dark wide stroke then bright thin stroke
+        // Draw cores
         draw.setAdditiveBlend()
-        for ((x1, y1, x2, y2, age, maxAge, hOff) in segs) {
-            val fade  = maxOf(0f, 1f - age.toFloat() / maxAge)
-            val h     = (hue + hOff) % 1f
-            val bright = (0.20f + bass * 0.15f) * fade
-            val c = GLDraw.hsl(h, l = bright * 0.3f)
-            draw.line(x1, y1, x2, y2, c[0], c[1], c[2], c[3])
-            val c2 = GLDraw.hsl(h, l = bright)
-            draw.line(x1, y1, x2, y2, c2[0], c2[1], c2[2], c2[3])
+        for (i in cores.indices) {
+            val core = cores[i]
+            val corePhase = phase * (0.7f + i * 0.08f)
+            val wobble = 10.0f + sin(corePhase) * 8.0f
+            val coreHue = (hue + core.hOff + sin(corePhase * 0.6f) * 0.05f) % 1f
+            val glow = 0.06f + pulse * 0.12f + bass * 0.05f
+
+            val cGlow = GLDraw.hsl(coreHue, l = glow * 0.35f)
+            val cCore = GLDraw.hsl(coreHue, l = glow)
+            draw.circle(core.x, core.y, 22f + wobble, cGlow[0], cGlow[1], cGlow[2], 0.85f, filled = true, segments = 16)
+            draw.circle(core.x, core.y, 7f + bass * 8f, cCore[0], cCore[1], cCore[2], 0.85f, filled = true, segments = 12)
+        }
+
+        // Draw segments
+        for (s in segs) {
+            val fade = maxOf(0f, 1f - s.age.toFloat() / s.maxAge)
+            val segHue = (hue + s.hueOff + s.depth * 0.015f) % 1f
+            val bright = (0.22f + bass * 0.10f + high * 0.08f + pulse * 0.14f) * fade
+
+            val glowW = maxOf(1f, 5f - s.depth / 4f)
+            val coreW = maxOf(1f, 3f - s.depth / 6f)
+
+            val cGlow = GLDraw.hsl(segHue, l = bright * 0.28f)
+            val cCore = GLDraw.hsl(segHue, l = bright)
+
+            draw.line(s.x1, s.y1, s.x2, s.y2, cGlow[0], cGlow[1], cGlow[2], 0.8f)
+            draw.line(s.x1, s.y1, s.x2, s.y2, cCore[0], cCore[1], cCore[2], 1.0f)
+
+            if (s.depth > 5 && s.age < s.maxAge * 0.25f && (s.depth + s.age) % 5 == 0) {
+                val cDot = GLDraw.hsl(segHue, l = bright * 0.85f)
+                val dotR = maxOf(1f, 3f - s.depth / 8f)
+                draw.circle(s.x2, s.y2, dotR, cDot[0], cDot[1], cDot[2], 0.8f, filled = true, segments = 6)
+            }
         }
         draw.setNormalBlend()
     }
 
-    private val TAU = (2.0 * PI).toFloat()
+    private fun gaussianRandom(): Float {
+        var u1 = 0f
+        var u2 = 0f
+        while (u1 == 0f) u1 = Math.random().toFloat()
+        while (u2 == 0f) u2 = Math.random().toFloat()
+        return sqrt(-2f * log(u1, Math.E.toFloat().toDouble()).toFloat()) * cos(TAU * u2)
+    }
 }

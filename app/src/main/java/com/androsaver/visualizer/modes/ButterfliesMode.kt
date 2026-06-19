@@ -10,7 +10,7 @@ import kotlin.math.*
  * 10–30 s and orbits it lovingly. After a random lifetime the pair wanders
  * off-screen and a new pair enters. Wing flapping syncs when partners are
  * close; sparkles fire on strong beats.
- * Port of psysuals Butterflies (v2.1.0).
+ * Port of psysuals Butterflies (v3.9.0).
  */
 class ButterfliesMode : BaseMode() {
 
@@ -120,8 +120,46 @@ class ButterfliesMode : BaseMode() {
             val spd = (1.5f + bass * 0.8f + mid * 0.60f) * scale
             x += cos(heading) * spd; y += sin(heading) * spd
 
+            bounceFromBounds()
+        }
+
+        fun bounceFromBounds() {
             val cl = 28f * scale
-            x = x.coerceIn(cl, screenW.toFloat() - cl); y = y.coerceIn(cl, screenH.toFloat() - cl)
+            var hit = false
+
+            if (x <= cl) {
+                x = cl + 1.5f * scale
+                if (cos(heading) < 0f) {
+                    heading = PI_F - heading
+                }
+                hit = true
+            } else if (x >= screenW - cl) {
+                x = screenW - cl - 1.5f * scale
+                if (cos(heading) > 0f) {
+                    heading = PI_F - heading
+                }
+                hit = true
+            }
+
+            if (y <= cl) {
+                y = cl + 1.5f * scale
+                if (sin(heading) < 0f) {
+                    heading = -heading
+                }
+                hit = true
+            } else if (y >= screenH - cl) {
+                y = screenH - cl - 1.5f * scale
+                if (sin(heading) > 0f) {
+                    heading = -heading
+                }
+                hit = true
+            }
+
+            if (hit) {
+                heading = (heading % TAU + TAU) % TAU
+                wanderDes = heading
+                wanderCd = (45 + Math.random() * 75).toInt()
+            }
         }
 
         fun draw(draw: GLDraw, outlineHue: Float) {
@@ -266,6 +304,94 @@ class ButterfliesMode : BaseMode() {
         }
     }
 
+    private fun applySwarmForces(beat: Float) {
+        val entries = ArrayList<Pair<Butterfly, Int>>()
+        for (i in pairs.indices) {
+            val pair = pairs[i]
+            val s = pair.solo
+            if (s != null && !s.offScreen) {
+                entries.add(Pair(s, i))
+            }
+            val l = pair.love
+            if (l != null && !l.offScreen) {
+                entries.add(Pair(l, i))
+            }
+        }
+
+        // Mild pair cohesion
+        val cohesion = 0.010f + beat * 0.008f
+        for (pair in pairs) {
+            val s = pair.solo
+            val l = pair.love
+            if (s == null || l == null || pair.departing) {
+                continue
+            }
+            val dx = l.x - s.x
+            val dy = l.y - s.y
+            val dist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+            val target = maxOf(90f, pair.orbitR * 1.55f)
+            if (dist > target) {
+                val pull = minOf(1.6f, (dist - target) * cohesion * 0.02f)
+                val nx = dx / (dist + 1e-6f)
+                val ny = dy / (dist + 1e-6f)
+                s.x += nx * pull * s.scale
+                s.y += ny * pull * s.scale
+                l.x -= nx * pull * l.scale
+                l.y -= ny * pull * l.scale
+            }
+        }
+
+        // Pairwise separation
+        val sepGain = 1.1f + beat * 0.9f
+        val nEntries = entries.size
+        for (i in 0 until nEntries) {
+            val (a, aPair) = entries[i]
+            for (j in i + 1 until nEntries) {
+                val (b, bPair) = entries[j]
+                var dx = b.x - a.x
+                var dy = b.y - a.y
+                var dist2 = dx * dx + dy * dy
+                if (dist2 <= 1e-6f) {
+                    val ang = (Math.random() * TAU).toFloat()
+                    dx = cos(ang)
+                    dy = sin(ang)
+                    dist2 = 1.0f
+                }
+                val dist = sqrt(dist2)
+
+                val desired: Float
+                val strength: Float
+                if (aPair == bPair) {
+                    desired = (a.scale + b.scale) * (16f + beat * 4.0f)
+                    strength = 0.35f
+                } else {
+                    desired = (a.scale + b.scale) * (22f + beat * 7.0f)
+                    strength = 1.0f
+                }
+
+                if (dist >= desired) {
+                    continue
+                }
+
+                val nx = dx / dist
+                val ny = dy / dist
+                val push = (1f - dist / desired) * sepGain * strength
+                a.x -= nx * push * a.scale
+                a.y -= ny * push * a.scale
+                b.x += nx * push * b.scale
+                b.y += ny * push * b.scale
+
+                val turn = minOf(0.08f, push * 0.02f)
+                a.heading = (a.heading - turn) % TAU
+                b.heading = (b.heading + turn) % TAU
+            }
+        }
+
+        for (entry in entries) {
+            entry.first.bounceFromBounds()
+        }
+    }
+
     // ── Main effect ──────────────────────────────────────────────────────────
 
     private val pairs = ArrayList<ButterflyPair>(MAX_PAIRS)
@@ -300,6 +426,12 @@ class ButterfliesMode : BaseMode() {
         for ((i, pair) in pairs.withIndex()) {
             val gh = (globalHue + i.toFloat() / MAX_PAIRS) % 1f
             pair.update(bass, beat, mid, high, gh)
+        }
+
+        applySwarmForces(beat)
+
+        for ((i, pair) in pairs.withIndex()) {
+            val gh = (globalHue + i.toFloat() / MAX_PAIRS) % 1f
             pair.draw(draw, beat, gh, high)
         }
     }

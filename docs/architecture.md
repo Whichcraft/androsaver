@@ -76,17 +76,14 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `VortexMode.kt` | Vortex | Firework rockets arcing under gravity, exploding into embers; gain-aware interval |
 | `AuroraMode.kt` | Aurora | Five horizontally undulating Northern Lights curtains |
 | `LatticeMode.kt` | Lattice | 14x9 crystal grid with peak normalization and shockwave ring |
-| `MyceliumMode.kt` | Mycelium | Spreading fungal hyphal network; branching tip growth |
+| `MyceliumMode.kt` | Mycelium | Swirling fungal network with multi-colony cores |
 | `MagnetarMode.kt` | Magnetar | 4 000 particles riding a rotating magnetic dipole field |
 | `SlimeMoldMode.kt` | SlimeMold | Physarum 2 500-agent trail simulation with diffusion |
-| `DrosteMode.kt` | Droste | Spiralling geometry with long-persistence Escher-zoom illusion |
-| `CliffordMode.kt` | Clifford | Strange attractor: 8 000 walkers, morphing a/b/c/d parameters |
-| `MobiusMode.kt` | Mobius | 3-D wireframe Möbius strip with perspective projection |
-| `ChromaticMode.kt` | Chromatic | Expanding rings with R/G/B chromatic aberration split |
+| `CliffordMode.kt` | Clifford | Strange attractor: 8 000 walkers, dynamic framing, presets |
+| `MobiusMode.kt` | Mobius | 3-D wireframe Möbius strip (latitude lines only) |
+| `ChromaticMode.kt` | Chromatic | Prismatic raindrop ripples with RGB-separated outlines |
 | `PersistenceMode.kt` | Persistence | Nested rotating polygons with long moiré trail |
-| `OilSlickMode.kt` | OilSlick | 120×68 sine-wave interference grid mapped to prismatic hue |
-| `SynapseMode.kt` | Synapse | 55-node neural graph with cascading signal pulses |
-| `CoralMode.kt` | Coral | Bioluminescent fractal coral growing from bottom edge |
+| `SynapseMode.kt` | Synapse | 55-node neural graph with stabilized signal cascades |
 | `HeartbeatMode.kt` | Heartbeat | Expanding polygon rings with beat-driven morphing |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |

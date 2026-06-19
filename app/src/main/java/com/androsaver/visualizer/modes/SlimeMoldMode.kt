@@ -16,7 +16,7 @@ import kotlin.math.*
  *   Treble → sensor angle (wider = more meandering)
  *   Beat   → teleport burst + trail strength spike
  *
- * Port of psysuals `effects/slimemold.py` (v3.8.0).
+ * Port of psysuals `effects/slimemold.py` (v3.9.0).
  * Agent count reduced from 10 000 to 2 500 for Android performance.
  * Trail grid runs at RES_DIV=8 (≈240×135 for 1080p), rendered as small rects.
  * NumPy vectorised ops replaced with scalar Kotlin loops over FloatArrays.

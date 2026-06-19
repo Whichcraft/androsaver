@@ -7,17 +7,11 @@ import kotlin.math.*
 /**
  * Synapse — neural-network graph with cascading signal propagation.
  *
- * ~55 nodes in a loose ring layout, wired to nearest neighbours.  When a node
- * fires it sends visible signal pulses down all outgoing edges.  Beat triggers
- * multi-node cascades; mid controls the baseline auto-fire rate.
+ * ~55 nodes in a loose ring layout, wired to nearest neighbours. When a node
+ * fires it sends visible signal pulses down a subset of outgoing edges to
+ * stabilize signal counts.
  *
- *   Bass   → signal speed + node glow intensity
- *   Mid    → auto-fire rate
- *   Treble → signal colour saturation burst
- *   Beat   → cascade from 1–4 random nodes
- *
- * Port of psysuals `effects/synapse.py` (v3.8.0).
- * TRAIL_ALPHA=18 → fadeBlack(18f/255f).
+ * Port of psysuals `effects/synapse.py` (v3.9.0).
  */
 class SynapseMode : BaseMode() {
 
@@ -26,6 +20,7 @@ class SynapseMode : BaseMode() {
     private companion object {
         const val N_NODES        = 55
         const val EDGES_PER_NODE = 3
+        const val MAX_SIGNALS    = 240
         val TAU = (2.0 * PI).toFloat()
     }
 
@@ -34,6 +29,7 @@ class SynapseMode : BaseMode() {
     private val nodeX  = FloatArray(N_NODES)
     private val nodeY  = FloatArray(N_NODES)
     private val edges  = ArrayList<IntArray>(N_NODES * EDGES_PER_NODE) // [from, to]
+    private val outgoing = Array(N_NODES) { ArrayList<Int>() } // outgoing edge indices
     private val glow   = FloatArray(N_NODES)
     private val signals = ArrayList<Signal>()
     private var hue      = 0f
@@ -42,8 +38,16 @@ class SynapseMode : BaseMode() {
     private var initialized = false
 
     override fun reset() {
-        edges.clear(); signals.clear()
-        glow.fill(0f); hue = 0f; beatPrev = 0f; autoFireCd = 30; initialized = false
+        edges.clear()
+        signals.clear()
+        for (i in 0 until N_NODES) {
+            outgoing[i].clear()
+        }
+        glow.fill(0f)
+        hue = 0f
+        beatPrev = 0f
+        autoFireCd = 30
+        initialized = false
     }
 
     private fun init(W: Float, H: Float) {
@@ -54,23 +58,40 @@ class SynapseMode : BaseMode() {
             nodeY[i] = H / 2f + sin(ang) * r * (0.60f + Math.random().toFloat() * 0.30f)
         }
         edges.clear()
+        val edgeSet = HashSet<Pair<Int, Int>>()
         for (i in 0 until N_NODES) {
             val sorted = (0 until N_NODES)
                 .filter { it != i }
                 .sortedBy { hypot(nodeX[it] - nodeX[i], nodeY[it] - nodeY[i]) }
-            for (k in 0 until EDGES_PER_NODE) edges.add(intArrayOf(i, sorted[k]))
+            for (k in 0 until EDGES_PER_NODE) {
+                val toIdx = sorted[k]
+                val pair = Pair(i, toIdx)
+                if (!edgeSet.contains(pair)) {
+                    edgeSet.add(pair)
+                    edges.add(intArrayOf(i, toIdx))
+                }
+            }
+        }
+        for (i in 0 until N_NODES) {
+            outgoing[i].clear()
+        }
+        for ((ei, e) in edges.withIndex()) {
+            outgoing[e[0]].add(ei)
         }
         initialized = true
     }
 
-    private fun fire(idx: Int) {
+    private fun fire(idx: Int, fanout: Int = 2) {
         glow[idx] = 1f
         val h = (hue + idx.toFloat() / N_NODES * 0.4f) % 1f
-        for ((ei, e) in edges.withIndex()) {
-            if (e[0] == idx) {
-                val spd = 0.020f + Math.random().toFloat() * 0.010f
-                signals.add(Signal(ei, 0f, spd, h))
-            }
+        val outList = outgoing[idx]
+        if (outList.isEmpty() || signals.size >= MAX_SIGNALS) return
+        val count = maxOf(1, minOf(fanout, outList.size))
+        val shuffled = outList.shuffled().take(count)
+        for (ei in shuffled) {
+            if (signals.size >= MAX_SIGNALS) break
+            val spd = 0.020f + Math.random().toFloat() * 0.010f
+            signals.add(Signal(ei, 0f, spd, h))
         }
     }
 
@@ -86,24 +107,35 @@ class SynapseMode : BaseMode() {
 
         if (bass > 0.65f && beatPrev <= 0.65f) {
             val count = (1 + bass * 3).toInt()
-            repeat(count) { fire((Math.random() * N_NODES).toInt().coerceIn(0, N_NODES - 1)) }
+            repeat(count) {
+                fire((Math.random() * N_NODES).toInt().coerceIn(0, N_NODES - 1), fanout = 2 + (high * 2f).toInt())
+            }
         }
         beatPrev = bass
 
         autoFireCd--
         if (autoFireCd <= 0) {
-            fire((Math.random() * N_NODES).toInt().coerceIn(0, N_NODES - 1))
+            fire((Math.random() * N_NODES).toInt().coerceIn(0, N_NODES - 1), fanout = 1)
             autoFireCd = maxOf(8, (25 - mid * 15).toInt())
         }
 
         val spdMul = 1f + bass * 2f
         val liveSigs = ArrayList<Signal>()
+        val firedNodes = ArrayList<Int>()
         for (sig in signals) {
             sig.t += sig.spd * spdMul
-            if (sig.t < 1f) liveSigs.add(sig)
-            else fire(edges[sig.edgeIdx][1])
+            if (sig.t < 1f) {
+                liveSigs.add(sig)
+            } else {
+                firedNodes.add(edges[sig.edgeIdx][1])
+            }
         }
-        signals.clear(); signals.addAll(liveSigs)
+        signals.clear()
+        signals.addAll(liveSigs)
+
+        for (idx in firedNodes.take(18)) {
+            fire(idx, fanout = 1 + (mid * 2f).toInt())
+        }
 
         for (i in 0 until N_NODES) glow[i] = maxOf(0f, glow[i] - 0.035f)
 
