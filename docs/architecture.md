@@ -56,7 +56,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `VisualizerRenderer.kt` | `GLSurfaceView.Renderer`; owns mode list; calls `mode.draw(gl, audio, tick)` each frame; exposes `frameTimeMs` (EMA-smoothed render time in ms) |
 | `BaseMode.kt` | Abstract base: `abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)` |
 
-### 18 Visualizer Modes (`com.androsaver.visualizer.modes`)
+### 30 Visualizer Modes (`com.androsaver.visualizer.modes`)
 
 | Class | Display name | Visual concept |
 |-------|-------------|----------------|
@@ -76,6 +76,15 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `VortexMode.kt` | Vortex | Firework rockets arcing under gravity, exploding into embers; gain-aware interval |
 | `AuroraMode.kt` | Aurora | Five horizontally undulating Northern Lights curtains |
 | `LatticeMode.kt` | Lattice | 14x9 crystal grid with peak normalization and shockwave ring |
+| `MyceliumMode.kt` | Mycelium | Swirling fungal network with multi-colony cores |
+| `MagnetarMode.kt` | Magnetar | 4 000 particles riding a rotating magnetic dipole field |
+| `SlimeMoldMode.kt` | SlimeMold | Physarum 2 500-agent trail simulation with diffusion |
+| `CliffordMode.kt` | Clifford | Strange attractor: 8 000 walkers, dynamic framing, presets |
+| `MobiusMode.kt` | Mobius | 3-D wireframe Möbius strip (latitude lines only) |
+| `ChromaticMode.kt` | Chromatic | Prismatic raindrop ripples with RGB-separated outlines |
+| `PersistenceMode.kt` | Persistence | Nested rotating polygons with long moiré trail |
+| `SynapseMode.kt` | Synapse | 55-node neural graph with stabilized signal cascades |
+| `HeartbeatMode.kt` | Heartbeat | Expanding polygon rings with beat-driven morphing |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |
 
@@ -101,7 +110,7 @@ DreamService.onDreamingStarted()
        │    └─ optional VisualizerView overlay (semi-transparent, 10–70% opacity)
        └─ [Visualizer] VisualizerView.start()
             ├─ AudioEngine: Visualizer API → FFT → AudioData (60 fps)
-            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [18 modes]
+            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [30 modes]
 
 Remote control (D-pad events in ScreensaverEngine):
   Visualizer: ←/→ = prev/next mode | ↑/↓ = intensity | other = finish()

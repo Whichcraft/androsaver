@@ -105,6 +105,42 @@ Five translucent sinusoidal ribbon curtains undulate horizontally across the scr
 
 A crystal grid of glowing nodes and connection beams (leftmost column cutout). Implements dynamic frequency peak normalization and a noise gate for balanced column activity. Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 25/255 ≈ 10 frames. Base faint structure remains visible during silence. Silence: dim grid with slow hue rotation, no shockwave.
 
+## MyceliumMode
+
+Swirling growth pattern around multiple colonies (cores). Up to 180 active tips grow swirling around 5 cores placed in a ring, each tip leaving a decaying filament segment trail (max 600 segments). Branching probability scales with mid; spread angle widens with mid. Beat fires a colony bloom burst that seeds new tips from the cores. Cores pulse and glow on beat. Double-draw segments: dark wide stroke + bright thin stroke for neon filament look. Trail: fadeBlack(8/255).
+
+## MagnetarMode
+
+4 000 particles riding an analytical rotating magnetic dipole field. Dipole axis tilts and rotates; particles follow normalised B-field vectors. Beat fires an equatorial shockwave that scatters particles vertically. Colour by angular position relative to dipole axis. Trail: fadeBlack(24/255). Silence: particles orbit slowly along field lines.
+
+## SlimeMoldMode
+
+Physarum-style 2 500-agent slime simulation. Agents sense three directions (forward, left-offset, right-offset) and steer toward the strongest trail signal. Trails diffuse (3×3 box kernel) and decay each frame. Grid resolution: RES_DIV=8 (~240×135 cells for 1080p). Beat teleports 5% of agents back toward centre. Trail rendered as coloured rects mapped hue ∝ trail intensity. Silence: agents slowly form patterns with minimal trail.
+
+## CliffordMode
+
+Strange attractor (Clifford map). 8 000 walkers iterate `x' = sin(a·y) - cos(b·x)`, `y' = sin(c·x) - cos(d·y)` 3 times per frame. Features curated presets plus dynamic framing and recovery to prevent collapse. Parameters (a, b, c, d) drift toward target values; beat snaps to new presets with jitter. Colour by polar angle and distance of particle position. Trail: fadeBlack(18/255).
+
+## MobiusMode
+
+3-D wireframe Möbius strip rendered with perspective projection. 60 latitude lines (constant v) form the wireframe (sparse longitude wires removed). Rotates around Y+X axes; beat fires a "shiver" that temporarily widens the twist parameter. Trail: fadeBlack(15/255).
+
+## ChromaticMode
+
+Prismatic raindrop ripples. Expanding waves split red, green, and blue channels outward, forming RGB-separated wavy aberration halos. Up to 14 rings; beat spawns new rings, treble controls the R/G/B split radius, and warp scales with bass/treble. Trail: fadeBlack(24/255).
+
+## PersistenceMode
+
+Up to 8 nested rotating polygons (triangle through decagon), each with a slightly different angular speed. Very long trail persistence (fadeBlack(5/255) ≈ 50-frame trail) lets ghost images accumulate into moiré/kaleidoscope interference patterns. Beat fires a speed spike. Mid controls active polygon count. Treble fires a radial flash ring.
+
+## SynapseMode
+
+55-node neural-network graph. Nodes wired to 3 nearest neighbours each. When a node fires, signal pulses travel down a subset of outgoing edges to prevent runaway cascades (~20–30 ms transit). On arrival, the target node fires (cascade propagation, capped at 18 nodes per frame). Beat fires 1–4 random nodes simultaneously. Glow per node decays over ~30 frames. Auto-fire every 8–25 frames (scaled by mid). Trail: fadeBlack(18/255).
+
+## HeartbeatMode
+
+Expanding polygon rings that morph between circle (high bass) and polygon (low bass) as they grow. Up to 16 rings simultaneously; each ring drawn as a smooth 120-point polyline with polygon-modulated radius. Rings glow (dark wide + bright narrow). Beat spawns new rings; strong beat spawns two offset-hue rings. Trail: fadeBlack(20/255). Silence: auto-spawns at 50-frame intervals.
+
 ## BarsMode (Spectrum)
 
 Vertical bars on log-frequency scale. Bar height = FFT magnitude. Peak markers decay slowly. Waveform overlay across bar tops. Beat flashes bar color from accent to white. Silence: flat bars at minimum height.

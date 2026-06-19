@@ -238,8 +238,19 @@ class ScreensaverEngine(
         val vv = VisualizerView(context)
         visualizerView = vv
 
-        val enabledModes = prefs.getStringSet(Prefs.VIZ_ENABLED_MODES, null)
-        if (!enabledModes.isNullOrEmpty()) vv.enabledModeNames = enabledModes
+        val storedModes = prefs.getStringSet(Prefs.VIZ_ENABLED_MODES, null)
+        if (!storedModes.isNullOrEmpty()) {
+            // Auto-add any modes not present in the stored set (new effects added in a later version).
+            // This ensures that after an update, freshly-added effects are navigable without requiring
+            // the user to manually visit the Active Effects setting.
+            val allNames = vv.renderer.modeNames.toSet()
+            val newModes = allNames - storedModes
+            val enabledModes: Set<String> = if (newModes.isEmpty()) storedModes
+            else (storedModes + newModes).also {
+                prefs.edit().putStringSet(Prefs.VIZ_ENABLED_MODES, it).apply()
+            }
+            vv.enabledModeNames = enabledModes
+        }
 
         when (modePref) {
             "auto"   -> { /* start at index 0; nextMode() cycles enabled modes */ }

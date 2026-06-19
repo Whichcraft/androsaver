@@ -5,9 +5,8 @@ import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
 /**
- * AuroraMode — Northern Lights curtains.
  * Five translucent sinusoidal ribbons undulate horizontally across the screen.
- * Port of psysuals Aurora (v3.7.0).
+ * Port of psysuals Aurora (v3.9.0).
  */
 class AuroraMode : BaseMode() {
 
@@ -40,9 +39,8 @@ class AuroraMode : BaseMode() {
     private val ks     = Array(DEFS.size) { FloatArray(3) }
 
     // Reusable buffers
-    private var polyPts = FloatArray(0)
-    private var glowPts = FloatArray(0)
-    private var topPts  = FloatArray(0)
+    private val quadPts     = FloatArray(8)
+    private val glowQuadPts = FloatArray(8)
 
     private var ytTmp  = FloatArray(0)
     private var ybTmp  = FloatArray(0)
@@ -82,10 +80,6 @@ class AuroraMode : BaseMode() {
                     ks[ri][j] = kUnit * harms[j].km
                 }
             }
-
-            polyPts = FloatArray(nPts * 4)
-            glowPts = FloatArray(nPts * 4)
-            topPts  = FloatArray(nPts * 2)
 
             ytTmp  = FloatArray(nPts)
             ybTmp  = FloatArray(nPts)
@@ -139,34 +133,35 @@ class AuroraMode : BaseMode() {
                 padTmp[i] = maxOf(2f, rh * 0.5f)
             }
 
-            // Assemble polygons and lines using the pre-computed arrays
-            for (i in 0 until n) {
-                val revIdx = n - 1 - i
-
-                polyPts[i * 2] = xs[i]
-                polyPts[i * 2 + 1] = ytTmp[i]
-                polyPts[n * 2 + i * 2] = xs[revIdx]
-                polyPts[n * 2 + i * 2 + 1] = ybTmp[revIdx]
-
-                glowPts[i * 2] = xs[i]
-                glowPts[i * 2 + 1] = ytTmp[i] - padTmp[i]
-                glowPts[n * 2 + i * 2] = xs[revIdx]
-                glowPts[n * 2 + i * 2 + 1] = ybTmp[revIdx] + padTmp[revIdx]
-
-                topPts[i * 2] = xs[i]
-                topPts[i * 2 + 1] = ytTmp[i]
-            }
-
             val baseColor = GLDraw.hsl(ribbonHue, 1f, 0.5f)
 
             // Outer glow (10-18% intensity)
             val gi = 0.10f + bloom * 0.08f
-            draw.polygon(glowPts, baseColor[0] * gi, baseColor[1] * gi, baseColor[2] * gi, 1f, filled = true)
-
             // Core ribbon (28-55% intensity)
             val ci = 0.28f + bloom * 0.22f + bass * 0.08f
-            draw.polygon(polyPts, baseColor[0] * ci, baseColor[1] * ci, baseColor[2] * ci, 1f, filled = true)
 
+            val rGlow = baseColor[0] * gi; val gGlow = baseColor[1] * gi; val bGlow = baseColor[2] * gi
+            val rCore = baseColor[0] * ci; val gCore = baseColor[1] * ci; val bCore = baseColor[2] * ci
+
+            for (i in 0 until n - 1) {
+                val x0 = xs[i]; val x1 = xs[i + 1]
+                val yt0 = ytTmp[i]; val yt1 = ytTmp[i + 1]
+                val yb0 = ybTmp[i]; val yb1 = ybTmp[i + 1]
+                val pad0 = padTmp[i]; val pad1 = padTmp[i + 1]
+
+                glowQuadPts[0] = x0;  glowQuadPts[1] = yt0 - pad0
+                glowQuadPts[2] = x1;  glowQuadPts[3] = yt1 - pad1
+                glowQuadPts[4] = x1;  glowQuadPts[5] = yb1 + pad1
+                glowQuadPts[6] = x0;  glowQuadPts[7] = yb0 + pad0
+
+                quadPts[0] = x0;  quadPts[1] = yt0
+                quadPts[2] = x1;  quadPts[3] = yt1
+                quadPts[4] = x1;  quadPts[5] = yb1
+                quadPts[6] = x0;  quadPts[7] = yb0
+
+                draw.polygon(glowQuadPts, rGlow, gGlow, bGlow, 1f, filled = true)
+                draw.polygon(quadPts, rCore, gCore, bCore, 1f, filled = true)
+            }
         }
 
         draw.setNormalBlend()
