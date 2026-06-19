@@ -232,6 +232,6 @@ class MyceliumMode : BaseMode() {
         var u2 = 0f
         while (u1 == 0f) u1 = Math.random().toFloat()
         while (u2 == 0f) u2 = Math.random().toFloat()
-        return sqrt(-2f * log(u1, Math.E.toFloat().toDouble()).toFloat()) * cos(TAU * u2)
+        return sqrt(-2f * ln(u1)) * cos(TAU * u2)
     }
 }
