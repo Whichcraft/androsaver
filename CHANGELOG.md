@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-19 — v2.5.3: compilation fixes & upstream updates
+
+- **Mycelium**: fixed compile type-mismatch error on GitHub actions.
+- **Butterflies**: resolved private visibility errors on pair parameters.
+- **Yantra**: staggered initial ring rotations to prevent thick overlapping line alignment at screensaver start.
+- **Upstream psysuals**: ported Yantra stagger rotation updates to python implementation.
+
+---
+
 ## 2026-06-19 — v2.5.2: psysuals v3.9.0 backport
 
 - **Submodule psysuals**: updated to latest commit (v3.9.0, commit 77d9699).
