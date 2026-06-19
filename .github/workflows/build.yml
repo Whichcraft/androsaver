@@ -76,13 +76,15 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: |
           gh release list --json tagName,databaseId,name,isDraft > releases.txt
-          git config user.name "Tom Stocker"
-          git config user.email "neo@spacerat.ch"
-          git add releases.txt
-          git commit -m "debug: add releases.txt [skip ci]"
-          git push origin HEAD:dev
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Upload releases list
+        if: github.ref == 'refs/heads/dev'
+        uses: actions/upload-artifact@v4
+        with:
+          name: releases-list
+          path: releases.txt
 
       - name: Publish to dev release
         if: false
