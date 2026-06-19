@@ -198,10 +198,10 @@ class ButterfliesMode : BaseMode() {
         private val lifetime  = (2400 + Math.random() * 3000).toInt()
         private var age       = -spawnDelay
         private var orbitAng  = (Math.random().toFloat() * TAU)
-        private var orbitR    = 120f   // reduced initial orbit radius (240→120 per v3.7.0)
+        var orbitR    = 120f   // reduced initial orbit radius (240→120 per v3.7.0)
         var solo: Butterfly?  = null
         var love: Butterfly?  = null
-        private var departing = false
+        var departing = false
         private var breakCd    = (800 + Math.random() * 800).toInt()
         private var breakTimer = 0
 
