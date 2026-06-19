@@ -113,9 +113,34 @@ psysuals z-order that comes for free from direct surface drawing.
 Port directly.  `draw.fadeBlack(10f/255f)` for trail persistence (matches `TRAIL_ALPHA=10`).
 
 ### FlowFieldMode
-Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)`.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.
+Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)`.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.  Upstream edge recycling removed in v3.9.0 (particles wrap natively).
 
-**Edge recycling** (v3.7.0): replaces random 0.3% recycling.  Each frame, particles within 8% of any screen edge are relocated to a random position in the central 60% (20–80% of each dimension).  This prevents edge accumulation without causing the uniform teleport artifacts of random recycling.  Do not revert to random recycling.
+### MyceliumMode
+Port directly.  `draw.fadeBlack(8f/255f)` from `TRAIL_ALPHA=8`. Swirling growth pattern around 5 cores (colony centers). Segments use double `draw.line()` (dark + bright). Pre-allocated arrays and cores structure.
+
+### MagnetarMode
+N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.circle(radius=1.5f, segments=4)` with `setAdditiveBlend()`.  `_FADE_ALPHA=24` trail decay mapped to `draw.fadeBlack(24f/255f)`.
+
+### SlimeMoldMode
+N reduced 10 000 → 2 500; RES_DIV raised 4 → 8 (trail grid ~240×135 for 1080p).  NumPy vectorised sensing and movement replaced with scalar Kotlin loops.  Trail grid rendered as coloured rects.  3×3 diffusion approximated with 5-tap cross kernel.
+
+### CliffordMode
+N reduced 40 000 → 8 000 for Android performance.  NumPy vectorised map iterations replaced with scalar Kotlin loops over `FloatArray(N)`.  Attractor presets and dynamic framing based on running min/max. `_FADE_ALPHA=18` trail decay mapped to `draw.fadeBlack(18f/255f)`. Particles drawn as tiny circles (radius 1.5f, segments=4, additive blend). Iterates 3 steps per frame.
+
+### MobiusMode
+Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d` array pre-allocated (longitude wires and scratch `pts2dV` removed in v3.9.0).
+
+### ChromaticMode
+Port directly. Wavy raindrop ripples outline. `_FADE_ALPHA=24` → `draw.fadeBlack(24f/255f)` replaces `BLEND_RGB_MULT(232,228,236)`. Closed polygons drawn with RGB-separated offsets and custom sine-wave ripple function.
+
+### PersistenceMode
+Port directly.  `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`.  `draw.polygon()` for both glow (wireframe) and col (wireframe) passes.
+
+### SynapseMode
+Port directly.  `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`.  Signal pulses and node glows drawn with `setAdditiveBlend()` circles. Outgoing edge lists pre-calculated; signals capped at `MAX_SIGNALS=240` and fan-outs limited to prevent runaway cascades.
+
+### HeartbeatMode
+Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon drawn with 120-point `FloatArray` passed to `draw.polygon()` twice (glow + col).
 
 ---
 

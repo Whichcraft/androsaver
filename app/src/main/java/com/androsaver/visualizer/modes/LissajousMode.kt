@@ -98,7 +98,6 @@ class LissajousMode : BaseMode() {
         val cx = draw.W / 2f; val cy = draw.H / 2f
 
         val l1Bright = minOf(0.90f + clampedBeat * 0.08f + high * 0.14f, 0.98f)
-        val glowLwMul = 4 + (high * 6).toInt()
 
         // Two glow passes: (l_tail, l_head)
         val passes = arrayOf(Pair(0.08f, 0.22f), Pair(0.50f, l1Bright))

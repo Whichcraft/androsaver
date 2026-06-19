@@ -4,6 +4,72 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-19 — v2.5.3: compilation fixes & upstream updates
+
+- **Mycelium**: fixed compile type-mismatch error on GitHub actions.
+- **Butterflies**: resolved private visibility errors on pair parameters.
+- **Yantra**: staggered initial ring rotations to prevent thick overlapping line alignment at screensaver start.
+- **Upstream psysuals**: ported Yantra stagger rotation updates to python implementation.
+
+---
+
+## 2026-06-19 — v2.5.2: psysuals v3.9.0 backport
+
+- **Submodule psysuals**: updated to latest commit (v3.9.0, commit 77d9699).
+- **Removed Modes**: Droste, OilSlick, and Coral modes have been removed from the active registry to match upstream.
+- **Mycelium**: updated to support multiple colonies (cores) with a swirling growth pattern.
+- **Clifford**: added strange attractor presets, dynamic framing, recovery, and 3 steps per frame.
+- **Mobius**: removed longitude wire lines for a cleaner ribbon presentation.
+- **Chromatic**: replaced concentric circles with wavy raindrop ripples and RGB outlines.
+- **Synapse**: precalculated outgoing edges and capped signal propagation fan-outs to stabilize active signal count.
+- **FlowField**: removed edge recycling, particles wrap naturally.
+- **Vortex**: trail decay updated to fadeBlack(20/255) to match the _FADE_ALPHA trail fade.
+- **Magnetar**: trail decay updated to fadeBlack(24/255) to match the _FADE_ALPHA trail fade.
+
+---
+
+## 2026-06-15 — v2.5.1: compiler warning fixes
+
+## 2026-06-15 — fix: suppress Kotlin compiler warnings
+
+- **UpdateInstaller**: `@Suppress("DEPRECATION")` on `ACTION_INSTALL_PACKAGE` intent (no API replacement available for Android 5+ target range).
+- **BranchesMode**, **CorridorMode**, **LissajousMode**: removed unused local variables (`lw`, `lw`, `glowLwMul`).
+- **ButterfliesMode**: marked unused `beat` parameter with `@Suppress("UNUSED_PARAMETER")`.
+- **CoralMode**: replaced unused `depth` destructuring slot with `_`.
+- **SynapseMode**: replaced `edges.withIndex()` with plain `for (e in edges)` (index was unused).
+
+---
+
+## 2026-06-15 — v2.5.0: psysuals v3.8.0 backport — 12 new visualizer effects
+
+### Added (psysuals v3.8.0 backport)
+- **Mycelium** — spreading fungal hyphal network; tips branch and decay as they grow.
+- **Magnetar** — 4 000 particles riding an analytical rotating magnetic dipole field.
+- **SlimeMold** — Physarum-style 2 500-agent trail simulation with diffusion.
+- **Droste** — spiralling geometric shapes with long-persistence Escher-zoom illusion.
+- **Clifford** — strange attractor (8 000 walkers, morphing a/b/c/d parameters).
+- **Mobius** — 3-D wireframe Möbius strip with perspective projection.
+- **Chromatic** — expanding rings with R/G/B channel split (chromatic aberration).
+- **Persistence** — rotating nested polygons with long moiré trail.
+- **OilSlick** — full-screen sine-wave interference mapped to prismatic hue.
+- **Synapse** — 55-node neural-network graph with cascading signal pulses.
+- **Coral** — bioluminescent fractal coral growing from the bottom edge.
+- **Heartbeat** — expanding polygon rings with beat-driven morphing.
+
+### Fixed
+- **Visualizer navigation**: new effects added in a later version are now automatically included in left/right cycling even if `VIZ_ENABLED_MODES` was saved before the new effects existed. The stored set is migrated on first screensaver start after an update.
+- **MobiusMode**: removed invalid named arguments from `floatArrayOf()` call (Kotlin does not support named args on vararg functions).
+- **YantraMode**: stagger initial ring rotation offsets so rings don't all start at 0° — fixes thick overlapping lines at screensaver start.
+
+### Notes (Android adaptation deltas vs. upstream psysuals)
+- Clifford: N=8 000 (upstream 40 000) — performance.
+- Magnetar: N=4 000 (upstream 6 000) — performance.
+- SlimeMold: N=2 500 (upstream 10 000), RES_DIV=8 grid — performance.
+- OilSlick: rendered as 120×68 rect grid (upstream RES_DIV=4 surfarray).
+- Droste: rotozoom FBO feedback not ported; replaced with fadeBlack(4f/255f).
+
+---
+
 ## 2026-06-15 — v2.4.0: psysuals v3.7.0 backport + Synology slideshow crash fix
 
 ### Fixed

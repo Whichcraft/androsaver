@@ -142,7 +142,6 @@ class CorridorMode : BaseMode() {
             val cyS = pcy * fov / z + H / 2f
 
             val h      = (hue + nearT) % 1f
-            val lw     = maxOf(1f, 1f + bass * 3f * nearT + mid * 1.5f * nearT)
             val bright = (0.06f + nearT * 0.70f + mid * 0.15f * nearT + bass * nearT * 0.50f)
                             .coerceIn(0f, 1f)
 

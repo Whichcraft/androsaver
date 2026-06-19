@@ -8,10 +8,9 @@ import kotlin.math.*
  * Vortex — firework rockets launch from the bottom, arc under gravity, and
  * explode into 80-120 glowing embers at the apex.  Beat fires extra rockets.
  *
- * Port of psysuals `Vortex` class (v2.3.0).
+ * Port of psysuals `Vortex` class (v3.9.0).
  * The pygame pixel-feedback zoom-rotate wormhole is omitted (requires FBO);
- * replaced with a very slow fadeBlack (≈ 40-frame persistence) so ember trails
- * linger similarly long on a dark background.
+ * replaced with a fadeBlack (≈ 20/255) to match the _FADE_ALPHA trail fade.
  */
 class VortexMode : BaseMode() {
 
@@ -93,8 +92,7 @@ class VortexMode : BaseMode() {
         autoT++
         if (autoT >= interval) { autoT = 0; launch(W, H) }
 
-        // Slow fade — embers should linger ~40 frames (matches psysuals BLEND_RGB_MULT 240/255)
-        draw.fadeBlack(15f / 255f)
+        draw.fadeBlack(20f / 255f)
 
         // ── Draw rocket trails + advance ──────────────────────────────────────
         val liveRockets = ArrayList<Rocket>(rockets.size)
