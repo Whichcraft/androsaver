@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-20 — v2.5.13: visualizer effects optimization & updates
+
+- **Mycelium**: ported upstream updates adding core satellite rings, spores with orbit/pull forces, and bioluminescent glow segments.
+- **Persistence**: ported upstream updates converting the moiré effect to a 3D perspective-projected multi-polygon renderer.
+- **TriFlux**: tuned rotation velocity limits and audio-reactive multipliers to prevent excessive nervousness.
+- **Submodule psysuals**: updated pointer to commit c145b81 (latest upstream updates).
+
+---
+
 ## 2026-06-19 — v2.5.3: compilation fixes & upstream updates
 
 - **Mycelium**: fixed compile type-mismatch error on GitHub actions.

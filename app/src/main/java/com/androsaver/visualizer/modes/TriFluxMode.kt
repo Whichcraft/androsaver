@@ -206,7 +206,7 @@ class TriFluxMode : BaseMode() {
                     val t = tiles[idx]
                     t.life   = ACTIVE_LIFE_MIN + (Math.random() * (ACTIVE_LIFE_MAX - ACTIVE_LIFE_MIN)).toInt()
                     t.rotVel = (if (Math.random() < 0.5) -1f else 1f) *
-                               (0.04f + Math.random().toFloat() * 0.06f)
+                               (0.015f + Math.random().toFloat() * 0.025f)
                     t.cvx = 0f; t.cvy = 0f
                 }
             } else {
@@ -228,7 +228,7 @@ class TriFluxMode : BaseMode() {
                     val t = tiles[idx]
                     t.life   = ACTIVE_LIFE_MIN + (Math.random() * (ACTIVE_LIFE_MAX - ACTIVE_LIFE_MIN)).toInt()
                     t.rotVel = (if (Math.random() < 0.5) -1f else 1f) *
-                               (0.03f + Math.random().toFloat() * 0.05f)
+                               (0.012f + Math.random().toFloat() * 0.018f)
                     t.cvx = 0f; t.cvy = 0f
                 }
             }
@@ -298,8 +298,8 @@ class TriFluxMode : BaseMode() {
                 tile.svel    += (target - tile.scale) * 0.22f; tile.svel *= 0.70f
                 tile.scale    = minOf(tile.scale + tile.svel, 12f)
                 tile.rot     += tile.rotVel
-                tile.rotVel  += (bass * 0.016f + high * 0.024f) * if (tile.rotVel >= 0) 1f else -1f
-                tile.rotVel  *= 0.96f
+                tile.rotVel  += (bass * 0.005f + high * 0.008f) * if (tile.rotVel >= 0) 1f else -1f
+                tile.rotVel  *= 0.94f
                 tile.cx += tile.cvx; tile.cy += tile.cvy
                 tile.cvx *= 0.97f;   tile.cvy *= 0.97f
             } else {
