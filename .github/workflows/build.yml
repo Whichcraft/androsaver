@@ -74,16 +74,27 @@ jobs:
 
       - name: Delete all existing dev releases
         if: github.ref == 'refs/heads/dev'
-        run: gh release list > releases.txt
+        run: |
+          echo "=== Releases before deletion ==="
+          gh release list --json tagName,databaseId,name,isDraft --limit 100
+          
+          echo "Finding dev releases to delete..."
+          IDS=$(gh release list --json tagName,databaseId,name,isDraft --limit 100 \
+            --jq '.[] | select(.tagName == "dev" or .name == "Dev" or .name == "Dev Draft") | .databaseId')
+          
+          if [ -n "$IDS" ]; then
+            for id in $IDS; do
+              echo "Deleting release ID: $id"
+              gh api -X DELETE "repos/${{ github.repository }}/releases/$id"
+            done
+          else
+            echo "No matching releases found to delete."
+          fi
+          
+          echo "=== Releases after deletion ==="
+          gh release list --json tagName,databaseId,name,isDraft --limit 100
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Upload releases list
-        if: github.ref == 'refs/heads/dev'
-        uses: actions/upload-artifact@v4
-        with:
-          name: releases-list
-          path: releases.txt
 
       - name: Publish to dev release
         if: false
