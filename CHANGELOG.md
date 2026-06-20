@@ -4,6 +4,17 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-20 — v2.5.15: codebase bug fixes & optimizations
+
+- **AudioEngine**: fixed concurrency race conditions by synchronizing audio data operations.
+- **AudioEngine**: resolved desynchronization of waveform and FFT packets by nullifying buffers on consumption.
+- **ImageCache**: implemented streaming downloads to prevent OutOfMemoryError crashes.
+- **ImageCache**: synchronized manifest read/write operations to prevent file corruption.
+- **UpdateInstaller**: replaced deprecated ACTION_INSTALL_PACKAGE intent with modern ACTION_VIEW.
+- **WeatherFetcher**: fixed context memory leak by referencing applicationContext instead of activity context.
+
+---
+
 ## 2026-06-20 — v2.5.13: visualizer effects optimization & updates
 
 - **Mycelium**: ported upstream updates adding core satellite rings, spores with orbit/pull forces, and bioluminescent glow segments.

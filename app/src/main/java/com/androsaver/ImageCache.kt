@@ -49,11 +49,22 @@ class ImageCache(private val context: Context) {
                 val req = Request.Builder().url(item.url).apply {
                     item.headers.forEach { (k, v) -> addHeader(k, v) }
                 }.build()
-                val bytes = client.newCall(req).execute().use { it.body?.bytes() } ?: continue
                 val fname = sha16(item.url) + ".jpg"
-                File(dir, fname).writeBytes(bytes)
-                manifest.add(Entry(item.url, fname, sourceName, System.currentTimeMillis(), bytes.size.toLong()))
-                saved++
+                val file = File(dir, fname)
+                val size = client.newCall(req).execute().use { response ->
+                    if (!response.isSuccessful) return@use 0L
+                    val body = response.body ?: return@use 0L
+                    body.byteStream().use { input ->
+                        file.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    file.length()
+                }
+                if (size > 0L) {
+                    manifest.add(Entry(item.url, fname, sourceName, System.currentTimeMillis(), size))
+                    saved++
+                }
             } catch (e: Exception) {
                 if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Cache miss for ${item.url}: ${e.message}")
             }
@@ -73,14 +84,18 @@ class ImageCache(private val context: Context) {
         writeManifest(manifest)
     }
 
-    private fun readManifest(): List<Entry> = try {
-        val f = File(dir, MANIFEST)
-        if (f.exists()) gson.fromJson(f.readText(), object : TypeToken<List<Entry>>() {}.type) ?: emptyList()
-        else emptyList()
-    } catch (_: Exception) { emptyList() }
+    private fun readManifest(): List<Entry> = synchronized(this) {
+        try {
+            val f = File(dir, MANIFEST)
+            if (f.exists()) gson.fromJson(f.readText(), object : TypeToken<List<Entry>>() {}.type) ?: emptyList()
+            else emptyList()
+        } catch (_: Exception) { emptyList() }
+    }
 
     private fun writeManifest(entries: List<Entry>) {
-        try { File(dir, MANIFEST).writeText(gson.toJson(entries)) } catch (_: Exception) {}
+        synchronized(this) {
+            try { File(dir, MANIFEST).writeText(gson.toJson(entries)) } catch (_: Exception) {}
+        }
     }
 
     private fun sha16(s: String): String =
