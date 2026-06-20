@@ -74,7 +74,7 @@ jobs:
 
       - name: Delete all existing dev releases
         if: github.ref == 'refs/heads/dev'
-          gh release list > releases.txt
+        run: gh release list > releases.txt
         env:
           GH_TOKEN: ${{ github.token }}
 
