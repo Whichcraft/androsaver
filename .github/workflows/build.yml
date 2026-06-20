@@ -97,7 +97,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Publish to dev release
-        if: false
+        if: github.ref == 'refs/heads/dev'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: dev
