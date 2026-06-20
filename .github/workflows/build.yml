@@ -76,11 +76,11 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: |
           echo "=== Releases before deletion ==="
-          gh release list --json tagName,databaseId,name,isDraft --limit 100
+          gh api repos/${{ github.repository }}/releases --jq '.[] | {name: .name, tag_name: .tag_name, id: .id, draft: .draft}'
           
           echo "Finding dev releases to delete..."
-          IDS=$(gh release list --json tagName,databaseId,name,isDraft --limit 100 \
-            --jq '.[] | select(.tagName == "dev" or .name == "Dev" or .name == "Dev Draft") | .databaseId')
+          IDS=$(gh api repos/${{ github.repository }}/releases \
+            --jq '.[] | select(.tag_name == "dev" or .name == "Dev" or .name == "Dev Draft") | .id')
           
           if [ -n "$IDS" ]; then
             for id in $IDS; do
@@ -92,7 +92,7 @@ jobs:
           fi
           
           echo "=== Releases after deletion ==="
-          gh release list --json tagName,databaseId,name,isDraft --limit 100
+          gh api repos/${{ github.repository }}/releases --jq '.[] | {name: .name, tag_name: .tag_name, id: .id, draft: .draft}'
         env:
           GH_TOKEN: ${{ github.token }}
 
