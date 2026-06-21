@@ -127,7 +127,6 @@ class ScreensaverEngine(
         stopWeather()
         kenBurnsAnimators.values.forEach { it.cancel() }
         kenBurnsAnimators.clear()
-        Glide.with(context).onStop()
     }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
@@ -410,6 +409,10 @@ class ScreensaverEngine(
         slideshowRunnable = null
         retryRunnable?.let { handler.removeCallbacks(it) }
         retryRunnable = null
+        try {
+            Glide.with(context).clear(binding.imageView1)
+            Glide.with(context).clear(binding.imageView2)
+        } catch (_: Exception) {}
     }
 
     // ── Periodic image refresh ────────────────────────────────────────────────

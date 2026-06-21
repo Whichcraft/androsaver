@@ -107,7 +107,7 @@ A crystal grid of glowing nodes and connection beams (leftmost column cutout). I
 
 ## MyceliumMode
 
-Swirling growth pattern around multiple colonies (cores). Up to 180 active tips grow swirling around 5 cores placed in a ring, each tip leaving a decaying filament segment trail (max 600 segments). Branching probability scales with mid; spread angle widens with mid. Beat fires a colony bloom burst that seeds new tips from the cores. Cores pulse and glow on beat. Double-draw segments: dark wide stroke + bright thin stroke for neon filament look. Trail: fadeBlack(8/255).
+Swirling growth pattern around multiple colonies (cores). Up to 180 active tips grow swirling around 5 cores, each tip leaving a decaying filament segment trail (max 600 segments). Cores are decorated with a rotating ring of satellite nodes. Beat fires a colony bloom burst that seeds new tips and releases swirling spores from the cores. Tips also release spores. Spores orbit the nearest core under gravitational pull and decay. Bioluminescent double-draw segments (soft color glow + bright core line) for neon look. Trail: fadeBlack(8/255).
 
 ## MagnetarMode
 
@@ -131,7 +131,7 @@ Prismatic raindrop ripples. Expanding waves split red, green, and blue channels 
 
 ## PersistenceMode
 
-Up to 8 nested rotating polygons (triangle through decagon), each with a slightly different angular speed. Very long trail persistence (fadeBlack(5/255) ≈ 50-frame trail) lets ghost images accumulate into moiré/kaleidoscope interference patterns. Beat fires a speed spike. Mid controls active polygon count. Treble fires a radial flash ring.
+Up to 8 nested polygons (triangle through decagon) rotating in 3D space with perspective projection. Non-coplanar orbital speeds on X, Y, and Z axes generate holographic 3D wagon-wheel moiré and mandala patterns. Line thickness and brightness are faded based on depth factor. Double-pass line drawing for neon glow. Very long trail persistence (fadeBlack(5/255) ≈ 50-frame trail). Beat fires a speed spike; mid controls polygon count; treble fires a background radial flash ring.
 
 ## SynapseMode
 

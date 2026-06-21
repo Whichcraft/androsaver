@@ -36,7 +36,6 @@ class ScreensaverService : DreamService() {
     override fun onDetachedFromWindow() {
         engine.stop()
         scope.cancel()
-        Glide.with(applicationContext).onStop()
         super.onDetachedFromWindow()
     }
 

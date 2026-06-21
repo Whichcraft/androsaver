@@ -40,30 +40,31 @@ class SynologySource(private val context: Context) : ImageSource {
         val scheme = if (useHttps) "https" else "http"
         val baseUrl = "$scheme://$host:$port"
 
-        val sid = login(baseUrl, username, password) ?: return@withContext emptyList()
+        val sid = login(baseUrl, username, password)
         // Don't logout here — the SID is embedded in image URLs, and Glide loads images
         // after getImageUrls() returns.  Let the Synology session expire naturally (~30 min).
         listImages(baseUrl, folder, sid)
     }
 
-    private fun login(baseUrl: String, username: String, password: String): String? {
+    private fun login(baseUrl: String, username: String, password: String): String {
         val user = URLEncoder.encode(username, "UTF-8")
         val pass = URLEncoder.encode(password, "UTF-8")
         val url = "$baseUrl/webapi/auth.cgi?api=SYNO.API.Auth&version=3&method=login" +
                 "&account=$user&passwd=$pass&session=AndroSaver&format=sid"
 
-        return try {
-            val json = client.newCall(Request.Builder().url(url).build()).execute()
-                .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
-            if (json.get("success")?.asBoolean == true) {
-                json.getAsJsonObject("data")?.get("sid")?.asString
-            } else {
-                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Login failed: ${json.get("error")}")
-                null
-            }
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Login error", e)
-            null
+        val response = client.newCall(Request.Builder().url(url).build()).execute()
+        if (!response.isSuccessful) {
+            val code = response.code
+            response.close()
+            throw java.io.IOException("HTTP error code $code")
+        }
+        val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+        if (json.get("success")?.asBoolean == true) {
+            return json.getAsJsonObject("data")?.get("sid")?.asString
+                ?: throw java.io.IOException("Invalid API response: missing SID")
+        } else {
+            val error = json.get("error")?.toString() ?: "Unknown error"
+            throw java.io.IOException("Login failed: $error")
         }
     }
 
@@ -72,32 +73,33 @@ class SynologySource(private val context: Context) : ImageSource {
         val url = "$baseUrl/webapi/entry.cgi?api=SYNO.FileStation.List&version=2&method=list" +
                 "&folder_path=$encodedFolder&filetype=file&_sid=$sid"
 
-        return try {
-            val json = client.newCall(Request.Builder().url(url).build()).execute()
-                .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+        val response = client.newCall(Request.Builder().url(url).build()).execute()
+        if (!response.isSuccessful) {
+            val code = response.code
+            response.close()
+            throw java.io.IOException("HTTP error code $code")
+        }
+        val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
 
-            if (json.get("success")?.asBoolean != true) {
-                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List files failed: $json")
-                return emptyList()
-            }
+        if (json.get("success")?.asBoolean != true) {
+            val error = json.get("error")?.toString() ?: "Unknown error"
+            throw java.io.IOException("List files failed: $error")
+        }
 
-            val files = json.getAsJsonObject("data")?.getAsJsonArray("files") ?: return emptyList()
+        val files = json.getAsJsonObject("data")?.getAsJsonArray("files")
+            ?: throw java.io.IOException("Invalid API response: missing files array")
 
-            files.mapNotNull { file ->
-                val obj = file.asJsonObject
-                val name = obj.get("name")?.asString ?: return@mapNotNull null
-                if (name.substringAfterLast('.', "").lowercase() !in imageExtensions) return@mapNotNull null
+        return files.mapNotNull { file ->
+            val obj = file.asJsonObject
+            val name = obj.get("name")?.asString ?: return@mapNotNull null
+            if (name.substringAfterLast('.', "").lowercase() !in imageExtensions) return@mapNotNull null
 
-                val path = obj.get("path")?.asString ?: return@mapNotNull null
-                val encodedPath = URLEncoder.encode(path, "UTF-8")
-                val downloadUrl = "$baseUrl/webapi/entry.cgi?api=SYNO.FileStation.Download" +
-                        "&version=2&method=download&path=$encodedPath&mode=download&_sid=$sid"
+            val path = obj.get("path")?.asString ?: return@mapNotNull null
+            val encodedPath = URLEncoder.encode(path, "UTF-8")
+            val downloadUrl = "$baseUrl/webapi/entry.cgi?api=SYNO.FileStation.Download" +
+                    "&version=2&method=download&path=$encodedPath&mode=download&_sid=$sid"
 
-                ImageItem(url = downloadUrl, name = name)
-            }
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List images error", e)
-            emptyList()
+            ImageItem(url = downloadUrl, name = name)
         }
     }
 

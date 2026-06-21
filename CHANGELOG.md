@@ -4,6 +4,41 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-21 — v2.5.20: codebase bug fixes & security improvements
+
+- **AndroSaverGlideModule**: resolved global SSL/TLS certificate validation bypass security vulnerability by introducing a dynamic OkHttp Call.Factory that enforces standard SSL validation for cloud endpoints and only trusts self-signed certs for configured self-hosted domains.
+- **DropboxSource**: resolved thread blocking issue by executing `getImageUrls()` inside `withContext(Dispatchers.IO)`.
+- **ImageCache**: resolved SSL handshake failures for self-signed NAS hosts by using the shared `HttpClients.trustAll` client.
+- **SettingsActivity**: resolved indefinite update UI freeze on failure by catching exceptions, displaying Toast feedback, and resetting state.
+- **TODO.md**: resolved the 4 newly identified code review findings.
+
+---
+
+## 2026-06-21 — v2.5.17: codebase bug fixes & deep code review optimizations
+
+- **ExifRotationTransformation**: resolved Glide custom transformation bitmap double-recycling crashes.
+- **ScreensaverService**: fixed global Glide pausing issue by removing global onStop calls and clearing targeted image view loads instead.
+- **UpdateInstaller**: added response success verification during update download.
+- **SettingsActivity**: moved update installation coroutine to a lifecycle-independent scope with application context to avoid cancellation.
+- **ImageSource**: stopped exception swallowing in Nextcloud, Synology, and Immich sources to allow proper connection test failures.
+- **AudioEngine**: fixed concurrency race conditions by synchronizing audio data operations.
+- **AudioEngine**: resolved desynchronization of waveform and FFT packets by nullifying buffers on consumption.
+- **ImageCache**: implemented streaming downloads to prevent OutOfMemoryError crashes.
+- **ImageCache**: synchronized manifest read/write operations to prevent file corruption.
+- **UpdateInstaller**: replaced deprecated ACTION_INSTALL_PACKAGE intent with modern ACTION_VIEW.
+- **WeatherFetcher**: fixed context memory leak by referencing applicationContext instead of activity context.
+
+---
+
+## 2026-06-20 — v2.5.13: visualizer effects optimization & updates
+
+- **Mycelium**: ported upstream updates adding core satellite rings, spores with orbit/pull forces, and bioluminescent glow segments.
+- **Persistence**: ported upstream updates converting the moiré effect to a 3D perspective-projected multi-polygon renderer.
+- **TriFlux**: tuned rotation velocity limits and audio-reactive multipliers to prevent excessive nervousness.
+- **Submodule psysuals**: updated pointer to commit c145b81 (latest upstream updates).
+
+---
+
 ## 2026-06-19 — v2.5.3: compilation fixes & upstream updates
 
 - **Mycelium**: fixed compile type-mismatch error on GitHub actions.

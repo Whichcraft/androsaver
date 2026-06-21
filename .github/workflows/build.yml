@@ -75,9 +75,24 @@ jobs:
       - name: Delete all existing dev releases
         if: github.ref == 'refs/heads/dev'
         run: |
-          gh release list --json tagName,databaseId \
-            --jq '.[] | select(.tagName == "dev") | .databaseId' \
-            | xargs -I{} gh api -X DELETE repos/${{ github.repository }}/releases/{}
+          echo "=== Releases before deletion ==="
+          gh api repos/${{ github.repository }}/releases --jq '.[] | {name: .name, tag_name: .tag_name, id: .id, draft: .draft}'
+          
+          echo "Finding dev releases to delete..."
+          IDS=$(gh api repos/${{ github.repository }}/releases \
+            --jq '.[] | select(.tag_name == "dev" or .name == "Dev" or .name == "Dev Draft") | .id')
+          
+          if [ -n "$IDS" ]; then
+            for id in $IDS; do
+              echo "Deleting release ID: $id"
+              gh api -X DELETE "repos/${{ github.repository }}/releases/$id"
+            done
+          else
+            echo "No matching releases found to delete."
+          fi
+          
+          echo "=== Releases after deletion ==="
+          gh api repos/${{ github.repository }}/releases --jq '.[] | {name: .name, tag_name: .tag_name, id: .id, draft: .draft}'
         env:
           GH_TOKEN: ${{ github.token }}
 
