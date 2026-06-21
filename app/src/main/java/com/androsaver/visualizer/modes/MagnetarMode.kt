@@ -105,7 +105,7 @@ class MagnetarMode : BaseMode() {
             val h      = ((hue + angToAxis) % 1f + 1f) % 1f
             val bright = 0.35f + bass * 0.25f + high * 0.12f
             val c = GLDraw.hsl(h, l = bright)
-            draw.circle(px[i], py[i], 1.5f, c[0], c[1], c[2], 0.7f, filled = true, segments = 4)
+            draw.particle(px[i], py[i], 1.5f, c[0], c[1], c[2], 0.7f)
         }
         draw.setNormalBlend()
     }

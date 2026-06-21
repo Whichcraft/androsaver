@@ -113,6 +113,24 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Fix:** Clear the cached audio buffers and reset `_data.set(AudioData())` inside `stop()`.
 - **Status:** FIXED. Cleared wave/fft buffers, reset averages, and reset `_data` snapshot to default silent state in `stop()`.
 
+### [RESOLVED] Stale Location-Independent Weather Cache
+- **File:** [WeatherFetcher.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/WeatherFetcher.kt)
+- **Description:** `WeatherFetcher.loadCached()` retrieves cached weather data based solely on the timestamp. It does not verify the city name. If the user changes the location in settings, the fetcher will serve the cached weather of the old city until the 30-minute cache lifetime expires.
+- **Fix:** Store the city name alongside the cached JSON in `saveCached()`, and verify that the requested `city` matches the cached `city` in `loadCached()`.
+- **Status:** FIXED. Added city name to the cache keys, validating that the requested city matches the cached city case-insensitively.
+
+### [RESOLVED] Missing RECORD_AUDIO Permission Prompt on Settings Launch
+- **File:** [SettingsActivity.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/SettingsActivity.kt)
+- **Description:** `SettingsActivity` only prompts the user for the `RECORD_AUDIO` permission if they manually change the screensaver mode to "Visualizer". If the mode is already set to "Visualizer" but the permission has been revoked or was never granted (e.g. restored from a backup or revoked via system settings), the activity does not prompt the user on startup. The screensaver will start up and silently fail to capture audio.
+- **Fix:** Check if the current mode is `Prefs.MODE_VISUALIZER` and `RECORD_AUDIO` is not granted during `onResume()`, and launch the permission request if so.
+- **Status:** FIXED. Added check on settings activity resume to request audio recording permission when visualizer mode is active but permission is missing.
+
+### [RESOLVED] Volume Keys Dismiss Screensaver in Interactive Visualizer Mode
+- **File:** [ScreensaverEngine.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ScreensaverEngine.kt)
+- **Description:** In `handleKeyEvent()`, any non-DPAD key event (including volume buttons like `KEYCODE_VOLUME_UP`, `KEYCODE_VOLUME_DOWN`, `KEYCODE_VOLUME_MUTE`) triggers `onRequestFinish()` and exits the screensaver. This makes it impossible for users to adjust their TV volume while the music visualizer is running.
+- **Fix:** Explicitly ignore volume control keys (`KEYCODE_VOLUME_UP`, `KEYCODE_VOLUME_DOWN`, `KEYCODE_VOLUME_MUTE`) in the `handleKeyEvent()` fallback branch.
+- **Status:** FIXED. Volume keys are explicitly bypassed in `handleKeyEvent()` and passed to the system, avoiding screensaver dismissal.
+
 ---
 
 ## 3. Low Priority (Maintenance & Robustness)
@@ -157,6 +175,14 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Description:** Compiled shader objects (`vert` and `frag`) are attached and linked to OpenGL programs but are never detached (`glDetachShader`) or deleted (`glDeleteShader`), leaking GPU resources. Furthermore, there are no checks for compilation or linking success (`GL_COMPILE_STATUS`/`GL_LINK_STATUS`), causing silent rendering failures if compile errors happen.
 - **Fix:** Detach and delete shaders after program linking, and add checks to log compilation/link logs on failure.
 - **Status:** PENDING.
+
+### [RESOLVED] High CPU Trigonometry and Vertex Buffer Overflow in FlowFieldMode / MagnetarMode
+- **File:** [FlowFieldMode.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/modes/FlowFieldMode.kt), [MagnetarMode.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/modes/MagnetarMode.kt), [GLDraw.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/GLDraw.kt)
+- **Description:** Modes like `FlowFieldMode` (up to 100,000 particles on 4K TVs) and `MagnetarMode` (4,000 particles) draw each particle as a 4-segment filled circle (which translates to 400,000 triangles / 1,200,000 vertices for `FlowFieldMode` on 4K screens).
+  1. This easily overflows `GLDraw`'s `MAX_VERTS` buffer limit (262,144 vertices), causing subsequent vertices to be silently dropped and particles to vanish from rendering.
+  2. Running `cos`/`sin` calculations for every segment of every particle on the CPU inside the rendering loop (up to 400,000 trigonometry calls per frame) causes high CPU overhead and massive frame drops on low-end Android TV devices.
+- **Fix:** Implement point sprite / point rendering using `GLES20.GL_POINTS` in `GLDraw`, or draw them as simple 2x2 quads or pre-calculated offsets, and reduce particle counts on TV screens.
+- **Status:** FIXED. Added an optimized `particle()` method to `GLDraw` that draws particles as axis-aligned quads (6 vertices per particle) with zero trig calls. FlowFieldMode's `N_MAX` was also capped at `40000` to prevent buffer overflow on 4K displays.
 
 ### [RESOLVED] Transition Speed Preference Default Value Mismatch
 - **File:** [screensaver_preferences.xml](file:///home/tom/github.com/androsaver/app/src/main/res/xml/screensaver_preferences.xml), [arrays.xml](file:///home/tom/github.com/androsaver/app/src/main/res/values/arrays.xml)

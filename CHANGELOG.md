@@ -4,6 +4,16 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-21 — v2.5.24: weather cache, audio permission & particle rendering optimizations
+
+- **WeatherFetcher**: resolved stale cache collision bug by validating that the requested weather city matches the cached city name case-insensitively before serving cached responses.
+- **SettingsActivity**: resolved audio recording permission missing prompt bug by verifying RECORD_AUDIO permission and requesting it on Settings screen resume if screensaver mode is active and set to Visualizer.
+- **ScreensaverEngine**: resolved volume keys screensaver dismissal bug by explicitly ignoring volume control buttons (up/down/mute) inside `handleKeyEvent()` and passing them to the system.
+- **GLDraw & Attractor Modes**: implemented a high-performance, trigonometry-free `particle()` quad rendering batch method, replacing expensive 4-segment circles. Capped FlowFieldMode's `N_MAX` to `40000` to prevent GL vertex buffer overflows and high CPU rendering latency on 4K TVs.
+- **TODO.md**: resolved all 4 code review bugs.
+
+---
+
 ## 2026-06-21 — v2.5.22: WorkManager prefetching & lifecycle bug fixes
 
 - **PrefetchScheduler & ImagePrefetchWorker**: implemented background prefetching using Android WorkManager. Periodically triggers every 12 hours over Wi-Fi network connections, querying all configured remote image sources and storing them in `ImageCache` to keep the offline cache warm.

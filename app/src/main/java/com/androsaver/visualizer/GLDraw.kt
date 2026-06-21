@@ -429,6 +429,19 @@ class GLDraw(var W: Int, var H: Int) {
         }
     }
 
+    /** Centered rectangle particle — fast, allocation-free, and trig-free. */
+    fun particle(x: Float, y: Float, radius: Float,
+                 r: Float, g: Float, b: Float, a: Float = 1f) {
+        val x1 = x - radius; val x2 = x + radius
+        val y1 = y - radius; val y2 = y + radius
+        addTri(x1, y1, r, g, b, a)
+        addTri(x2, y1, r, g, b, a)
+        addTri(x1, y2, r, g, b, a)
+        addTri(x2, y1, r, g, b, a)
+        addTri(x2, y2, r, g, b, a)
+        addTri(x1, y2, r, g, b, a)
+    }
+
     fun line(x1: Float, y1: Float, x2: Float, y2: Float,
              r: Float, g: Float, b: Float, a: Float = 1f) {
         addLine(x1, y1, x2, y2, r, g, b, a)
