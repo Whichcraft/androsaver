@@ -2,6 +2,8 @@ package com.androsaver.visualizer
 
 import android.opengl.GLES20
 import android.opengl.Matrix
+import android.util.Log
+import com.androsaver.BuildConfig
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -476,8 +478,14 @@ class GLDraw(var W: Int, var H: Int) {
         val n = pts.size / 2
         if (n < 2) return
         if (filled && n >= 3) {
-            val cx = pts.filterIndexed { i, _ -> i % 2 == 0 }.average().toFloat()
-            val cy = pts.filterIndexed { i, _ -> i % 2 == 1 }.average().toFloat()
+            var sumX = 0.0
+            var sumY = 0.0
+            for (i in 0 until n) {
+                sumX += pts[i * 2]
+                sumY += pts[i * 2 + 1]
+            }
+            val cx = (sumX / n).toFloat()
+            val cy = (sumY / n).toFloat()
             for (i in 0 until n) {
                 val j = (i + 1) % n
                 addTri(cx, cy,
@@ -539,47 +547,103 @@ class GLDraw(var W: Int, var H: Int) {
     // ── GL helpers ─────────────────────────────────────────────────────────────
 
     private fun buildProgram(vertSrc: String, fragSrc: String): Int {
-        val vert = compileShader(GLES20.GL_VERTEX_SHADER,   vertSrc)
+        val vert = compileShader(GLES20.GL_VERTEX_SHADER, vertSrc)
         val frag = compileShader(GLES20.GL_FRAGMENT_SHADER, fragSrc)
-        return GLES20.glCreateProgram().also { prog ->
-            GLES20.glAttachShader(prog, vert)
-            GLES20.glAttachShader(prog, frag)
-            GLES20.glLinkProgram(prog)
+        if (vert == 0 || frag == 0) {
+            if (vert != 0) GLES20.glDeleteShader(vert)
+            if (frag != 0) GLES20.glDeleteShader(frag)
+            return 0
         }
+
+        val prog = GLES20.glCreateProgram()
+        if (prog == 0) {
+            GLES20.glDeleteShader(vert)
+            GLES20.glDeleteShader(frag)
+            return 0
+        }
+
+        GLES20.glAttachShader(prog, vert)
+        GLES20.glAttachShader(prog, frag)
+        GLES20.glLinkProgram(prog)
+
+        val linkStatus = IntArray(1)
+        GLES20.glGetProgramiv(prog, GLES20.GL_LINK_STATUS, linkStatus, 0)
+        if (linkStatus[0] == GLES20.GL_FALSE) {
+            if (BuildConfig.DEBUG_LOGGING) {
+                Log.e("GLDraw", "Error linking program: " + GLES20.glGetProgramInfoLog(prog))
+            }
+            GLES20.glDetachShader(prog, vert)
+            GLES20.glDetachShader(prog, frag)
+            GLES20.glDeleteShader(vert)
+            GLES20.glDeleteShader(frag)
+            GLES20.glDeleteProgram(prog)
+            return 0
+        }
+
+        // Detach and delete shaders to prevent GPU driver resource leaks
+        GLES20.glDetachShader(prog, vert)
+        GLES20.glDetachShader(prog, frag)
+        GLES20.glDeleteShader(vert)
+        GLES20.glDeleteShader(frag)
+
+        return prog
     }
 
-    private fun compileShader(type: Int, src: String): Int =
-        GLES20.glCreateShader(type).also { shader ->
-            GLES20.glShaderSource(shader, src)
-            GLES20.glCompileShader(shader)
+    private fun compileShader(type: Int, src: String): Int {
+        val shader = GLES20.glCreateShader(type)
+        if (shader == 0) return 0
+        GLES20.glShaderSource(shader, src)
+        GLES20.glCompileShader(shader)
+
+        val compileStatus = IntArray(1)
+        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
+        if (compileStatus[0] == GLES20.GL_FALSE) {
+            if (BuildConfig.DEBUG_LOGGING) {
+                Log.e("GLDraw", "Error compiling shader: " + GLES20.glGetShaderInfoLog(shader))
+            }
+            GLES20.glDeleteShader(shader)
+            return 0
         }
+        return shader
+    }
 
     // ── Companion: colour helpers ──────────────────────────────────────────────
 
     companion object {
         /**
-         * Convert HSL to RGBA FloatArray.  Matches Python's colorsys.hls_to_rgb
+         * Convert HSL to RGBA FloatArray. Matches Python's colorsys.hls_to_rgb
          * (note: Python uses HLS order, we keep standard HSL parameter names here).
          */
         fun hsl(h: Float, s: Float = 1f, l: Float = 0.5f, a: Float = 1f): FloatArray {
+            val out = FloatArray(4)
+            hsl(h, s, l, a, out)
+            return out
+        }
+
+        /**
+         * Non-allocating HSL to RGBA converter. Writes result directly to [out].
+         */
+        fun hsl(h: Float, s: Float, l: Float, a: Float, out: FloatArray) {
             val hh = ((h % 1f + 1f) % 1f) * 6f
             val c = (1f - abs(2f * l - 1f)) * s
             val x = c * (1f - abs(hh % 2f - 1f))
             val m = l - c / 2f
-            val (r, g, b) = when (hh.toInt()) {
-                0 -> Triple(c, x, 0f)
-                1 -> Triple(x, c, 0f)
-                2 -> Triple(0f, c, x)
-                3 -> Triple(0f, x, c)
-                4 -> Triple(x, 0f, c)
-                else -> Triple(c, 0f, x)
+            
+            var r = 0f
+            var g = 0f
+            var b = 0f
+            when (hh.toInt()) {
+                0 -> { r = c; g = x; b = 0f }
+                1 -> { r = x; g = c; b = 0f }
+                2 -> { r = 0f; g = c; b = x }
+                3 -> { r = 0f; g = x; b = c }
+                4 -> { r = x; g = 0f; b = c }
+                else -> { r = c; g = 0f; b = x }
             }
-            return floatArrayOf(
-                (r + m).coerceIn(0f, 1f),
-                (g + m).coerceIn(0f, 1f),
-                (b + m).coerceIn(0f, 1f),
-                a
-            )
+            out[0] = (r + m).coerceIn(0f, 1f)
+            out[1] = (g + m).coerceIn(0f, 1f)
+            out[2] = (b + m).coerceIn(0f, 1f)
+            out[3] = a
         }
     }
 }
