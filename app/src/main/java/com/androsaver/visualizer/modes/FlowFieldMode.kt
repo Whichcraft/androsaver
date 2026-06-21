@@ -20,7 +20,7 @@ class FlowFieldMode : BaseMode() {
     override val name = "FlowField"
 
     private companion object {
-        const val N_MAX  = 100000
+        const val N_MAX  = 40000
         const val FS     = 0.0022f   // spatial frequency of the noise field
         const val LAYERS = 2
     }
@@ -118,7 +118,7 @@ class FlowFieldMode : BaseMode() {
 
             val h = (hue + px[i] / W * 0.30f + py[i] / H * 0.18f) % 1f
             val c = GLDraw.hsl(h, s = 0.90f, l = 0.62f)
-            draw.circle(px[i], py[i], 1.5f, c[0], c[1], c[2], 0.85f, filled = true, segments = 4)
+            draw.particle(px[i], py[i], 1.5f, c[0], c[1], c[2], 0.85f)
         }
         draw.setNormalBlend()
     }

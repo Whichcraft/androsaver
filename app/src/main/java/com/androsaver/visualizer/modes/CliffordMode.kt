@@ -138,7 +138,7 @@ class CliffordMode : BaseMode() {
                     val h = (hue + ang * 0.55f + rad * 0.20f) % 1f
                     val bright = 0.32f + bass * 0.20f + (1f - rad) * 0.18f
                     val cArr = GLDraw.hsl(h, l = bright)
-                    draw.circle(px, py, 1.5f, cArr[0], cArr[1], cArr[2], 0.6f, filled = true, segments = 4)
+                    draw.particle(px, py, 1.5f, cArr[0], cArr[1], cArr[2], 0.6f)
                 }
             }
         }

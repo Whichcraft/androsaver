@@ -20,6 +20,7 @@ class WeatherFetcher(context: Context) {
         private const val PREFS_NAME = "weather_cache"
         private const val KEY_JSON = "json"
         private const val KEY_TS   = "ts"
+        private const val KEY_CITY = "city"
         private const val OWM_URL  = "https://api.openweathermap.org/data/2.5/weather"
     }
 
@@ -34,20 +35,26 @@ class WeatherFetcher(context: Context) {
 
     suspend fun getWeather(city: String, apiKey: String): WeatherData? {
         if (city.isBlank() || apiKey.isBlank()) return null
-        val cached = loadCached()
+        val cached = loadCached(city)
         if (cached != null) return cached
         return withContext(Dispatchers.IO) { fetchFromApi(city, apiKey) }
     }
 
-    private fun loadCached(): WeatherData? {
+    private fun loadCached(city: String): WeatherData? {
+        val cachedCity = prefs.getString(KEY_CITY, null) ?: return null
+        if (!cachedCity.equals(city, ignoreCase = true)) return null
         val ts = prefs.getLong(KEY_TS, 0L)
         if (System.currentTimeMillis() - ts > CACHE_MS) return null
         val json = prefs.getString(KEY_JSON, null) ?: return null
         return parseJson(json)
     }
 
-    private fun saveCached(@Suppress("UNUSED_PARAMETER") data: WeatherData, rawJson: String) {
-        prefs.edit().putString(KEY_JSON, rawJson).putLong(KEY_TS, System.currentTimeMillis()).apply()
+    private fun saveCached(city: String, rawJson: String) {
+        prefs.edit()
+            .putString(KEY_JSON, rawJson)
+            .putString(KEY_CITY, city)
+            .putLong(KEY_TS, System.currentTimeMillis())
+            .apply()
     }
 
     private fun fetchFromApi(city: String, apiKey: String): WeatherData? {
@@ -57,7 +64,7 @@ class WeatherFetcher(context: Context) {
                 if (!resp.isSuccessful) { if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Weather API error ${resp.code}"); return null }
                 val body = resp.body?.string() ?: return null
                 val data = parseJson(body)
-                if (data != null) saveCached(data, body)
+                if (data != null) saveCached(city, body)
                 data
             }
         } catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Weather fetch failed: ${e.message}"); null }
