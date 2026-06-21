@@ -4,6 +4,17 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-21 — v2.5.22: WorkManager prefetching & lifecycle bug fixes
+
+- **PrefetchScheduler & ImagePrefetchWorker**: implemented background prefetching using Android WorkManager. Periodically triggers every 12 hours over Wi-Fi network connections, querying all configured remote image sources and storing them in `ImageCache` to keep the offline cache warm.
+- **ScreensaverService**: implemented `onDreamingStarted` and `onDreamingStopped` handling to resume and pause the visualizer engine respectively, resolving power/resource leaks when TV is turned off or sleeping.
+- **ScreensaverEngine**: parallelized remote image source checking inside `loadImages` and `scheduleImageRefresh` using Coroutines `async` and `awaitAll` to fix sequential loading startup bottleneck.
+- **AudioEngine**: resolved cached data leaks on screensaver stop/restart by clearing buffers and resetting state inside `stop()`.
+- **screensaver_preferences**: aligned default transition speed preference and fallback values to `2000` (2 seconds) to match allowed entries in `arrays.xml`.
+- **TODO-IMPROVEMENTS.md**: removed file as features have been fully implemented.
+
+---
+
 ## 2026-06-21 — v2.5.20: codebase bug fixes & security improvements
 
 - **AndroSaverGlideModule**: resolved global SSL/TLS certificate validation bypass security vulnerability by introducing a dynamic OkHttp Call.Factory that enforces standard SSL validation for cloud endpoints and only trusts self-signed certs for configured self-hosted domains.

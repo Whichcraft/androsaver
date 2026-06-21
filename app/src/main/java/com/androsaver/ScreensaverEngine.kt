@@ -35,6 +35,8 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
@@ -349,13 +351,25 @@ class ScreensaverEngine(
 
         scope.launch {
             val items = mutableListOf<ImageItem>()
-            for (src in sources) {
-                try {
-                    val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
-                    if (urls != null) items.addAll(urls)
-                    else if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "${src.name} timed out")
-                } catch (e: Exception) { if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error from ${src.name}", e) }
+            val deferreds = sources.map { src ->
+                async {
+                    try {
+                        val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
+                        if (urls == null && BuildConfig.DEBUG_LOGGING) {
+                            Log.w(TAG, "${src.name} timed out")
+                        }
+                        urls
+                    } catch (e: Exception) {
+                        if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error from ${src.name}", e)
+                        null
+                    }
+                }
             }
+            val results = deferreds.awaitAll()
+            for (res in results) {
+                if (res != null) items.addAll(res)
+            }
+
             if (items.isEmpty()) {
                 tryFallbackCache()
             } else {
@@ -426,15 +440,25 @@ class ScreensaverEngine(
                     val sources = getConfiguredSources(prefs)
                     if (sources.isEmpty()) return@launch
                     val fresh = mutableListOf<ImageItem>()
-                    for (src in sources) {
-                        try {
-                            val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
-                            if (urls != null) fresh.addAll(urls)
-                            else if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Refresh: ${src.name} timed out")
-                        } catch (e: Exception) {
-                            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Refresh error from ${src.name}", e)
+                    val deferreds = sources.map { src ->
+                        async {
+                            try {
+                                val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
+                                if (urls == null && BuildConfig.DEBUG_LOGGING) {
+                                    Log.w(TAG, "Refresh: ${src.name} timed out")
+                                }
+                                urls
+                            } catch (e: Exception) {
+                                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Refresh error from ${src.name}", e)
+                                null
+                            }
                         }
                     }
+                    val results = deferreds.awaitAll()
+                    for (res in results) {
+                        if (res != null) fresh.addAll(res)
+                    }
+
                     if (fresh.isNotEmpty()) {
                         imageItems.clear()
                         imageItems.addAll(fresh.shuffled())
@@ -566,7 +590,7 @@ class ScreensaverEngine(
 
     private val transitionMs: Long get() =
         PreferenceManager.getDefaultSharedPreferences(context)
-            .getString(Prefs.TRANSITION_SPEED, "1500")?.toLongOrNull() ?: 1500L
+            .getString(Prefs.TRANSITION_SPEED, "2000")?.toLongOrNull() ?: 2000L
 
     private fun applyTransition(incoming: ImageView, outgoing: ImageView, effect: String) {
         incoming.bringToFront()
