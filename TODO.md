@@ -12,6 +12,12 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Fix:** Synchronize all updates and reads of shared audio state fields using a private lock or `synchronized(this)` inside `publish()`, `applyGenreHint()`, `detectGenre()`, and `resetDetection()`.
 - **Status:** FIXED. Added proper `synchronized(this)` locks to all four methods.
 
+### DropboxSource Dispatcher Blocking (NetworkOnMainThreadException)
+- **File:** [DropboxSource.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/source/DropboxSource.kt)
+- **Description:** `DropboxSource.getImageUrls()` makes blocking synchronous OkHttp network requests (`client.newCall(request).execute()`) without switching to `Dispatchers.IO`. Since `ScreensaverEngine` calls `getImageUrls()` from a coroutine launched on `Dispatchers.Main`, this blocks the main thread, resulting in a `NetworkOnMainThreadException` crash or rendering freeze.
+- **Fix:** Wrap the implementation of `getImageUrls()` inside `withContext(Dispatchers.IO)`.
+- **Status:** PENDING.
+
 ---
 
 ## 2. Medium Priority (Performance & Compatibility)
@@ -65,6 +71,30 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Fix:** Use a context scope that survives fragment destruction, or perform the download/install outside the view's lifecycle (e.g. using the activity's `lifecycleScope` or a background task/worker).
 - **Status:** FIXED. Switched view-bound lifecycle scope to an un-cancelled custom CoroutineScope utilizing the `applicationContext`.
 
+### Plaintext Storage of Sensitive Credentials & Enabled Backup
+- **File:** [Prefs.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/Prefs.kt), [GoogleAuthManager.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/auth/GoogleAuthManager.kt), [DropboxAuthManager.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/auth/DropboxAuthManager.kt), [OneDriveAuthManager.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/auth/OneDriveAuthManager.kt), [AndroidManifest.xml](file:///home/tom/github.com/androsaver/app/src/main/AndroidManifest.xml)
+- **Description:** Sensitive user keys and configuration values (e.g. OAuth access/refresh tokens, client secrets, passwords for Nextcloud/Synology, OWM API keys) are stored in standard plaintext `SharedPreferences` instead of `EncryptedSharedPreferences`. Since `android:allowBackup="true"` is enabled in the manifest, this exposes sensitive user credentials to backups and unauthorized recovery.
+- **Fix:** Migrate credential keys to `EncryptedSharedPreferences` and set `android:allowBackup="false"` in the manifest.
+- **Status:** PENDING.
+
+### ImageCache SSL Handshake Failures for Self-Signed Certificates
+- **File:** [ImageCache.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ImageCache.kt)
+- **Description:** `ImageCache` instantiates its own `OkHttpClient()` instead of sharing the `HttpClients.trustAll` instance. When background sync runs to cache images from self-hosted services (Synology, Nextcloud, Immich) that use self-signed certificates, the default `OkHttpClient` rejects the self-signed certificates, throwing an `SSLHandshakeException` and rendering the cache-fallback mechanism non-functional for those sources.
+- **Fix:** Use `HttpClients.trustAll` in `ImageCache` to download and cache images.
+- **Status:** PENDING.
+
+### SettingsActivity Indefinite "Downloading update..." UI Freeze on Failure
+- **File:** [SettingsActivity.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/SettingsActivity.kt)
+- **Description:** When the update APK download fails in `SettingsFragment.onPreferenceTreeClick()`, the thrown exception is caught and logged, but the preference summary is never reset. The UI remains frozen displaying "Downloading update..." indefinitely, giving the user no feedback about the failure.
+- **Fix:** In the `catch` block of the coroutine, update the preference summary back to a failed state, display an informative Toast to the user, and reset state variables to allow retry.
+- **Status:** PENDING.
+
+### Global SSL/TLS Validation Bypass Security Vulnerability in Glide
+- **File:** [AndroSaverGlideModule.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/AndroSaverGlideModule.kt)
+- **Description:** `AndroSaverGlideModule` registers `HttpClients.trustAll` globally for Glide image loading. Bypassing certificate validation globally allows Glide to load images from self-signed local NAS servers, but it also silently disables certificate verification for public cloud providers (Google Drive, OneDrive, Dropbox). This leaves the application vulnerable to Man-in-the-Middle (MITM) attacks when loading cloud photos over public networks.
+- **Fix:** Configure the OkHttp factory in Glide or a custom HostnameVerifier to verify certificates normally for public domain suffix APIs (e.g. googleapis.com, live.com, dropboxapi.com) and only fallback to trusting self-signed certs for local IP addresses or user-configured hosts.
+- **Status:** PENDING.
+
 ---
 
 ## 3. Low Priority (Maintenance & Robustness)
@@ -92,3 +122,20 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Description:** The `getImageUrls()` method catches all exceptions internally and returns an empty list. As a result, the connection test in `NextcloudSetupActivity`, `SynologySetupActivity`, and `ImmichSetupActivity` reports "Connection successful: no images found" instead of "Connection failed" when an exception (e.g., DNS error, network timeout, SSL handshake failure, or auth error) occurs.
 - **Fix:** Avoid catching all exceptions internally inside `getImageUrls()`, or propagate them to the caller, letting `ScreensaverEngine` handle them at a higher level, which allows setup activities to properly display the connection error.
 - **Status:** FIXED. Propagated exceptions properly on connection errors by removing exception swallowing inside `getImageUrls()`.
+
+### High GC Pressure in GLDraw.polygon() and Mode Rendering Loops
+- **File:** [GLDraw.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/GLDraw.kt), [CubeMode.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/modes/CubeMode.kt), [SlimeMoldMode.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/modes/SlimeMoldMode.kt), [CliffordMode.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/modes/CliffordMode.kt), [FlowFieldMode.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/modes/FlowFieldMode.kt)
+- **Description:** Hot rendering path methods execute at 60 FPS but perform frequent allocations:
+  1. `GLDraw.polygon()` filters the coordinates array and computes the average via Kotlin list extension methods `pts.filterIndexed { i, _ -> i % 2 == 0 }.average()`.
+  2. `GLDraw.hsl()` is called thousands of times inside nested rendering loops, returning a new `FloatArray(4)` on every call.
+  3. `SlimeMoldMode` creates a new `FloatArray` of size 32,400 every frame for trail diffusion.
+  4. Modes like `CubeMode` and `CliffordMode` return new `FloatArray`/`Pair` objects in rotation/projection helpers.
+  This triggers massive garbage collection overhead and stutters/jank on low-end Android TV sticks.
+- **Fix:** Optimize loops to be allocation-free: replace collection operations with simple index loops, reuse float arrays, and use back-buffer reference swapping.
+- **Status:** PENDING.
+
+### OpenGL ES Shader Handle Leaks in GLDraw
+- **File:** [GLDraw.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/GLDraw.kt)
+- **Description:** Compiled shader objects (`vert` and `frag`) are attached and linked to OpenGL programs but are never detached (`glDetachShader`) or deleted (`glDeleteShader`), leaking GPU resources. Furthermore, there are no checks for compilation or linking success (`GL_COMPILE_STATUS`/`GL_LINK_STATUS`), causing silent rendering failures if compile errors happen.
+- **Fix:** Detach and delete shaders after program linking, and add checks to log compilation/link logs on failure.
+- **Status:** PENDING.
