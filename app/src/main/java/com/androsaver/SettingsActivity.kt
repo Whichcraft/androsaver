@@ -117,8 +117,13 @@ class SettingsActivity : AppCompatActivity() {
                     val url = pendingUpdateUrl
                     if (url != null) {
                         findPreference<Preference>("about_app")?.summary = getString(R.string.update_downloading)
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            UpdateInstaller.downloadAndInstall(requireContext(), url)
+                        val appContext = requireContext().applicationContext
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                            try {
+                                UpdateInstaller.downloadAndInstall(appContext, url)
+                            } catch (e: Exception) {
+                                if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Update failed", e)
+                            }
                         }
                     } else {
                         findPreference<Preference>("about_app")?.summary = getString(R.string.update_checking)

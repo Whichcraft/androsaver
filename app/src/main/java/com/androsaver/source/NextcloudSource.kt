@@ -58,19 +58,20 @@ class NextcloudSource(private val context: Context) : ImageSource {
   </d:prop>
 </d:propfind>""".toRequestBody("application/xml".toMediaType())
 
-        return try {
-            val request = Request.Builder()
-                .url(davUrl)
-                .header("Authorization", credential)
-                .header("Depth", "1")
-                .method("PROPFIND", body)
-                .build()
-            val xml = client.newCall(request).execute().use { it.body?.string() } ?: return emptyList()
-            parseResponse(xml, baseUrl, credential)
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "WebDAV list error", e)
-            emptyList()
+        val request = Request.Builder()
+            .url(davUrl)
+            .header("Authorization", credential)
+            .header("Depth", "1")
+            .method("PROPFIND", body)
+            .build()
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            val code = response.code
+            response.close()
+            throw java.io.IOException("HTTP error code $code")
         }
+        val xml = response.use { it.body?.string() } ?: throw java.io.IOException("Empty response body")
+        return parseResponse(xml, baseUrl, credential)
     }
 
     private fun parseResponse(xml: String, baseUrl: String, credential: String): List<ImageItem> {

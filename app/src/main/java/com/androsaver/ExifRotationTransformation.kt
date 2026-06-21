@@ -26,9 +26,7 @@ class ExifRotationTransformation(private val exifOrientation: Int) : BitmapTrans
             ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.postRotate(270f); matrix.postScale(-1f, 1f) }
             else -> return source  // NORMAL or UNDEFINED — nothing to do
         }
-        val rotated = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
-        if (rotated != source) pool.put(source)
-        return rotated
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
     override fun equals(other: Any?) = other is ExifRotationTransformation && other.exifOrientation == exifOrientation

@@ -4,8 +4,13 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## 2026-06-20 — v2.5.15: codebase bug fixes & optimizations
+## 2026-06-21 — v2.5.17: codebase bug fixes & deep code review optimizations
 
+- **ExifRotationTransformation**: resolved Glide custom transformation bitmap double-recycling crashes.
+- **ScreensaverService**: fixed global Glide pausing issue by removing global onStop calls and clearing targeted image view loads instead.
+- **UpdateInstaller**: added response success verification during update download.
+- **SettingsActivity**: moved update installation coroutine to a lifecycle-independent scope with application context to avoid cancellation.
+- **ImageSource**: stopped exception swallowing in Nextcloud, Synology, and Immich sources to allow proper connection test failures.
 - **AudioEngine**: fixed concurrency race conditions by synchronizing audio data operations.
 - **AudioEngine**: resolved desynchronization of waveform and FFT packets by nullifying buffers on consumption.
 - **ImageCache**: implemented streaming downloads to prevent OutOfMemoryError crashes.

@@ -47,6 +47,24 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
   ```
 - **Status:** FIXED. Updated to `Intent.ACTION_VIEW` with explicit package-archive type.
 
+### [RESOLVED] Glide Permanent Pausing via Application/Service Context onStop()
+- **File:** [ScreensaverService.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ScreensaverService.kt), [ScreensaverEngine.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ScreensaverEngine.kt)
+- **Description:** When the screensaver is stopped/detached, it calls `Glide.with(applicationContext).onStop()` or `Glide.with(context).onStop()` (using the service context). Since Glide treats service/application contexts as application-wide singletons, this pauses Glide's global RequestManager. Because `onStart()` is never called, Glide remains permanently paused. As a result, if the user returns to Settings or Setup activities, no images or previews will load.
+- **Fix:** Remove the global `.onStop()` calls. Instead, cancel and clear individual view requests using `Glide.with(context).clear(imageView)` in `stop()` or when changing images.
+- **Status:** FIXED. Removed global `onStop()` calls and replaced them with targeted `clear` requests on individual image views in `stopSlideshow()`.
+
+### [RESOLVED] Unchecked Response Success in UpdateInstaller
+- **File:** [UpdateInstaller.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/UpdateInstaller.kt)
+- **Description:** `UpdateInstaller.downloadAndInstall()` executes the network request to download the APK and streams it to the cache file without checking `response.isSuccessful`. If the server returns a 404, 500, or other error, it writes the error response (HTML or empty) to the file and attempts to install it, causing a package parse error or crash.
+- **Fix:** Throw an `IOException` or return early if `!response.isSuccessful`.
+- **Status:** FIXED. Checked `response.isSuccessful` and throw `IOException` if downloading fails.
+
+### [RESOLVED] Fragile Update Download Lifecycle Binding
+- **File:** [SettingsActivity.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/SettingsActivity.kt)
+- **Description:** The coroutine calling `UpdateInstaller.downloadAndInstall()` is launched on `viewLifecycleOwner.lifecycleScope` in `SettingsFragment`. If the device is rotated or if the activity configuration changes, the fragment view lifecycle is destroyed, immediately cancelling the download coroutine and aborting the APK download, leaving a corrupted or half-downloaded file.
+- **Fix:** Use a context scope that survives fragment destruction, or perform the download/install outside the view's lifecycle (e.g. using the activity's `lifecycleScope` or a background task/worker).
+- **Status:** FIXED. Switched view-bound lifecycle scope to an un-cancelled custom CoroutineScope utilizing the `applicationContext`.
+
 ---
 
 ## 3. Low Priority (Maintenance & Robustness)
@@ -62,3 +80,15 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Description:** Caching files read/write `manifest.json` on the IO dispatcher without locking. If multiple background sync tasks execute concurrently, the manifest file can be partially written or corrupted, causing cache index corruption.
 - **Fix:** Synchronize file read and write calls inside `readManifest()` and `writeManifest()`.
 - **Status:** FIXED. Added `synchronized(this)` block to `readManifest` and `writeManifest` file operations.
+
+### [RESOLVED] Glide Custom Transformation Bitmap Recycling Crash
+- **File:** [ExifRotationTransformation.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ExifRotationTransformation.kt)
+- **Description:** Custom Glide transformations should not put the source bitmap back to the pool because Glide itself manages pool recycling. Manually calling `pool.put(source)` leads to double-recycling of bitmaps and canvas crashes.
+- **Fix:** Remove `pool.put(source)` call and return the created bitmap.
+- **Status:** FIXED. Deleted manual pool recycling logic.
+
+### [RESOLVED] Swallowed Exceptions in Setup Connection Testing
+- **File:** [NextcloudSource.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/source/NextcloudSource.kt), [SynologySource.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/source/SynologySource.kt), [ImmichSource.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/source/ImmichSource.kt)
+- **Description:** The `getImageUrls()` method catches all exceptions internally and returns an empty list. As a result, the connection test in `NextcloudSetupActivity`, `SynologySetupActivity`, and `ImmichSetupActivity` reports "Connection successful: no images found" instead of "Connection failed" when an exception (e.g., DNS error, network timeout, SSL handshake failure, or auth error) occurs.
+- **Fix:** Avoid catching all exceptions internally inside `getImageUrls()`, or propagate them to the caller, letting `ScreensaverEngine` handle them at a higher level, which allows setup activities to properly display the connection error.
+- **Status:** FIXED. Propagated exceptions properly on connection errors by removing exception swallowing inside `getImageUrls()`.

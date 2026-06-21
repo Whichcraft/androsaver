@@ -21,6 +21,7 @@ object UpdateInstaller {
         val apkFile = File(context.cacheDir, "androsaver-update.apk")
         val request = Request.Builder().url(apkUrl).build()
         client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw java.io.IOException("Unexpected HTTP code $response")
             response.body?.byteStream()?.use { input ->
                 apkFile.outputStream().use { output -> input.copyTo(output) }
             }
