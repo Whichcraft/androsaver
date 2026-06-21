@@ -33,6 +33,16 @@ class ScreensaverService : DreamService() {
         engine.start(prefs)
     }
 
+    override fun onDreamingStarted() {
+        super.onDreamingStarted()
+        engine.resumeVisualizer()
+    }
+
+    override fun onDreamingStopped() {
+        engine.pauseVisualizer()
+        super.onDreamingStopped()
+    }
+
     override fun onDetachedFromWindow() {
         engine.stop()
         scope.cancel()

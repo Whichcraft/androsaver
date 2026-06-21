@@ -18,6 +18,12 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Fix:** Wrap the implementation of `getImageUrls()` inside `withContext(Dispatchers.IO)`.
 - **Status:** FIXED. Wrapped body of `getImageUrls` in `withContext(Dispatchers.IO)`.
 
+### [RESOLVED] ScreensaverService missing onDreamingStarted/onDreamingStopped Lifecycle Handling
+- **File:** [ScreensaverService.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ScreensaverService.kt)
+- **Description:** `ScreensaverService` starts visualizer rendering and audio capture in `onAttachedToWindow()`, and stops them in `onDetachedFromWindow()`. However, it fails to handle `onDreamingStarted()` and `onDreamingStopped()`. On many Android TV and Fire TV devices, the screensaver's window remains attached even when the TV screen is turned off or system enters sleep. Because the rendering loop and audio engine are not paused, they continue to run in the background, wasting CPU/GPU resources and power.
+- **Fix:** Move starting/resuming to `onDreamingStarted()` and pausing/stopping to `onDreamingStopped()`.
+- **Status:** FIXED. Overrode onDreamingStarted() and onDreamingStopped() to resume/pause the visualizer engine.
+
 ---
 
 ## 2. Medium Priority (Performance & Compatibility)
@@ -95,6 +101,18 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Fix:** Configure the OkHttp factory in Glide or a custom HostnameVerifier to verify certificates normally for public domain suffix APIs (e.g. googleapis.com, live.com, dropboxapi.com) and only fallback to trusting self-signed certs for local IP addresses or user-configured hosts.
 - **Status:** FIXED. Implemented a dynamic `Call.Factory` in `AndroSaverGlideModule` that only uses `trustAll` for domains/IPs of configured self-hosted servers, using standard validating client otherwise.
 
+### [RESOLVED] Screensaver Image Loading Sequential Bottleneck
+- **File:** [ScreensaverEngine.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ScreensaverEngine.kt)
+- **Description:** In `loadImages()` and `scheduleImageRefresh()`, the screensaver engine queries each configured `ImageSource` sequentially. If a user has multiple sources configured, or if one of the servers is slow or offline (taking up to 60 seconds to time out), the entire image-loading process is delayed. This causes the screensaver to remain stuck on the "Loading images..." screen for a long time.
+- **Fix:** Query the configured image sources concurrently using Kotlin coroutines `async` and `awaitAll` to retrieve image lists in parallel.
+- **Status:** FIXED. Utilized `async` and `awaitAll` to parallelize queries across all configured image sources.
+
+### [RESOLVED] AudioEngine Cached Data Leak on Stop
+- **File:** [AudioEngine.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/visualizer/AudioEngine.kt)
+- **Description:** When `AudioEngine.stop()` is called, it releases the system `Visualizer` instance but fails to clear/reset the active `_data` buffer (`AtomicReference(AudioData())`) and the volatile `lastWave`/`lastFft` references. When the visualizer is restarted or paused, the renderer can read the stale audio data, causing the rendering effects to start with a frozen snapshot of the last played audio frame instead of transitioning smoothly from silence.
+- **Fix:** Clear the cached audio buffers and reset `_data.set(AudioData())` inside `stop()`.
+- **Status:** FIXED. Cleared wave/fft buffers, reset averages, and reset `_data` snapshot to default silent state in `stop()`.
+
 ---
 
 ## 3. Low Priority (Maintenance & Robustness)
@@ -139,3 +157,9 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Description:** Compiled shader objects (`vert` and `frag`) are attached and linked to OpenGL programs but are never detached (`glDetachShader`) or deleted (`glDeleteShader`), leaking GPU resources. Furthermore, there are no checks for compilation or linking success (`GL_COMPILE_STATUS`/`GL_LINK_STATUS`), causing silent rendering failures if compile errors happen.
 - **Fix:** Detach and delete shaders after program linking, and add checks to log compilation/link logs on failure.
 - **Status:** PENDING.
+
+### [RESOLVED] Transition Speed Preference Default Value Mismatch
+- **File:** [screensaver_preferences.xml](file:///home/tom/github.com/androsaver/app/src/main/res/xml/screensaver_preferences.xml), [arrays.xml](file:///home/tom/github.com/androsaver/app/src/main/res/values/arrays.xml)
+- **Description:** In `screensaver_preferences.xml`, the `transition_speed` ListPreference has `defaultValue="1500"`. However, the corresponding `transition_speed_values` array in `arrays.xml` only defines the values `1000`, `2000`, `3000`, `4000`, and `5000`. Because `1500` is not an entry in the list of allowed values, the preference UI fails to highlight the selected entry, causing the visual summary to display incorrectly or default to blank.
+- **Fix:** Adjust the default value in `screensaver_preferences.xml` to `1000` or `2000`, or add `1500` to `transition_speed_values`/`transition_speed_entries`.
+- **Status:** FIXED. Adjusted the default value to `2000` (2 seconds) in preferences and fallback value in ScreensaverEngine.
