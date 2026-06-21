@@ -135,6 +135,16 @@ class AudioEngine {
             try { enabled = false; release() } catch (_: Exception) {}
         }
         visualizer = null
+        synchronized(this) {
+            lastWave = null
+            lastFft = null
+            smoothFft.fill(0f)
+            energyHistory.clear()
+            energySum = 0.0
+            midAvg = 0f
+            trebleAvg = 0f
+            _data.set(AudioData())
+        }
     }
 
     private fun publish() {

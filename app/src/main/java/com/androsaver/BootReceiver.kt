@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        PrefetchScheduler.schedule(context)
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
