@@ -73,11 +73,13 @@ class AudioEngine {
     }
 
     fun applyGenreHint(genre: String) {
-        for (i in 0..19) genreWeights[i] = 1f
-        when (genre) {
-            "electronic" -> { for (i in 0..4) genreWeights[i] = 1.5f; for (i in 10..19) genreWeights[i] = 0.7f }
-            "rock"       -> { for (i in 2..8) genreWeights[i] = 1.3f }
-            "classical"  -> { for (i in 0..9) genreWeights[i] = 0.6f; for (i in 10..19) genreWeights[i] = 1.4f }
+        synchronized(this) {
+            for (i in 0..19) genreWeights[i] = 1f
+            when (genre) {
+                "electronic" -> { for (i in 0..4) genreWeights[i] = 1.5f; for (i in 10..19) genreWeights[i] = 0.7f }
+                "rock"       -> { for (i in 2..8) genreWeights[i] = 1.3f }
+                "classical"  -> { for (i in 0..9) genreWeights[i] = 0.6f; for (i in 10..19) genreWeights[i] = 1.4f }
+            }
         }
     }
 
@@ -87,41 +89,45 @@ class AudioEngine {
      * so the genre can adapt if the music changes.
      */
     fun detectGenre(): String? {
-        if (detectFrames < DETECT_MIN_FRAMES) return null
+        synchronized(this) {
+            if (detectFrames < DETECT_MIN_FRAMES) return null
 
-        var subSum = 0f
-        for (i in 0 until DETECT_SUB_BINS) subSum += detectAccum[i]
-        val subBass = subSum / DETECT_SUB_BINS
+            var subSum = 0f
+            for (i in 0 until DETECT_SUB_BINS) subSum += detectAccum[i]
+            val subBass = subSum / DETECT_SUB_BINS
 
-        var bassSum = 0f
-        for (i in 0 until DETECT_BASS_BINS) bassSum += detectAccum[i]
-        val bass = bassSum / DETECT_BASS_BINS
+            var bassSum = 0f
+            for (i in 0 until DETECT_BASS_BINS) bassSum += detectAccum[i]
+            val bass = bassSum / DETECT_BASS_BINS
 
-        var midSum = 0f
-        for (i in DETECT_BASS_BINS until DETECT_BASS_BINS + DETECT_MID_BINS) midSum += detectAccum[i]
-        val mids = midSum / DETECT_MID_BINS
+            var midSum = 0f
+            for (i in DETECT_BASS_BINS until DETECT_BASS_BINS + DETECT_MID_BINS) midSum += detectAccum[i]
+            val mids = midSum / DETECT_MID_BINS
 
-        // Normalise by frame count
-        val normSub  = subBass / detectFrames
-        val normBass = bass    / detectFrames
-        val normMids = mids    / detectFrames
+            // Normalise by frame count
+            val normSub  = subBass / detectFrames
+            val normBass = bass    / detectFrames
+            val normMids = mids    / detectFrames
 
-        val subRatio  = normSub  / (normBass + 0.001f)
-        val bassRatio = normBass / (normBass + normMids + 0.001f)
+            val subRatio  = normSub  / (normBass + 0.001f)
+            val bassRatio = normBass / (normBass + normMids + 0.001f)
 
-        resetDetection()
+            resetDetection()
 
-        return when {
-            subRatio  > 0.55f && bassRatio > 0.50f -> "electronic"
-            bassRatio > 0.50f && subRatio  < 0.45f -> "rock"
-            bassRatio < 0.35f                       -> "classical"
-            else                                    -> "any"
+            return when {
+                subRatio  > 0.55f && bassRatio > 0.50f -> "electronic"
+                bassRatio > 0.50f && subRatio  < 0.45f -> "rock"
+                bassRatio < 0.35f                       -> "classical"
+                else                                    -> "any"
+            }
         }
     }
 
     fun resetDetection() {
-        detectAccum.fill(0f)
-        detectFrames = 0
+        synchronized(this) {
+            detectAccum.fill(0f)
+            detectFrames = 0
+        }
     }
 
     fun stop() {
@@ -132,55 +138,61 @@ class AudioEngine {
     }
 
     private fun publish() {
-        val wave = lastWave ?: return
-        val rawFft = lastFft ?: return
+        synchronized(this) {
+            val wave = lastWave ?: return
+            val rawFft = lastFft ?: return
 
-        // Smooth FFT: 50% old + 50% new — faster reaction while avoiding flicker
-        for (i in 0 until minOf(rawFft.size, FFT_BINS)) {
-            smoothFft[i] = smoothFft[i] * 0.50f + rawFft[i] * 0.50f
+            // Atomically clear buffers upon consumption to prevent desynchronization
+            lastWave = null
+            lastFft = null
+
+            // Smooth FFT: 50% old + 50% new — faster reaction while avoiding flicker
+            for (i in 0 until minOf(rawFft.size, FFT_BINS)) {
+                smoothFft[i] = smoothFft[i] * 0.50f + rawFft[i] * 0.50f
+            }
+
+            // Accumulate for genre detection (raw, unweighted)
+            val accLen = minOf(rawFft.size, FFT_BINS)
+            for (i in 0 until accLen) detectAccum[i] += rawFft[i]
+            detectFrames++
+
+            // Beat energy = mean of bass bins 0..19 (≈ 0–860 Hz with 512 bins at 44100 Hz)
+            var bassSum = 0f
+            for (i in 0 until 20) bassSum += smoothFft[i] * genreWeights[i]
+            val bassEnergy = bassSum / 20f
+
+            // Rolling history for normalisation — running sum avoids iterating the deque each frame
+            if (energyHistory.size >= 15) energySum -= energyHistory.removeFirst().toDouble()
+            energyHistory.addLast(bassEnergy)
+            energySum += bassEnergy.toDouble()
+            val avgEnergy = (energySum / energyHistory.size).toFloat()
+            val beat = (bassEnergy / (avgEnergy + 0.001f) - 0.6f).coerceIn(0f, 1f)
+
+            // Mid energy: bins 20–99 (~860–4300 Hz).
+            // Output is deviation above rolling average: 0 at steady-state music, positive on peaks.
+            // This matches beat's normalization so multipliers in effects work correctly at all volumes.
+            var midSum = 0f
+            for (i in 20 until 100) midSum += smoothFft[i]
+            val midEnergy = midSum / 80f
+            midAvg = midAvg * 0.98f + midEnergy * 0.02f
+            val mid = maxOf(0f, midEnergy / (midAvg + 0.001f) - 1f)
+
+            // Treble energy: bins 100–255 (~4300–11000 Hz).
+            // Same deviation normalization as mid.
+            var trebleSum = 0f
+            for (i in 100 until 256) trebleSum += smoothFft[i]
+            val trebleEnergy = trebleSum / 156f
+            trebleAvg = trebleAvg * 0.98f + trebleEnergy * 0.02f
+            val treble = maxOf(0f, trebleEnergy / (trebleAvg + 0.001f) - 1f)
+
+            _data.set(AudioData(
+                waveform = wave.copyInto(FloatArray(FFT_BINS)),
+                fft = smoothFft.copyOf(),
+                beat = beat,
+                mid = mid,
+                treble = treble
+            ))
         }
-
-        // Accumulate for genre detection (raw, unweighted)
-        val accLen = minOf(rawFft.size, FFT_BINS)
-        for (i in 0 until accLen) detectAccum[i] += rawFft[i]
-        detectFrames++
-
-        // Beat energy = mean of bass bins 0..19 (≈ 0–860 Hz with 512 bins at 44100 Hz)
-        var bassSum = 0f
-        for (i in 0 until 20) bassSum += smoothFft[i] * genreWeights[i]
-        val bassEnergy = bassSum / 20f
-
-        // Rolling history for normalisation — running sum avoids iterating the deque each frame
-        if (energyHistory.size >= 15) energySum -= energyHistory.removeFirst().toDouble()
-        energyHistory.addLast(bassEnergy)
-        energySum += bassEnergy.toDouble()
-        val avgEnergy = (energySum / energyHistory.size).toFloat()
-        val beat = (bassEnergy / (avgEnergy + 0.001f) - 0.6f).coerceIn(0f, 1f)
-
-        // Mid energy: bins 20–99 (~860–4300 Hz).
-        // Output is deviation above rolling average: 0 at steady-state music, positive on peaks.
-        // This matches beat's normalization so multipliers in effects work correctly at all volumes.
-        var midSum = 0f
-        for (i in 20 until 100) midSum += smoothFft[i]
-        val midEnergy = midSum / 80f
-        midAvg = midAvg * 0.98f + midEnergy * 0.02f
-        val mid = maxOf(0f, midEnergy / (midAvg + 0.001f) - 1f)
-
-        // Treble energy: bins 100–255 (~4300–11000 Hz).
-        // Same deviation normalization as mid.
-        var trebleSum = 0f
-        for (i in 100 until 256) trebleSum += smoothFft[i]
-        val trebleEnergy = trebleSum / 156f
-        trebleAvg = trebleAvg * 0.98f + trebleEnergy * 0.02f
-        val treble = maxOf(0f, trebleEnergy / (trebleAvg + 0.001f) - 1f)
-
-        _data.set(AudioData(
-            waveform = wave.copyInto(FloatArray(FFT_BINS)),
-            fft = smoothFft.copyOf(),
-            beat = beat,
-            mid = mid,
-            treble = treble
-        ))
     }
 
     // ── Byte-array helpers ────────────────────────────────────────────────────

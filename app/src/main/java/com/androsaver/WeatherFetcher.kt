@@ -11,7 +11,8 @@ import okhttp3.Request
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
-class WeatherFetcher(private val context: Context) {
+class WeatherFetcher(context: Context) {
+    private val context = context.applicationContext
 
     companion object {
         private const val TAG = "WeatherFetcher"

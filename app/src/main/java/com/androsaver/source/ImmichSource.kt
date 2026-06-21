@@ -36,15 +36,10 @@ class ImmichSource(private val context: Context) : ImageSource {
             val scheme  = if (useHttps) "https" else "http"
             val baseUrl = "$scheme://$host:$port"
 
-            try {
-                if (albumId.isNotEmpty()) {
-                    fetchAlbumAssets(baseUrl, apiKey, albumId)
-                } else {
-                    fetchAllAssets(baseUrl, apiKey)
-                }
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Immich fetch error", e)
-                emptyList()
+            if (albumId.isNotEmpty()) {
+                fetchAlbumAssets(baseUrl, apiKey, albumId)
+            } else {
+                fetchAllAssets(baseUrl, apiKey)
             }
         }
 
@@ -54,7 +49,7 @@ class ImmichSource(private val context: Context) : ImageSource {
         val pageSize = 500
         while (true) {
             val url = "$baseUrl/api/assets?page=$page&size=$pageSize"
-            val json = get(url, apiKey) ?: break
+            val json = get(url, apiKey)
             val array = JSONArray(json)
             if (array.length() == 0) break
             parseAssets(array, baseUrl, apiKey, items)
@@ -67,7 +62,7 @@ class ImmichSource(private val context: Context) : ImageSource {
     private fun fetchAlbumAssets(baseUrl: String, apiKey: String, albumId: String): List<ImageItem> {
         val encodedId = URLEncoder.encode(albumId, "UTF-8")
         val url  = "$baseUrl/api/albums/$encodedId"
-        val json = get(url, apiKey) ?: return emptyList()
+        val json = get(url, apiKey)
         val obj  = JSONObject(json)
         val array = obj.optJSONArray("assets") ?: return emptyList()
         val items = mutableListOf<ImageItem>()
@@ -88,25 +83,19 @@ class ImmichSource(private val context: Context) : ImageSource {
         }
     }
 
-    private fun get(url: String, apiKey: String): String? {
+    private fun get(url: String, apiKey: String): String {
         val request = Request.Builder()
             .url(url)
             .header("x-api-key", apiKey)
             .get()
             .build()
-        return try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "HTTP ${response.code} for $url")
-                    null
-                } else {
-                    response.body?.string()
-                }
-            }
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Request failed: $url", e)
-            null
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            val code = response.code
+            response.close()
+            throw java.io.IOException("HTTP error code $code")
         }
+        return response.use { it.body?.string() } ?: throw java.io.IOException("Empty response body")
     }
 
     companion object {

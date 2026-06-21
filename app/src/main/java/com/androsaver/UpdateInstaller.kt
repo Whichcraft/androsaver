@@ -21,14 +21,14 @@ object UpdateInstaller {
         val apkFile = File(context.cacheDir, "androsaver-update.apk")
         val request = Request.Builder().url(apkUrl).build()
         client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw java.io.IOException("Unexpected HTTP code $response")
             response.body?.byteStream()?.use { input ->
                 apkFile.outputStream().use { output -> input.copyTo(output) }
             }
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apkFile)
-        @Suppress("DEPRECATION")
-        val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-            data = uri
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
             flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
