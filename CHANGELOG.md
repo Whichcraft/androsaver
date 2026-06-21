@@ -4,6 +4,16 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-21 — v2.5.20: codebase bug fixes & security improvements
+
+- **AndroSaverGlideModule**: resolved global SSL/TLS certificate validation bypass security vulnerability by introducing a dynamic OkHttp Call.Factory that enforces standard SSL validation for cloud endpoints and only trusts self-signed certs for configured self-hosted domains.
+- **DropboxSource**: resolved thread blocking issue by executing `getImageUrls()` inside `withContext(Dispatchers.IO)`.
+- **ImageCache**: resolved SSL handshake failures for self-signed NAS hosts by using the shared `HttpClients.trustAll` client.
+- **SettingsActivity**: resolved indefinite update UI freeze on failure by catching exceptions, displaying Toast feedback, and resetting state.
+- **TODO.md**: resolved the 4 newly identified code review findings.
+
+---
+
 ## 2026-06-21 — v2.5.17: codebase bug fixes & deep code review optimizations
 
 - **ExifRotationTransformation**: resolved Glide custom transformation bitmap double-recycling crashes.
