@@ -12,11 +12,11 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Fix:** Synchronize all updates and reads of shared audio state fields using a private lock or `synchronized(this)` inside `publish()`, `applyGenreHint()`, `detectGenre()`, and `resetDetection()`.
 - **Status:** FIXED. Added proper `synchronized(this)` locks to all four methods.
 
-### DropboxSource Dispatcher Blocking (NetworkOnMainThreadException)
+### [RESOLVED] DropboxSource Dispatcher Blocking (NetworkOnMainThreadException)
 - **File:** [DropboxSource.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/source/DropboxSource.kt)
 - **Description:** `DropboxSource.getImageUrls()` makes blocking synchronous OkHttp network requests (`client.newCall(request).execute()`) without switching to `Dispatchers.IO`. Since `ScreensaverEngine` calls `getImageUrls()` from a coroutine launched on `Dispatchers.Main`, this blocks the main thread, resulting in a `NetworkOnMainThreadException` crash or rendering freeze.
 - **Fix:** Wrap the implementation of `getImageUrls()` inside `withContext(Dispatchers.IO)`.
-- **Status:** PENDING.
+- **Status:** FIXED. Wrapped body of `getImageUrls` in `withContext(Dispatchers.IO)`.
 
 ---
 
@@ -77,23 +77,23 @@ This document tracks bugs, memory leaks, concurrency issues, and performance bot
 - **Fix:** Migrate credential keys to `EncryptedSharedPreferences` and set `android:allowBackup="false"` in the manifest.
 - **Status:** PENDING.
 
-### ImageCache SSL Handshake Failures for Self-Signed Certificates
+### [RESOLVED] ImageCache SSL Handshake Failures for Self-Signed Certificates
 - **File:** [ImageCache.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/ImageCache.kt)
 - **Description:** `ImageCache` instantiates its own `OkHttpClient()` instead of sharing the `HttpClients.trustAll` instance. When background sync runs to cache images from self-hosted services (Synology, Nextcloud, Immich) that use self-signed certificates, the default `OkHttpClient` rejects the self-signed certificates, throwing an `SSLHandshakeException` and rendering the cache-fallback mechanism non-functional for those sources.
 - **Fix:** Use `HttpClients.trustAll` in `ImageCache` to download and cache images.
-- **Status:** PENDING.
+- **Status:** FIXED. Configured `ImageCache` to use the shared `HttpClients.trustAll` client.
 
-### SettingsActivity Indefinite "Downloading update..." UI Freeze on Failure
+### [RESOLVED] SettingsActivity Indefinite "Downloading update..." UI Freeze on Failure
 - **File:** [SettingsActivity.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/SettingsActivity.kt)
 - **Description:** When the update APK download fails in `SettingsFragment.onPreferenceTreeClick()`, the thrown exception is caught and logged, but the preference summary is never reset. The UI remains frozen displaying "Downloading update..." indefinitely, giving the user no feedback about the failure.
 - **Fix:** In the `catch` block of the coroutine, update the preference summary back to a failed state, display an informative Toast to the user, and reset state variables to allow retry.
-- **Status:** PENDING.
+- **Status:** FIXED. Added try-catch handler to update preference summary, reset `pendingUpdateUrl`, and display a failure toast.
 
-### Global SSL/TLS Validation Bypass Security Vulnerability in Glide
+### [RESOLVED] Global SSL/TLS Validation Bypass Security Vulnerability in Glide
 - **File:** [AndroSaverGlideModule.kt](file:///home/tom/github.com/androsaver/app/src/main/java/com/androsaver/AndroSaverGlideModule.kt)
 - **Description:** `AndroSaverGlideModule` registers `HttpClients.trustAll` globally for Glide image loading. Bypassing certificate validation globally allows Glide to load images from self-signed local NAS servers, but it also silently disables certificate verification for public cloud providers (Google Drive, OneDrive, Dropbox). This leaves the application vulnerable to Man-in-the-Middle (MITM) attacks when loading cloud photos over public networks.
 - **Fix:** Configure the OkHttp factory in Glide or a custom HostnameVerifier to verify certificates normally for public domain suffix APIs (e.g. googleapis.com, live.com, dropboxapi.com) and only fallback to trusting self-signed certs for local IP addresses or user-configured hosts.
-- **Status:** PENDING.
+- **Status:** FIXED. Implemented a dynamic `Call.Factory` in `AndroSaverGlideModule` that only uses `trustAll` for domains/IPs of configured self-hosted servers, using standard validating client otherwise.
 
 ---
 

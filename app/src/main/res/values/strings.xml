@@ -136,4 +136,6 @@
     <string name="up_to_date">Up to date</string>
     <string name="update_channel_label">Update Channel</string>
     <string name="update_channel_auto">%s (automatic)</string>
+    <string name="update_failed">Update failed — press to check again</string>
+    <string name="update_failed_toast">Failed to download update</string>
 </resources>

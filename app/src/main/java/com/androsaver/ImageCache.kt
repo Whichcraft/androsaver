@@ -24,7 +24,7 @@ class ImageCache(private val context: Context) {
     }
 
     private val gson = Gson()
-    private val client = OkHttpClient()
+    private val client = HttpClients.trustAll
     private val dir: File get() = File(context.cacheDir, CACHE_DIR).also { it.mkdirs() }
 
     data class Entry(val url: String, val file: String, val source: String, val ts: Long, val size: Long)

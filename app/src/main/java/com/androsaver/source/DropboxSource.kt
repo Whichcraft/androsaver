@@ -9,9 +9,11 @@ import com.androsaver.Prefs
 import com.androsaver.auth.DropboxAuthManager
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -29,8 +31,8 @@ class DropboxSource(private val context: Context) : ImageSource {
 
     override fun isConfigured(): Boolean = authManager.isAuthorized()
 
-    override suspend fun getImageUrls(): List<ImageItem> {
-        val accessToken = authManager.getValidAccessToken() ?: return emptyList()
+    override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
+        val accessToken = authManager.getValidAccessToken() ?: return@withContext emptyList()
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val folder = prefs.getString(Prefs.DROPBOX_FOLDER, "")?.trim() ?: ""
         // Dropbox root must be empty string "", not "/"
@@ -40,7 +42,7 @@ class DropboxSource(private val context: Context) : ImageSource {
             else -> "/$folder"
         }
 
-        return try {
+        try {
             val files = listImageFiles(accessToken, dropboxPath)
             fetchTempLinks(accessToken, files)
         } catch (e: Exception) {

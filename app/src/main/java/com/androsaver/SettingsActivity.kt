@@ -123,6 +123,11 @@ class SettingsActivity : AppCompatActivity() {
                                 UpdateInstaller.downloadAndInstall(appContext, url)
                             } catch (e: Exception) {
                                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Update failed", e)
+                                if (isAdded) {
+                                    findPreference<Preference>("about_app")?.summary = getString(R.string.update_failed)
+                                    android.widget.Toast.makeText(appContext, R.string.update_failed_toast, android.widget.Toast.LENGTH_LONG).show()
+                                }
+                                pendingUpdateUrl = null
                             }
                         }
                     } else {
