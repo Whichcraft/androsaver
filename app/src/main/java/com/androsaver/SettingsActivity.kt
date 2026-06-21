@@ -99,6 +99,11 @@ class SettingsActivity : AppCompatActivity() {
             updateWeatherSummary()
             updateAboutVersion()
             checkForUpdates()
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
+            if (currentMode == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
+                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
         }
 
         override fun onPreferenceTreeClick(preference: Preference): Boolean {

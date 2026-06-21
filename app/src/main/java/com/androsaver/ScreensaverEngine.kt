@@ -132,6 +132,11 @@ class ScreensaverEngine(
     }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+            event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+            event.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
+            return false
+        }
         if (event.action != KeyEvent.ACTION_DOWN) return true
         val vv = visualizerView
         if (vv != null) {
