@@ -130,10 +130,10 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
 
     override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
         return try {
-            getPrefs(key).getStringSet(key, defValues)
+            getPrefs(key).getStringSet(key, defValues) ?: defValues ?: emptySet()
         } catch (e: Throwable) {
             Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.getStringSet(key, defValues)
+            plainPrefs.getStringSet(key, defValues) ?: defValues ?: emptySet()
         }
     }
 

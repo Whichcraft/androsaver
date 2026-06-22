@@ -51,6 +51,10 @@ class SecurePreferenceDataStore(context: Context) : PreferenceDataStore() {
     }
 
     override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
-        return securePrefs.getStringSet(key, defValues)
+        return try {
+            securePrefs.getStringSet(key, defValues) ?: defValues ?: emptySet()
+        } catch (e: Throwable) {
+            defValues ?: emptySet()
+        }
     }
 }
