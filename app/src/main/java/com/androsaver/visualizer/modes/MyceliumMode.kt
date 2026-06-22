@@ -323,9 +323,6 @@ class MyceliumMode : BaseMode() {
             val segHue = (hue + s.hueOff + s.depth * 0.015f) % 1f
             val bright = (0.22f + bass * 0.10f + high * 0.08f + pulse * 0.14f) * fade
 
-            val glowW = maxOf(1f, 5f - s.depth / 4f)
-            val coreW = maxOf(1f, 3f - s.depth / 6f)
-
             val cGlow = GLDraw.hsl(segHue, s = 0.90f, l = bright * 0.30f)
             val cCore = GLDraw.hsl(segHue, s = 0.40f, l = minOf(0.95f, bright * 1.5f))
 
