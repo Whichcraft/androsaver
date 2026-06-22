@@ -6,9 +6,15 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.EditTextPreference
@@ -32,13 +38,34 @@ class SettingsActivity : AppCompatActivity() {
             if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Prefetch scheduler failed", e)
         }
         if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.settings_container, SettingsFragment())
-                .commit()
+            try {
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.settings_container, SettingsFragment())
+                    .commitNow()
+            } catch (e: Throwable) {
+                if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Failed to start settings fragment", e)
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.settings_container, StartupErrorFragment())
+                    .commitNowAllowingStateLoss()
+            }
         }
     }
 
     // ── Main settings screen ──────────────────────────────────────────────────
+
+    private class StartupErrorFragment : Fragment() {
+        override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?
+        ): View {
+            return TextView(requireContext()).apply {
+                text = "Settings failed to load. Restart the app."
+                gravity = Gravity.CENTER
+                setPadding(48, 48, 48, 48)
+            }
+        }
+    }
 
     class SettingsFragment : PreferenceFragmentCompat() {
 
@@ -53,61 +80,75 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-            preferenceManager.preferenceDataStore = SecurePreferenceDataStore(requireContext())
-            setPreferencesFromResource(R.xml.screensaver_preferences, rootKey)
+            try {
+                preferenceManager.preferenceDataStore = SecurePreferenceDataStore(requireContext())
+                setPreferencesFromResource(R.xml.screensaver_preferences, rootKey)
 
-            val prefs = Prefs.get(requireContext())
-            val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) ?: Prefs.MODE_SLIDESHOW
-            updateModeVisibility(currentMode)
+                val prefs = Prefs.get(requireContext())
+                val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) ?: Prefs.MODE_SLIDESHOW
+                updateModeVisibility(currentMode)
 
-            findPreference<ListPreference>(Prefs.SCREENSAVER_MODE)?.setOnPreferenceChangeListener { _, newValue ->
-                updateModeVisibility(newValue as String)
-                if (newValue == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
-                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
-                true
-            }
-
-            listOf(Prefs.WEATHER_CITY, Prefs.WEATHER_API_KEY).forEach { key ->
-                findPreference<EditTextPreference>(key)?.apply {
-                    setOnBindEditTextListener { editText ->
-                        editText.inputType = InputType.TYPE_CLASS_TEXT
-                        editText.imeOptions = EditorInfo.IME_ACTION_DONE
-                        editText.maxLines = 1
+                findPreference<ListPreference>(Prefs.SCREENSAVER_MODE)?.setOnPreferenceChangeListener { _, newValue ->
+                    updateModeVisibility(newValue as String)
+                    if (newValue == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
+                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
-                    setOnPreferenceChangeListener { _, _ -> updateWeatherSummary(); true }
-                }
-            }
-            findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED)
-                ?.setOnPreferenceChangeListener { _, newValue ->
-                    updateWeatherSummary(enabled = newValue as Boolean)
                     true
                 }
-            updateWeatherSummary()
 
-            findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.apply {
-                summaryProvider = Preference.SummaryProvider<MultiSelectListPreference> { pref ->
-                    val selected = pref.values
-                    val total = pref.entries?.size ?: 0
-                    when {
-                        selected.isNullOrEmpty() || selected.size == total -> "All effects active"
-                        else -> "${selected.size} of $total effects active"
+                listOf(Prefs.WEATHER_CITY, Prefs.WEATHER_API_KEY).forEach { key ->
+                    findPreference<EditTextPreference>(key)?.apply {
+                        setOnBindEditTextListener { editText ->
+                            editText.inputType = InputType.TYPE_CLASS_TEXT
+                            editText.imeOptions = EditorInfo.IME_ACTION_DONE
+                            editText.maxLines = 1
+                        }
+                        setOnPreferenceChangeListener { _, _ -> updateWeatherSummary(); true }
                     }
                 }
-            }
+                findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED)
+                    ?.setOnPreferenceChangeListener { _, newValue ->
+                        updateWeatherSummary(enabled = newValue as Boolean)
+                        true
+                    }
+                updateWeatherSummary()
 
+                findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.apply {
+                    summaryProvider = Preference.SummaryProvider<MultiSelectListPreference> { pref ->
+                        val selected = pref.values
+                        val total = pref.entries?.size ?: 0
+                        when {
+                            selected.isNullOrEmpty() || selected.size == total -> "All effects active"
+                            else -> "${selected.size} of $total effects active"
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Settings fragment failed to load", e)
+                preferenceScreen = preferenceManager.createPreferenceScreen(requireContext()).apply {
+                    addPreference(Preference(requireContext()).apply {
+                        title = "Settings failed to load"
+                        summary = "Restart the app."
+                        isSelectable = false
+                    })
+                }
+            }
         }
 
         override fun onResume() {
             super.onResume()
-            updateSourcesSummary()
-            updateWeatherSummary()
-            updateAboutVersion()
-            checkForUpdates()
-            val prefs = Prefs.get(requireContext())
-            val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
-            if (currentMode == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
-                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            try {
+                updateSourcesSummary()
+                updateWeatherSummary()
+                updateAboutVersion()
+                checkForUpdates()
+                val prefs = Prefs.get(requireContext())
+                val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
+                if (currentMode == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
+                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            } catch (e: Throwable) {
+                if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Settings fragment resume failed", e)
             }
         }
 
@@ -236,25 +277,40 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-            preferenceManager.preferenceDataStore = SecurePreferenceDataStore(requireContext())
-            setPreferencesFromResource(R.xml.sources_preferences, rootKey)
+            try {
+                preferenceManager.preferenceDataStore = SecurePreferenceDataStore(requireContext())
+                setPreferencesFromResource(R.xml.sources_preferences, rootKey)
 
-            findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.setOnPreferenceChangeListener { _, newValue ->
-                if (newValue == true && !hasStoragePermission()) {
-                    storagePermissionLauncher.launch(storagePermission)
-                    false  // revert; re-enabled if permission granted
-                } else true
+                findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.setOnPreferenceChangeListener { _, newValue ->
+                    if (newValue == true && !hasStoragePermission()) {
+                        storagePermissionLauncher.launch(storagePermission)
+                        false  // revert; re-enabled if permission granted
+                    } else true
+                }
+            } catch (e: Throwable) {
+                if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Sources fragment failed to load", e)
+                preferenceScreen = preferenceManager.createPreferenceScreen(requireContext()).apply {
+                    addPreference(Preference(requireContext()).apply {
+                        title = "Image sources failed to load"
+                        summary = "Restart the app."
+                        isSelectable = false
+                    })
+                }
             }
         }
 
         override fun onResume() {
             super.onResume()
-            updateGoogleDriveStatus()
-            updateOneDriveStatus()
-            updateDropboxStatus()
-            updateImmichStatus()
-            updateNextcloudStatus()
-            updateSynologyStatus()
+            try {
+                updateGoogleDriveStatus()
+                updateOneDriveStatus()
+                updateDropboxStatus()
+                updateImmichStatus()
+                updateNextcloudStatus()
+                updateSynologyStatus()
+            } catch (e: Throwable) {
+                if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Sources fragment resume failed", e)
+            }
         }
 
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
