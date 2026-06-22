@@ -75,7 +75,9 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 
 ---
 
-## Credentials & Source Config (all String, stored in EncryptedSharedPreferences)
+## Credentials & Source Config (stored in EncryptedSharedPreferences)
+
+Sensitive user keys, tokens, and passwords listed below are automatically routed to `EncryptedSharedPreferences` via the `SecurePreferences` wrapper to comply with security requirements. Non-sensitive settings remain in standard plaintext default SharedPreferences. An automatic migration is performed on start to safely transition existing plaintext credentials into encrypted storage.
 
 ### Google Drive
 | Prefs Constant | Key |

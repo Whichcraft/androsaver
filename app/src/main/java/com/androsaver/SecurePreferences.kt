@@ -76,13 +76,13 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
                     if (editor == null) editor = plainPrefs.edit()
 
                     when (value) {
-                        is String -> encEditor.putString(key, value)
-                        is Boolean -> encEditor.putBoolean(key, value)
-                        is Int -> encEditor.putInt(key, value)
-                        is Long -> encEditor.putLong(key, value)
-                        is Float -> encEditor.putFloat(key, value)
+                        is String -> encEditor?.putString(key, value)
+                        is Boolean -> encEditor?.putBoolean(key, value)
+                        is Int -> encEditor?.putInt(key, value)
+                        is Long -> encEditor?.putLong(key, value)
+                        is Float -> encEditor?.putFloat(key, value)
                     }
-                    editor.remove(key)
+                    editor?.remove(key)
                 }
             }
         }
