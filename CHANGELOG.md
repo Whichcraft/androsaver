@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-21 — v2.5.26: visualizer GC optimizations & shader leak fixes
+
+- **GLDraw**: optimized `polygon()` centroid calculation to be completely allocation-free, eliminating Kotlin list and iterator overhead.
+- **GLDraw**: introduced a non-allocating companion helper `GLDraw.hsl(h,s,l,a,out)` and optimized the default `hsl()` color helper to bypass `Triple` object allocation, drastically reducing heap churn.
+- **GLDraw**: resolved OpenGL ES shader handle leaks by detaching and deleting compile shaders (`vert` and `frag`) after program linking, and added compilation/link status logging verification on failure.
+- **TODO.md**: marked shader leaks as RESOLVED and GC pressure as PARTIALLY RESOLVED.
+
+---
+
 ## 2026-06-21 — v2.5.24: weather cache, audio permission & particle rendering optimizations
 
 - **WeatherFetcher**: resolved stale cache collision bug by validating that the requested weather city matches the cached city name case-insensitively before serving cached responses.
