@@ -16,6 +16,10 @@
 | `HttpClients.kt` | Shared OkHttp client instances |
 | `WeatherFetcher.kt` | OpenWeatherMap current conditions fetcher |
 | `BootReceiver.kt` | Receives BOOT_COMPLETED; pre-refreshes OAuth tokens for Google Drive, OneDrive, and Dropbox on device boot |
+| `PrefetchScheduler.kt` | Schedules periodic background prefetching of images using WorkManager |
+| `ImagePrefetchWorker.kt` | Background worker that queries remote image sources concurrently to warm cache |
+| `SecurePreferences.kt` | Transparent SharedPreferences wrapper that encrypts credentials using EncryptedSharedPreferences |
+| `SecurePreferenceDataStore.kt` | PreferenceDataStore interface bridge for Settings screen integration |
 
 ## Package: `com.androsaver.auth`
 
