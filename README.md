@@ -2,7 +2,17 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
+## What's New in v2.6
+
+**Major visualizer overhaul and psysuals v3.10.0 integration:**
+
+- **Mycelium** — Reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
+- **Persistence** — Shifted nested rotating polygons into a true 3D perspective projection space with depth-based thickness, brightness shading (depth cueing), and non-coplanar axis rotation.
+- **Butterflies** — Reverted to the stable chase/orbit motion behavior, removing size variations and swarm separation/cohesion forces to achieve smoother, glitch-free flight paths.
+- **FlowField & Lattice** — Optimized rendering and particle limits to maintain a solid 60 FPS on low-end TV stick devices.
+
 ## What's New in v2.2
+
 
 **Two brand-new visualizer effects and a full visual overhaul:**
 

@@ -23,9 +23,83 @@ class PersistenceMode : BaseMode() {
 
     override val name = "Persistence"
 
+    private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>>)
+
     private companion object {
         const val MAX_SHAPES = 8
         val TAU = (2.0 * PI).toFloat()
+        private val models: List<Model>
+
+        init {
+            val phi = ((1.0 + sqrt(5.0)) / 2.0).toFloat()
+            val invPhi = 1.0f / phi
+
+            val rawModels = arrayOf(
+                // 1. Tetrahedron
+                arrayOf(
+                    floatArrayOf(1f, 1f, 1f),
+                    floatArrayOf(-1f, -1f, 1f),
+                    floatArrayOf(-1f, 1f, -1f),
+                    floatArrayOf(1f, -1f, -1f)
+                ),
+                // 2. Octahedron
+                arrayOf(
+                    floatArrayOf(1f, 0f, 0f), floatArrayOf(-1f, 0f, 0f),
+                    floatArrayOf(0f, 1f, 0f), floatArrayOf(0f, -1f, 0f),
+                    floatArrayOf(0f, 0f, 1f), floatArrayOf(0f, 0f, -1f)
+                ),
+                // 3. Cube
+                arrayOf(
+                    floatArrayOf(-1f, -1f, -1f), floatArrayOf(1f, -1f, -1f), floatArrayOf(1f, 1f, -1f), floatArrayOf(-1f, 1f, -1f),
+                    floatArrayOf(-1f, -1f, 1f), floatArrayOf(1f, -1f, 1f), floatArrayOf(1f, 1f, 1f), floatArrayOf(-1f, 1f, 1f)
+                ),
+                // 4. Icosahedron
+                arrayOf(
+                    floatArrayOf(0f, -1f, -phi), floatArrayOf(0f, -1f, phi), floatArrayOf(0f, 1f, -phi), floatArrayOf(0f, 1f, phi),
+                    floatArrayOf(-1f, -phi, 0f), floatArrayOf(-1f, phi, 0f), floatArrayOf(1f, -phi, 0f), floatArrayOf(1f, phi, 0f),
+                    floatArrayOf(-phi, 0f, -1f), floatArrayOf(-phi, 0f, 1f), floatArrayOf(phi, 0f, -1f), floatArrayOf(phi, 0f, 1f)
+                ),
+                // 5. Dodecahedron
+                arrayOf(
+                    floatArrayOf(-1f, -1f, -1f), floatArrayOf(1f, -1f, -1f), floatArrayOf(1f, 1f, -1f), floatArrayOf(-1f, 1f, -1f),
+                    floatArrayOf(-1f, -1f, 1f), floatArrayOf(1f, -1f, 1f), floatArrayOf(1f, 1f, 1f), floatArrayOf(-1f, 1f, 1f),
+                    floatArrayOf(0f, -invPhi, -phi), floatArrayOf(0f, -invPhi, phi), floatArrayOf(0f, invPhi, -phi), floatArrayOf(0f, invPhi, phi),
+                    floatArrayOf(-invPhi, -phi, 0f), floatArrayOf(-invPhi, phi, 0f), floatArrayOf(invPhi, -phi, 0f), floatArrayOf(invPhi, phi, 0f),
+                    floatArrayOf(-phi, 0f, -invPhi), floatArrayOf(-phi, 0f, invPhi), floatArrayOf(phi, 0f, -invPhi), floatArrayOf(phi, 0f, invPhi)
+                )
+            )
+
+            models = rawModels.map { rm ->
+                val verts = Array(rm.size) { FloatArray(3) }
+                for (idx in rm.indices) {
+                    val x = rm[idx][0]
+                    val y = rm[idx][1]
+                    val z = rm[idx][2]
+                    val len = sqrt(x * x + y * y + z * z)
+                    val norm = if (len == 0f) 1f else len
+                    verts[idx][0] = x / norm
+                    verts[idx][1] = y / norm
+                    verts[idx][2] = z / norm
+                }
+
+                val nVerts = verts.size
+                val dists = ArrayList<Triple<Float, Int, Int>>()
+                for (i in 0 until nVerts) {
+                    for (j in i + 1 until nVerts) {
+                        val dx = verts[i][0] - verts[j][0]
+                        val dy = verts[i][1] - verts[j][1]
+                        val dz = verts[i][2] - verts[j][2]
+                        val d = sqrt(dx * dx + dy * dy + dz * dz)
+                        dists.add(Triple(d, i, j))
+                    }
+                }
+                val minDist = dists.minOf { it.first }
+                val threshold = minDist * 1.05f
+                val edges = dists.filter { it.first <= threshold }.map { Pair(it.second, it.third) }
+
+                Model(verts, edges)
+            }
+        }
     }
 
     private val rotX = FloatArray(MAX_SHAPES) { (Math.random() * 2 * PI).toFloat() }
@@ -39,6 +113,7 @@ class PersistenceMode : BaseMode() {
     private var hue      = 0f
     private var boost    = 0f
     private var beatPrev = 0f
+    private val rotOut   = FloatArray(3)
 
     override fun reset() {
         hue = 0f; boost = 0f; beatPrev = 0f
@@ -47,6 +122,24 @@ class PersistenceMode : BaseMode() {
             rotY[i] = (Math.random() * 2 * PI).toFloat()
             rotZ[i] = (Math.random() * 2 * PI).toFloat()
         }
+    }
+
+    private fun rotate(x: Float, y: Float, z: Float, ax: Float, ay: Float, az: Float, out: FloatArray) {
+        val cx = cos(ax); val sx = sin(ax)
+        val cy = cos(ay); val sy = sin(ay)
+        val cz = cos(az); val sz = sin(az)
+
+        val x1 = cz * x - sz * y
+        val y1 = sz * x + cz * y
+        val z1 = z
+
+        val x2 = cy * x1 + sy * z1
+        val y2 = y1
+        val z2 = -sy * x1 + cy * z1
+
+        out[0] = x2
+        out[1] = cx * y2 - sx * z2
+        out[2] = sx * y2 + cx * z2
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -78,58 +171,55 @@ class PersistenceMode : BaseMode() {
             val ay = rotY[i]
             val az = rotZ[i]
 
-            val rLocal = 0.25f + 0.75f * (i + 1) / nShapes
-            val sides  = 3 + i
+            val rLocal = 0.2f + 0.8f * (i + 1) / nShapes
             val h      = (hue + i.toFloat() / nShapes * 0.55f) % 1f
             val bright = 0.28f + bass * 0.25f + if (i == nShapes - 1) high * 0.12f else 0f
 
-            val cxCos = cos(ax); val cxSin = sin(ax)
-            val cyCos = cos(ay); val cySin = sin(ay)
-            val czCos = cos(az); val czSin = sin(az)
+            val modelIdx = i % models.size
+            val model = models[modelIdx]
+            val uVerts = model.verts
+            val edges = model.edges
 
-            val projX = FloatArray(sides)
-            val projY = FloatArray(sides)
-            val depths = FloatArray(sides)
+            val projX = FloatArray(uVerts.size)
+            val projY = FloatArray(uVerts.size)
+            val depths = FloatArray(uVerts.size)
 
-            for (s in 0 until sides) {
-                val ang = s.toFloat() / sides * TAU
-                val vx = cos(ang) * rLocal
-                val vy = sin(ang) * rLocal
-                val vz = 0f
+            for (vIdx in uVerts.indices) {
+                val uVert = uVerts[vIdx]
+                val sxVal = uVert[0] * rLocal
+                val syVal = uVert[1] * rLocal
+                val szVal = uVert[2] * rLocal
 
-                // Rotate around X
-                val y1 = vy * cxCos - vz * cxSin
-                val z1 = vy * cxSin + vz * cxCos
-
-                // Rotate around Y
-                val x2 = vx * cyCos + z1 * cySin
-                val z2 = -vx * cySin + z1 * cyCos
-
-                // Rotate around Z
-                val x3 = x2 * czCos - y1 * czSin
-                val y3 = x2 * czSin + y1 * czCos
-                val z3 = z2
+                rotate(sxVal, syVal, szVal, ax, ay, az, rotOut)
+                val rx = rotOut[0]
+                val ry = rotOut[1]
+                val rz = rotOut[2]
 
                 val camZ = 2.2f
-                val depth = camZ + z3
+                var depth = camZ + rz
+                if (depth <= 0.1f) {
+                    depth = 0.1f
+                }
 
-                projX[s] = cx + x3 * fov / depth
-                projY[s] = cy + y3 * fov / depth
-                depths[s] = z3
+                projX[vIdx] = cx + rx * fov / depth
+                projY[vIdx] = cy + ry * fov / depth
+                depths[vIdx] = rz
             }
 
-            for (s in 0 until sides) {
-                val nextS = (s + 1) % sides
-                val avgZ = (depths[s] + depths[nextS]) / 2f
-                var dFactor = (3.2f - (2.2f + avgZ)) / 2f
-                dFactor = (0.2f + 0.8f * dFactor).coerceIn(0.15f, 1f)
+            for (edge in edges) {
+                val a = edge.first
+                val b = edge.second
+                val avgZ = (depths[a] + depths[b]) / 2f
+                val zNorm = avgZ / rLocal
+                var dFactor = 0.15f + 0.85f * (1f - (zNorm + 1f) / 2f)
+                dFactor = dFactor.coerceIn(0.15f, 1f)
 
                 val col = GLDraw.hsl(h, l = bright * dFactor)
                 val glow = GLDraw.hsl(h, l = bright * 0.30f * dFactor)
 
                 // Double-pass line drawing for glow effect
-                draw.line(projX[s], projY[s], projX[nextS], projY[nextS], glow[0], glow[1], glow[2], glow[3])
-                draw.line(projX[s], projY[s], projX[nextS], projY[nextS], col[0], col[1], col[2], col[3])
+                draw.line(projX[a], projY[a], projX[b], projY[b], glow[0], glow[1], glow[2], glow[3])
+                draw.line(projX[a], projY[a], projX[b], projY[b], col[0], col[1], col[2], col[3])
             }
         }
 

@@ -30,7 +30,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
 | 12 | `ButterfliesMode` | Butterflies | Neon butterfly pairs entering, orbiting, departing |
 | 13 | `FlowFieldMode` | FlowField | 25 000 particles riding a sine/cosine noise field (baseline; scales to 100 000) |
-| 14 | `VortexMode` | Vortex | Firework rockets exploding into glowing embers |
+| 14 | `FireworksMode` | Fireworks | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
 | 16 | `LatticeMode` | Lattice | 14×9 FFT-mapped crystal grid with shockwave ring on beat |
 | 17 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
@@ -93,7 +93,7 @@ Up to 3 pairs of neon butterflies. Solo enters from a screen edge; partner joins
 
 4 000 particles surfing a continuously-evolving 3-layer sine/cosine noise field. Rainbow trails on a very slow fade (8/255 ≈ 40-frame persistence). Per-particle forces: bass pulls all particles gently toward screen centre (gravity `(centre − pos) × bass × 0.0018`); treble pushes particles in random directions (scatter `± treble × 3.2` per axis). Beat fires a phase jump that instantly reshapes all flow lines. Silence: particles drift gently, no gravity or scatter.
 
-## VortexMode
+## FireworksMode
 
 Firework rockets launch from the bottom, arc upward under gravity (0.13) with drag (0.991), and explode into 80–120 glowing embers at the apex. Embers fade under gravity. Beat fires extra rockets. Auto-launch interval = `BASE_INTERVAL (40) × audio.gain`, clamped 20–200 frames — higher intensity → fewer background rockets, lower → more. Embers use additive blend. Silence: rockets auto-launch at regular intervals.
 

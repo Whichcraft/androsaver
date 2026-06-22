@@ -42,7 +42,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         BranchesMode(),
         ButterfliesMode(),
         FlowFieldMode(),
-        VortexMode(),
+        FireworksMode(),
         AuroraMode(),
         LatticeMode(),
         MyceliumMode(),
