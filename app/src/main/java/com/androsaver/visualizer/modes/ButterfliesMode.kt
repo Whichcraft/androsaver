@@ -165,7 +165,7 @@ class ButterfliesMode : BaseMode() {
             (solo == null || solo!!.offScreen) &&
             (love == null || love!!.offScreen)
 
-        fun update(bass: Float, beat: Float, globalHue: Float, tick: Int) {
+        fun update(bass: Float, beat: Float, globalHue: Float) {
             age++
             if (solo == null && age >= 0) {
                 val (ex, ey) = edgeSpawn()
@@ -289,7 +289,7 @@ class ButterfliesMode : BaseMode() {
 
         for ((i, pair) in pairs.withIndex()) {
             val gh = (globalHue + i.toFloat() / MAX_PAIRS) % 1f
-            pair.update(bass, beat, gh, tick)
+            pair.update(bass, beat, gh)
         }
 
         for ((i, pair) in pairs.withIndex()) {

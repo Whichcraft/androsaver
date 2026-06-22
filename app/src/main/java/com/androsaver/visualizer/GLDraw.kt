@@ -629,9 +629,9 @@ class GLDraw(var W: Int, var H: Int) {
             val x = c * (1f - abs(hh % 2f - 1f))
             val m = l - c / 2f
             
-            var r = 0f
-            var g = 0f
-            var b = 0f
+            val r: Float
+            val g: Float
+            val b: Float
             when (hh.toInt()) {
                 0 -> { r = c; g = x; b = 0f }
                 1 -> { r = x; g = c; b = 0f }
