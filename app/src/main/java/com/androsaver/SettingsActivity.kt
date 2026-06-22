@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -45,7 +44,7 @@ class SettingsActivity : AppCompatActivity() {
             } catch (e: Throwable) {
                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Failed to start settings fragment", e)
                 supportFragmentManager.beginTransaction()
-                    .replace(R.id.settings_container, StartupErrorFragment())
+                    .replace(R.id.settings_container, StartupErrorFragment.newInstance("Settings failed to start", e))
                     .commitNowAllowingStateLoss()
             }
         }
@@ -59,10 +58,40 @@ class SettingsActivity : AppCompatActivity() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
         ): View {
+            val title = requireArguments().getString(ARG_TITLE).orEmpty()
+            val details = requireArguments().getString(ARG_DETAILS).orEmpty()
             return TextView(requireContext()).apply {
-                text = "Settings failed to load. Restart the app."
-                gravity = Gravity.CENTER
+                text = buildString {
+                    append(title.ifBlank { "Settings failed to load" })
+                    if (details.isNotBlank()) {
+                        append("\n\n")
+                        append(details)
+                    }
+                }
+                isTextSelectable = true
                 setPadding(48, 48, 48, 48)
+            }
+        }
+
+        companion object {
+            private const val ARG_TITLE = "title"
+            private const val ARG_DETAILS = "details"
+
+            fun newInstance(title: String, throwable: Throwable): StartupErrorFragment {
+                return StartupErrorFragment().apply {
+                    arguments = Bundle().apply {
+                        putString(ARG_TITLE, title)
+                        putString(ARG_DETAILS, buildString {
+                            append(throwable::class.java.name)
+                            throwable.message?.takeIf { it.isNotBlank() }?.let {
+                                append(": ")
+                                append(it)
+                            }
+                            append("\n\n")
+                            append(android.util.Log.getStackTraceString(throwable))
+                        })
+                    }
+                }
             }
         }
     }
@@ -128,7 +157,7 @@ class SettingsActivity : AppCompatActivity() {
                 preferenceScreen = preferenceManager.createPreferenceScreen(requireContext()).apply {
                     addPreference(Preference(requireContext()).apply {
                         title = "Settings failed to load"
-                        summary = "Restart the app."
+                        summary = e::class.java.name + ": " + (e.message ?: "see stack trace above")
                         isSelectable = false
                     })
                 }
@@ -292,7 +321,7 @@ class SettingsActivity : AppCompatActivity() {
                 preferenceScreen = preferenceManager.createPreferenceScreen(requireContext()).apply {
                     addPreference(Preference(requireContext()).apply {
                         title = "Image sources failed to load"
-                        summary = "Restart the app."
+                        summary = e::class.java.name + ": " + (e.message ?: "see stack trace above")
                         isSelectable = false
                     })
                 }
