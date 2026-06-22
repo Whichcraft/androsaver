@@ -15,7 +15,7 @@ def gitVersionCode = {
 }()
 
 // Commit count at the time of the 2.6 version bump; patch resets to 0 from here.
-def versionPatchBase = 270
+def versionPatchBase = 271
 
 android {
     namespace 'com.androsaver'
