@@ -80,11 +80,10 @@ Port directly for the fireworks mechanics (rockets + embers with gravity/drag). 
 Note: `GLDraw` now has FBO bloom support, but the vortex wormhole is still not ported — bloom is a post-processing effect applied to all modes, not a per-mode FBO blit.
 
 ### ButterfliesMode
-**Mutual pursuit spiral** (added v2.7.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius).  Orbit radius starts at **120 px** (halved from 240 in v3.7.0) and decrements 0.06 px/frame toward 40 px.  **Two sizes** (v3.7.0): pairs alternate big (70% of original: solo 5.04, love 4.79) and small (35% of original: solo 2.52, love 2.39) in a `[big, small, big]` pattern.  Wing-sync range uses the per-pair `soloScale`, not a hardcoded constant.  **Bidirectional wing sync** (v3.7.0): both `lv.wingPhase` and `sl.wingPhase` adjust toward each other (`diff * sync * 0.12f`).
+**Mutual pursuit spiral** (reverted to stable version in v3.10.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius). Orbit radius starts at **240 px** and decrements 0.06 px/frame toward 40 px. **No size variations or swarm forces**: all pairs use the standard sizes (solo 5.04, love 4.79) for stable, clean movement without the clutter of swarm separation/cohesion dynamics. **Unidirectional wing sync**: partner `lv.wingPhase` adjusts toward solo `sl.wingPhase` (`diff * sync * 0.12f`).
 
-**Wander breaks** (added v2.10.0+): `ButterflyPair` has two fields — `breakCd` (initial 800–1600) and `breakTimer` (initial 0).  Each orbit frame: if `breakTimer > 0`, decrement it (free-wander phase); else decrement `breakCd`, and when it reaches 0 set `breakTimer = 200–500`, `breakCd = 900–1800`, `orbitR = min(orbitR + 80, 200)`.  While `breakTimer > 0`, both butterflies call `update(bass, beat)` with no `chasePos` instead of the orbit code.
+**Wander breaks**: `ButterflyPair` has two fields — `breakCd` (initial 800–1600) and `breakTimer` (initial 0). Each orbit frame: if `breakTimer > 0`, decrement it (free-wander phase); else decrement `breakCd`, and when it reaches 0 set `breakTimer = 200–500`, `breakCd = 900–1800`, `orbitR = min(orbitR + 80, 200)`. While `breakTimer > 0`, both butterflies call `update(bass, beat)` with no `chasePos` instead of the orbit code.
 
-Do **not** port the psysuals `orbit_pos` fixed-point orbit logic — the Android version uses a different mutual-chase implementation that is equivalent in result but avoids the psysuals helper function.
 
 ### AuroraMode
 Port of `effects/aurora.py`.  Key differences:

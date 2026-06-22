@@ -10,31 +10,23 @@ import kotlin.math.*
  * 10–30 s and orbits it lovingly. After a random lifetime the pair wanders
  * off-screen and a new pair enters. Wing flapping syncs when partners are
  * close; sparkles fire on strong beats.
- * Port of psysuals Butterflies (v3.9.0).
+ * Port of psysuals Butterflies (v3.10.0).
  */
 class ButterfliesMode : BaseMode() {
 
     override val name = "Butterflies"
 
     private companion object {
-        const val TAU       = (Math.PI * 2).toFloat()
-        const val PI_F      = Math.PI.toFloat()
-        const val MAX_PAIRS = 3
-        // Big pair (70% of original), small pair (35% of original)
-        const val BIG_SOLO_SCALE   = 5.04f   // 7.2 × 0.70
-        const val BIG_LOVE_SCALE   = 4.79f   // 6.84 × 0.70
-        const val SMALL_SOLO_SCALE = 2.52f   // 7.2 × 0.35
-        const val SMALL_LOVE_SCALE = 2.39f   // 6.84 × 0.35
-        // Pair size assignment pattern: [big, small, big]
-        val PAIR_SOLO_SCALES = floatArrayOf(BIG_SOLO_SCALE, SMALL_SOLO_SCALE, BIG_SOLO_SCALE)
-        val PAIR_LOVE_SCALES = floatArrayOf(BIG_LOVE_SCALE, SMALL_LOVE_SCALE, BIG_LOVE_SCALE)
-        // Keep alias for wing-sync range (uses big scale as reference)
-        const val SOLO_SCALE = BIG_SOLO_SCALE
+        const val TAU        = (Math.PI * 2).toFloat()
+        const val PI_F       = Math.PI.toFloat()
+        const val MAX_PAIRS  = 3
+        const val SOLO_SCALE = 5.04f  // 7.2 * 0.70
+        const val LOVE_SCALE = 4.79f  // 6.84 * 0.70
     }
 
-    // Screen dimensions updated each frame so inner classes can use them
     private var screenW = 1920
     private var screenH = 1080
+    private val rnd = java.util.Random()
 
     // ── Wing polygon ─────────────────────────────────────────────────────────
 
@@ -61,7 +53,7 @@ class ButterfliesMode : BaseMode() {
     private inner class Butterfly(
         var x: Float, var y: Float,
         var hue: Float,
-        val scale: Float = SOLO_SCALE
+        val scale: Float
     ) {
         var heading   = Math.random().toFloat() * TAU
         var wingPhase = Math.random().toFloat() * TAU
@@ -76,14 +68,15 @@ class ButterfliesMode : BaseMode() {
 
         fun startDepart() { if (departAng == null) departAng = Math.random().toFloat() * TAU }
 
-        fun update(bass: Float, @Suppress("UNUSED_PARAMETER") beat: Float, mid: Float = 0f, high: Float = 0f, chasePos: Pair<Float, Float>? = null) {
-            wingPhase += 0.09f + bass * 0.20f + mid * 0.35f + high * 0.15f
+        fun update(bass: Float, beat: Float, chasePos: Pair<Float, Float>? = null) {
+            wingPhase += 0.09f + bass * 0.16f + beat * 0.06f
 
             if (departAng != null) {
                 val da = departAng!!
                 heading += ((da - heading + PI_F) % TAU - PI_F)
-                x += cos(heading) * (2.5f + bass * 0.5f) * scale
-                y += sin(heading) * (2.5f + bass * 0.5f) * scale
+                val spd = (2.5f + bass * 0.5f) * scale
+                x += cos(heading) * spd
+                y += sin(heading) * spd
                 return
             }
 
@@ -98,68 +91,36 @@ class ButterfliesMode : BaseMode() {
                 wanderDes
             }
 
-            // Boundary repulsion — margin capped so it never overlaps on small screens
+            // Boundary repulsion
             val m = minOf((50f * scale).toInt(), screenW / 5, screenH / 5)
             var rx = 0f; var ry = 0f
-            if      (x < m)            rx = (m - x) / m
-            else if (x > screenW - m)  rx = (screenW - m - x) / m
-            if      (y < m)            ry = (m - y) / m
-            else if (y > screenH - m)  ry = (screenH - m - y) / m
+            if (m > 0) {
+                if      (x < m)            rx = (m - x) / m
+                else if (x > screenW - m)  rx = (screenW - m - x) / m
+                if      (y < m)            ry = (m - y) / m
+                else if (y > screenH - m)  ry = (screenH - m - y) / m
+            }
 
             if (rx != 0f || ry != 0f) {
                 val push = scale * maxOf(abs(rx), abs(ry)) * 2.5f
-                x += rx * push; y += ry * push
+                x += rx * push
+                y += ry * push
                 val repulseAng = atan2(ry, rx)
-                heading += ((repulseAng - heading + PI_F) % TAU - PI_F).coerceIn(-0.35f, 0.35f) * 0.50f
+                val diff = (repulseAng - heading + PI_F) % TAU - PI_F
+                heading += diff.coerceIn(-0.35f, 0.35f) * 0.50f
                 wanderDes = repulseAng
                 wanderCd  = (60 + Math.random() * 120).toInt()
             } else {
-                heading += ((desired - heading + PI_F) % TAU - PI_F).coerceIn(-0.10f, 0.10f) * 0.14f
+                val diff = (desired - heading + PI_F) % TAU - PI_F
+                heading += diff.coerceIn(-0.10f, 0.10f) * 0.14f
             }
 
-            val spd = (1.5f + bass * 0.8f + mid * 0.60f) * scale
+            val spd = (1.5f + bass * 0.8f + beat * 0.4f) * scale
             x += cos(heading) * spd; y += sin(heading) * spd
 
-            bounceFromBounds()
-        }
-
-        fun bounceFromBounds() {
-            val cl = 28f * scale
-            var hit = false
-
-            if (x <= cl) {
-                x = cl + 1.5f * scale
-                if (cos(heading) < 0f) {
-                    heading = PI_F - heading
-                }
-                hit = true
-            } else if (x >= screenW - cl) {
-                x = screenW - cl - 1.5f * scale
-                if (cos(heading) > 0f) {
-                    heading = PI_F - heading
-                }
-                hit = true
-            }
-
-            if (y <= cl) {
-                y = cl + 1.5f * scale
-                if (sin(heading) < 0f) {
-                    heading = -heading
-                }
-                hit = true
-            } else if (y >= screenH - cl) {
-                y = screenH - cl - 1.5f * scale
-                if (sin(heading) > 0f) {
-                    heading = -heading
-                }
-                hit = true
-            }
-
-            if (hit) {
-                heading = (heading % TAU + TAU) % TAU
-                wanderDes = heading
-                wanderCd = (45 + Math.random() * 75).toInt()
-            }
+            val cl = (28f * scale).toInt()
+            x = x.coerceIn(cl.toFloat(), (screenW - cl).toFloat())
+            y = y.coerceIn(cl.toFloat(), (screenH - cl).toFloat())
         }
 
         fun draw(draw: GLDraw, outlineHue: Float) {
@@ -172,33 +133,28 @@ class ButterfliesMode : BaseMode() {
                 for (side in floatArrayOf(-1f, 1f)) {
                     val pts = wingPoly(x, y, heading, side, upper, flap, scale)
                     draw.polygon(pts, wc[0], wc[1], wc[2], 1f, filled = true)
-                    draw.polygon(pts, oc[0], oc[1], oc[2], 0.8f, filled = false)
+                    if (scale > 3.0f) {
+                        draw.polygon(pts, oc[0], oc[1], oc[2], 0.8f, filled = false)
+                    }
                 }
             }
             val ca = cos(heading); val sa = sin(heading)
-            val bl = 10f * scale
+            val bl = 8f * scale
             val hx = x + ca * bl; val hy = y + sa * bl
             val tx = x - ca * bl; val ty = y - sa * bl
             val bc = GLDraw.hsl(hue, l = 0.28f)
             draw.line(hx, hy, tx, ty, bc[0], bc[1], bc[2], 1f)
-            val hc = GLDraw.hsl(hue, l = 0.22f)
-            draw.circle(hx, hy, maxOf(2f, 3f * scale), hc[0], hc[1], hc[2], 1f, segments = 12)
-            // Antennas are skipped for better FPS to match psysuals v3.0.0+
         }
     }
 
     // ── Pair ─────────────────────────────────────────────────────────────────
 
-    private inner class ButterflyPair(
-        spawnDelay: Int,
-        private val soloScale: Float = BIG_SOLO_SCALE,
-        private val loveScale: Float = BIG_LOVE_SCALE
-    ) {
-        private val joinDelay = (120  + Math.random() * 180).toInt()
+    private inner class ButterflyPair(spawnDelay: Int) {
+        private val joinDelay = (600 + Math.random() * 1200).toInt()
         private val lifetime  = (2400 + Math.random() * 3000).toInt()
         private var age       = -spawnDelay
         private var orbitAng  = (Math.random().toFloat() * TAU)
-        var orbitR    = 120f   // reduced initial orbit radius (240→120 per v3.7.0)
+        var orbitR    = 240f
         var solo: Butterfly?  = null
         var love: Butterfly?  = null
         var departing = false
@@ -209,11 +165,11 @@ class ButterfliesMode : BaseMode() {
             (solo == null || solo!!.offScreen) &&
             (love == null || love!!.offScreen)
 
-        fun update(bass: Float, beat: Float, mid: Float = 0f, high: Float = 0f, globalHue: Float) {
+        fun update(bass: Float, beat: Float, globalHue: Float, tick: Int) {
             age++
             if (solo == null && age >= 0) {
                 val (ex, ey) = edgeSpawn()
-                solo = Butterfly(ex, ey, hue = globalHue, scale = soloScale)
+                solo = Butterfly(ex, ey, hue = globalHue, scale = SOLO_SCALE)
             }
             val sl = solo ?: return
             sl.hue = globalHue
@@ -221,7 +177,7 @@ class ButterfliesMode : BaseMode() {
 
             if (love == null && age >= joinDelay) {
                 val (ex, ey) = edgeSpawn()
-                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = loveScale)
+                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = LOVE_SCALE)
             }
             if (age >= lifetime && !departing) {
                 departing = true; sl.startDepart(); love?.startDepart()
@@ -241,10 +197,10 @@ class ButterfliesMode : BaseMode() {
                 }
 
                 if (breakTimer > 0) {
-                    sl.update(bass, beat, mid, high)
-                    lv.update(bass, beat, mid, high)
+                    sl.update(bass, beat)
+                    lv.update(bass, beat)
                 } else {
-                    val angSpeed = 0.012f + beat * 0.020f + mid * 0.015f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
+                    val angSpeed = 0.012f + beat * 0.020f + 0.003f * maxOf(0f, 1f - orbitR / 240f)
                     orbitAng += angSpeed
                     if (orbitR > 40f) {
                         orbitR -= 0.06f
@@ -252,39 +208,37 @@ class ButterfliesMode : BaseMode() {
                     val r = orbitR
                     val soloTarget = Pair(lv.x + cos(orbitAng + PI_F) * r, lv.y + sin(orbitAng + PI_F) * r)
                     val loveTarget = Pair(sl.x + cos(orbitAng) * r, sl.y + sin(orbitAng) * r)
-                    sl.update(bass, beat, mid, high, chasePos = soloTarget)
-                    lv.update(bass, beat, mid, high, chasePos = loveTarget)
+                    sl.update(bass, beat, chasePos = soloTarget)
+                    lv.update(bass, beat, chasePos = loveTarget)
                 }
             } else {
-                sl.update(bass, beat, mid, high)
-                lv?.update(bass, beat, mid, high)
+                sl.update(bass, beat)
+                lv?.update(bass, beat)
             }
 
             if (lv != null) {
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
-                val syncRange = 130f * soloScale
+                val syncRange = 130f * SOLO_SCALE
                 if (dist < syncRange) {
                     val sync = 1f - dist / syncRange
                     val diff = lv.wingPhase - sl.wingPhase
-                    lv.wingPhase -= diff * sync * 0.12f   // bidirectional sync (v3.7.0)
-                    sl.wingPhase += diff * sync * 0.12f
+                    lv.wingPhase -= diff * sync * 0.12f
                 }
             }
         }
 
-        fun draw(draw: GLDraw, beat: Float, globalHue: Float, high: Float = 0f) {
+        fun draw(draw: GLDraw, beat: Float, globalHue: Float) {
             val sl = solo ?: return
             val lv = love
-            if (lv != null && (beat > 0.8f || high > 0.45f) && !departing) {
+            if (lv != null && beat > 0.8f && !departing) {
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
                 if (dist < 300f) {
                     val mx = (sl.x + lv.x) / 2f; val my = (sl.y + lv.y) / 2f
                     val sc = GLDraw.hsl((globalHue + 0.12f) % 1f, l = 0.80f)
-                    val sparkleN = (4 + beat * 6 + high * 10).toInt()
-                    repeat(sparkleN) {
-                        val sx = mx + (Math.random().toFloat() - 0.5f) * 50f
-                        val sy = my + (Math.random().toFloat() - 0.5f) * 50f
-                        val r  = 2f + Math.random().toFloat() * (3f + high * 6f)
+                    repeat(4) {
+                        val sx = mx + rnd.nextGaussian().toFloat() * 25f
+                        val sy = my + rnd.nextGaussian().toFloat() * 25f
+                        val r  = 2f + Math.random().toFloat() * 3f
                         draw.circle(sx, sy, r, sc[0], sc[1], sc[2], 1f, segments = 8)
                     }
                 }
@@ -304,94 +258,6 @@ class ButterfliesMode : BaseMode() {
         }
     }
 
-    private fun applySwarmForces(beat: Float) {
-        val entries = ArrayList<Pair<Butterfly, Int>>()
-        for (i in pairs.indices) {
-            val pair = pairs[i]
-            val s = pair.solo
-            if (s != null && !s.offScreen) {
-                entries.add(Pair(s, i))
-            }
-            val l = pair.love
-            if (l != null && !l.offScreen) {
-                entries.add(Pair(l, i))
-            }
-        }
-
-        // Mild pair cohesion
-        val cohesion = 0.010f + beat * 0.008f
-        for (pair in pairs) {
-            val s = pair.solo
-            val l = pair.love
-            if (s == null || l == null || pair.departing) {
-                continue
-            }
-            val dx = l.x - s.x
-            val dy = l.y - s.y
-            val dist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
-            val target = maxOf(90f, pair.orbitR * 1.55f)
-            if (dist > target) {
-                val pull = minOf(1.6f, (dist - target) * cohesion * 0.02f)
-                val nx = dx / (dist + 1e-6f)
-                val ny = dy / (dist + 1e-6f)
-                s.x += nx * pull * s.scale
-                s.y += ny * pull * s.scale
-                l.x -= nx * pull * l.scale
-                l.y -= ny * pull * l.scale
-            }
-        }
-
-        // Pairwise separation
-        val sepGain = 1.1f + beat * 0.9f
-        val nEntries = entries.size
-        for (i in 0 until nEntries) {
-            val (a, aPair) = entries[i]
-            for (j in i + 1 until nEntries) {
-                val (b, bPair) = entries[j]
-                var dx = b.x - a.x
-                var dy = b.y - a.y
-                var dist2 = dx * dx + dy * dy
-                if (dist2 <= 1e-6f) {
-                    val ang = (Math.random() * TAU).toFloat()
-                    dx = cos(ang)
-                    dy = sin(ang)
-                    dist2 = 1.0f
-                }
-                val dist = sqrt(dist2)
-
-                val desired: Float
-                val strength: Float
-                if (aPair == bPair) {
-                    desired = (a.scale + b.scale) * (16f + beat * 4.0f)
-                    strength = 0.35f
-                } else {
-                    desired = (a.scale + b.scale) * (22f + beat * 7.0f)
-                    strength = 1.0f
-                }
-
-                if (dist >= desired) {
-                    continue
-                }
-
-                val nx = dx / dist
-                val ny = dy / dist
-                val push = (1f - dist / desired) * sepGain * strength
-                a.x -= nx * push * a.scale
-                a.y -= ny * push * a.scale
-                b.x += nx * push * b.scale
-                b.y += ny * push * b.scale
-
-                val turn = minOf(0.08f, push * 0.02f)
-                a.heading = (a.heading - turn) % TAU
-                b.heading = (b.heading + turn) % TAU
-            }
-        }
-
-        for (entry in entries) {
-            entry.first.bounceFromBounds()
-        }
-    }
-
     // ── Main effect ──────────────────────────────────────────────────────────
 
     private val pairs = ArrayList<ButterflyPair>(MAX_PAIRS)
@@ -401,8 +267,8 @@ class ButterfliesMode : BaseMode() {
         pairs.clear()
         globalHue = Math.random().toFloat()
         val offsets = intArrayOf(0,
-            (30 + Math.random() * 60).toInt(),
-            (80 + Math.random() * 80).toInt())
+            (300 + Math.random() * 400).toInt(),
+            (800 + Math.random() * 600).toInt())
         for (i in 0 until MAX_PAIRS) {
             pairs.add(ButterflyPair(spawnDelay = offsets[i]))
         }
@@ -415,24 +281,20 @@ class ButterfliesMode : BaseMode() {
         globalHue = (globalHue + 0.0014f) % 1f
         val beat = audio.beat
         val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
 
         pairs.removeAll { it.dead }
         while (pairs.size < MAX_PAIRS) {
-            pairs.add(ButterflyPair(spawnDelay = (20 + Math.random() * 40).toInt()))
+            pairs.add(ButterflyPair(spawnDelay = (60 + Math.random() * 140).toInt()))
         }
 
         for ((i, pair) in pairs.withIndex()) {
             val gh = (globalHue + i.toFloat() / MAX_PAIRS) % 1f
-            pair.update(bass, beat, mid, high, gh)
+            pair.update(bass, beat, gh, tick)
         }
-
-        applySwarmForces(beat)
 
         for ((i, pair) in pairs.withIndex()) {
             val gh = (globalHue + i.toFloat() / MAX_PAIRS) % 1f
-            pair.draw(draw, beat, gh, high)
+            pair.draw(draw, beat, gh)
         }
     }
 }

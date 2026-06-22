@@ -4,7 +4,17 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-22 — v2.6.0: import latest psysuals visualizer updates & butterflies mode refactor
+
+- **Visualizer**: Imported `psysuals` submodule updates (bumped to `v3.10.0`).
+- **Visualizer**: Backported the reverted stable version of the Butterflies effect, restoring classic chase/orbit motion behavior and removing size variations and swarm forces for smoother, glitch-free flight patterns.
+- **Visualizer**: Verified and aligned other modes (Yantra, Mycelium, Persistence, TriFlux, and Plasma) with their latest corresponding Python versions.
+- **AI Instructions**: Documented local Java build constraints in `AGENTS.md` and `.ai/decisions.md`.
+
+---
+
 ## 2026-06-22 — v2.5.27: security improvements, concurrency fixes & performance tuning
+
 
 - **Security**: Migrated sensitive keys and configuration values (tokens, client secrets, passwords, weather API keys) to `EncryptedSharedPreferences` using a transparent, thread-safe `SecurePreferences` wrapper and automatic migration.
 - **Security**: Set `android:allowBackup="false"` in the manifest to prevent unauthorized credential recovery from device backups.
