@@ -26,5 +26,12 @@ google-services.json
 .claude/
 CLAUDE.md
 
+# AI Agent files
+.ai/
+AGENTS.md
+GEMINI.md
+CODEX.md
+ANTIGRAVITY.md
+
 # QMD search index
 qmd.sqlite
