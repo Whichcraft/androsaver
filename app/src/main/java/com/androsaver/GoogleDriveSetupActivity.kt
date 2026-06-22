@@ -28,7 +28,7 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         binding.clientIdEdit.setText(prefs.getString(Prefs.GOOGLE_CLIENT_ID, ""))
         binding.clientSecretEdit.setText(prefs.getString(Prefs.GOOGLE_CLIENT_SECRET, ""))
         binding.folderIdEdit.setText(prefs.getString(Prefs.GOOGLE_FOLDER_ID, ""))
@@ -43,7 +43,7 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
             return
         }
 
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.GOOGLE_CLIENT_ID, clientId)
             .putString(Prefs.GOOGLE_CLIENT_SECRET, clientSecret)
             .putString(Prefs.GOOGLE_FOLDER_ID, binding.folderIdEdit.text.toString().trim())
@@ -53,7 +53,7 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
     }
 
     private fun revokeAuth() {
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .remove(Prefs.GOOGLE_ACCESS_TOKEN)
             .remove(Prefs.GOOGLE_REFRESH_TOKEN)
             .apply()
@@ -62,7 +62,7 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
     }
 
     private fun updateAuthStatus() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         val authorized = !prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null).isNullOrEmpty()
         binding.authStatusText.text = if (authorized) {
             getString(R.string.google_drive_authorized)

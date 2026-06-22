@@ -24,14 +24,14 @@ class NextcloudSource(private val context: Context) : ImageSource {
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
 
     override fun isConfigured(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.NEXTCLOUD_HOST, null).isNullOrEmpty() &&
                !prefs.getString(Prefs.NEXTCLOUD_USERNAME, null).isNullOrEmpty()
     }
 
     override suspend fun getImageUrls(): List<ImageItem> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+            val prefs = com.androsaver.Prefs.get(context)
             val host     = prefs.getString(Prefs.NEXTCLOUD_HOST, null) ?: return@withContext emptyList()
             val port     = prefs.getString(Prefs.NEXTCLOUD_PORT, "443") ?: "443"
             val useHttps = prefs.getBoolean(Prefs.NEXTCLOUD_USE_HTTPS, true)

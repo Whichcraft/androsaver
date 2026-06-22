@@ -42,16 +42,21 @@ class CubeMode : BaseMode() {
     // Independent satellite rotation (v2.0.0)
     private var satRx = 0f; private var satRy = 0f
 
+    // Pre-allocated arrays to avoid GC pressure in hot path
+    private val currentProj = Array(2) { FloatArray(16) }
+    private val currentSatProj = Array(2) { FloatArray(16) }
+    private val tempVerts3d = Array(8) { FloatArray(3) }
+
     // Main cube trail ring buffer
     private val TRAIL_LEN = 14
-    private val trailProj  = Array(TRAIL_LEN) { Array(2) { Array(8) { 0f to 0f } } }
+    private val trailProj  = Array(TRAIL_LEN) { Array(2) { FloatArray(16) } }
     private var trailHead  = 0
     private var trailCount = 0
 
     // Satellite trail: halved from 30→15 frames (v2.0.2: double _SAT_FADE → shorter persistence)
     // Always 2 sats (v2.0.0); ring buffer still used for per-frame replay
     private val SAT_TRAIL_LEN = 15
-    private val satTrailProj  = Array(SAT_TRAIL_LEN) { Array(2) { Array(8) { 0f to 0f } } }
+    private val satTrailProj  = Array(SAT_TRAIL_LEN) { Array(2) { FloatArray(16) } }
     private var satTrailHead  = 0
     private var satTrailCount = 0
 
@@ -95,19 +100,21 @@ class CubeMode : BaseMode() {
 
         // ── Compute projections for main (ci=0) and inner (ci=1) cubes ────────
         val cubeScales = floatArrayOf(scale, scale * 0.45f)
-        val currentProj = Array(2) { ci ->
+        for (ci in 0..1) {
             val s = cubeScales[ci]
-            val verts3d = Array(8) { vi ->
+            for (vi in 0..7) {
                 val jx = if (jitterAmp > 0.001f) (Math.random().toFloat() * 2f - 1f) * jitterAmp else 0f
                 val jy = if (jitterAmp > 0.001f) (Math.random().toFloat() * 2f - 1f) * jitterAmp else 0f
                 val jz = if (jitterAmp > 0.001f) (Math.random().toFloat() * 2f - 1f) * jitterAmp else 0f
-                rotateVertex(vertsBase[vi][0] * s + jx, vertsBase[vi][1] * s + jy, vertsBase[vi][2] * s + jz, rx, ry, rz)
+                rotateVertex(vertsBase[vi][0] * s + jx, vertsBase[vi][1] * s + jy, vertsBase[vi][2] * s + jz, rx, ry, rz, tempVerts3d[vi])
+                project(tempVerts3d[vi], draw.W, draw.H, fov, currentProj[ci], vi * 2)
             }
-            Array(8) { vi -> project(verts3d[vi], draw.W, draw.H, fov) }
         }
 
         // ── Update trail ring buffer ───────────────────────────────────────────
-        for (ci in 0..1) for (vi in 0..7) trailProj[trailHead][ci][vi] = currentProj[ci][vi]
+        for (ci in 0..1) {
+            System.arraycopy(currentProj[ci], 0, trailProj[trailHead][ci], 0, 16)
+        }
         if (trailCount < TRAIL_LEN) trailCount++
         trailHead = (trailHead + 1) % TRAIL_LEN
 
@@ -122,7 +129,7 @@ class CubeMode : BaseMode() {
                     val (a, b) = edge
                     val h     = (fadeHue + hueOff + ei.toFloat() / edges.size * 0.4f) % 1f
                     val color = GLDraw.hsl(h, 1f, 0.32f)
-                    draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                    draw.line(proj[a * 2], proj[a * 2 + 1], proj[b * 2], proj[b * 2 + 1],
                         color[0], color[1], color[2], alpha)
                 }
             }
@@ -137,7 +144,7 @@ class CubeMode : BaseMode() {
                 val (a, b) = edge
                 val h     = (fadeHue + hueOff + ei.toFloat() / edges.size * 0.4f) % 1f
                 val color = GLDraw.hsl(h, 1f, lightness)
-                draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                draw.line(proj[a * 2], proj[a * 2 + 1], proj[b * 2], proj[b * 2 + 1],
                     color[0], color[1], color[2], 1f)
             }
         }
@@ -151,11 +158,11 @@ class CubeMode : BaseMode() {
         satRx += 0.018f + high * 0.04f; satRy += 0.026f + high * 0.03f
 
         // Compute current satellite projections (2 sats, 180° apart)
-        val currentSatProj = Array(2) { si ->
+        for (si in 0..1) {
             val theta = orbAngle + si * PI.toFloat()   // always 180° apart
             val ox    = ORB_R * cos(theta)
             val oy    = ORB_R * sin(theta)
-            val verts3d = Array(8) { vi ->
+            for (vi in 0..7) {
                 val jx = if (jitterAmp > 0.001f) (Math.random().toFloat() * 2f - 1f) * jitterAmp else 0f
                 val jy = if (jitterAmp > 0.001f) (Math.random().toFloat() * 2f - 1f) * jitterAmp else 0f
                 val jz = if (jitterAmp > 0.001f) (Math.random().toFloat() * 2f - 1f) * jitterAmp else 0f
@@ -163,14 +170,17 @@ class CubeMode : BaseMode() {
                     vertsBase[vi][0] * satScale + jx,
                     vertsBase[vi][1] * satScale + jy,
                     vertsBase[vi][2] * satScale + jz,
-                    satRx, satRy, 0f   // independent rotation, no Z
+                    satRx, satRy, 0f,   // independent rotation, no Z
+                    tempVerts3d[vi]
                 )
             }
-            projectSat(verts3d, ox, oy, satScale, draw.W, draw.H, fov)
+            projectSat(tempVerts3d, ox, oy, satScale, draw.W, draw.H, fov, currentSatProj[si])
         }
 
         // Store into satellite trail ring buffer
-        for (si in 0..1) for (vi in 0..7) satTrailProj[satTrailHead][si][vi] = currentSatProj[si][vi]
+        for (si in 0..1) {
+            System.arraycopy(currentSatProj[si], 0, satTrailProj[satTrailHead][si], 0, 16)
+        }
         if (satTrailCount < SAT_TRAIL_LEN) satTrailCount++
         satTrailHead = (satTrailHead + 1) % SAT_TRAIL_LEN
 
@@ -187,7 +197,7 @@ class CubeMode : BaseMode() {
                     val (a, b) = edge
                     val h     = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f
                     val color = GLDraw.hsl(h, 1f, 0.18f + minOf(svel, 1f) * 0.28f)
-                    draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                    draw.line(proj[a * 2], proj[a * 2 + 1], proj[b * 2], proj[b * 2 + 1],
                         color[0], color[1], color[2], alpha)
                 }
             }
@@ -202,7 +212,7 @@ class CubeMode : BaseMode() {
                 val (a, b) = edge
                 val h     = (fadeHue + hOff + ei.toFloat() / edges.size * 0.4f) % 1f
                 val color = GLDraw.hsl(h, 1f, satL)
-                draw.line(proj[a].first, proj[a].second, proj[b].first, proj[b].second,
+                draw.line(proj[a * 2], proj[a * 2 + 1], proj[b * 2], proj[b * 2 + 1],
                     color[0], color[1], color[2], 1f)
             }
         }
@@ -212,9 +222,9 @@ class CubeMode : BaseMode() {
 
     /**
      * Apply Rx * Ry * Rz rotation to a vertex.
-     * Returns FloatArray(x, y, z).
+     * Writes output to out parameter.
      */
-    private fun rotateVertex(vx: Float, vy: Float, vz: Float, rx: Float, ry: Float, rz: Float): FloatArray {
+    private fun rotateVertex(vx: Float, vy: Float, vz: Float, rx: Float, ry: Float, rz: Float, out: FloatArray) {
         // Rotate around Z
         val cosZ = cos(rz); val sinZ = sin(rz)
         val x1 = vx * cosZ - vy * sinZ
@@ -233,27 +243,31 @@ class CubeMode : BaseMode() {
         val y3 = y2 * cosX - z2 * sinX
         val z3 = y2 * sinX + z2 * cosX
 
-        return floatArrayOf(x3, y3, z3)
+        out[0] = x3
+        out[1] = y3
+        out[2] = z3
     }
 
     /**
      * Perspective projection.
-     * Returns Pair(screenX, screenY).
+     * Writes screen coordinates to outProj at offset.
      */
-    private fun project(v: FloatArray, W: Int, H: Int, fov: Float): Pair<Float, Float> {
+    private fun project(v: FloatArray, W: Int, H: Int, fov: Float, outProj: FloatArray, offset: Int) {
         val sz = maxOf(v[2] + 3.8f, 0.5f)
         val sx = (v[0] * fov / sz + W / 2f).coerceIn(0f, W.toFloat())
         val sy = (v[1] * fov / sz + H / 2f).coerceIn(0f, H.toFloat())
-        return sx to sy
+        outProj[offset] = sx
+        outProj[offset + 1] = sy
     }
 
     /**
      * Project satellite cube without distortion.
      * Orbit centre projected once with uniform 2-D scale; all vertices offset
      * from that screen centre. Centre clamped so satellite never leaves screen.
+     * Writes screen coordinates to outProj.
      */
     private fun projectSat(verts3d: Array<FloatArray>, ox: Float, oy: Float,
-                           satScale: Float, W: Int, H: Int, fov: Float): Array<Pair<Float, Float>> {
+                           satScale: Float, W: Int, H: Int, fov: Float, outProj: FloatArray) {
         val z      = 3.8f
         val scaleS = fov / z
         var cxS    = ox * scaleS + W / 2f
@@ -261,8 +275,9 @@ class CubeMode : BaseMode() {
         val extent = satScale * scaleS + 2f
         cxS = cxS.coerceIn(extent, W - extent)
         cyS = cyS.coerceIn(extent, H - extent)
-        return Array(verts3d.size) { vi ->
-            (cxS + verts3d[vi][0] * scaleS) to (cyS + verts3d[vi][1] * scaleS)
+        for (vi in 0 until 8) {
+            outProj[vi * 2] = cxS + verts3d[vi][0] * scaleS
+            outProj[vi * 2 + 1] = cyS + verts3d[vi][1] * scaleS
         }
     }
 }

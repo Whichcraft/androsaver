@@ -14,6 +14,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -33,7 +35,7 @@ class DropboxSource(private val context: Context) : ImageSource {
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
         val accessToken = authManager.getValidAccessToken() ?: return@withContext emptyList()
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val folder = prefs.getString(Prefs.DROPBOX_FOLDER, "")?.trim() ?: ""
         // Dropbox root must be empty string "", not "/"
         val dropboxPath = when {
@@ -112,22 +114,25 @@ class DropboxSource(private val context: Context) : ImageSource {
         accessToken: String,
         files: List<Pair<String, String>>
     ): List<ImageItem> = coroutineScope {
+        val semaphore = Semaphore(10)
         files.map { (path, name) ->
             async {
-                try {
-                    val body = """{"path":"$path"}"""
-                        .toRequestBody("application/json".toMediaType())
-                    val request = Request.Builder()
-                        .url("https://api.dropboxapi.com/2/files/get_temporary_link")
-                        .header("Authorization", "Bearer $accessToken")
-                        .post(body).build()
-                    val json = client.newCall(request).execute()
-                        .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
-                    val link = json.get("link")?.asString ?: return@async null
-                    ImageItem(url = link, name = name)
-                } catch (e: Exception) {
-                    if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Temp link failed for $path", e)
-                    null
+                semaphore.withPermit {
+                    try {
+                        val body = """{"path":"$path"}"""
+                            .toRequestBody("application/json".toMediaType())
+                        val request = Request.Builder()
+                            .url("https://api.dropboxapi.com/2/files/get_temporary_link")
+                            .header("Authorization", "Bearer $accessToken")
+                            .post(body).build()
+                        val json = client.newCall(request).execute()
+                            .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+                        val link = json.get("link")?.asString ?: return@withPermit null
+                        ImageItem(url = link, name = name)
+                    } catch (e: Exception) {
+                        if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Temp link failed for $path", e)
+                        null
+                    }
                 }
             }
         }.awaitAll().filterNotNull()

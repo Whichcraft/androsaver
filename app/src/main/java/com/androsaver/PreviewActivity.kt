@@ -23,7 +23,7 @@ class PreviewActivity : AppCompatActivity() {
         binding = DreamLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
         engine = ScreensaverEngine(this, binding, scope, onRequestFinish = { finish() })
-        engine.start(PreferenceManager.getDefaultSharedPreferences(this))
+        engine.start(com.androsaver.Prefs.get(this))
     }
 
     override fun onPause() {

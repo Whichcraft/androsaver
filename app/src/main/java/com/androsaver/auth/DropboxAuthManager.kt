@@ -19,7 +19,7 @@ class DropboxAuthManager(private val context: Context) {
 
     /** Returns the URL the user must visit on another device to authorize. */
     fun buildAuthUrl(): String? {
-        val appKey = PreferenceManager.getDefaultSharedPreferences(context)
+        val appKey = com.androsaver.Prefs.get(context)
             .getString(Prefs.DROPBOX_APP_KEY, null) ?: return null
         return "https://www.dropbox.com/oauth2/authorize" +
                "?client_id=$appKey&response_type=code&token_access_type=offline"
@@ -27,7 +27,7 @@ class DropboxAuthManager(private val context: Context) {
 
     /** Exchanges the authorization code shown by Dropbox for access + refresh tokens. */
     suspend fun exchangeCode(code: String): AuthResult = withContext(Dispatchers.IO) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val appKey    = prefs.getString(Prefs.DROPBOX_APP_KEY, null)
             ?: return@withContext AuthResult.Error("No App Key configured")
         val appSecret = prefs.getString(Prefs.DROPBOX_APP_SECRET, null)
@@ -64,7 +64,7 @@ class DropboxAuthManager(private val context: Context) {
 
     /** Returns a valid access token, refreshing silently if necessary. */
     suspend fun getValidAccessToken(): String? = withContext(Dispatchers.IO) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val appKey       = prefs.getString(Prefs.DROPBOX_APP_KEY, null) ?: return@withContext null
         val appSecret    = prefs.getString(Prefs.DROPBOX_APP_SECRET, null) ?: return@withContext null
         val refreshToken = prefs.getString(Prefs.DROPBOX_REFRESH_TOKEN, null) ?: return@withContext null
@@ -90,11 +90,11 @@ class DropboxAuthManager(private val context: Context) {
     }
 
     fun isAuthorized(): Boolean =
-        !PreferenceManager.getDefaultSharedPreferences(context)
+        !com.androsaver.Prefs.get(context)
             .getString(Prefs.DROPBOX_REFRESH_TOKEN, null).isNullOrEmpty()
 
     fun clearAuth() {
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
+        com.androsaver.Prefs.get(context).edit()
             .remove(Prefs.DROPBOX_ACCESS_TOKEN)
             .remove(Prefs.DROPBOX_REFRESH_TOKEN)
             .apply()

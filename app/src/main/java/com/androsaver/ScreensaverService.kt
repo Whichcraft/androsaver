@@ -16,7 +16,7 @@ class ScreensaverService : DreamService() {
 
     private lateinit var binding: DreamLayoutBinding
     private lateinit var engine: ScreensaverEngine
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var scope: CoroutineScope? = null
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -26,10 +26,12 @@ class ScreensaverService : DreamService() {
         binding = DreamLayoutBinding.inflate(LayoutInflater.from(this))
         setContentView(binding.root)
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         isInteractive = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) == Prefs.MODE_VISUALIZER
 
-        engine = ScreensaverEngine(this, binding, scope, onRequestFinish = { finish() })
+        val s = CoroutineScope(Dispatchers.Main + SupervisorJob())
+        scope = s
+        engine = ScreensaverEngine(this, binding, s, onRequestFinish = { finish() })
         engine.start(prefs)
     }
 
@@ -45,7 +47,8 @@ class ScreensaverService : DreamService() {
 
     override fun onDetachedFromWindow() {
         engine.stop()
-        scope.cancel()
+        scope?.cancel()
+        scope = null
         super.onDetachedFromWindow()
     }
 

@@ -1,6 +1,14 @@
 package com.androsaver
 
+import android.content.Context
+import android.content.SharedPreferences
+
 object Prefs {
+    fun get(context: Context): SharedPreferences {
+        return SecurePreferences.wrap(context)
+    }
+
+
     // Google Drive
     const val ENABLE_GOOGLE_DRIVE = "source_google_drive"
     const val GOOGLE_CLIENT_ID = "google_client_id"
