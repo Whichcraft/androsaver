@@ -26,7 +26,11 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-        PrefetchScheduler.schedule(this)
+        try {
+            PrefetchScheduler.schedule(this)
+        } catch (e: Throwable) {
+            if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Prefetch scheduler failed", e)
+        }
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.settings_container, SettingsFragment())
