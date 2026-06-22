@@ -21,6 +21,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Setup:** Client ID + Client Secret + Folder ID → `GoogleDriveSetupActivity` → `GoogleAuthActivity`
 - **Token refresh:** Automatic via refresh token on 401
 - **Prefs keys:** `Prefs.GOOGLE_ACCESS_TOKEN`, `Prefs.GOOGLE_REFRESH_TOKEN`, `Prefs.GOOGLE_FOLDER_ID`
+- **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
 
 ## OneDriveSource
 
@@ -29,6 +30,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Auth:** Azure device-auth flow; `OneDriveAuthManager` handles refresh
 - **Setup:** Client ID + Folder path → `OneDriveSetupActivity` → `OneDriveAuthActivity`
 - **Prefs keys:** `Prefs.ONEDRIVE_ACCESS_TOKEN`, `Prefs.ONEDRIVE_REFRESH_TOKEN`, `Prefs.ONEDRIVE_FOLDER_ID`
+- **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
 
 ## DropboxSource
 
@@ -37,6 +39,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Auth:** OAuth code flow; App Key + App Secret required; auto-refresh via `DropboxAuthManager`
 - **Setup:** App Key + App Secret + Folder path → `DropboxSetupActivity` → `DropboxAuthActivity`
 - **Prefs keys:** `Prefs.DROPBOX_ACCESS_TOKEN`, `Prefs.DROPBOX_REFRESH_TOKEN`, `Prefs.DROPBOX_APP_KEY`, `Prefs.DROPBOX_APP_SECRET`, `Prefs.DROPBOX_FOLDER_PATH`
+- **Concurrency Throttle:** Temporary link fetches throttled via Semaphore to maximum 10 concurrent requests to prevent connection pool exhaustion.
 
 ## ImmichSource
 
@@ -45,6 +48,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Auth:** API key in `x-api-key` header (no OAuth)
 - **Setup:** Host + Port + HTTPS toggle + API key + optional Album ID → `ImmichSetupActivity`
 - **Prefs keys:** `Prefs.IMMICH_HOST`, `Prefs.IMMICH_PORT`, `Prefs.IMMICH_HTTPS`, `Prefs.IMMICH_API_KEY`, `Prefs.IMMICH_ALBUM_ID`
+- **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
 
 ## NextcloudSource
 
