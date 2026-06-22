@@ -4,6 +4,12 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-22 — v2.6.3: fix crash on launch in config UI
+
+- **Visualizer**: Refactored `PersistenceMode` to move `Model` definition to file-private class and replaced `minOf` standard library function with a standard loop to eliminate JVM classloader and VM verification errors that crashed the app at startup.
+
+---
+
 ## 2026-06-22 — v2.6.2: backport 3D Persistence and Fireworks visualizer updates
 
 - **Visualizer**: Updated `psysuals` submodule pointer to the latest commit `b204f67`.
