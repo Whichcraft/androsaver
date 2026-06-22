@@ -36,6 +36,8 @@ ANTIGRAVITY.md
 # QMD search index
 qmd.sqlite
 qmd.sqlite-*
+qmd-setup.mjs
+qmd.yml
 
 # Node modules
 /node_modules/
