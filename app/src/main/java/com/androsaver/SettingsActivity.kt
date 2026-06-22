@@ -68,7 +68,7 @@ class SettingsActivity : AppCompatActivity() {
                         append(details)
                     }
                 }
-                textIsSelectable = true
+                setTextIsSelectable(true)
                 setPadding(48, 48, 48, 48)
             }
         }
