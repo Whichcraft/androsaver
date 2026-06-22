@@ -56,7 +56,7 @@ class ScreensaverEngine(
         private const val IMAGE_REFRESH_INTERVAL_MS = 25 * 60 * 1000L
         // Genre → preferred visualizer mode names (ordered by priority).
         private val GENRE_MODES = mapOf(
-            "electronic" to listOf("FlowField", "Vortex", "Plasma", "Tunnel"),
+            "electronic" to listOf("FlowField", "Fireworks", "Plasma", "Tunnel"),
             "rock"       to listOf("Branches", "TriFlux", "Nova"),
             "classical"  to listOf("Yantra", "Lissajous", "Spiral")
         )

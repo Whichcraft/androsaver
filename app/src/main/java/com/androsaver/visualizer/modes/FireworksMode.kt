@@ -5,16 +5,16 @@ import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
 /**
- * Vortex — firework rockets launch from the bottom, arc under gravity, and
+ * Fireworks — firework rockets launch from the bottom, arc under gravity, and
  * explode into 80-120 glowing embers at the apex.  Beat fires extra rockets.
  *
- * Port of psysuals `Vortex` class (v3.9.0).
- * The pygame pixel-feedback zoom-rotate wormhole is omitted (requires FBO);
+ * Port of psysuals `Fireworks` class (v3.10.0).
+ * The pygame pixel-feedback zoom wormhole is omitted (requires FBO);
  * replaced with a fadeBlack (≈ 20/255) to match the _FADE_ALPHA trail fade.
  */
-class VortexMode : BaseMode() {
+class FireworksMode : BaseMode() {
 
-    override val name = "Vortex"
+    override val name = "Fireworks"
 
     private companion object {
         const val GRAV          = 0.13f
