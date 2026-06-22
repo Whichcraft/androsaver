@@ -4,6 +4,12 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-22 — v2.6.4: harden secure storage against Keystore initialization crashes
+
+- **Security**: Hardened `SecurePreferences` by catching `Throwable` (rather than just `Exception`) during Android Keystore creation. This guarantees that devices with broken or missing Keystore implementations (such as various Android TV units) safely fall back to default plaintext storage instead of crashing the configuration UI on startup.
+
+---
+
 ## 2026-06-22 — v2.6.3: fix crash on launch in config UI
 
 - **Visualizer**: Refactored `PersistenceMode` to move `Model` definition to file-private class and replaced `minOf` standard library function with a standard loop to eliminate JVM classloader and VM verification errors that crashed the app at startup.

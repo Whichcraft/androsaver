@@ -57,7 +57,7 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
             migrateIfNeeded()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to initialize EncryptedSharedPreferences, falling back to plaintext storage", e)
         }
     }
