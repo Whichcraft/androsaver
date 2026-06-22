@@ -88,8 +88,6 @@ class ChromaticMode : BaseMode() {
             val fade  = maxOf(0f, 1f - ring.r / ring.maxR)
             val bright = ring.intensity * fade
             if (bright < 0.04f) continue
-
-            val thick = maxOf(1f, 2f + fade * 4f)
             val warp = (2.5f + high * 11.0f + bass * 5.0f) * (0.45f + fade * 0.9f)
             val baseR = maxOf(1f, ring.r)
 

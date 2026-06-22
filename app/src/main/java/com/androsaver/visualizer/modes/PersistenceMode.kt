@@ -19,11 +19,11 @@ import kotlin.math.*
  * Port of psysuals `effects/persistence.py` (v3.8.0).
  * TRAIL_ALPHA=5 → fadeBlack(5f/255f) — very long persistence for moiré build-up.
  */
+private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>>)
+
 class PersistenceMode : BaseMode() {
 
     override val name = "Persistence"
-
-    private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>>)
 
     private companion object {
         const val MAX_SHAPES = 8
@@ -93,7 +93,13 @@ class PersistenceMode : BaseMode() {
                         dists.add(Triple(d, i, j))
                     }
                 }
-                val minDist = dists.minOf { it.first }
+                var minDist = Float.MAX_VALUE
+                for (d in dists) {
+                    val distVal = d.first
+                    if (distVal < minDist) {
+                        minDist = distVal
+                    }
+                }
                 val threshold = minDist * 1.05f
                 val edges = dists.filter { it.first <= threshold }.map { Pair(it.second, it.third) }
 

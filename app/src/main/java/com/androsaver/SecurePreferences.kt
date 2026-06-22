@@ -56,8 +56,14 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-            migrateIfNeeded()
-        } catch (e: Exception) {
+            try {
+                migrateIfNeeded()
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to migrate to encrypted prefs, falling back to plaintext storage", e)
+                encryptedPrefs = null
+            }
+        } catch (e: Throwable) {
+            encryptedPrefs = null
             Log.e(TAG, "Failed to initialize EncryptedSharedPreferences, falling back to plaintext storage", e)
         }
     }
@@ -100,44 +106,91 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
     }
 
     override fun getAll(): Map<String, *> {
-        val allPlain = plainPrefs.all.toMutableMap()
-        val enc = encryptedPrefs
-        if (enc != null) {
-            allPlain.putAll(enc.all)
+        return try {
+            val allPlain = plainPrefs.all.toMutableMap()
+            val enc = encryptedPrefs
+            if (enc != null) {
+                allPlain.putAll(enc.all)
+            }
+            allPlain
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed while loading all prefs, falling back to plaintext", e)
+            plainPrefs.all
         }
-        return allPlain
     }
 
     override fun getString(key: String, defValue: String?): String? {
-        return getPrefs(key).getString(key, defValue)
+        return try {
+            getPrefs(key).getString(key, defValue)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
+            plainPrefs.getString(key, defValue)
+        }
     }
 
     override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
-        return getPrefs(key).getStringSet(key, defValues)
+        return try {
+            getPrefs(key).getStringSet(key, defValues) ?: defValues ?: emptySet()
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
+            plainPrefs.getStringSet(key, defValues) ?: defValues ?: emptySet()
+        }
     }
 
     override fun getInt(key: String, defValue: Int): Int {
-        return getPrefs(key).getInt(key, defValue)
+        return try {
+            getPrefs(key).getInt(key, defValue)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
+            plainPrefs.getInt(key, defValue)
+        }
     }
 
     override fun getLong(key: String, defValue: Long): Long {
-        return getPrefs(key).getLong(key, defValue)
+        return try {
+            getPrefs(key).getLong(key, defValue)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
+            plainPrefs.getLong(key, defValue)
+        }
     }
 
     override fun getFloat(key: String, defValue: Float): Float {
-        return getPrefs(key).getFloat(key, defValue)
+        return try {
+            getPrefs(key).getFloat(key, defValue)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
+            plainPrefs.getFloat(key, defValue)
+        }
     }
 
     override fun getBoolean(key: String, defValue: Boolean): Boolean {
-        return getPrefs(key).getBoolean(key, defValue)
+        return try {
+            getPrefs(key).getBoolean(key, defValue)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
+            plainPrefs.getBoolean(key, defValue)
+        }
     }
 
     override fun contains(key: String): Boolean {
-        return getPrefs(key).contains(key)
+        return try {
+            getPrefs(key).contains(key)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
+            plainPrefs.contains(key)
+        }
     }
 
     override fun edit(): SharedPreferences.Editor {
-        return Editor(plainPrefs.edit(), encryptedPrefs?.edit())
+        val plainEditor = plainPrefs.edit()
+        val encryptedEditor = try {
+            encryptedPrefs?.edit()
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to open encrypted prefs editor, falling back to plaintext storage", e)
+            null
+        }
+        return Editor(plainEditor, encryptedEditor)
     }
 
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
@@ -207,13 +260,22 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
 
         override fun commit(): Boolean {
             val r1 = plainEditor.commit()
-            val r2 = encryptedEditor?.commit() ?: true
+            val r2 = try {
+                encryptedEditor?.commit() ?: true
+            } catch (e: Throwable) {
+                Log.e(TAG, "Encryption/Commit failed", e)
+                false
+            }
             return r1 && r2
         }
 
         override fun apply() {
             plainEditor.apply()
-            encryptedEditor?.apply()
+            try {
+                encryptedEditor?.apply()
+            } catch (e: Throwable) {
+                Log.e(TAG, "Encryption/Apply failed", e)
+            }
         }
     }
 }
