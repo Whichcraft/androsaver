@@ -56,8 +56,14 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-            migrateIfNeeded()
+            try {
+                migrateIfNeeded()
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to migrate to encrypted prefs, falling back to plaintext storage", e)
+                encryptedPrefs = null
+            }
         } catch (e: Throwable) {
+            encryptedPrefs = null
             Log.e(TAG, "Failed to initialize EncryptedSharedPreferences, falling back to plaintext storage", e)
         }
     }
@@ -177,7 +183,14 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
     }
 
     override fun edit(): SharedPreferences.Editor {
-        return Editor(plainPrefs.edit(), encryptedPrefs?.edit())
+        val plainEditor = plainPrefs.edit()
+        val encryptedEditor = try {
+            encryptedPrefs?.edit()
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to open encrypted prefs editor, falling back to plaintext storage", e)
+            null
+        }
+        return Editor(plainEditor, encryptedEditor)
     }
 
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
