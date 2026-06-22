@@ -100,12 +100,17 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
     }
 
     override fun getAll(): Map<String, *> {
-        val allPlain = plainPrefs.all.toMutableMap()
-        val enc = encryptedPrefs
-        if (enc != null) {
-            allPlain.putAll(enc.all)
+        return try {
+            val allPlain = plainPrefs.all.toMutableMap()
+            val enc = encryptedPrefs
+            if (enc != null) {
+                allPlain.putAll(enc.all)
+            }
+            allPlain
+        } catch (e: Throwable) {
+            Log.e(TAG, "Decryption/Read failed while loading all prefs, falling back to plaintext", e)
+            plainPrefs.all
         }
-        return allPlain
     }
 
     override fun getString(key: String, defValue: String?): String? {
