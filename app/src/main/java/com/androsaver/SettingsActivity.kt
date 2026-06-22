@@ -125,16 +125,8 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
 
-                listOf(Prefs.WEATHER_CITY, Prefs.WEATHER_API_KEY).forEach { key ->
-                    findPreference<EditTextPreference>(key)?.apply {
-                        setOnBindEditTextListener { editText ->
-                            editText.inputType = InputType.TYPE_CLASS_TEXT
-                            editText.imeOptions = EditorInfo.IME_ACTION_DONE
-                            editText.maxLines = 1
-                        }
-                        setOnPreferenceChangeListener { _, _ -> updateWeatherSummary(); true }
-                    }
-                }
+                configureWeatherPreference(Prefs.WEATHER_CITY)
+                configureWeatherPreference(Prefs.WEATHER_API_KEY)
                 findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED)
                     ?.setOnPreferenceChangeListener { _, newValue ->
                         updateWeatherSummary(enabled = newValue as Boolean)
@@ -142,16 +134,6 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 updateWeatherSummary()
 
-                findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.apply {
-                    summaryProvider = Preference.SummaryProvider<MultiSelectListPreference> { pref ->
-                        val selected = pref.values
-                        val total = pref.entries?.size ?: 0
-                        when {
-                            selected.isNullOrEmpty() || selected.size == total -> "All effects active"
-                            else -> "${selected.size} of $total effects active"
-                        }
-                    }
-                }
             } catch (e: Throwable) {
                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Settings fragment failed to load", e)
                 preferenceScreen = preferenceManager.createPreferenceScreen(requireContext()).apply {
@@ -230,6 +212,17 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        private fun configureWeatherPreference(key: String) {
+            findPreference<EditTextPreference>(key)?.apply {
+                setOnBindEditTextListener { editText ->
+                    editText.inputType = InputType.TYPE_CLASS_TEXT
+                    editText.imeOptions = EditorInfo.IME_ACTION_DONE
+                    editText.maxLines = 1
+                }
+                setOnPreferenceChangeListener { _, _ -> updateWeatherSummary(); true }
+            }
+        }
+
         private fun updateWeatherSummary(enabled: Boolean? = null) {
             val prefs = Prefs.get(requireContext())
             val isOn  = enabled ?: prefs.getBoolean(Prefs.WEATHER_ENABLED, false)
@@ -253,19 +246,24 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun updateSourcesSummary() {
             val prefs = Prefs.get(requireContext())
-            val sources = listOf(
-                Prefs.ENABLE_GOOGLE_DRIVE to "Google Drive",
-                Prefs.ENABLE_ONEDRIVE     to "OneDrive",
-                Prefs.ENABLE_DROPBOX      to "Dropbox",
-                Prefs.ENABLE_IMMICH       to "Immich",
-                Prefs.ENABLE_NEXTCLOUD    to "Nextcloud",
-                Prefs.ENABLE_SYNOLOGY     to "Synology",
-                Prefs.ENABLE_LOCAL_STORAGE to "Device Photos"
-            )
-            val active = sources.filter { (key, _) -> prefs.getBoolean(key, false) }.map { it.second }
+            val summary = StringBuilder()
+
+            fun appendSource(enabled: Boolean, name: String) {
+                if (!enabled) return
+                if (summary.isNotEmpty()) summary.append(", ")
+                summary.append(name)
+            }
+
+            appendSource(prefs.getBoolean(Prefs.ENABLE_GOOGLE_DRIVE, false), "Google Drive")
+            appendSource(prefs.getBoolean(Prefs.ENABLE_ONEDRIVE, false), "OneDrive")
+            appendSource(prefs.getBoolean(Prefs.ENABLE_DROPBOX, false), "Dropbox")
+            appendSource(prefs.getBoolean(Prefs.ENABLE_IMMICH, false), "Immich")
+            appendSource(prefs.getBoolean(Prefs.ENABLE_NEXTCLOUD, false), "Nextcloud")
+            appendSource(prefs.getBoolean(Prefs.ENABLE_SYNOLOGY, false), "Synology")
+            appendSource(prefs.getBoolean(Prefs.ENABLE_LOCAL_STORAGE, false), "Device Photos")
+
             findPreference<Preference>("image_sources")?.summary =
-                if (active.isEmpty()) getString(R.string.sources_none_active)
-                else active.joinToString(", ")
+                if (summary.isEmpty()) getString(R.string.sources_none_active) else summary.toString()
         }
 
         private fun updateAboutVersion() {
