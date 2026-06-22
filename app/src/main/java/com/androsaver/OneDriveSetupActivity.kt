@@ -30,7 +30,7 @@ class OneDriveSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         binding.clientIdEdit.setText(prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, ""))
         binding.folderEdit.setText(prefs.getString(Prefs.ONEDRIVE_FOLDER, ""))
     }
@@ -41,7 +41,7 @@ class OneDriveSetupActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.onedrive_client_id_required, Toast.LENGTH_SHORT).show()
             return
         }
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.ONEDRIVE_CLIENT_ID, clientId)
             .putString(Prefs.ONEDRIVE_FOLDER, binding.folderEdit.text.toString().trim())
             .apply()

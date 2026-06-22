@@ -23,7 +23,7 @@ class AndroSaverGlideModule : AppGlideModule() {
         val dynamicCallFactory = object : Call.Factory {
             override fun newCall(request: Request): Call {
                 val host = request.url.host
-                val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+                val prefs = com.androsaver.Prefs.get(context)
                 val selfHosted = setOf(
                     prefs.getString(Prefs.NEXTCLOUD_HOST, null)?.trim(),
                     prefs.getString(Prefs.SYNOLOGY_HOST, null)?.trim(),

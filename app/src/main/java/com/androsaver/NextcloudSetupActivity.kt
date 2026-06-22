@@ -26,7 +26,7 @@ class NextcloudSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         binding.hostEdit.setText(prefs.getString(Prefs.NEXTCLOUD_HOST, ""))
         binding.portEdit.setText(prefs.getString(Prefs.NEXTCLOUD_PORT, "443"))
         binding.usernameEdit.setText(prefs.getString(Prefs.NEXTCLOUD_USERNAME, ""))
@@ -47,7 +47,7 @@ class NextcloudSetupActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         val port = validatedPort() ?: return
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.NEXTCLOUD_HOST, binding.hostEdit.text.toString().trim())
             .putString(Prefs.NEXTCLOUD_PORT, port)
             .putString(Prefs.NEXTCLOUD_USERNAME, binding.usernameEdit.text.toString())
@@ -61,7 +61,7 @@ class NextcloudSetupActivity : AppCompatActivity() {
 
     private fun testConnection() {
         val port = validatedPort() ?: return
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.NEXTCLOUD_HOST, binding.hostEdit.text.toString().trim())
             .putString(Prefs.NEXTCLOUD_PORT, port)
             .putString(Prefs.NEXTCLOUD_USERNAME, binding.usernameEdit.text.toString())

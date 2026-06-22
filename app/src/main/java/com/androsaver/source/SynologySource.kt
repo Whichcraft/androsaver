@@ -24,12 +24,12 @@ class SynologySource(private val context: Context) : ImageSource {
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
 
     override fun isConfigured(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.SYNOLOGY_HOST, null).isNullOrEmpty()
     }
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val host = prefs.getString(Prefs.SYNOLOGY_HOST, null) ?: return@withContext emptyList()
         val port = prefs.getString(Prefs.SYNOLOGY_PORT, "5000") ?: "5000"
         val useHttps = prefs.getBoolean(Prefs.SYNOLOGY_USE_HTTPS, false)

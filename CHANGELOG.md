@@ -4,6 +4,21 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-22 — v2.5.27: security improvements, concurrency fixes & performance tuning
+
+- **Security**: Migrated sensitive keys and configuration values (tokens, client secrets, passwords, weather API keys) to `EncryptedSharedPreferences` using a transparent, thread-safe `SecurePreferences` wrapper and automatic migration.
+- **Security**: Set `android:allowBackup="false"` in the manifest to prevent unauthorized credential recovery from device backups.
+- **ImageCache**: Synchronized the download and manifest modification sequence in `saveImages()` using a global `Mutex` to prevent concurrent read-modify-write corruption.
+- **ScreensaverService**: Re-initialize the engine's `CoroutineScope` inside `onAttachedToWindow` and cancel/nullify it in `onDetachedFromWindow` to prevent silent thread-cancellation crashes upon screensaver restarts.
+- **DropboxSource**: Throttled concurrent temporary link fetch requests using a `Semaphore` (maximum 10 concurrent requests) to avoid connection pool/socket exhaustion.
+- **REST/WebDAV Sources**: Implemented pagination caps (maximum 2,000 items) in `ImmichSource`, `GoogleDriveSource`, and `OneDriveSource` to protect against `OutOfMemoryError` on low-end TV devices.
+- **ImagePrefetchWorker**: Parallelized background source pre-fetching using coroutine `async` and `awaitAll` to prevent sequential blocking network bottlenecks.
+- **Settings UX**: Added configuration status summaries for Nextcloud and Synology NAS sources on settings screen resume.
+- **Visualizer**: Optimized `CubeMode` rendering loops to be completely allocation-free (eliminating `FloatArray` and `Pair` allocations per frame) to reduce GC pressure.
+- **TODO.md**: Marked all remaining bugs and code review items as resolved.
+
+---
+
 ## 2026-06-21 — v2.5.26: visualizer GC optimizations & shader leak fixes
 
 - **GLDraw**: optimized `polygon()` centroid calculation to be completely allocation-free, eliminating Kotlin list and iterator overhead.

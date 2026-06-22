@@ -91,6 +91,8 @@
     <string name="nextcloud_password_label">Password / App Password</string>
     <string name="nextcloud_password_hint">Use an app password for better security</string>
     <string name="nextcloud_folder_hint">e.g. /Photos or /family/Pictures</string>
+    <string name="nextcloud_authorized">✓ Configured</string>
+    <string name="nextcloud_not_authorized">Not configured — tap to set up</string>
 
     <!-- Synology setup -->
     <string name="nas_host_label">NAS Host / IP Address</string>
@@ -98,6 +100,8 @@
     <string name="nas_port_label">Port</string>
     <string name="nas_port_hint">5000 (HTTP) or 5001 (HTTPS)</string>
     <string name="nas_use_https">Use HTTPS</string>
+    <string name="synology_authorized">✓ Configured</string>
+    <string name="synology_not_authorized">Not configured — tap to set up</string>
     <string name="nas_username_label">Username</string>
     <string name="nas_username_hint">Synology DSM username</string>
     <string name="nas_password_label">Password</string>

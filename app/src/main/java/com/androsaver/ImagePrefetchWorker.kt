@@ -6,6 +6,9 @@ import androidx.preference.PreferenceManager
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.androsaver.source.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -19,7 +22,7 @@ class ImagePrefetchWorker(
 
     override suspend fun doWork(): Result {
         if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Starting background image prefetch...")
-        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        val prefs = com.androsaver.Prefs.get(applicationContext)
         val imageCache = ImageCache(applicationContext)
 
         val sources = buildList {
@@ -37,14 +40,17 @@ class ImagePrefetchWorker(
             return Result.success()
         }
 
-        val items = mutableListOf<ImageItem>()
-        for (src in sources) {
-            try {
-                val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
-                if (urls != null) items.addAll(urls)
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Prefetch error from ${src.name}", e)
-            }
+        val items = coroutineScope {
+            sources.map { src ->
+                async {
+                    try {
+                        withTimeoutOrNull(60_000L) { src.getImageUrls() } ?: emptyList()
+                    } catch (e: Exception) {
+                        if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Prefetch error from ${src.name}", e)
+                        emptyList()
+                    }
+                }
+            }.awaitAll().flatten()
         }
 
         if (items.isNotEmpty()) {

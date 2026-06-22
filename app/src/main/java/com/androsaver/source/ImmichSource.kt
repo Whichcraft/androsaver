@@ -19,14 +19,14 @@ class ImmichSource(private val context: Context) : ImageSource {
     private val client = HttpClients.trustAll
 
     override fun isConfigured(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.IMMICH_HOST, null).isNullOrEmpty() &&
                !prefs.getString(Prefs.IMMICH_API_KEY, null).isNullOrEmpty()
     }
 
     override suspend fun getImageUrls(): List<ImageItem> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val prefs    = PreferenceManager.getDefaultSharedPreferences(context)
+            val prefs    = com.androsaver.Prefs.get(context)
             val host     = prefs.getString(Prefs.IMMICH_HOST, null) ?: return@withContext emptyList()
             val port     = prefs.getString(Prefs.IMMICH_PORT, "2283") ?: "2283"
             val useHttps = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, false)
@@ -47,12 +47,13 @@ class ImmichSource(private val context: Context) : ImageSource {
         val items = mutableListOf<ImageItem>()
         var page = 1
         val pageSize = 500
-        while (true) {
+        val maxFetch = 2000
+        while (items.size < maxFetch) {
             val url = "$baseUrl/api/assets?page=$page&size=$pageSize"
             val json = get(url, apiKey)
             val array = JSONArray(json)
             if (array.length() == 0) break
-            parseAssets(array, baseUrl, apiKey, items)
+            parseAssets(array, baseUrl, apiKey, items, maxFetch)
             if (array.length() < pageSize) break
             page++
         }
@@ -66,12 +67,13 @@ class ImmichSource(private val context: Context) : ImageSource {
         val obj  = JSONObject(json)
         val array = obj.optJSONArray("assets") ?: return emptyList()
         val items = mutableListOf<ImageItem>()
-        parseAssets(array, baseUrl, apiKey, items)
+        parseAssets(array, baseUrl, apiKey, items, 2000)
         return items
     }
 
-    private fun parseAssets(array: JSONArray, baseUrl: String, apiKey: String, out: MutableList<ImageItem>) {
+    private fun parseAssets(array: JSONArray, baseUrl: String, apiKey: String, out: MutableList<ImageItem>, maxLimit: Int) {
         for (i in 0 until array.length()) {
+            if (out.size >= maxLimit) break
             val asset = array.getJSONObject(i)
             val type  = asset.optString("type", "")
             if (!type.equals("IMAGE", ignoreCase = true)) continue

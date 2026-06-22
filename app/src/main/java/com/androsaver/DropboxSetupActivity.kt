@@ -30,7 +30,7 @@ class DropboxSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         binding.appKeyEdit.setText(prefs.getString(Prefs.DROPBOX_APP_KEY, ""))
         binding.appSecretEdit.setText(prefs.getString(Prefs.DROPBOX_APP_SECRET, ""))
         binding.folderEdit.setText(prefs.getString(Prefs.DROPBOX_FOLDER, ""))
@@ -43,7 +43,7 @@ class DropboxSetupActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.dropbox_app_key_required, Toast.LENGTH_SHORT).show()
             return
         }
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.DROPBOX_APP_KEY,    appKey)
             .putString(Prefs.DROPBOX_APP_SECRET, appSecret)
             .putString(Prefs.DROPBOX_FOLDER,     binding.folderEdit.text.toString().trim())

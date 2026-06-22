@@ -17,7 +17,7 @@ class OneDriveAuthManager(private val context: Context) {
     private val gson = Gson()
 
     suspend fun requestDeviceCode(): DeviceCodeResponse? = withContext(Dispatchers.IO) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val clientId = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null) ?: return@withContext null
 
         val body = FormBody.Builder()
@@ -44,7 +44,7 @@ class OneDriveAuthManager(private val context: Context) {
     }
 
     suspend fun pollForToken(deviceCode: String): AuthResult = withContext(Dispatchers.IO) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val clientId = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null)
             ?: return@withContext AuthResult.Error("No client ID configured")
 
@@ -83,11 +83,11 @@ class OneDriveAuthManager(private val context: Context) {
     }
 
     fun isAuthorized(): Boolean =
-        !PreferenceManager.getDefaultSharedPreferences(context)
+        !com.androsaver.Prefs.get(context)
             .getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null).isNullOrEmpty()
 
     fun clearAuth() {
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
+        com.androsaver.Prefs.get(context).edit()
             .remove(Prefs.ONEDRIVE_ACCESS_TOKEN)
             .remove(Prefs.ONEDRIVE_REFRESH_TOKEN)
             .apply()
