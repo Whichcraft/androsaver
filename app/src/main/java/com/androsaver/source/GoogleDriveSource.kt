@@ -22,7 +22,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
     private val gson = Gson()
 
     override fun isConfigured(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null).isNullOrEmpty()
     }
 
@@ -32,7 +32,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             return@withContext emptyList()
         }
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val folderId = prefs.getString(Prefs.GOOGLE_FOLDER_ID, "root")?.ifEmpty { "root" } ?: "root"
 
         val query = URLEncoder.encode(
@@ -45,6 +45,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
         try {
             val items = mutableListOf<ImageItem>()
             var pageToken: String? = null
+            val maxFetch = 2000
             do {
                 val url = if (pageToken != null) "$baseUrl&pageToken=${URLEncoder.encode(pageToken, "UTF-8")}" else baseUrl
                 val response = client.newCall(
@@ -56,16 +57,21 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
                     break
                 }
                 val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
-                json.getAsJsonArray("files")?.mapNotNullTo(items) { file ->
-                    val obj = file.asJsonObject
-                    val fileId = obj.get("id")?.asString ?: return@mapNotNullTo null
-                    val name = obj.get("name")?.asString ?: return@mapNotNullTo null
-                    ImageItem(
-                        url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media",
-                        name = name,
-                        headers = mapOf("Authorization" to "Bearer $accessToken")
-                    )
+                val files = json.getAsJsonArray("files")
+                if (files != null) {
+                    for (file in files) {
+                        if (items.size >= maxFetch) break
+                        val obj = file.asJsonObject
+                        val fileId = obj.get("id")?.asString ?: continue
+                        val name = obj.get("name")?.asString ?: continue
+                        items.add(ImageItem(
+                            url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media",
+                            name = name,
+                            headers = mapOf("Authorization" to "Bearer $accessToken")
+                        ))
+                    }
                 }
+                if (items.size >= maxFetch) break
                 pageToken = json.get("nextPageToken")?.asString
             } while (pageToken != null)
             items
@@ -76,7 +82,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
     }
 
     internal fun refreshAccessTokenSilently(): String? {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val refreshToken = prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null) ?: return null
         val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null) ?: return null
         val clientSecret = prefs.getString(Prefs.GOOGLE_CLIENT_SECRET, null) ?: return null

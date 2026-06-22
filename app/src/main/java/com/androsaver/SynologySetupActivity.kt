@@ -26,7 +26,7 @@ class SynologySetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         binding.hostEdit.setText(prefs.getString(Prefs.SYNOLOGY_HOST, ""))
         binding.portEdit.setText(prefs.getString(Prefs.SYNOLOGY_PORT, "5000"))
         binding.usernameEdit.setText(prefs.getString(Prefs.SYNOLOGY_USERNAME, ""))
@@ -47,7 +47,7 @@ class SynologySetupActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         val port = validatedPort() ?: return
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.SYNOLOGY_HOST, binding.hostEdit.text.toString().trim())
             .putString(Prefs.SYNOLOGY_PORT, port)
             .putString(Prefs.SYNOLOGY_USERNAME, binding.usernameEdit.text.toString())
@@ -62,7 +62,7 @@ class SynologySetupActivity : AppCompatActivity() {
     private fun testConnection() {
         val port = validatedPort() ?: return
         // Save current values before testing
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.SYNOLOGY_HOST, binding.hostEdit.text.toString().trim())
             .putString(Prefs.SYNOLOGY_PORT, port)
             .putString(Prefs.SYNOLOGY_USERNAME, binding.usernameEdit.text.toString())

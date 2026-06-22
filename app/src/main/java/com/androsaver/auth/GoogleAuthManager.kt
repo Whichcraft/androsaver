@@ -32,7 +32,7 @@ class GoogleAuthManager(private val context: Context) {
     private val gson = Gson()
 
     suspend fun requestDeviceCode(): DeviceCodeResponse? = withContext(Dispatchers.IO) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null) ?: return@withContext null
 
         val body = FormBody.Builder()
@@ -61,7 +61,7 @@ class GoogleAuthManager(private val context: Context) {
     }
 
     suspend fun pollForToken(deviceCode: String): AuthResult = withContext(Dispatchers.IO) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null)
             ?: return@withContext AuthResult.Error("No client ID configured")
         val clientSecret = prefs.getString(Prefs.GOOGLE_CLIENT_SECRET, null)
@@ -106,12 +106,12 @@ class GoogleAuthManager(private val context: Context) {
     }
 
     fun isAuthorized(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null).isNullOrEmpty()
     }
 
     fun clearAuth() {
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
+        com.androsaver.Prefs.get(context).edit()
             .remove(Prefs.GOOGLE_ACCESS_TOKEN)
             .remove(Prefs.GOOGLE_REFRESH_TOKEN)
             .apply()

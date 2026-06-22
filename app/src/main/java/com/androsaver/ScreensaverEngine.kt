@@ -164,7 +164,7 @@ class ScreensaverEngine(
         currentIndex = ((currentIndex + delta - 1) % imageItems.size + imageItems.size) % imageItems.size
         showNextImage()
         // Reset the auto-advance timer so the new image gets a full duration
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val durationMs = prefs.getString(Prefs.SLIDE_DURATION, "10000")?.toLongOrNull() ?: 10_000L
         slideshowRunnable?.let { handler.removeCallbacks(it); handler.postDelayed(it, durationMs) }
     }
@@ -395,7 +395,7 @@ class ScreensaverEngine(
             handler.postDelayed({ binding.statusText.visibility = View.GONE }, 3000)
             imageItems.clear()
             imageItems.addAll(cached.shuffled())
-            startSlideshow(PreferenceManager.getDefaultSharedPreferences(context))
+            startSlideshow(com.androsaver.Prefs.get(context))
         } else {
             binding.statusText.text = context.getString(R.string.no_images_found)
         }
@@ -521,7 +521,7 @@ class ScreensaverEngine(
                     consecutiveLoadFailures = 0
                     kenBurnsAnimators[incoming]?.cancel()
                     incoming.setImageDrawable(resource)
-                    val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+                    val prefs = com.androsaver.Prefs.get(context)
                     if (prefs.getBoolean(Prefs.KEN_BURNS_ENABLED, true)) startKenBurns(incoming, prefs)
                     val effect = prefs.getString(Prefs.TRANSITION_EFFECT, "crossfade") ?: "crossfade"
                     applyTransition(incoming, outgoing, effect)
@@ -576,7 +576,7 @@ class ScreensaverEngine(
 
     private fun resetIntensity() {
         val vv = visualizerView ?: return
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
     }
 
@@ -587,14 +587,14 @@ class ScreensaverEngine(
         val newIdx = (idx + delta).coerceIn(0, INTENSITY_STEPS.lastIndex)
         val newGain = INTENSITY_STEPS[newIdx]
         vv.renderer.beatGain = newGain
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
+        com.androsaver.Prefs.get(context).edit()
             .putString(Prefs.VISUALIZER_INTENSITY, newGain.toString()).apply()
     }
 
     // ── Transitions ───────────────────────────────────────────────────────────
 
     private val transitionMs: Long get() =
-        PreferenceManager.getDefaultSharedPreferences(context)
+        com.androsaver.Prefs.get(context)
             .getString(Prefs.TRANSITION_SPEED, "2000")?.toLongOrNull() ?: 2000L
 
     private fun applyTransition(incoming: ImageView, outgoing: ImageView, effect: String) {

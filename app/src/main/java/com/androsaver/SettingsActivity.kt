@@ -49,9 +49,10 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            preferenceManager.preferenceDataStore = SecurePreferenceDataStore(requireContext())
             setPreferencesFromResource(R.xml.screensaver_preferences, rootKey)
 
-            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val prefs = Prefs.get(requireContext())
             val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) ?: Prefs.MODE_SLIDESHOW
             updateModeVisibility(currentMode)
 
@@ -99,7 +100,7 @@ class SettingsActivity : AppCompatActivity() {
             updateWeatherSummary()
             updateAboutVersion()
             checkForUpdates()
-            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val prefs = Prefs.get(requireContext())
             val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
             if (currentMode == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
                 audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -156,7 +157,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateWeatherSummary(enabled: Boolean? = null) {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val prefs = Prefs.get(requireContext())
             val isOn  = enabled ?: prefs.getBoolean(Prefs.WEATHER_ENABLED, false)
             val city  = prefs.getString(Prefs.WEATHER_CITY, "") ?: ""
             val key   = prefs.getString(Prefs.WEATHER_API_KEY, "") ?: ""
@@ -177,7 +178,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateSourcesSummary() {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val prefs = Prefs.get(requireContext())
             val sources = listOf(
                 Prefs.ENABLE_GOOGLE_DRIVE to "Google Drive",
                 Prefs.ENABLE_ONEDRIVE     to "OneDrive",
@@ -231,6 +232,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            preferenceManager.preferenceDataStore = SecurePreferenceDataStore(requireContext())
             setPreferencesFromResource(R.xml.sources_preferences, rootKey)
 
             findPreference<SwitchPreferenceCompat>(Prefs.ENABLE_LOCAL_STORAGE)?.setOnPreferenceChangeListener { _, newValue ->
@@ -247,6 +249,8 @@ class SettingsActivity : AppCompatActivity() {
             updateOneDriveStatus()
             updateDropboxStatus()
             updateImmichStatus()
+            updateNextcloudStatus()
+            updateSynologyStatus()
         }
 
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
@@ -280,14 +284,14 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateGoogleDriveStatus() {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val prefs = Prefs.get(requireContext())
             val authorized = !prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null).isNullOrEmpty()
             findPreference<Preference>("google_drive_setup")?.summary = if (authorized)
                 getString(R.string.google_drive_authorized) else getString(R.string.google_drive_not_authorized)
         }
 
         private fun updateOneDriveStatus() {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val prefs = Prefs.get(requireContext())
             val authorized = !prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null).isNullOrEmpty()
             findPreference<Preference>("onedrive_setup")?.summary = if (authorized)
                 getString(R.string.onedrive_authorized) else getString(R.string.onedrive_not_authorized)
@@ -300,11 +304,26 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateImmichStatus() {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val prefs = Prefs.get(requireContext())
             val configured = !prefs.getString(Prefs.IMMICH_HOST, null).isNullOrEmpty() &&
                              !prefs.getString(Prefs.IMMICH_API_KEY, null).isNullOrEmpty()
             findPreference<Preference>("immich_setup")?.summary = if (configured)
                 getString(R.string.immich_authorized) else getString(R.string.immich_not_authorized)
+        }
+
+        private fun updateNextcloudStatus() {
+            val prefs = Prefs.get(requireContext())
+            val configured = !prefs.getString(Prefs.NEXTCLOUD_HOST, null).isNullOrEmpty() &&
+                             !prefs.getString(Prefs.NEXTCLOUD_USERNAME, null).isNullOrEmpty()
+            findPreference<Preference>("nextcloud_setup")?.summary = if (configured)
+                getString(R.string.nextcloud_authorized) else getString(R.string.nextcloud_not_authorized)
+        }
+
+        private fun updateSynologyStatus() {
+            val prefs = Prefs.get(requireContext())
+            val configured = !prefs.getString(Prefs.SYNOLOGY_HOST, null).isNullOrEmpty()
+            findPreference<Preference>("synology_setup")?.summary = if (configured)
+                getString(R.string.synology_authorized) else getString(R.string.synology_not_authorized)
         }
 
         private fun hasStoragePermission() =

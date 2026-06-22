@@ -8,6 +8,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -21,6 +23,7 @@ class ImageCache(private val context: Context) {
         private const val MANIFEST = "manifest.json"
         private const val MAX_ENTRIES = 200
         private const val MAX_BYTES = 150L * 1024 * 1024
+        private val mutex = Mutex()
     }
 
     private val gson = Gson()
@@ -40,37 +43,39 @@ class ImageCache(private val context: Context) {
         }
 
     suspend fun saveImages(items: List<ImageItem>, sourceName: String) = withContext(Dispatchers.IO) {
-        val manifest = readManifest().toMutableList()
-        val existing = manifest.map { it.url }.toHashSet()
-        var saved = 0
-        for (item in items.take(MAX_ENTRIES)) {
-            if (item.url in existing) continue
-            try {
-                val req = Request.Builder().url(item.url).apply {
-                    item.headers.forEach { (k, v) -> addHeader(k, v) }
-                }.build()
-                val fname = sha16(item.url) + ".jpg"
-                val file = File(dir, fname)
-                val size = client.newCall(req).execute().use { response ->
-                    if (!response.isSuccessful) return@use 0L
-                    val body = response.body ?: return@use 0L
-                    body.byteStream().use { input ->
-                        file.outputStream().use { output ->
-                            input.copyTo(output)
+        mutex.withLock {
+            val manifest = readManifest().toMutableList()
+            val existing = manifest.map { it.url }.toHashSet()
+            var saved = 0
+            for (item in items.take(MAX_ENTRIES)) {
+                if (item.url in existing) continue
+                try {
+                    val req = Request.Builder().url(item.url).apply {
+                        item.headers.forEach { (k, v) -> addHeader(k, v) }
+                    }.build()
+                    val fname = sha16(item.url) + ".jpg"
+                    val file = File(dir, fname)
+                    val size = client.newCall(req).execute().use { response ->
+                        if (!response.isSuccessful) return@use 0L
+                        val body = response.body ?: return@use 0L
+                        body.byteStream().use { input ->
+                            file.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
                         }
+                        file.length()
                     }
-                    file.length()
+                    if (size > 0L) {
+                        manifest.add(Entry(item.url, fname, sourceName, System.currentTimeMillis(), size))
+                        saved++
+                    }
+                } catch (e: Exception) {
+                    if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Cache miss for ${item.url}: ${e.message}")
                 }
-                if (size > 0L) {
-                    manifest.add(Entry(item.url, fname, sourceName, System.currentTimeMillis(), size))
-                    saved++
-                }
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Cache miss for ${item.url}: ${e.message}")
             }
+            evict(manifest)
+            if (saved > 0 && BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Cached $saved new images")
         }
-        evict(manifest)
-        if (saved > 0 && BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Cached $saved new images")
     }
 
     private fun evict(manifest: MutableList<Entry>) {

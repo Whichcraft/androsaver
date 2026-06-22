@@ -26,7 +26,7 @@ class ImmichSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = com.androsaver.Prefs.get(this)
         binding.hostEdit.setText(prefs.getString(Prefs.IMMICH_HOST, ""))
         binding.portEdit.setText(prefs.getString(Prefs.IMMICH_PORT, "2283"))
         binding.apiKeyEdit.setText(prefs.getString(Prefs.IMMICH_API_KEY, ""))
@@ -46,7 +46,7 @@ class ImmichSetupActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         val port = validatedPort() ?: return
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.IMMICH_HOST, binding.hostEdit.text.toString().trim())
             .putString(Prefs.IMMICH_PORT, port)
             .putString(Prefs.IMMICH_API_KEY, binding.apiKeyEdit.text.toString().trim())
@@ -59,7 +59,7 @@ class ImmichSetupActivity : AppCompatActivity() {
 
     private fun testConnection() {
         val port = validatedPort() ?: return
-        PreferenceManager.getDefaultSharedPreferences(this).edit()
+        com.androsaver.Prefs.get(this).edit()
             .putString(Prefs.IMMICH_HOST, binding.hostEdit.text.toString().trim())
             .putString(Prefs.IMMICH_PORT, port)
             .putString(Prefs.IMMICH_API_KEY, binding.apiKeyEdit.text.toString().trim())

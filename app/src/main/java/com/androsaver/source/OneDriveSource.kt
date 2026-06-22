@@ -23,7 +23,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
     private val gson = Gson()
 
     override fun isConfigured(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null).isNullOrEmpty()
     }
 
@@ -33,7 +33,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
             return@withContext emptyList()
         }
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val folder = prefs.getString(Prefs.ONEDRIVE_FOLDER, "")?.trim() ?: ""
 
         // Build the children listing URL; root or path-based
@@ -49,8 +49,9 @@ class OneDriveSource(private val context: Context) : ImageSource {
         try {
             val items = mutableListOf<ImageItem>()
             var url: String? = startUrl
+            val maxFetch = 2000
 
-            while (url != null) {
+            while (url != null && items.size < maxFetch) {
                 val json = client.newCall(
                     Request.Builder().url(url)
                         .header("Authorization", "Bearer $accessToken").build()
@@ -62,18 +63,22 @@ class OneDriveSource(private val context: Context) : ImageSource {
                     gson.fromJson(resp.body?.string(), JsonObject::class.java)
                 }
 
-                json.getAsJsonArray("value")?.mapNotNullTo(items) { el ->
-                    val obj      = el.asJsonObject
-                    val fileObj  = obj.getAsJsonObject("file") ?: return@mapNotNullTo null
-                    val mime     = fileObj.get("mimeType")?.asString ?: return@mapNotNullTo null
-                    if (!mime.startsWith("image/")) return@mapNotNullTo null
-                    val name     = obj.get("name")?.asString ?: return@mapNotNullTo null
-                    // @microsoft.graph.downloadUrl is a pre-authenticated temporary URL — no auth header needed for Glide
-                    val dlUrl    = obj.get("@microsoft.graph.downloadUrl")?.asString ?: return@mapNotNullTo null
-                    ImageItem(url = dlUrl, name = name)
+                val valueArray = json.getAsJsonArray("value")
+                if (valueArray != null) {
+                    for (el in valueArray) {
+                        if (items.size >= maxFetch) break
+                        val obj      = el.asJsonObject
+                        val fileObj  = obj.getAsJsonObject("file") ?: continue
+                        val mime     = fileObj.get("mimeType")?.asString ?: continue
+                        if (!mime.startsWith("image/")) continue
+                        val name     = obj.get("name")?.asString ?: continue
+                        // @microsoft.graph.downloadUrl is a pre-authenticated temporary URL — no auth header needed for Glide
+                        val dlUrl    = obj.get("@microsoft.graph.downloadUrl")?.asString ?: continue
+                        items.add(ImageItem(url = dlUrl, name = name))
+                    }
                 }
 
-                url = json.get("@odata.nextLink")?.asString
+                url = if (items.size >= maxFetch) null else json.get("@odata.nextLink")?.asString
             }
             items
         } catch (e: Exception) {
@@ -83,7 +88,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
     }
 
     internal fun refreshAccessTokenSilently(): String? {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = com.androsaver.Prefs.get(context)
         val refreshToken = prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null) ?: return null
         val clientId     = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null) ?: return null
 
