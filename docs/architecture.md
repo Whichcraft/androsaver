@@ -77,7 +77,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `BranchesMode.kt` | Branches | Psychedelic fractal lightning tree, depth 7, neon glow |
 | `ButterfliesMode.kt` | Butterflies | Neon butterfly pairs in mutual pursuit spiral; orbit tightens over lifetime |
 | `FlowFieldMode.kt` | FlowField | 12 000 particles on sine/cosine noise field; bass gravity + treble scatter |
-| `VortexMode.kt` | Vortex | Firework rockets arcing under gravity, exploding into embers; gain-aware interval |
+| `FireworksMode.kt` | Fireworks | Firework rockets arcing under gravity, exploding into embers; gain-aware interval |
 | `AuroraMode.kt` | Aurora | Five horizontally undulating Northern Lights curtains |
 | `LatticeMode.kt` | Lattice | 14x9 crystal grid with peak normalization and shockwave ring |
 | `MyceliumMode.kt` | Mycelium | Swirling fungal network with multi-colony cores |
@@ -86,7 +86,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `CliffordMode.kt` | Clifford | Strange attractor: 8 000 walkers, dynamic framing, presets |
 | `MobiusMode.kt` | Mobius | 3-D wireframe Möbius strip (latitude lines only) |
 | `ChromaticMode.kt` | Chromatic | Prismatic raindrop ripples with RGB-separated outlines |
-| `PersistenceMode.kt` | Persistence | Nested rotating polygons with long moiré trail |
+| `PersistenceMode.kt` | Persistence | Nested rotating 3D Platonic solids wireframes with perspective and depth-fading |
 | `SynapseMode.kt` | Synapse | 55-node neural graph with stabilized signal cascades |
 | `HeartbeatMode.kt` | Heartbeat | Expanding polygon rings with beat-driven morphing |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
