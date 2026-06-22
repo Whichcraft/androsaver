@@ -10,6 +10,7 @@ All notable changes to AndroSaver are documented here.
 - **Visualizer**: Backported the 3D Persistence effect in `PersistenceMode.kt`, replacing 2D polygons with 3D Platonic solids wireframes (Tetrahedron, Octahedron, Cube, Icosahedron, Dodecahedron) normalized to the unit sphere and rendered with perspective projection and depth-fading.
 - **Visualizer**: Renamed Vortex visualizer to Fireworks (`FireworksMode.kt`) and removed its unused swirl feedback parameters to align with upstream changes in the `psysuals` submodule.
 - **Documentation**: Updated `docs/architecture.md`, `docs/visualizer-modes.md`, and `docs/psysuals-port-notes.md` to reflect the name changes and new 3D Persistence mechanics.
+- **CI/CD**: Swapped the order of dev release deletion and tag pushing in `build.yml` to prevent tag-locking build failures.
 
 ---
 

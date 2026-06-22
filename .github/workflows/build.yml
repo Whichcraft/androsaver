@@ -68,10 +68,6 @@ jobs:
           printf '{"versionCode":%s,"versionName":"%s","apkUrl":"%s"}\n' \
             "$VERSION_CODE" "$VERSION_NAME" "$APK_URL" > version.json
 
-      - name: Move dev tag to current commit
-        if: github.ref == 'refs/heads/dev'
-        run: git push origin HEAD:refs/tags/dev --force
-
       - name: Delete all existing dev releases
         if: github.ref == 'refs/heads/dev'
         run: |
@@ -95,6 +91,10 @@ jobs:
           gh api repos/${{ github.repository }}/releases --jq '.[] | {name: .name, tag_name: .tag_name, id: .id, draft: .draft}'
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Move dev tag to current commit
+        if: github.ref == 'refs/heads/dev'
+        run: git push origin HEAD:refs/tags/dev --force
 
       - name: Publish to dev release
         if: github.ref == 'refs/heads/dev'
