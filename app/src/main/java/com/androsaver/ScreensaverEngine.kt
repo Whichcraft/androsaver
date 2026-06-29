@@ -598,9 +598,8 @@ class ScreensaverEngine(
             .getString(Prefs.TRANSITION_SPEED, "2000")?.toLongOrNull() ?: 2000L
 
     private fun applyTransition(incoming: ImageView, outgoing: ImageView, effect: String) {
+        prepareForTransition(incoming, outgoing)
         incoming.bringToFront()
-        incoming.translationX = 0f; incoming.translationY = 0f
-        outgoing.translationX = 0f; outgoing.translationY = 0f
         val resolved = if (effect == "random") RANDOM_EFFECTS.random() else effect
         when (resolved) {
             "crossfade"   -> crossfade(incoming, outgoing)
@@ -613,6 +612,23 @@ class ScreensaverEngine(
         }
     }
 
+    private fun prepareForTransition(incoming: ImageView, outgoing: ImageView) {
+        incoming.animate().setListener(null).cancel()
+        outgoing.animate().setListener(null).cancel()
+        kenBurnsAnimators[outgoing]?.cancel()
+
+        incoming.alpha = 1f
+        incoming.translationX = 0f
+        incoming.translationY = 0f
+        incoming.scaleX = 1f
+        incoming.scaleY = 1f
+
+        outgoing.translationX = 0f
+        outgoing.translationY = 0f
+        outgoing.scaleX = 1f
+        outgoing.scaleY = 1f
+    }
+
     private fun crossfade(incoming: ImageView, outgoing: ImageView) {
         incoming.alpha = 0f
         incoming.animate().alpha(1f).setDuration(transitionMs).setListener(null).start()
@@ -620,11 +636,11 @@ class ScreensaverEngine(
     }
 
     private fun fadeBlack(incoming: ImageView, outgoing: ImageView) {
-        val half = transitionMs / 2
+        val half = (transitionMs / 2).coerceAtLeast(1L)
         incoming.alpha = 0f
         outgoing.animate().alpha(0f).setDuration(half).setListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
-                outgoing.setImageDrawable(null); outgoing.alpha = 0f
+                resetOnEnd(outgoing).onAnimationEnd(animation)
                 incoming.animate().alpha(1f).setDuration(half).setListener(null).start()
             }
         }).start()
