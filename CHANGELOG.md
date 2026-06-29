@@ -4,6 +4,22 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-29 — slideshow transition pipeline hardening
+
+- **ScreensaverEngine / Slideshow transitions**: Reworked slideshow image-slot ownership and transition lifecycle to prevent black screens, wrong-view callbacks, and effect instability after several images.
+- **ScreensaverEngine / Glide lifecycle**: Each slideshow `ImageView` slot now owns a tracked Glide `CustomTarget`; targets are explicitly cleared before a slot is reused, preventing stale async completions from mutating the wrong view.
+- **ScreensaverEngine / Transition sequencing**: Added transition-sequence guards so late `onResourceReady()` / `onLoadFailed()` callbacks from older requests are ignored instead of corrupting the current transition.
+- **ScreensaverEngine / Slideshow session safety**: Added a slideshow-session token around initial source loading, cache fallback startup, and periodic image refresh so async work from an old slideshow run cannot repopulate state after stop/restart or mode changes.
+- **ScreensaverEngine / Scheduling**: Replaced the old free-running slideshow timer with scheduling that starts only after an image has actually been displayed; configured image dwell time is now honored consistently, with transition duration added on top.
+- **ScreensaverEngine / Random transition semantics**: Clarified and fixed "Random" transition handling so only the effect choice is randomized; timing still comes from the configured image duration and transition speed.
+- **ScreensaverEngine / Navigation**: Left/right slideshow skip now navigates relative to the currently displayed image rather than a potentially stale pending index.
+- **ScreensaverEngine / Transition cleanup**: Transition start/end handling now cancels stale animators, resets per-view transform state, preserves the outgoing slide's visible state until the effect completes, and performs idempotent cleanup on both animation end and cancellation.
+- **ScreensaverEngine / Fade to Black**: Hardened the two-stage fade-to-black path so cancellation cannot leave the slideshow stuck on a black frame.
+- **ScreensaverEngine / Slide effects**: Slide-left/slide-right now use the actual rendered root width instead of raw display metrics, avoiding partial offscreen travel and edge black bars on devices where the root view width differs from the physical display width.
+- **ScreensaverEngine / Ken Burns interaction**: Ken Burns now starts only after the incoming transition finishes and is suppressed for canceled incoming animations, eliminating property conflicts with slide/zoom transitions.
+
+---
+
 ## 2026-06-29 — v2.6.5: backport psysuals v3.11.0 runtime fixes
 
 - **Visualizer**: Updated `psysuals` submodule pointer to `bfa0553` (`v3.11.0` plus merged upstream fixes).

@@ -4,12 +4,14 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 
 ## What's New in v2.6
 
-**Major visualizer overhaul and psysuals v3.10.0 integration:**
+**Major visualizer overhaul and psysuals v3.10/v3.11 integration:**
 
 - **Mycelium** — Reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
 - **Persistence** — Shifted nested rotating polygons into a true 3D perspective projection space with depth-based thickness, brightness shading (depth cueing), and non-coplanar axis rotation.
 - **Butterflies** — Reverted to the stable chase/orbit motion behavior, removing size variations and swarm separation/cohesion forces to achieve smoother, glitch-free flight paths.
 - **FlowField & Lattice** — Optimized rendering and particle limits to maintain a solid 60 FPS on low-end TV stick devices.
+- **Fireworks** — Renamed and aligned with the upstream firework-rocket effect, replacing the old Vortex naming and behavior.
+- **Runtime hardening** — recent backports also improved resize safety, startup stability, and per-mode viewport handling across effects such as Aurora, Magnetar, SlimeMold, TriFlux, Bubbles, Synapse, Chromatic, and Heartbeat.
 
 ## What's New in v2.2
 
@@ -36,6 +38,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **Offline cache** — up to 200 images / 300 MB stored locally; used automatically as a fallback when sources are unreachable
 - Six transition effects: **Crossfade**, **Fade to Black**, **Slide Left**, **Slide Right**, **Zoom In**, **Zoom Out**, plus a **Random** mode
 - Configurable time per image (5 s – 30 min) and transition speed (1 – 5 seconds)
+- Transition timing is deterministic: the configured image time is always honored, and when **Random** is selected only the effect choice changes
 - **Ken Burns effect** — slow pan and zoom animation; each photo always comes to rest centered
 - **EXIF orientation** — portrait photos from phones are displayed upright regardless of source
 - **Visualizer overlay** — music visualizer rendered semi-transparently on top of the slideshow
@@ -43,7 +46,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 ### Music Visualizer
 Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
 
-- Eighteen audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Vortex**, **Aurora**, **Lattice**, **Spectrum**, **Waterfall**
+- Twenty-seven audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Fireworks**, **Aurora**, **Lattice**, **Mycelium**, **Magnetar**, **SlimeMold**, **Clifford**, **Mobius**, **Chromatic**, **Persistence**, **Synapse**, **Heartbeat**, **Spectrum**, **Waterfall**
 - Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
@@ -301,11 +304,14 @@ All sources can be enabled at the same time — images from all sources are merg
 | **Zoom Out** | Old image scales up and fades out as new image fades in |
 | **Random** | A different effect is picked at random for each transition |
 
+Transition notes:
+The configured "Time per Image" is the dwell time for each displayed photo. Transition duration is controlled separately by "Transition Speed" and is added on top. In "Random" mode, only the effect selection is randomized; slide timing is not.
+
 ### Music Visualizer
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Butterflies, FlowField, Vortex, Aurora, Lattice, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
+| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Butterflies, FlowField, Fireworks, Aurora, Lattice, Mycelium, Magnetar, SlimeMold, Clifford, Mobius, Chromatic, Persistence, Synapse, Heartbeat, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
 | **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
 | **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
 | **Music Genre** | Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting to the music style |
@@ -389,6 +395,20 @@ See [visualizer-music-reactivity.md](visualizer-music-reactivity.md) for a detai
 | **Bubbles** | Translucent full-screen rising bubbles driven by bass energy; synchronised beat pulse |
 | **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
 | **Branches** ✨ | Psychedelic fractal lightning tree — nine neon arms split recursively to depth 7 with glowing halos and bright cores; mid frequencies twist branch angles live; beats fire extra arms |
+| **Butterflies** | Neon butterfly pairs in mutual-pursuit spirals with periodic wander breaks, synchronized wing phases, and beat-fired sparkles |
+| **FlowField** | 4 000 rainbow particles surfing a continuously evolving field; bass pulls toward center, treble scatters, and beats reshape the flow |
+| **Fireworks** | Firework rockets arc upward, explode into glowing embers, and auto-launch in the background; beats fire extra rockets |
+| **Aurora** | Five layered Northern Lights curtains with additive glow; bass billows amplitude, treble drives shimmer speed, and beats trigger bloom flashes |
+| **Lattice** | Crystal grid of glowing nodes and double-stroke beams with center-out frequency mapping and beat shockwaves |
+| **Mycelium** | Multi-colony fungal growth with bioluminescent filament trails, orbiting spores, and beat-driven bloom bursts |
+| **Magnetar** | 4 000 particles riding a rotating magnetic dipole field with equatorial shockwave bursts on beats |
+| **SlimeMold** | Physarum-style agent simulation with trail diffusion; beats teleport part of the colony back toward center |
+| **Clifford** | Dense strange-attractor cloud with curated presets, dynamic framing, and long glowing persistence trails |
+| **Mobius** | 3-D wireframe Mobius strip with perspective projection and beat-driven shiver/twist bursts |
+| **Chromatic** | Prismatic ripple rings with RGB-separated outlines and treble-controlled chromatic split |
+| **Persistence** | Nested rotating 3D Platonic-solid wireframes with perspective depth cueing and very long trail persistence |
+| **Synapse** | Neural graph of firing nodes and traveling pulses with beat-triggered cascades |
+| **Heartbeat** | Expanding morphing rings that swing between circular and polygonal forms and pulse in layered neon glows |
 | **Spectrum** | Log-spaced spectrum analyser with peak markers and waveform overlay |
 | **Waterfall** | Scrolling time-frequency spectrogram; beat flashes the leading edge |
 
@@ -408,14 +428,19 @@ ScreensaverService (DreamService)
         │   ├── ImageCache           ← offline fallback (200 images / 300 MB); EXIF preserved
         │   ├── ExifRotationTransformation ← corrects orientation for local/cached images
         │   ├── Ken Burns animator   ← pan/zoom per photo; always ends centered
+        │   ├── transition pipeline  ← per-slot Glide targets + transition/session guards
         │   └── VisualizerView       ← optional overlay (semi-transparent)
         ├── Music Visualizer mode
         │   ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
         │   └── VisualizerView (GLSurfaceView)
         │       └── VisualizerRenderer (OpenGL ES 2.0)
-        │           └── 13 × BaseMode  ← Yantra, Cube, TriFlux, Lissajous, Tunnel,
+        │           └── 27 × BaseMode  ← Yantra, Cube, TriFlux, Lissajous, Tunnel,
         │                                 Corridor, Nova, Spiral, Bubbles, Plasma,
-        │                                 Branches, Spectrum, Waterfall
+        │                                 Branches, Butterflies, FlowField, Fireworks,
+        │                                 Aurora, Lattice, Mycelium, Magnetar,
+        │                                 SlimeMold, Clifford, Mobius, Chromatic,
+        │                                 Persistence, Synapse, Heartbeat,
+        │                                 Spectrum, Waterfall
         ├── Clock overlay            ← date/time updated every minute
         ├── WeatherFetcher           ← OpenWeatherMap, cached 30 min
         └── Schedule check          ← restricts active hours
@@ -435,7 +460,7 @@ UpdateChecker                      ← checks version.json on GitHub Releases (S
 UpdateInstaller                    ← downloads APK via OkHttp, installs via FileProvider
 ```
 
-Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. EXIF orientation is applied for local and cached images via a custom `BitmapTransformation`; remote JPEG images are handled by Glide's built-in `Downsampler`. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
+Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. The slideshow pipeline tracks one Glide target per image slot, explicitly clears stale loads before reuse, ignores late callbacks from older transition sequences, and guards slideshow start/refresh work with a session token so old async results cannot corrupt a newer run. EXIF orientation is applied for local and cached images via a custom `BitmapTransformation`; remote JPEG images are handled by Glide's built-in `Downsampler`. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
 
 ## Privacy
 

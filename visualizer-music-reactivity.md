@@ -10,7 +10,7 @@ How each effect responds to audio. All effects receive three frequency bands and
 | **Beat** | Onset strength (scaled by the Effect Intensity setting) | 0.0 – 2.0 |
 | **Gain** | Current beatGain multiplier (Effect Intensity setting value) | 0.0 – 2.0 |
 
-The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multiplier applied only to the beat signal before it reaches the effect. FFT values are always unscaled. At **Low** (default) the beat multiplier is 0.5×; at **Max** it is 2.0×.
+The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multiplier applied only to the beat signal before it reaches the effect. FFT values are always unscaled. At **Low** (default) the beat multiplier is 0.5×; at **Max** it is 2.0×. Recent runtime hardening also warm-starts FFT smoothing/band averages, skips the first computed beat frame, and resets beat-detection state on stop so visualizers start cleanly instead of firing phantom first-frame beats.
 
 ---
 
@@ -186,7 +186,7 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 
 ---
 
-## Vortex
+## Fireworks
 
 **What it looks like:** Firework rockets arc upward under gravity, then explode into 80–120 glowing embers that drift and fade.
 
@@ -374,4 +374,3 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 **Silence behaviour:** Dark rows scroll downward. Any previously bright rows fade as they age (brightness decays by 70% as rows reach the bottom). The screen gradually darkens over ~100 frames of silence.
 
 ---
-

@@ -5,7 +5,7 @@
 | File | Role |
 |------|------|
 | `ScreensaverService.kt` | DreamService entry point; system integration |
-| `ScreensaverEngine.kt` | Orchestrates slideshow + visualizer; manages transitions, overlays, remote control; genre-driven mode switching when audio genre detection is active |
+| `ScreensaverEngine.kt` | Orchestrates slideshow + visualizer; manages transitions, overlays, remote control; uses per-slot Glide targets, transition sequence guards, and slideshow session tokens to keep async image loading from corrupting transitions |
 | `SettingsActivity.kt` | Settings UI host; contains `SettingsFragment` and `SourcesFragment` |
 | `PreviewActivity.kt` | In-app preview without activating system screensaver |
 | `Prefs.kt` | **All SharedPreferences key constants** — always use these |
@@ -54,13 +54,13 @@ See `docs/image-sources.md` for detailed auth patterns.
 | File | Role |
 |------|------|
 | `VisualizerView.kt` | GLSurfaceView wrapper; manages `AudioEngine` + `VisualizerRenderer` lifecycle |
-| `AudioEngine.kt` | Android `Visualizer` API → FFT (512 bins) → bass/mid/high bands + beat detection; applies genre weighting |
+| `AudioEngine.kt` | Android `Visualizer` API → FFT (512 bins) → bass/mid/high bands + beat detection; applies genre weighting; warm-starts smoothing and suppresses phantom first-frame beats |
 | `AudioData.kt` | Snapshot: bass, mid, high (0–1), beat (0–2), gain (current beatGain multiplier), waveform[], fft[] |
 | `GLDraw.kt` | GL ES 2.0 utilities: shader compilation, matrix math, line/quad/circle/glyph drawing; bloom post-processing pipeline (scene FBO → luminance threshold → half-res 2-pass Gaussian blur → additive composite); pre-allocated `FloatBuffer` fields for zero GC pressure |
 | `VisualizerRenderer.kt` | `GLSurfaceView.Renderer`; owns mode list; calls `mode.draw(gl, audio, tick)` each frame; exposes `frameTimeMs` (EMA-smoothed render time in ms) |
 | `BaseMode.kt` | Abstract base: `abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)` |
 
-### 30 Visualizer Modes (`com.androsaver.visualizer.modes`)
+### 27 Visualizer Modes (`com.androsaver.visualizer.modes`)
 
 | Class | Display name | Visual concept |
 |-------|-------------|----------------|
@@ -110,11 +110,15 @@ See `docs/visualizer-modes.md` for audio reactivity details.
 ```
 DreamService.onDreamingStarted()
   └─ ScreensaverEngine.start()
-       ├─ [Slideshow] load images from N sources → ImageCache → Glide → ImageView transitions
+       ├─ [Slideshow] load images from N sources → ImageCache → Glide → 2 alternating ImageView slots
+       │    ├─ one Glide CustomTarget tracked per slot; old slot target cleared before reuse
+       │    ├─ late image callbacks ignored via transition-sequence guard
+       │    ├─ slideshow start/refresh/fallback work fenced by slideshow-session token
+       │    └─ next slide scheduled only after the current image is displayed; transition speed is added on top of image dwell time
        │    └─ optional VisualizerView overlay (semi-transparent, 10–70% opacity)
        └─ [Visualizer] VisualizerView.start()
             ├─ AudioEngine: Visualizer API → FFT → AudioData (60 fps)
-            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [30 modes]
+            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [27 modes]
 
 Remote control (D-pad events in ScreensaverEngine):
   Visualizer: ←/→ = prev/next mode | ↑/↓ = intensity | other = finish()

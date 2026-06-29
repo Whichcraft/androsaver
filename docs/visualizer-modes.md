@@ -7,7 +7,7 @@ abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)
 
 `AudioData` provides: `beat` (0–2, onset strength × beatGain), `mid` (deviation above rolling avg for bins 20–99, ~860–4300 Hz; 0 at steady state, positive on peaks), `treble` (same for bins 100–255, ~4300–11000 Hz), `gain` (beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
 
-Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → band extraction + beat detection → `AudioData` delivered at ~60 fps.
+Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → band extraction + beat detection → `AudioData` delivered at ~60 fps. Recent runtime backports also warm-start FFT smoothing/band averages, skip the first computed beat frame, and reset beat-detection state on stop to avoid startup phantom beats and unstable first-frame spikes.
 
 **Effect Intensity setting** multiplies only `beat` (not FFT values): Off=0×, Low=0.5×, Medium=1×, High=1.5×, Max=2×.
 
@@ -29,12 +29,21 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 10 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
 | 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
 | 12 | `ButterfliesMode` | Butterflies | Neon butterfly pairs entering, orbiting, departing |
-| 13 | `FlowFieldMode` | FlowField | 25 000 particles riding a sine/cosine noise field (baseline; scales to 100 000) |
+| 13 | `FlowFieldMode` | FlowField | 4 000 particles riding a sine/cosine noise field with bass gravity + treble scatter |
 | 14 | `FireworksMode` | Fireworks | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
 | 16 | `LatticeMode` | Lattice | 14×9 FFT-mapped crystal grid with shockwave ring on beat |
-| 17 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 18 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 17 | `MyceliumMode` | Mycelium | Multi-colony fungal network with spores and rotating satellite rings |
+| 18 | `MagnetarMode` | Magnetar | Rotating magnetic dipole field with 4 000 particles |
+| 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with trail diffusion |
+| 20 | `CliffordMode` | Clifford | Dense strange attractor with dynamic framing |
+| 21 | `MobiusMode` | Mobius | 3-D wireframe Mobius strip |
+| 22 | `ChromaticMode` | Chromatic | RGB-split ripple rings |
+| 23 | `PersistenceMode` | Persistence | Nested rotating 3D Platonic-solid wireframes |
+| 24 | `SynapseMode` | Synapse | Neural graph with traveling signal pulses |
+| 25 | `HeartbeatMode` | Heartbeat | Expanding morphing neon rings |
+| 26 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 27 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
@@ -99,11 +108,11 @@ Firework rockets launch from the bottom, arc upward under gravity (0.13) with dr
 
 ## AuroraMode
 
-Five translucent sinusoidal ribbon curtains undulate horizontally across the screen. Each ribbon sums three harmonics at different wave-numbers and drift speeds, producing organic Northern Lights motion. Bass billows amplitude; treble drives shimmer speed; mid sets ribbon height/thickness; beat triggers a bloom flash and nudges the hue. Ribbons are drawn with additive blend (glow polygon + core polygon) so overlapping curtains brighten each other. A sharp bright edge line traces the top of each ribbon in normal blend. Trail fade is very slow (14/255 ≈ 18 frames). Silence: curtains drift gently at base shimmer speed.
+Five translucent sinusoidal ribbon curtains undulate horizontally across the screen. Each ribbon sums three harmonics at different wave-numbers and drift speeds, producing organic Northern Lights motion. Bass billows amplitude; treble drives shimmer speed; mid sets ribbon height/thickness; beat triggers a bloom flash and nudges the hue. Ribbons are drawn with additive blend (glow polygon + core polygon) so overlapping curtains brighten each other. The current Android port rebuilds its cached geometry on full viewport changes and guards harmonic normalization on resize-sensitive paths. Trail fade is very slow (14/255 ≈ 18 frames). Silence: curtains drift gently at base shimmer speed.
 
 ## LatticeMode
 
-A crystal grid of glowing nodes and connection beams (leftmost column cutout). Implements dynamic frequency peak normalization and a noise gate for balanced column activity. Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 25/255 ≈ 10 frames. Base faint structure remains visible during silence. Silence: dim grid with slow hue rotation, no shockwave.
+A crystal grid of glowing nodes and connection beams (leftmost column cutout). Implements dynamic frequency peak normalization, center-out frequency mapping, and a noise gate for balanced column activity. Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 25/255 ≈ 10 frames. Base faint structure remains visible during silence. Silence: dim grid with slow hue rotation, no shockwave.
 
 ## MyceliumMode
 
@@ -111,23 +120,23 @@ Swirling growth pattern around multiple colonies (cores). Up to 180 active tips 
 
 ## MagnetarMode
 
-4 000 particles riding an analytical rotating magnetic dipole field. Dipole axis tilts and rotates; particles follow normalised B-field vectors. Beat fires an equatorial shockwave that scatters particles vertically. Colour by angular position relative to dipole axis. Trail: fadeBlack(24/255). Silence: particles orbit slowly along field lines.
+4 000 particles riding an analytical rotating magnetic dipole field. Dipole axis tilts and rotates; particles follow normalised B-field vectors. Beat fires an equatorial shockwave that scatters particles vertically. Colour by angular position relative to dipole axis. The current port rebuilds particle state on viewport changes and uses the later upstream dipole `r3` term for field strength. Trail: fadeBlack(24/255). Silence: particles orbit slowly along field lines.
 
 ## SlimeMoldMode
 
-Physarum-style 2 500-agent slime simulation. Agents sense three directions (forward, left-offset, right-offset) and steer toward the strongest trail signal. Trails diffuse (3×3 box kernel) and decay each frame. Grid resolution: RES_DIV=8 (~240×135 cells for 1080p). Beat teleports 5% of agents back toward centre. Trail rendered as coloured rects mapped hue ∝ trail intensity. Silence: agents slowly form patterns with minimal trail.
+Physarum-style 2 500-agent slime simulation. Agents sense three directions (forward, left-offset, right-offset) and steer toward the strongest trail signal. Trails diffuse (3×3 box kernel) and decay each frame. Grid resolution: RES_DIV=8 (~240×135 cells for 1080p). Beat teleports 5% of agents back toward centre. Trail rendered as coloured rects mapped hue ∝ trail intensity. The simulation grid is rebuilt whenever either render dimension changes, avoiding stale state after viewport or aspect-ratio changes. Silence: agents slowly form patterns with minimal trail.
 
 ## CliffordMode
 
-Strange attractor (Clifford map). 8 000 walkers iterate `x' = sin(a·y) - cos(b·x)`, `y' = sin(c·x) - cos(d·y)` 3 times per frame. Features curated presets plus dynamic framing and recovery to prevent collapse. Parameters (a, b, c, d) drift toward target values; beat snaps to new presets with jitter. Colour by polar angle and distance of particle position. Trail: fadeBlack(18/255).
+Strange attractor (Clifford map). 8 000 walkers iterate `x' = sin(a·y) - cos(b·x)`, `y' = sin(c·x) - cos(d·y)` 3 times per frame. Features curated presets plus dynamic framing and recovery to prevent collapse. Parameters (a, b, c, d) drift toward target values; beat snaps to new presets with jitter. Colour by polar angle and distance of particle position. The Android port now uses a heavier multi-pass accumulation/framing path closer to the later upstream implementation. Trail: fadeBlack(18/255).
 
 ## MobiusMode
 
-3-D wireframe Möbius strip rendered with perspective projection. 60 latitude lines (constant v) form the wireframe (sparse longitude wires removed). Rotates around Y+X axes; beat fires a "shiver" that temporarily widens the twist parameter. Trail: fadeBlack(15/255).
+3-D wireframe Möbius strip rendered with perspective projection. 60 latitude lines (constant v) form the wireframe (sparse longitude wires removed). Rotates around Y+X axes; beat fires a "shiver" that temporarily widens the twist parameter. Recent parity cleanup also aligns the treble-driven rotation contribution with the later upstream behavior. Trail: fadeBlack(15/255).
 
 ## ChromaticMode
 
-Prismatic raindrop ripples. Expanding waves split red, green, and blue channels outward, forming RGB-separated wavy aberration halos. Up to 14 rings; beat spawns new rings, treble controls the R/G/B split radius, and warp scales with bass/treble. Trail: fadeBlack(24/255).
+Prismatic raindrop ripples. Expanding waves split red, green, and blue channels outward, forming RGB-separated wavy aberration halos. Up to 14 rings; beat spawns new rings, treble controls the R/G/B split radius, and warp scales with bass/treble. The current backport also removes rings based on updated post-growth radius, matching the later upstream stale-radius fix. Trail: fadeBlack(24/255).
 
 ## PersistenceMode
 
@@ -135,11 +144,11 @@ Up to 8 nested polygons (triangle through decagon) rotating in 3D space with per
 
 ## SynapseMode
 
-55-node neural-network graph. Nodes wired to 3 nearest neighbours each. When a node fires, signal pulses travel down a subset of outgoing edges to prevent runaway cascades (~20–30 ms transit). On arrival, the target node fires (cascade propagation, capped at 18 nodes per frame). Beat fires 1–4 random nodes simultaneously. Glow per node decays over ~30 frames. Auto-fire every 8–25 frames (scaled by mid). Trail: fadeBlack(18/255).
+55-node neural-network graph. Nodes wired to 3 nearest neighbours each. When a node fires, signal pulses travel down a subset of outgoing edges to prevent runaway cascades (~20–30 ms transit). On arrival, the target node fires (cascade propagation, capped at 18 nodes per frame). Beat fires 1–4 random nodes simultaneously. Glow per node decays over ~30 frames. Auto-fire every 8–25 frames (scaled by mid). The node graph is rebuilt when the render size changes so resize events cannot leave stale edge geometry behind. Trail: fadeBlack(18/255).
 
 ## HeartbeatMode
 
-Expanding polygon rings that morph between circle (high bass) and polygon (low bass) as they grow. Up to 16 rings simultaneously; each ring drawn as a smooth 120-point polyline with polygon-modulated radius. Rings glow (dark wide + bright narrow). Beat spawns new rings; strong beat spawns two offset-hue rings. Trail: fadeBlack(20/255). Silence: auto-spawns at 50-frame intervals.
+Expanding polygon rings that morph between circle (high bass) and polygon (low bass) as they grow. Up to 16 rings simultaneously; each ring drawn as a smooth 120-point polyline with polygon-modulated radius. Rings glow (dark wide + bright narrow). Beat spawns new rings; strong beat spawns two offset-hue rings. Recent parity cleanup now culls rings after per-frame growth is applied, matching the later upstream state handling. Trail: fadeBlack(20/255). Silence: auto-spawns at 50-frame intervals.
 
 ## BarsMode (Spectrum)
 

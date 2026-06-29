@@ -90,6 +90,7 @@ Port of `effects/aurora.py`.  Key differences:
 
 - **DEFS encoding** — Python uses a nested list of tuples; Android uses a list of `RibbonDef` / `Harmonic` data classes.
 - **Geometry caching** — Caches `xs` and `ks` arrays, rebuilt only when `draw.W` changes.
+- **Resize safety** — Full viewport changes rebuild cached geometry and the Android port now guards harmonic normalization so extreme aspect-ratio changes cannot leave stale or over-amplified ribbon state behind.
 - **No pygame surface** — Python draws all ribbons to a temporary `pygame.Surface` and blits additively to the main surface.  Android calls `draw.setAdditiveBlend()` once before the ribbon loop and `draw.setNormalBlend()` after.
 - **Edge lines NOT ported** — psysuals removed sharp top-edge line drawing in v3.5.x.  The Android port never drew them.  `savedTopPts`/`savedHues` fields removed in v3.7.0 backport (they were dead code).
 
@@ -106,40 +107,39 @@ Port of `effects/lattice.py`.  Key differences:
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers
 it.  Two-pass draw (non-active tiles first, then active on top) replaces the
-psysuals z-order that comes for free from direct surface drawing.
+psysuals z-order that comes for free from direct surface drawing.  Current
+Android parity fixes also rebuild viewport-sensitive cached geometry correctly
+on render-size changes.
 
 ### BranchesMode
 Port directly.  `draw.fadeBlack(10f/255f)` for trail persistence (matches `TRAIL_ALPHA=10`).
 
-### FlowFieldMode
-Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)`.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.  Upstream edge recycling removed in v3.9.0 (particles wrap natively).
-
 ### MyceliumMode
-Port directly.  `draw.fadeBlack(8f/255f)` from `TRAIL_ALPHA=8`. Swirling growth pattern around 5 cores (colony centers). Segments use double `draw.line()` (dark + bright). Pre-allocated arrays and cores structure.
+Port directly.  `draw.fadeBlack(8f/255f)` from `TRAIL_ALPHA=8`. Swirling growth pattern around 5 cores (colony centers). Segments use double `draw.line()` (dark + bright). Pre-allocated arrays and cores structure.  Current parity notes: Android now follows the larger later-upstream growth budgets and clears stale resize state when the viewport changes.
 
 ### MagnetarMode
-N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.circle(radius=1.5f, segments=4)` with `setAdditiveBlend()`.  `_FADE_ALPHA=24` trail decay mapped to `draw.fadeBlack(24f/255f)`.
+N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.circle(radius=1.5f, segments=4)` with `setAdditiveBlend()`.  `_FADE_ALPHA=24` trail decay mapped to `draw.fadeBlack(24f/255f)`.  The current Android port also rebuilds particles on resize and uses the later upstream dipole `r3` term.
 
 ### SlimeMoldMode
-N reduced 10 000 → 2 500; RES_DIV raised 4 → 8 (trail grid ~240×135 for 1080p).  NumPy vectorised sensing and movement replaced with scalar Kotlin loops.  Trail grid rendered as coloured rects.  3×3 diffusion approximated with 5-tap cross kernel.
+N reduced 10 000 → 2 500; RES_DIV raised 4 → 8 (trail grid ~240×135 for 1080p).  NumPy vectorised sensing and movement replaced with scalar Kotlin loops.  Trail grid rendered as coloured rects.  3×3 diffusion approximated with 5-tap cross kernel.  The simulation grid is rebuilt whenever either render dimension changes.
 
 ### CliffordMode
-N reduced 40 000 → 8 000 for Android performance.  NumPy vectorised map iterations replaced with scalar Kotlin loops over `FloatArray(N)`.  Attractor presets and dynamic framing are approximated via a preallocated multi-pass sample buffer rather than the full Python density framebuffer path. `_FADE_ALPHA=18` trail decay mapped to `draw.fadeBlack(18f/255f)`. Particles drawn as tiny circles (radius 1.5f, segments=4, additive blend). Android currently runs 4 accumulation steps per frame.
+N reduced 40 000 → 8 000 for Android performance.  NumPy vectorised map iterations replaced with scalar Kotlin loops over `FloatArray(N)`.  Attractor presets and dynamic framing are approximated via a preallocated multi-pass sample buffer rather than the full Python density framebuffer path. `_FADE_ALPHA=18` trail decay mapped to `draw.fadeBlack(18f/255f)`. Particles drawn as tiny circles (radius 1.5f, segments=4, additive blend). Android currently runs the heavier later-lineage multi-pass accumulation/framing path rather than the earlier lighter approximation.
 
 ### MobiusMode
-Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d` array pre-allocated (longitude wires and scratch `pts2dV` removed in v3.9.0).
+Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d` array pre-allocated (longitude wires and scratch `pts2dV` removed in v3.9.0).  Treble-driven rotation contribution is aligned with the later upstream implementation.
 
 ### ChromaticMode
-Port directly. Wavy raindrop ripples outline. `_FADE_ALPHA=24` → `draw.fadeBlack(24f/255f)` replaces `BLEND_RGB_MULT(232,228,236)`. Closed polygons drawn with RGB-separated offsets and custom sine-wave ripple function.
+Port directly. Wavy raindrop ripples outline. `_FADE_ALPHA=24` → `draw.fadeBlack(24f/255f)` replaces `BLEND_RGB_MULT(232,228,236)`. Closed polygons drawn with RGB-separated offsets and custom sine-wave ripple function.  Rings are removed based on updated post-growth radius to match the later upstream stale-radius fix.
 
 ### PersistenceMode
 Port directly where it fits the GL renderer.  `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`.  Platonic solids wireframe models (Tetrahedron, Octahedron, Cube, Icosahedron, Dodecahedron) normalized to unit sphere, projected with perspective and depth-faded. Double-pass `draw.line()` for both glow and color passes of model edges. Upstream's later offscreen `RES_DIV=2` pygame-surface path does not map 1:1 to the Android batching renderer, so the port keeps the direct GL draw approach.
 
 ### SynapseMode
-Port directly.  `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`.  Signal pulses and node glows drawn with `setAdditiveBlend()` circles. Outgoing edge lists pre-calculated; signals capped at `MAX_SIGNALS=240` and fan-outs limited to prevent runaway cascades.
+Port directly.  `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`.  Signal pulses and node glows drawn with `setAdditiveBlend()` circles. Outgoing edge lists pre-calculated; signals capped at `MAX_SIGNALS=240` and fan-outs limited to prevent runaway cascades.  The Android graph rebuilds when the render size changes.
 
 ### HeartbeatMode
-Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon drawn with 120-point `FloatArray` passed to `draw.polygon()` twice (glow + col).
+Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon drawn with 120-point `FloatArray` passed to `draw.polygon()` twice (glow + col).  Rings are culled after per-frame growth is applied, matching the later upstream state-handling fix.
 
 ---
 
