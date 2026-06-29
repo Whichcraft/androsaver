@@ -2,7 +2,7 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage) or a fullscreen **music visualizer** — the perfect companion for listening to music on your TV. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
-## What's New in v2.6
+## What's New in v2.7
 
 **Major visualizer overhaul and psysuals v3.10/v3.11 integration:**
 

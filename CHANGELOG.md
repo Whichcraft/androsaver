@@ -4,7 +4,7 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## 2026-06-29 — slideshow transition pipeline hardening
+## 2026-06-29 — v2.7.0: slideshow transition pipeline hardening
 
 - **ScreensaverEngine / Slideshow transitions**: Reworked slideshow image-slot ownership and transition lifecycle to prevent black screens, wrong-view callbacks, and effect instability after several images.
 - **ScreensaverEngine / Glide lifecycle**: Each slideshow `ImageView` slot now owns a tracked Glide `CustomTarget`; targets are explicitly cleared before a slot is reused, preventing stale async completions from mutating the wrong view.
