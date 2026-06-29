@@ -8,9 +8,9 @@ import kotlin.math.*
  * Clifford — strange attractor with audio-morphing parameters.
  *
  * 8 000 parallel walkers are iterated through the Clifford map each frame.
- * Updated in v3.9.0 to support presets, dynamic framing, and 3 steps per frame.
+ * Updated through v3.11.0 with preset-driven framing and multi-pass density accumulation.
  *
- * Port of psysuals `effects/clifford.py` (v3.9.0).
+ * Port of psysuals `effects/clifford.py` (v3.11.0).
  */
 class CliffordMode : BaseMode() {
 
@@ -18,6 +18,7 @@ class CliffordMode : BaseMode() {
 
     private companion object {
         const val N = 8_000
+        const val STEPS = 4
         val TAU = (2.0 * Math.PI).toFloat()
         val PI_F = Math.PI.toFloat()
 
@@ -32,6 +33,10 @@ class CliffordMode : BaseMode() {
 
     private val xs = FloatArray(N)
     private val ys = FloatArray(N)
+    private val allX = FloatArray(N * STEPS)
+    private val allY = FloatArray(N * STEPS)
+    private val sampleX = FloatArray((N * STEPS + 7) / 8)
+    private val sampleY = FloatArray((N * STEPS + 7) / 8)
 
     private var a = -1.4f; private var b = 1.6f
     private var c =  1.0f; private var d = 0.7f
@@ -73,7 +78,7 @@ class CliffordMode : BaseMode() {
 
         if (tick == 0) reset()
 
-        hue = (hue + 0.002f + high * 0.003f) % 1f
+        hue = (hue + 0.0025f + high * 0.003f) % 1f
 
         if (bass > 0.8f && beatPrev <= 0.8f) newParams()
         beatPrev = bass
@@ -95,20 +100,39 @@ class CliffordMode : BaseMode() {
             return
         }
 
-        // Fast estimation of bounds (stride 8 checks 1000 points)
-        var xminVal = Float.MAX_VALUE; var xmaxVal = -Float.MAX_VALUE
-        var yminVal = Float.MAX_VALUE; var ymaxVal = -Float.MAX_VALUE
-        for (i in 0 until N step 8) {
-            val px = xs[i]; val py = ys[i]
-            if (px < xminVal) xminVal = px
-            if (px > xmaxVal) xmaxVal = px
-            if (py < yminVal) yminVal = py
-            if (py > ymaxVal) ymaxVal = py
+        draw.fadeBlack(18f / 255f)
+
+        draw.setAdditiveBlend()
+        // Run 4 steps per frame and retain samples for smoother framing.
+        for (step in 0 until STEPS) {
+            val base = step * N
+            for (i in 0 until N) {
+                val nx = sin(a * ys[i]) - cos(b * xs[i])
+                val ny = sin(c * xs[i]) - cos(d * ys[i])
+                xs[i] = nx; ys[i] = ny
+                allX[base + i] = nx
+                allY[base + i] = ny
+            }
         }
 
-        // If the spread is collapsed, reset
-        if (xmaxVal - xminVal < 0.03f || ymaxVal - yminVal < 0.03f) {
+        val sampleCount = sampleX.size
+        for (si in 0 until sampleCount) {
+            val src = si * 8
+            sampleX[si] = allX[src]
+            sampleY[si] = allY[src]
+        }
+        sampleX.sort()
+        sampleY.sort()
+        val loIdx = (sampleCount * 0.01f).toInt().coerceIn(0, sampleCount - 1)
+        val hiIdx = (sampleCount * 0.99f).toInt().coerceIn(0, sampleCount - 1)
+        val xminVal = sampleX[loIdx]
+        val xmaxVal = sampleX[hiIdx]
+        val yminVal = sampleY[loIdx]
+        val ymaxVal = sampleY[hiIdx]
+
+        if (xmaxVal - xminVal < 0.10f || ymaxVal - yminVal < 0.10f) {
             reset()
+            draw.setNormalBlend()
             return
         }
 
@@ -120,26 +144,16 @@ class CliffordMode : BaseMode() {
         val xSpan = maxOf(0.01f, xmax - xmin)
         val ySpan = maxOf(0.01f, ymax - ymin)
 
-        draw.fadeBlack(18f / 255f)
-
-        draw.setAdditiveBlend()
-        // Run 3 steps per frame and draw each step
-        for (step in 0 until 3) {
-            for (i in 0 until N) {
-                val nx = sin(a * ys[i]) - cos(b * xs[i])
-                val ny = sin(c * xs[i]) - cos(d * ys[i])
-                xs[i] = nx; ys[i] = ny
-
-                val px = (xs[i] - xmin) / xSpan * W
-                val py = (ys[i] - ymin) / ySpan * H
-                if (px >= 0f && px < W && py >= 0f && py < H) {
-                    val ang = (atan2(ys[i], xs[i]) / (2f * PI_F) + 0.5f)
-                    val rad = (sqrt(xs[i] * xs[i] + ys[i] * ys[i]) * 0.18f).coerceIn(0f, 1f)
-                    val h = (hue + ang * 0.55f + rad * 0.20f) % 1f
-                    val bright = 0.32f + bass * 0.20f + (1f - rad) * 0.18f
-                    val cArr = GLDraw.hsl(h, l = bright)
-                    draw.particle(px, py, 1.5f, cArr[0], cArr[1], cArr[2], 0.6f)
-                }
+        for (i in allX.indices) {
+            val px = (allX[i] - xmin) / xSpan * W
+            val py = (allY[i] - ymin) / ySpan * H
+            if (px >= 0f && px < W && py >= 0f && py < H) {
+                val ang = (atan2(allY[i], allX[i]) / (2f * PI_F) + 0.5f)
+                val rad = (sqrt(allX[i] * allX[i] + allY[i] * allY[i]) * 0.18f).coerceIn(0f, 1f)
+                val h = (hue + ang * 0.55f + rad * 0.20f) % 1f
+                val bright = 0.32f + bass * 0.20f + (1f - rad) * 0.18f
+                val cArr = GLDraw.hsl(h, l = bright)
+                draw.particle(px, py, 1.5f, cArr[0], cArr[1], cArr[2], 0.6f)
             }
         }
         draw.setNormalBlend()

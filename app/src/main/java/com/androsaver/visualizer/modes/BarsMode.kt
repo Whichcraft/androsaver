@@ -74,19 +74,22 @@ class BarsMode : BaseMode() {
 
             // Bar fill: lightness 0.38 + h*0.42
             val barColor = GLDraw.hsl(hue, 1f, (0.38f + h * 0.42f).coerceIn(0f, 1f))
+            val width = maxOf(1f, barW - 2f)
             draw.rect(
                 x, H - barH,
-                barW - 2f, barH,
+                width, barH,
                 barColor[0], barColor[1], barColor[2], 1f
             )
 
             // Peak marker: lightness 0.9
-            val peakColor = GLDraw.hsl(hue, 1f, 0.9f)
-            draw.rect(
-                x, H - peak - 3f,
-                barW - 2f, 3f,
-                peakColor[0], peakColor[1], peakColor[2], 1f
-            )
+            if (barH > 0f) {
+                val peakColor = GLDraw.hsl(hue, 1f, 0.9f)
+                draw.rect(
+                    x, H - peak - 3f,
+                    width, 3f,
+                    peakColor[0], peakColor[1], peakColor[2], 1f
+                )
+            }
         }
 
         // Waveform overlay (amplitude and thickness react to treble)

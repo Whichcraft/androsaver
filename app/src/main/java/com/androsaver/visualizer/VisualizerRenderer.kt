@@ -14,6 +14,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     private val draw = GLDraw(1280, 720)
     private var tick = 0
     private var lastFrameNs = 0L
+    private var clearFrameCount = 0
 
     /** Exponential moving average of frame render time in milliseconds (EMA α=0.1). */
     var frameTimeMs = 0f
@@ -21,7 +22,11 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
     /** Index into [modes] of the currently active mode. */
     var modeIndex: Int = 0
-        set(v) { field = v % modes.size; resetPending = true }
+        set(v) {
+            field = v % modes.size
+            resetPending = true
+            clearFrameCount = 2
+        }
 
     // Written on main thread, read on GL thread — volatile ensures visibility.
     // Because resetPending is written *after* modeIndex, the GL thread is guaranteed
@@ -93,6 +98,12 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         val scaledAudio = if (beatGain == 1.0f) audio
                           else audio.copy(beat = (audio.beat * beatGain).coerceIn(0f, 2f), gain = beatGain)
         draw.beginFrame()
+        if (clearFrameCount > 0) {
+            clearFrameCount--
+            draw.endFrame()
+            tick++
+            return
+        }
         mode.draw(draw, scaledAudio, tick)
         draw.endFrame()
         tick++

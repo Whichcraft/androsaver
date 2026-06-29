@@ -6,7 +6,7 @@ import kotlin.math.*
 
 /**
  * Five translucent sinusoidal ribbons undulate horizontally across the screen.
- * Port of psysuals Aurora (v3.9.0).
+ * Port of psysuals Aurora (v3.11.0).
  */
 class AuroraMode : BaseMode() {
 
@@ -34,6 +34,7 @@ class AuroraMode : BaseMode() {
     
     private var xs = FloatArray(0)
     private var lastW = 0f
+    private var lastH = 0f
 
     private val phases = Array(DEFS.size) { FloatArray(3) }
     private val ks     = Array(DEFS.size) { FloatArray(3) }
@@ -51,6 +52,7 @@ class AuroraMode : BaseMode() {
         bloom = 0f
         beatPrev = 0f
         lastW = 0f
+        lastH = 0f
         xs = FloatArray(0)
         ytTmp = FloatArray(0)
         ybTmp = FloatArray(0)
@@ -68,8 +70,9 @@ class AuroraMode : BaseMode() {
         // Python uses TRAIL_ALPHA=14 -> 14/255 ≈ 0.055f alpha
         draw.fadeBlack(14f / 255f)
 
-        if (W != lastW) {
+        if (W != lastW || H != lastH) {
             lastW = W
+            lastH = H
             val nPts = (W / STEP).toInt() + 1
             xs = FloatArray(nPts) { i -> minOf(i * STEP.toFloat(), W) }
 
@@ -127,7 +130,7 @@ class AuroraMode : BaseMode() {
                     wave += sin(x * ks[ri][j] + phases[ri][j]) * harms[j].weight
                     totW += harms[j].weight
                 }
-                wave = wave / totW * amp
+                wave = wave / maxOf(totW, 1e-6f) * amp
                 ytTmp[i] = cy + wave
                 ybTmp[i] = cy + wave + rh
                 padTmp[i] = maxOf(2f, rh * 0.5f)
@@ -148,6 +151,12 @@ class AuroraMode : BaseMode() {
                 val yt0 = ytTmp[i]; val yt1 = ytTmp[i + 1]
                 val yb0 = ybTmp[i]; val yb1 = ybTmp[i + 1]
                 val pad0 = padTmp[i]; val pad1 = padTmp[i + 1]
+                var fadeDiv = 1f
+                if (yt0 < 0f) fadeDiv += 1f
+                if (yt1 < 0f) fadeDiv += 1f
+                if (yb0 > H) fadeDiv += 1f
+                if (yb1 > H) fadeDiv += 1f
+                val fadeMul = 1f / fadeDiv
 
                 glowQuadPts[0] = x0;  glowQuadPts[1] = yt0 - pad0
                 glowQuadPts[2] = x1;  glowQuadPts[3] = yt1 - pad1
@@ -159,8 +168,8 @@ class AuroraMode : BaseMode() {
                 quadPts[4] = x1;  quadPts[5] = yb1
                 quadPts[6] = x0;  quadPts[7] = yb0
 
-                draw.polygon(glowQuadPts, rGlow, gGlow, bGlow, 1f, filled = true)
-                draw.polygon(quadPts, rCore, gCore, bCore, 1f, filled = true)
+                draw.polygon(glowQuadPts, rGlow * fadeMul, gGlow * fadeMul, bGlow * fadeMul, 1f, filled = true)
+                draw.polygon(quadPts, rCore * fadeMul, gCore * fadeMul, bCore * fadeMul, 1f, filled = true)
             }
         }
 

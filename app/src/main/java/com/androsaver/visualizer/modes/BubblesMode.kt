@@ -26,6 +26,8 @@ class BubblesMode : BaseMode() {
     private var pulse = 0f
     private var pvel  = 0f
     private var bassFlash = 0f
+    private var lastW = 0
+    private var lastH = 0
 
     private fun makeBubble(W: Int, H: Int, y: Float? = null): Bubble {
         val r = 8f + Math.random().toFloat() * 37f
@@ -43,6 +45,7 @@ class BubblesMode : BaseMode() {
 
     override fun reset() {
         pool.clear(); hue = 0f; pulse = 0f; pvel = 0f; bassFlash = 0f
+        lastW = 0; lastH = 0
     }
 
     private fun init(W: Int, H: Int) {
@@ -53,6 +56,16 @@ class BubblesMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W; val H = draw.H
+        if (W != lastW || H != lastH) {
+            lastW = W
+            lastH = H
+            if (pool.isNotEmpty()) {
+                for (b in pool) {
+                    b.x = b.x.coerceIn(W * 0.02f, W * 0.98f)
+                    b.y = b.y.coerceIn(-b.r, H + b.r)
+                }
+            }
+        }
         init(W, H)
 
         val beat = audio.beat

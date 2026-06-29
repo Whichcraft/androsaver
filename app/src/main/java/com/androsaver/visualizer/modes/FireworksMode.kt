@@ -8,10 +8,10 @@ import kotlin.math.*
  * Fireworks — firework rockets launch from the bottom, arc under gravity, and
  * explode into 80-120 glowing embers at the apex.  Beat fires extra rockets.
  *
- * Port of psysuals `Fireworks` class (v3.10.0).
+ * Port of psysuals `Fireworks` class (v3.11.0 lineage).
  * The pygame pixel-feedback zoom wormhole is omitted (requires FBO);
  * replaced with a fadeBlack (≈ 20/255) to match the _FADE_ALPHA trail fade.
- */
+*/
 class FireworksMode : BaseMode() {
 
     override val name = "Fireworks"

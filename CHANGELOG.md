@@ -4,6 +4,24 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-06-29 — v2.6.5: backport psysuals v3.11.0 runtime fixes
+
+- **Visualizer**: Updated `psysuals` submodule pointer to `bfa0553` (`v3.11.0` plus merged upstream fixes).
+- **Visualizer**: Cleared the GL frame buffer across mode switches so newly selected effects start from a clean black frame instead of briefly inheriting the previous mode's contents.
+- **AudioEngine**: Warm-started FFT smoothing and band averages, skipped the first computed beat frame, and reset detection state on stop to eliminate startup phantom beats and unstable first-frame energy spikes.
+- **SlimeMold**: Rebuilt the simulation grid when either render dimension changes, fixing stale state after viewport/aspect-ratio changes.
+- **Visualizer**: Backported additional upstream Android-relevant fixes still missing after the submodule bump: `TriFlux` and `Bubbles` now react correctly to viewport changes, `Bars` clamps narrow-width rendering edge cases, `AudioEngine` applies genre hints across the full FFT, and `Lattice` has been advanced toward the current upstream tuning/scaling behavior.
+- **Visualizer**: Continued the sync pass with more upstream hardening: `Aurora` now rebuilds on full viewport changes and guards harmonic normalization, `Magnetar` rebuilds particles on resize and reuses the upstream dipole `r3` term, and `Butterflies` uses per-pair wing-sync range scaling.
+- **Visualizer**: Continued the effect parity pass again: `Mycelium` now uses the larger upstream growth budgets and clears stale resize state, while `Clifford` now uses a heavier multi-pass accumulation/framing path closer to the later upstream implementation.
+- **Visualizer**: Continued parity cleanup in additional `v3.9+` modes; `Mobius` now matches the upstream treble-driven rotation contribution and drops stale dead state from the older Android port.
+- **Visualizer**: Continued resize-safety sync for older ports; `FlowField` now reseeds particles on viewport changes and `Synapse` rebuilds its node graph when the render size changes, matching later upstream behavior more closely.
+- **Visualizer**: Continued late `v3.11.0` effect cleanup; `Chromatic` now removes rings based on the updated radius after per-frame growth, matching the upstream stale-radius fix.
+- **Visualizer**: Continued small state-handling parity fixes; `Heartbeat` now culls rings after applying per-frame growth, and the Android `SlimeMold` port is aligned with the later upstream resize-safe lineage.
+- **Documentation/Code Annotations**: Updated stale mode annotations so `Branches` and `FlowField` no longer advertise outdated upstream lineage or particle counts.
+- **Documentation/Code Annotations**: Updated the remaining stale lineage notes for `Persistence`, `Fireworks`, and the `Clifford`/`Persistence` port notes so the repository documents the current Android port state accurately.
+
+---
+
 ## 2026-06-22 — v2.6.4: harden secure storage against Keystore initialization crashes
 
 - **Security**: Hardened `SecurePreferences` by catching `Throwable` (rather than just `Exception`) during Android Keystore creation. This guarantees that devices with broken or missing Keystore implementations (such as various Android TV units) safely fall back to default plaintext storage instead of crashing the configuration UI on startup.

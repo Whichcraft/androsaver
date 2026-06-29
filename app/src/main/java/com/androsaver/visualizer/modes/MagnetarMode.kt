@@ -16,7 +16,7 @@ import kotlin.math.*
  *   Treble → particle colour saturation burst
  *   Beat   → equatorial shockwave
  *
- * Port of psysuals `effects/magnetar.py` (v3.9.0).
+ * Port of psysuals `effects/magnetar.py` (v3.11.0).
  * surfarray replaced: each particle drawn as a tiny circle with additive blend.
  * Particle count reduced from 6 000 to 4 000 for Android performance.
  * Trail: fadeBlack(24f/255f) approximates BLEND_RGB_MULT alpha overlay.
@@ -35,9 +35,12 @@ class MagnetarMode : BaseMode() {
     private var rot   = 0f
     private var boost = 0f
     private var initialized = false
+    private var lastW = 0f
+    private var lastH = 0f
 
     override fun reset() {
         hue = 0.62f; rot = 0f; boost = 0f; initialized = false
+        lastW = 0f; lastH = 0f
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -46,7 +49,9 @@ class MagnetarMode : BaseMode() {
         val mid  = audio.mid
         val high = audio.treble
 
-        if (!initialized) {
+        if (!initialized || W != lastW || H != lastH) {
+            lastW = W
+            lastH = H
             for (i in 0 until N) {
                 px[i] = Math.random().toFloat() * W
                 py[i] = Math.random().toFloat() * H
@@ -75,9 +80,10 @@ class MagnetarMode : BaseMode() {
             val ry = (py[i] - cy) / half
             val r2  = rx * rx + ry * ry + 0.04f
             val r   = sqrt(r2)
+            val r3  = r2 * r + 0.1f
             val dot = rx * mx + ry * my
-            val bx  = (3f * dot * rx / r2 - mx) / (r2 * r + 0.1f)
-            val by_ = (3f * dot * ry / r2 - my) / (r2 * r + 0.1f)
+            val bx  = (3f * dot * rx / r2 - mx) / r3
+            val by_ = (3f * dot * ry / r2 - my) / r3
             val bmag = sqrt(bx * bx + by_ * by_) + 1e-6f
             var vx = (bx  / bmag) * spd
             var vy = (by_ / bmag) * spd

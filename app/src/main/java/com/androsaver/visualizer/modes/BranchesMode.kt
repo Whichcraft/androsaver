@@ -11,7 +11,7 @@ import kotlin.math.*
  * Every segment drawn twice (wide dim glow + bright core) for neon flare.
  * Mid frequencies jitter all branch angles; bass drives trunk length; beat
  * fires extra arms with a brightness burst.
- * Port of psysuals `Branches` class (v3.7.0).
+ * Port of psysuals `Branches` class (v3.11.0 lineage).
  */
 class BranchesMode : BaseMode() {
 

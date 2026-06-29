@@ -16,7 +16,7 @@ import kotlin.math.*
  *   Treble → sensor angle (wider = more meandering)
  *   Beat   → teleport burst + trail strength spike
  *
- * Port of psysuals `effects/slimemold.py` (v3.9.0).
+ * Port of psysuals `effects/slimemold.py` (v3.11.0).
  * Agent count reduced from 10 000 to 2 500 for Android performance.
  * Trail grid runs at RES_DIV=8 (≈240×135 for 1080p), rendered as small rects.
  * NumPy vectorised ops replaced with scalar Kotlin loops over FloatArrays.
@@ -77,7 +77,9 @@ class SlimeMoldMode : BaseMode() {
         val mid  = audio.mid
         val high = audio.treble
 
-        if (!initialized || (gridW != (W / RES_DIV).toInt())) init(W, H)
+        val targetGridW = maxOf(1, (W / RES_DIV).toInt())
+        val targetGridH = maxOf(1, (H / RES_DIV).toInt())
+        if (!initialized || gridW != targetGridW || gridH != targetGridH) init(W, H)
 
         hue = (hue + 0.002f + mid * 0.003f) % 1f
 

@@ -7,7 +7,7 @@ import kotlin.math.*
 /**
  * Chromatic — prismatic raindrop ripples with RGB-separated outlines.
  *
- * Port of psysuals `effects/chromatic.py` (v3.9.0).
+ * Port of psysuals `effects/chromatic.py` (v3.11.0).
  */
 class ChromaticMode : BaseMode() {
 
@@ -81,15 +81,19 @@ class ChromaticMode : BaseMode() {
 
         val dead = ArrayList<Ring>()
         for (ring in rings) {
-            if (ring.r > ring.maxR) { dead.add(ring); continue }
             ring.r += ring.speed + bass * 3f
             ring.phase += 0.08f + high * 0.22f + mid * 0.05f
+            val radius = ring.r
+            if (radius > ring.maxR) {
+                dead.add(ring)
+                continue
+            }
 
-            val fade  = maxOf(0f, 1f - ring.r / ring.maxR)
+            val fade  = maxOf(0f, 1f - radius / ring.maxR)
             val bright = ring.intensity * fade
             if (bright < 0.04f) continue
             val warp = (2.5f + high * 11.0f + bass * 5.0f) * (0.45f + fade * 0.9f)
-            val baseR = maxOf(1f, ring.r)
+            val baseR = maxOf(1f, radius)
 
             val mult = bright * 1.6f
 

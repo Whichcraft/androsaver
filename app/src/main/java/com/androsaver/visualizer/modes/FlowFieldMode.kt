@@ -5,14 +5,14 @@ import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
 /**
- * FlowField — 4 000 particles surfing a continuously-evolving noise field.
+ * FlowField — thousands of particles surfing a continuously-evolving noise field.
  *
  * Three layers of sine/cosine noise generate a smooth organic vector field.
  * Particles ride the field and paint vivid rainbow trails on a slow-fade
  * persistent buffer.  Bass warps field intensity and particle speed; beat
  * fires a phase jump that instantly reshapes all flow lines.
  *
- * Port of psysuals `FlowField` class (v3.9.0).
+ * Port of psysuals `FlowField` class (v3.11.0).
  * pygame BLEND_RGB_MULT(247/255) ≈ fadeBlack(8/255) on a dark background.
  */
 class FlowFieldMode : BaseMode() {
@@ -31,12 +31,28 @@ class FlowFieldMode : BaseMode() {
     private var hue   = 0f
     private var t     = 0f
     private var boost = 0f
+    private var lastW = 0f
+    private var lastH = 0f
 
     override fun reset() {
         hue = 0f; t = 0f; boost = 0f
         px = FloatArray(0)
         py = FloatArray(0)
         n = 0
+        lastW = 0f
+        lastH = 0f
+    }
+
+    private fun initParticles(W: Float, H: Float) {
+        n = (25000 * W * H / (1920 * 1080)).toInt().coerceIn(8000, N_MAX)
+        px = FloatArray(n)
+        py = FloatArray(n)
+        for (i in 0 until n) {
+            px[i] = Math.random().toFloat() * W
+            py[i] = Math.random().toFloat() * H
+        }
+        lastW = W
+        lastH = H
     }
 
     private fun fieldAngle(i: Int, bass: Float): Float {
@@ -57,15 +73,10 @@ class FlowFieldMode : BaseMode() {
         val mid  = audio.mid
         val high = audio.treble
 
-        // Seed particles on first frame — baseline 25000 for 1080p (v3.4.0)
-        if (tick == 0 || px.isEmpty() || (px.size > 1 && px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
-            n = (25000 * W * H / (1920 * 1080)).toInt().coerceIn(8000, N_MAX)
-            px = FloatArray(n)
-            py = FloatArray(n)
-            for (i in 0 until n) {
-                px[i] = Math.random().toFloat() * W
-                py[i] = Math.random().toFloat() * H
-            }
+        // Seed particles on first frame and rebuild on viewport changes.
+        if (tick == 0 || px.isEmpty() || W != lastW || H != lastH ||
+            (px.size > 1 && px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
+            initParticles(W, H)
         }
 
         hue  = (hue + 0.0013f + bass * 0.002f + high * 0.001f) % 1f

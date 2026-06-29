@@ -11,7 +11,7 @@ import kotlin.math.*
  * fires it sends visible signal pulses down a subset of outgoing edges to
  * stabilize signal counts.
  *
- * Port of psysuals `effects/synapse.py` (v3.9.0).
+ * Port of psysuals `effects/synapse.py` (v3.11.0).
  */
 class SynapseMode : BaseMode() {
 
@@ -36,6 +36,8 @@ class SynapseMode : BaseMode() {
     private var beatPrev = 0f
     private var autoFireCd = 30
     private var initialized = false
+    private var lastW = 0f
+    private var lastH = 0f
 
     override fun reset() {
         edges.clear()
@@ -48,9 +50,12 @@ class SynapseMode : BaseMode() {
         beatPrev = 0f
         autoFireCd = 30
         initialized = false
+        lastW = 0f
+        lastH = 0f
     }
 
     private fun init(W: Float, H: Float) {
+        signals.clear()
         for (i in 0 until N_NODES) {
             val ang = Math.random().toFloat() * TAU
             val r   = (0.10f + Math.random().toFloat() * 0.34f) * minOf(W, H)
@@ -101,7 +106,11 @@ class SynapseMode : BaseMode() {
         val mid  = audio.mid
         val high = audio.treble
 
-        if (!initialized) init(W, H)
+        if (!initialized || W != lastW || H != lastH) {
+            lastW = W
+            lastH = H
+            init(W, H)
+        }
 
         hue = (hue + 0.003f + mid * 0.002f) % 1f
 

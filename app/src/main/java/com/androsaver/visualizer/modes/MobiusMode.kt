@@ -14,7 +14,7 @@ import kotlin.math.*
  *   Mid    → roll (tilt) speed
  *   Beat   → shiver: twist amplitude spike
  *
- * Port of psysuals `effects/mobius.py` (v3.9.0).
+ * Port of psysuals `effects/mobius.py` (v3.11.0).
  * TRAIL_ALPHA=15 → fadeBlack(15f/255f).
  * 3-D rotation and perspective projection ported from numpy to Kotlin FloatArrays.
  */
@@ -31,7 +31,6 @@ class MobiusMode : BaseMode() {
     private var ry      = 0f
     private var rx      = 0f
     private var hue     = 0.55f
-    private var uOff    = 0f
     private var shiver  = 0f
     private var beatPrev = 0f
 
@@ -43,7 +42,7 @@ class MobiusMode : BaseMode() {
     private val pts2d  = FloatArray((N_U + 1) * 2)
 
     override fun reset() {
-        ry = 0f; rx = 0f; hue = 0.55f; uOff = 0f; shiver = 0f; beatPrev = 0f
+        ry = 0f; rx = 0f; hue = 0.55f; shiver = 0f; beatPrev = 0f
     }
 
     /** Perspective-project a world point (wx, wy, wz) → screen (px, py). */
@@ -82,9 +81,8 @@ class MobiusMode : BaseMode() {
         val high = audio.treble
 
         hue    = (hue  + 0.0012f + mid  * 0.002f) % 1f
-        ry    += 0.008f + bass * 0.025f + mid * 0.012f
+        ry    += 0.008f + bass * 0.025f + mid * 0.012f + high * 0.015f
         rx    += 0.003f + bass * 0.008f
-        uOff   = (uOff + 0.006f + high * 0.020f) % TAU
 
         if (bass > 0.75f && beatPrev <= 0.75f) shiver = 1f
         beatPrev = bass

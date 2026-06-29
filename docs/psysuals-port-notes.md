@@ -80,7 +80,7 @@ Port directly for the fireworks mechanics (rockets + embers with gravity/drag). 
 Note: `GLDraw` now has FBO bloom support, but the fireworks zoom feedback is still not ported — bloom is a post-processing effect applied to all modes, not a per-mode FBO blit.
 
 ### ButterfliesMode
-**Mutual pursuit spiral** (reverted to stable version in v3.10.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius). Orbit radius starts at **240 px** and decrements 0.06 px/frame toward 40 px. **No size variations or swarm forces**: all pairs use the standard sizes (solo 5.04, love 4.79) for stable, clean movement without the clutter of swarm separation/cohesion dynamics. **Unidirectional wing sync**: partner `lv.wingPhase` adjusts toward solo `sl.wingPhase` (`diff * sync * 0.12f`).
+**Mutual pursuit spiral** (reverted to stable version in v3.10.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius). Orbit radius starts at **240 px** and decrements 0.06 px/frame toward 40 px. **No size variations or swarm forces**: all pairs use the standard sizes (solo 5.04, love 4.79) for stable, clean movement without the clutter of swarm separation/cohesion dynamics. **Unidirectional wing sync**: partner `lv.wingPhase` adjusts toward solo `sl.wingPhase` (`diff * sync * 0.12f`), with `syncRange = 130f * maxOf(sl.scale, lv.scale)` to match the later upstream per-pair size scaling fix.
 
 **Wander breaks**: `ButterflyPair` has two fields — `breakCd` (initial 800–1600) and `breakTimer` (initial 0). Each orbit frame: if `breakTimer > 0`, decrement it (free-wander phase); else decrement `breakCd`, and when it reaches 0 set `breakTimer = 200–500`, `breakCd = 900–1800`, `orbitR = min(orbitR + 80, 200)`. While `breakTimer > 0`, both butterflies call `update(bass, beat)` with no `chasePos` instead of the orbit code.
 
@@ -124,7 +124,7 @@ N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.cir
 N reduced 10 000 → 2 500; RES_DIV raised 4 → 8 (trail grid ~240×135 for 1080p).  NumPy vectorised sensing and movement replaced with scalar Kotlin loops.  Trail grid rendered as coloured rects.  3×3 diffusion approximated with 5-tap cross kernel.
 
 ### CliffordMode
-N reduced 40 000 → 8 000 for Android performance.  NumPy vectorised map iterations replaced with scalar Kotlin loops over `FloatArray(N)`.  Attractor presets and dynamic framing based on running min/max. `_FADE_ALPHA=18` trail decay mapped to `draw.fadeBlack(18f/255f)`. Particles drawn as tiny circles (radius 1.5f, segments=4, additive blend). Iterates 3 steps per frame.
+N reduced 40 000 → 8 000 for Android performance.  NumPy vectorised map iterations replaced with scalar Kotlin loops over `FloatArray(N)`.  Attractor presets and dynamic framing are approximated via a preallocated multi-pass sample buffer rather than the full Python density framebuffer path. `_FADE_ALPHA=18` trail decay mapped to `draw.fadeBlack(18f/255f)`. Particles drawn as tiny circles (radius 1.5f, segments=4, additive blend). Android currently runs 4 accumulation steps per frame.
 
 ### MobiusMode
 Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d` array pre-allocated (longitude wires and scratch `pts2dV` removed in v3.9.0).
@@ -133,7 +133,7 @@ Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rota
 Port directly. Wavy raindrop ripples outline. `_FADE_ALPHA=24` → `draw.fadeBlack(24f/255f)` replaces `BLEND_RGB_MULT(232,228,236)`. Closed polygons drawn with RGB-separated offsets and custom sine-wave ripple function.
 
 ### PersistenceMode
-Port directly.  `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`.  Platonic solids wireframe models (Tetrahedron, Octahedron, Cube, Icosahedron, Dodecahedron) normalized to unit sphere, projected with perspective and depth-faded. Double-pass `draw.line()` for both glow and color passes of model edges.
+Port directly where it fits the GL renderer.  `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`.  Platonic solids wireframe models (Tetrahedron, Octahedron, Cube, Icosahedron, Dodecahedron) normalized to unit sphere, projected with perspective and depth-faded. Double-pass `draw.line()` for both glow and color passes of model edges. Upstream's later offscreen `RES_DIV=2` pygame-surface path does not map 1:1 to the Android batching renderer, so the port keeps the direct GL draw approach.
 
 ### SynapseMode
 Port directly.  `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`.  Signal pulses and node glows drawn with `setAdditiveBlend()` circles. Outgoing edge lists pre-calculated; signals capped at `MAX_SIGNALS=240` and fan-outs limited to prevent runaway cascades.

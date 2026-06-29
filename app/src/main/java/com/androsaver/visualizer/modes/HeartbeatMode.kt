@@ -17,7 +17,7 @@ import kotlin.math.*
  *   Treble → ring shimmer
  *   Beat   → spawn new ring(s)
  *
- * Port of psysuals `effects/heartbeat.py` (v3.8.0).
+ * Port of psysuals `effects/heartbeat.py` (v3.11.0).
  * TRAIL_ALPHA=20 → fadeBlack(20f/255f).
  */
 class HeartbeatMode : BaseMode() {
@@ -74,8 +74,16 @@ class HeartbeatMode : BaseMode() {
         val spdMul = 1f + mid * 0.8f
         val cx = W / 2f; val cy = H / 2f
 
-        rings.removeAll { it.r > it.maxR }
-        for (ring in rings) ring.r += ring.speed * spdMul
+        val live = ArrayList<Ring>(rings.size)
+        for (ring in rings) {
+            val newR = ring.r + ring.speed * spdMul
+            if (newR <= ring.maxR) {
+                ring.r = newR
+                live.add(ring)
+            }
+        }
+        rings.clear()
+        rings.addAll(live)
 
         val pts = FloatArray(N_PTS * 2)
         for ((r, maxR, _, inten, rHue, nSides, phase) in rings) {

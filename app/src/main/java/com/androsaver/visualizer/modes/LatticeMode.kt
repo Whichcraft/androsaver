@@ -8,7 +8,7 @@ import kotlin.math.*
  * LatticeMode — Crystal grid of glowing nodes and beam lines with feedback.
  * Dynamic grid (14×9 / 18×12 / 22×14) with center-out frequency mapping
  * (center columns = bass, edge columns = treble).
- * Port of psysuals Lattice (v3.7.0).
+ * Port of psysuals Lattice (v3.11.0).
  */
 class LatticeMode : BaseMode() {
 
@@ -18,6 +18,7 @@ class LatticeMode : BaseMode() {
         const val FFT_USE = 0.55f
         const val SHOCK_W = 22f
         const val IDLE    = 0.08f
+        const val FFT_START_BIN = 3
     }
 
     private fun gridCols(W: Int) = when {
@@ -65,7 +66,7 @@ class LatticeMode : BaseMode() {
     }
 
     private fun getBin(col: Int, nCols: Int, fftLen: Int): Int {
-        val start = 3 // skip DC component and sub-bass rumble
+        val start = FFT_START_BIN
         val end = minOf(fftLen - 1, (fftLen * FFT_USE).toInt())
         if (end <= start) return 0
         // Center-out mapping: center columns → low frequencies, edge columns → high
@@ -107,7 +108,7 @@ class LatticeMode : BaseMode() {
         val bass = beat
         val mid  = audio.mid
         val high = audio.treble
-        val scaleFactor = W / 640f
+        val scaleFactor = minOf(W, H) / 640f
 
         hue = (hue + 0.0025f + mid * 0.005f + high * 0.002f) % 1f
 
@@ -120,8 +121,7 @@ class LatticeMode : BaseMode() {
         svel += (1f + bass * 0.04f + high * 0.02f - scale) * 0.18f
         svel *= 0.70f
         scale = (scale + svel).coerceIn(0.90f, 1.12f)
-
-        // Decay (trails) — matches Python's BLEND_RGB_MULT (230/255 ≈ 0.90) -> fadeBlack(25/255)
+        // Trail decay approximates the pygame feedback fade.
         draw.fadeBlack(25f / 255f)
 
         // Guard against size mismatch after a grid resize
@@ -152,7 +152,7 @@ class LatticeMode : BaseMode() {
             syArr[ni] = sy
             val energy = scaledEnergies[nd.col] + IDLE
             val dist = hypot(sx - cx, sy - cy)
-            val shockW = SHOCK_W * scaleFactor
+            val shockW = (SHOCK_W / 4f) * scaleFactor
             val shock = maxOf(0f, 1f - abs(dist - shockR) / shockW)
             bright[ni] = minOf(energy + shock * (0.6f + bass * 0.4f + high * 0.3f), 1.8f)
         }

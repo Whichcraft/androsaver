@@ -59,6 +59,8 @@ class TriFluxMode : BaseMode() {
     )
     private var sweepDiag   = 0f
     private var sweepWidth  = 90f
+    private var lastW       = 0
+    private var lastH       = 0
 
     // ── Build grid ─────────────────────────────────────────────────────────────
 
@@ -167,12 +169,18 @@ class TriFluxMode : BaseMode() {
         sweeps[0].pos = 0f;   sweeps[0].angle = (Math.random() * TAU).toFloat()
         sweeps[1].pos = 600f; sweeps[1].angle = (Math.random() * TAU).toFloat()
         sweepDiag = 0f
+        lastW = 0
+        lastH = 0
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W; val H = draw.H
 
-        if (!built) buildGrid(W, H)
+        if (!built || W != lastW || H != lastH) {
+            lastW = W
+            lastH = H
+            buildGrid(W, H)
+        }
 
         draw.fadeBlack(28f / 255f)
 

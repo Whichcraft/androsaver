@@ -11,15 +11,15 @@ import kotlin.math.*
  * Rewritten in v3.9.0 to support multiple colonies (cores) with a swirling
  * growth pattern for fuller screen coverage.
  *
- * Port of psysuals `effects/mycelium.py` (v3.9.0).
+ * Port of psysuals `effects/mycelium.py` (v3.11.0).
  */
 class MyceliumMode : BaseMode() {
 
     override val name = "Mycelium"
 
     private companion object {
-        const val MAX_SEGS = 600
-        const val MAX_TIPS = 180
+        const val MAX_SEGS = 900
+        const val MAX_TIPS = 240
         const val CORE_COUNT = 5
         const val MAX_SPORES = 300
         val PI_F = Math.PI.toFloat()
@@ -125,6 +125,8 @@ class MyceliumMode : BaseMode() {
             lastH = draw.H
             buildCores(W, H)
             tips.clear()
+            segs.clear()
+            spores.clear()
             seedTips(W, H, 28)
         }
 

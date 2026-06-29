@@ -10,7 +10,7 @@ import kotlin.math.*
  * 10–30 s and orbits it lovingly. After a random lifetime the pair wanders
  * off-screen and a new pair enters. Wing flapping syncs when partners are
  * close; sparkles fire on strong beats.
- * Port of psysuals Butterflies (v3.10.0).
+ * Port of psysuals Butterflies (v3.11.0).
  */
 class ButterfliesMode : BaseMode() {
 
@@ -218,7 +218,7 @@ class ButterfliesMode : BaseMode() {
 
             if (lv != null) {
                 val dist = hypot((lv.x - sl.x).toDouble(), (lv.y - sl.y).toDouble()).toFloat()
-                val syncRange = 130f * SOLO_SCALE
+                val syncRange = 130f * maxOf(sl.scale, lv.scale)
                 if (dist < syncRange) {
                     val sync = 1f - dist / syncRange
                     val diff = lv.wingPhase - sl.wingPhase
