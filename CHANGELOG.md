@@ -4,6 +4,18 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-07-22 — v2.8.0: slideshow display and transition safeguards
+
+- **Slideshow / Image fitting**: Changed photo layers from `centerCrop` to `fitCenter` so photos are shown fully instead of being aggressively cropped at the edges.
+- **Slideshow / Portrait photos**: Suppressed Ken Burns and zoom-style transitions for portrait images, preserving their orientation and complete framing.
+- **Slideshow / Transition effects**: Added sequence guards for all crossfade, fade-to-black, slide, and zoom animation callbacks so stale or canceled animations cannot clear or modify a reused image slot.
+- **Slideshow / Transition fallback**: A failed transition is retried as a crossfade; if that also fails, the new image is shown immediately so the screensaver remains running.
+- **Slideshow / Fade to Black**: Prevented canceled first-stage fades from incorrectly starting the second stage.
+- **Screensaver modes**: Added a Blank (Black) mode to the main settings picker.
+- **Blank mode / Remote controls**: Kept volume, directional, and media controls available to Android TV while the blank screensaver is active.
+
+---
+
 ## 2026-06-29 — v2.7.0: slideshow transition pipeline hardening
 
 - **ScreensaverEngine / Slideshow transitions**: Reworked slideshow image-slot ownership and transition lifecycle to prevent black screens, wrong-view callbacks, and effect instability after several images.

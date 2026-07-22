@@ -4,8 +4,8 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <ImageView android:id="@+id/imageView2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:alpha="0" />
-    <ImageView android:id="@+id/imageView1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:alpha="1" />
+    <ImageView android:id="@+id/imageView2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:alpha="0" />
+    <ImageView android:id="@+id/imageView1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:alpha="1" />
 
     <!-- Full-screen visualizer: used in Visualizer mode -->
     <FrameLayout android:id="@+id/visualizerContainer" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />

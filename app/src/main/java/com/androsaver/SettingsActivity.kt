@@ -239,9 +239,10 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun updateModeVisibility(mode: String) {
             val isSlideshow = mode == Prefs.MODE_SLIDESHOW
+            val isVisualizer = mode == Prefs.MODE_VISUALIZER
             findPreference<Preference>("image_sources")?.isVisible = isSlideshow
             findPreference<androidx.preference.PreferenceCategory>("cat_slideshow")?.isVisible = isSlideshow
-            findPreference<androidx.preference.PreferenceCategory>("cat_visualizer")?.isVisible = !isSlideshow
+            findPreference<androidx.preference.PreferenceCategory>("cat_visualizer")?.isVisible = isVisualizer
         }
 
         private fun updateSourcesSummary() {

@@ -137,10 +137,12 @@
     <string-array name="screensaver_mode_entries">
         <item>Slideshow</item>
         <item>Visualizer</item>
+        <item>Blank (Black)</item>
     </string-array>
     <string-array name="screensaver_mode_values">
         <item>slideshow</item>
         <item>visualizer</item>
+        <item>blank</item>
     </string-array>
 
     <string-array name="visualizer_intensity_entries">

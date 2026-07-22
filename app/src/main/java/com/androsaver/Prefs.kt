@@ -67,6 +67,7 @@ object Prefs {
     const val SCREENSAVER_MODE = "screensaver_mode"
     const val MODE_SLIDESHOW   = "slideshow"
     const val MODE_VISUALIZER  = "visualizer"
+    const val MODE_BLANK       = "blank"
 
     // Visualizer
     const val VISUALIZER_MODE      = "visualizer_mode"

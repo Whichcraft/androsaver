@@ -9,7 +9,7 @@ Use `Prefs.<CONSTANT>` everywhere — never raw strings.
 
 | Prefs Constant | Key | Type | Default | Values |
 |---|---|---|---|---|
-| `SCREENSAVER_MODE` | `screensaver_mode` | ListPreference | `slideshow` | `slideshow`, `visualizer` |
+| `SCREENSAVER_MODE` | `screensaver_mode` | ListPreference | `slideshow` | `slideshow`, `visualizer`, `blank` |
 
 ---
 

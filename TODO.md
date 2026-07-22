@@ -2,6 +2,10 @@
 
 All identified bugs, memory leaks, concurrency issues, and performance bottlenecks from the deep code review have been fully resolved.
 
+## Pending Tasks
+
+- [ ] Replace the bundled slideshow example images with a curated set of public-domain photos before release.
+
 ---
 
 ## Resolved Tasks (v2.5.27 & prior)

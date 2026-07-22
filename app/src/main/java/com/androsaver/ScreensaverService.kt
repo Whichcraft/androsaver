@@ -27,7 +27,8 @@ class ScreensaverService : DreamService() {
         setContentView(binding.root)
 
         val prefs = com.androsaver.Prefs.get(this)
-        isInteractive = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) == Prefs.MODE_VISUALIZER
+        val mode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
+        isInteractive = mode == Prefs.MODE_VISUALIZER || mode == Prefs.MODE_BLANK
 
         val s = CoroutineScope(Dispatchers.Main + SupervisorJob())
         scope = s
