@@ -4,6 +4,13 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-07-24 — v2.8.3: Android image-cache runtime compatibility
+
+- **Image cache / Android runtime**: Replaced `MutableList.removeLast()` in cache eviction with `removeAt(lastIndex)`. Builds made with JDK 21 otherwise bind to `java.util.List.removeLast()`, which is absent on older Android runtimes and caused a `NoSuchMethodError` during background Synology cache writes.
+- **Regression checks**: Added a Java source/behavior audit that verifies Android-compatible eviction and retention of newest cache entries. Kotlin syntax validation passes; Android APK build remains delegated to GitHub Actions.
+
+---
+
 ## 2026-07-24 — v2.8.2: persistent slideshow diagnostics and psysuals v3.13
 
 - **Slideshow / All transition effects**: Replaced the independent two-view callback chains with one sequence-guarded `ValueAnimator` pipeline for Crossfade, Fade to Black, Slide Left, Slide Right, Zoom In, and Zoom Out. Both image layers now advance from the same bounded animation fraction and settle through one completion path.

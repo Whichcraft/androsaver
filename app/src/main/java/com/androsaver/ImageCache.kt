@@ -82,7 +82,10 @@ class ImageCache(private val context: Context) {
         manifest.sortByDescending { it.ts }
         var totalBytes = manifest.sumOf { it.size }
         while (manifest.size > MAX_ENTRIES || totalBytes > MAX_BYTES) {
-            val removed = manifest.removeLast()
+            // Do not use MutableList.removeLast() here. When compiled on JDK 21
+            // it binds to java.util.List.removeLast(), which does not exist on
+            // older Android runtimes and throws NoSuchMethodError.
+            val removed = manifest.removeAt(manifest.lastIndex)
             totalBytes -= removed.size
             File(dir, removed.file).delete()
         }
