@@ -34,6 +34,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.Transition
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -55,6 +56,8 @@ class ScreensaverEngine(
         private const val TAG = "ScreensaverEngine"
         // Refresh image URLs 5 minutes before the Synology DSM session expires (~30 min).
         private const val IMAGE_REFRESH_INTERVAL_MS = 25 * 60 * 1000L
+        private const val MAX_SLIDE_DURATION_MS = 30 * 60 * 1000L
+        private const val MAX_TRANSITION_DURATION_MS = 5_000L
         // Genre → preferred visualizer mode names (ordered by priority).
         private val GENRE_MODES = mapOf(
             "electronic" to listOf("FlowField", "Fireworks", "Plasma", "Tunnel"),
@@ -85,6 +88,7 @@ class ScreensaverEngine(
     private var displayedIndex = -1
     private var transitionSequence = 0L
     private var slideshowSession = 0L
+    private var devTransitionErrorVisible = false
     private var displayedItem: ImageItem? = null
     private var blankMode = false
     private var visualizerView: VisualizerView? = null
@@ -137,8 +141,7 @@ class ScreensaverEngine(
         stopVisualizerMode()
         stopClock()
         stopWeather()
-        kenBurnsAnimators.values.forEach { it.cancel() }
-        kenBurnsAnimators.clear()
+        cancelAllKenBurns()
     }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
@@ -192,7 +195,24 @@ class ScreensaverEngine(
         currentIndex = ((baseIndex + delta) % imageItems.size + imageItems.size) % imageItems.size
         slideshowRunnable?.let { handler.removeCallbacks(it) }
         slideshowRunnable = null
+        settleTransitionBeforeManualSkip()
         showNextImage()
+    }
+
+    private fun settleTransitionBeforeManualSkip() {
+        transitionSequence++
+        val active = if (activeView == 1) binding.imageView1 else binding.imageView2
+        val inactive = if (activeView == 1) binding.imageView2 else binding.imageView1
+
+        active.animate().setListener(null).cancel()
+        inactive.animate().setListener(null).cancel()
+        cancelKenBurns(active)
+        cancelKenBurns(inactive)
+
+        resetIncomingViewState(active)
+        resetViewState(inactive, clearDrawable = false)
+        active.bringToFront()
+        bringSlideshowOverlaysToFront()
     }
 
     // ── Schedule ──────────────────────────────────────────────────────────────
@@ -375,14 +395,17 @@ class ScreensaverEngine(
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.VISIBLE
+        devTransitionErrorVisible = false
         slideshowSession++
         resetSlideshowViews()
         loadImages(prefs, slideshowSession)
     }
 
     private fun loadImages(prefs: SharedPreferences, session: Long) {
-        binding.statusText.visibility = View.VISIBLE
-        binding.statusText.text = context.getString(R.string.loading_images)
+        if (!devTransitionErrorVisible) {
+            binding.statusText.visibility = View.VISIBLE
+            binding.statusText.text = context.getString(R.string.loading_images)
+        }
 
         val sources = getConfiguredSources(prefs)
         if (sources.isEmpty()) {
@@ -401,6 +424,7 @@ class ScreensaverEngine(
                         }
                         urls
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error from ${src.name}", e)
                         null
                     }
@@ -418,7 +442,7 @@ class ScreensaverEngine(
                 // Cache in background
                 scope.launch(Dispatchers.IO) { imageCache.saveImages(items, "mixed") }
                 if (session != slideshowSession) return@launch
-                binding.statusText.visibility = View.GONE
+                if (!devTransitionErrorVisible) binding.statusText.visibility = View.GONE
                 imageItems.clear()
                 imageItems.addAll(items.shuffled())
                 startSlideshow(prefs, session)
@@ -430,13 +454,21 @@ class ScreensaverEngine(
         if (session != slideshowSession) return
         val cached = imageCache.getCachedItems()
         if (cached.isNotEmpty()) {
-            binding.statusText.text = context.getString(R.string.cache_fallback_notice)
-            handler.postDelayed({ binding.statusText.visibility = View.GONE }, 3000)
+            if (!devTransitionErrorVisible) {
+                binding.statusText.text = context.getString(R.string.cache_fallback_notice)
+            }
+            handler.postDelayed({
+                if (session == slideshowSession && !devTransitionErrorVisible) {
+                    binding.statusText.visibility = View.GONE
+                }
+            }, 3000)
             imageItems.clear()
             imageItems.addAll(cached.shuffled())
             startSlideshow(com.androsaver.Prefs.get(context), session)
         } else {
-            binding.statusText.text = context.getString(R.string.no_images_found)
+            if (!devTransitionErrorVisible) {
+                binding.statusText.text = context.getString(R.string.no_images_found)
+            }
         }
     }
 
@@ -476,8 +508,6 @@ class ScreensaverEngine(
         displayedItem = null
         activeView = 1
         currentIndex = 0
-        clearImageTarget(binding.imageView1)
-        clearImageTarget(binding.imageView2)
         resetSlideshowViews()
     }
 
@@ -503,6 +533,7 @@ class ScreensaverEngine(
                                 }
                                 urls
                             } catch (e: Exception) {
+                                if (e is CancellationException) throw e
                                 if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Refresh error from ${src.name}", e)
                                 null
                             }
@@ -551,7 +582,8 @@ class ScreensaverEngine(
         if (imageItems.isEmpty()) return
         val incoming = if (activeView == 1) binding.imageView2 else binding.imageView1
         val outgoing  = if (activeView == 1) binding.imageView1 else binding.imageView2
-        val itemIndex = currentIndex
+        val itemIndex = currentIndex.takeIf { it in imageItems.indices } ?: 0
+        currentIndex = itemIndex
         val item = imageItems[itemIndex]
         val requestSequence = ++transitionSequence
         clearImageTarget(incoming)
@@ -581,15 +613,33 @@ class ScreensaverEngine(
             ) {
                 override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
                     if (requestSequence != transitionSequence) return
-                    if (imageTargets[incoming] === this) imageTargets.remove(incoming)
+                    if (imageTargets[incoming] !== this) return
+                    if (imageItems.isEmpty()) {
+                        reportTransitionFailure(
+                            "image ready",
+                            IllegalStateException("image list became empty")
+                        )
+                        clearImageTarget(incoming)
+                        return
+                    }
+                    val resolvedItemIndex = findImageItemIndex(item)
+                    if (resolvedItemIndex < 0) {
+                        // The periodic refresh removed this item while it was loading.
+                        // Leave the currently displayed slot untouched and load from
+                        // the refreshed list after this Glide callback unwinds.
+                        clearImageTarget(incoming)
+                        handler.post {
+                            if (requestSequence == transitionSequence) showNextImage()
+                        }
+                        return
+                    }
                     consecutiveLoadFailures = 0
-                    kenBurnsAnimators[incoming]?.cancel()
+                    cancelKenBurns(incoming)
                     incoming.setImageDrawable(resource)
                     activeView = if (activeView == 1) 2 else 1
-                    displayedIndex = itemIndex
-                    displayedItem = item
-                    if (imageItems.isEmpty() || itemIndex !in imageItems.indices) return
-                    currentIndex = (itemIndex + 1) % imageItems.size
+                    displayedIndex = resolvedItemIndex
+                    displayedItem = imageItems[resolvedItemIndex]
+                    currentIndex = (resolvedItemIndex + 1) % imageItems.size
                     val prefs = com.androsaver.Prefs.get(context)
                     val effect = prefs.getString(Prefs.TRANSITION_EFFECT, "crossfade") ?: "crossfade"
                     val resolvedEffect = applyTransitionWithFallback(
@@ -598,16 +648,27 @@ class ScreensaverEngine(
                     scheduleNextSlide(prefs, resolvedEffect)
                 }
                 override fun onLoadCleared(placeholder: Drawable?) {
-                    kenBurnsAnimators[incoming]?.cancel()
+                    if (imageTargets[incoming] !== this) return
+                    imageTargets.remove(incoming)
+                    cancelKenBurns(incoming)
                     incoming.setImageDrawable(null)
-                    if (imageTargets[incoming] === this) imageTargets.remove(incoming)
                 }
                 override fun onLoadFailed(errorDrawable: Drawable?) {
                     if (requestSequence != transitionSequence) return
-                    if (imageTargets[incoming] === this) imageTargets.remove(incoming)
+                    if (imageTargets[incoming] !== this) return
+                    imageTargets.remove(incoming)
                     if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Failed: ${item.url}")
+                    if (imageItems.isEmpty()) {
+                        reportTransitionFailure("image load failure", IllegalStateException("image list became empty"))
+                        return
+                    }
                     consecutiveLoadFailures++
-                    currentIndex = (itemIndex + 1) % imageItems.size
+                    val failedIndex = findImageItemIndex(item)
+                    currentIndex = if (failedIndex >= 0) {
+                        (failedIndex + 1) % imageItems.size
+                    } else {
+                        currentIndex.coerceIn(0, imageItems.lastIndex)
+                    }
                     if (consecutiveLoadFailures < imageItems.size) {
                         val r = Runnable { showNextImage() }
                         retryRunnable = r
@@ -622,9 +683,12 @@ class ScreensaverEngine(
         request.into(target)
     }
 
+    private fun findImageItemIndex(item: ImageItem): Int =
+        imageItems.indexOfFirst { it.url == item.url && it.orientation == item.orientation }
+
     private fun scheduleNextSlide(prefs: SharedPreferences, effect: String) {
         val durationMs = prefs.getString(Prefs.SLIDE_DURATION, "10000")
-            ?.toLongOrNull()?.coerceAtLeast(1L) ?: 10_000L
+            ?.toLongOrNull()?.coerceIn(1L, MAX_SLIDE_DURATION_MS) ?: 10_000L
         val delayMs = durationMs + when (effect) {
             "crossfade", "fade_black", "slide_left", "slide_right", "zoom_in", "zoom_out" -> transitionMs
             else -> 0L
@@ -635,17 +699,46 @@ class ScreensaverEngine(
     }
 
     private fun clearImageTarget(view: ImageView) {
-        val target = imageTargets.remove(view) ?: return
+        val target = imageTargets[view] ?: return
         try {
             Glide.with(context).clear(target)
-        } catch (_: Exception) {}
+        } catch (e: RuntimeException) {
+            reportTransitionFailure("image target clear", e)
+        }
+        if (imageTargets[view] === target) imageTargets.remove(view)
     }
 
     private fun resetSlideshowViews() {
+        clearImageTarget(binding.imageView1)
+        clearImageTarget(binding.imageView2)
+        cancelAllKenBurns()
         resetViewState(binding.imageView1, clearDrawable = true)
         resetViewState(binding.imageView2, clearDrawable = true)
         binding.imageView1.alpha = 1f
         binding.imageView2.alpha = 0f
+    }
+
+    private fun cancelKenBurns(view: ImageView) {
+        val animator = kenBurnsAnimators.remove(view) ?: return
+        try {
+            animator.removeAllUpdateListeners()
+            animator.cancel()
+        } catch (t: RuntimeException) {
+            reportTransitionFailure("Ken Burns cancellation", t)
+        }
+    }
+
+    private fun cancelAllKenBurns() {
+        val animators = kenBurnsAnimators.values.toList()
+        kenBurnsAnimators.clear()
+        animators.forEach { animator ->
+            try {
+                animator.removeAllUpdateListeners()
+                animator.cancel()
+            } catch (t: RuntimeException) {
+                reportTransitionFailure("Ken Burns cancellation", t)
+            }
+        }
     }
 
     // ── Ken Burns ─────────────────────────────────────────────────────────────
@@ -660,7 +753,7 @@ class ScreensaverEngine(
             return
         }
         val durationMs = prefs.getString(Prefs.SLIDE_DURATION, "10000")
-            ?.toLongOrNull()?.coerceAtLeast(1L) ?: 10_000L
+            ?.toLongOrNull()?.coerceIn(1L, MAX_SLIDE_DURATION_MS) ?: 10_000L
         val preset = KB_PRESETS.random()
         val startScale = preset[0]; val endScale = preset[1]
         val startTxFrac = preset[2]; val startTyFrac = preset[3]
@@ -671,13 +764,19 @@ class ScreensaverEngine(
             duration = durationMs
             interpolator = LinearInterpolator()
             addUpdateListener { va ->
-                val t = va.animatedFraction
-                val w = view.width.toFloat().takeIf { it > 0 } ?: 1280f
-                val h = view.height.toFloat().takeIf { it > 0 } ?: 720f
-                view.scaleX = startScale + t * (endScale - startScale)
-                view.scaleY = view.scaleX
-                view.translationX = (startTxFrac + t * (endTxFrac - startTxFrac)) * w
-                view.translationY = (startTyFrac + t * (endTyFrac - startTyFrac)) * h
+                if (kenBurnsAnimators[view] !== va) return@addUpdateListener
+                try {
+                    val t = va.animatedFraction
+                    val w = view.width.toFloat().takeIf { it > 0 } ?: 1280f
+                    val h = view.height.toFloat().takeIf { it > 0 } ?: 720f
+                    view.scaleX = startScale + t * (endScale - startScale)
+                    view.scaleY = view.scaleX
+                    view.translationX = (startTxFrac + t * (endTxFrac - startTxFrac)) * w
+                    view.translationY = (startTyFrac + t * (endTyFrac - startTyFrac)) * h
+                } catch (t: RuntimeException) {
+                    cancelKenBurns(view)
+                    reportTransitionFailure("Ken Burns update", t)
+                }
             }
         }
         kenBurnsAnimators[view] = anim
@@ -707,7 +806,8 @@ class ScreensaverEngine(
 
     private val transitionMs: Long get() =
         com.androsaver.Prefs.get(context)
-            .getString(Prefs.TRANSITION_SPEED, "2000")?.toLongOrNull()?.coerceAtLeast(1L) ?: 2000L
+            .getString(Prefs.TRANSITION_SPEED, "2000")?.toLongOrNull()
+            ?.coerceIn(1L, MAX_TRANSITION_DURATION_MS) ?: 2000L
 
     private fun isPortraitImage(view: ImageView): Boolean {
         val drawable = view.drawable ?: return false
@@ -723,22 +823,24 @@ class ScreensaverEngine(
     ): String {
         prepareForTransition(incoming, outgoing)
         incoming.bringToFront()
+        bringSlideshowOverlaysToFront()
         val incomingEndListener = incomingTransitionEndListener(incoming, prefs, sequence)
+        val durationMs = transitionMs
         val requested = if (effect == "random") RANDOM_EFFECTS.random() else effect
+        val normalized = requested.takeIf { it in RANDOM_EFFECTS } ?: "crossfade"
         // Zooming a portrait image crops it into a landscape-looking frame.
-        val resolved = if (requested == "zoom_in" || requested == "zoom_out") {
-            if (isPortraitImage(incoming) || isPortraitImage(outgoing)) "crossfade" else requested
+        val resolved = if (normalized == "zoom_in" || normalized == "zoom_out") {
+            if (isPortraitImage(incoming) || isPortraitImage(outgoing)) "crossfade" else normalized
         } else {
-            requested
+            normalized
         }
         when (resolved) {
-            "crossfade"   -> crossfade(incoming, outgoing, incomingEndListener, sequence)
-            "fade_black"  -> fadeBlack(incoming, outgoing, incomingEndListener, sequence)
-            "slide_left"  -> slide(incoming, outgoing, true, incomingEndListener, sequence)
-            "slide_right" -> slide(incoming, outgoing, false, incomingEndListener, sequence)
-            "zoom_in"     -> zoomIn(incoming, outgoing, incomingEndListener, sequence)
-            "zoom_out"    -> zoomOut(incoming, outgoing, incomingEndListener, sequence)
-            else           -> crossfade(incoming, outgoing, incomingEndListener, sequence)
+            "crossfade"   -> crossfade(incoming, outgoing, incomingEndListener, sequence, durationMs)
+            "fade_black"  -> fadeBlack(incoming, outgoing, incomingEndListener, prefs, sequence, durationMs)
+            "slide_left"  -> slide(incoming, outgoing, true, incomingEndListener, sequence, durationMs)
+            "slide_right" -> slide(incoming, outgoing, false, incomingEndListener, sequence, durationMs)
+            "zoom_in"     -> zoomIn(incoming, outgoing, incomingEndListener, sequence, durationMs)
+            "zoom_out"    -> zoomOut(incoming, outgoing, incomingEndListener, sequence, durationMs)
         }
         return resolved
     }
@@ -753,7 +855,9 @@ class ScreensaverEngine(
         try {
             return applyTransition(incoming, outgoing, effect, prefs, sequence)
         } catch (firstFailure: RuntimeException) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Transition failed: $effect; retrying crossfade", firstFailure)
+            if (BuildConfig.DEBUG_LOGGING) {
+                reportTransitionFailure(effect, firstFailure)
+            }
         }
 
         return try {
@@ -761,17 +865,59 @@ class ScreensaverEngine(
             // have started one side of a two-view transition before failing.
             applyTransition(incoming, outgoing, "crossfade", prefs, sequence)
         } catch (secondFailure: RuntimeException) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Crossfade fallback failed; showing image immediately", secondFailure)
-            showImageImmediately(incoming, outgoing, prefs)
+            if (BuildConfig.DEBUG_LOGGING) {
+                reportTransitionFailure("$effect (crossfade fallback)", secondFailure)
+            }
+            try {
+                showImageImmediately(incoming, outgoing, prefs)
+            } catch (immediateFailure: RuntimeException) {
+                reportTransitionFailure("$effect (crossfade fallback and immediate display)", immediateFailure)
+            }
             "none"
         }
+    }
+
+    /**
+     * Transition callbacks run later on the main looper, outside the try/catch
+     * around animator creation. Keep dev builds alive long enough to show the
+     * actual callback failure on the screensaver instead of only getting a
+     * generic process crash.
+     */
+    private fun reportTransitionFailure(effect: String, throwable: Throwable) {
+        if (!BuildConfig.DEBUG_LOGGING) return
+        devTransitionErrorVisible = true
+        Log.e(TAG, "Transition callback failed: $effect", throwable)
+        val details = buildString {
+            append("Slideshow transition failed\n")
+            append("Effect: ").append(effect).append('\n')
+            append(throwable::class.java.name)
+            throwable.message?.takeIf { it.isNotBlank() }?.let {
+                append(": ").append(it)
+            }
+            append("\n\n")
+            append(
+                Log.getStackTraceString(throwable)
+                    .lineSequence()
+                    .take(10)
+                    .joinToString("\n")
+            )
+        }
+        binding.statusText.text = details
+        binding.statusText.visibility = View.VISIBLE
+        binding.statusText.bringToFront()
+    }
+
+    private fun bringSlideshowOverlaysToFront() {
+        binding.clockOverlay.bringToFront()
+        binding.weatherWidget.bringToFront()
+        binding.statusText.bringToFront()
     }
 
     private fun prepareForTransition(incoming: ImageView, outgoing: ImageView) {
         incoming.animate().setListener(null).cancel()
         outgoing.animate().setListener(null).cancel()
-        kenBurnsAnimators[outgoing]?.cancel()
-        kenBurnsAnimators[incoming]?.cancel()
+        cancelKenBurns(outgoing)
+        cancelKenBurns(incoming)
 
         resetIncomingViewState(incoming)
         resetOutgoingViewState(outgoing)
@@ -788,13 +934,13 @@ class ScreensaverEngine(
         }
 
         override fun onAnimationEnd(animation: Animator) {
-            if (!canceled && sequence == transitionSequence &&
-                prefs.getBoolean(Prefs.KEN_BURNS_ENABLED, true) && view.drawable != null) {
-                try {
+            try {
+                if (!canceled && sequence == transitionSequence &&
+                    prefs.getBoolean(Prefs.KEN_BURNS_ENABLED, true) && view.drawable != null) {
                     startKenBurns(view, prefs)
-                } catch (e: RuntimeException) {
-                    if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Ken Burns start failed", e)
                 }
+            } catch (t: RuntimeException) {
+                reportTransitionFailure("incoming animation end", t)
             }
         }
     }
@@ -803,18 +949,19 @@ class ScreensaverEngine(
         incoming: ImageView,
         outgoing: ImageView,
         incomingEndListener: AnimatorListenerAdapter,
-        sequence: Long
+        sequence: Long,
+        durationMs: Long
     ) {
         incoming.alpha = 0f
-        incoming.animate().alpha(1f).setDuration(transitionMs).setListener(incomingEndListener).start()
-        outgoing.animate().alpha(0f).setDuration(transitionMs).setListener(resetOnEnd(outgoing, sequence)).start()
+        incoming.animate().alpha(1f).setDuration(durationMs).setListener(incomingEndListener).start()
+        outgoing.animate().alpha(0f).setDuration(durationMs).setListener(resetOnEnd(outgoing, sequence)).start()
     }
 
     private fun showImageImmediately(incoming: ImageView, outgoing: ImageView, prefs: SharedPreferences) {
         incoming.animate().setListener(null).cancel()
         outgoing.animate().setListener(null).cancel()
-        kenBurnsAnimators[incoming]?.cancel()
-        kenBurnsAnimators[outgoing]?.cancel()
+        cancelKenBurns(incoming)
+        cancelKenBurns(outgoing)
         resetIncomingViewState(incoming)
         resetViewState(outgoing, clearDrawable = true)
         incoming.alpha = 1f
@@ -827,19 +974,30 @@ class ScreensaverEngine(
         incoming: ImageView,
         outgoing: ImageView,
         incomingEndListener: AnimatorListenerAdapter,
-        sequence: Long
+        prefs: SharedPreferences,
+        sequence: Long,
+        durationMs: Long
     ) {
-        val half = (transitionMs / 2).coerceAtLeast(1L)
+        val half = (durationMs / 2).coerceAtLeast(1L)
         incoming.alpha = 0f
         outgoing.animate().alpha(0f).setDuration(half).setListener(object : AnimatorListenerAdapter() {
             private var finished = false
             private var canceled = false
             override fun onAnimationEnd(animation: Animator) {
-                if (finished) return
-                finished = true
-                resetOnEnd(outgoing, sequence).onAnimationEnd(animation)
-                if (canceled || sequence != transitionSequence) return
-                incoming.animate().alpha(1f).setDuration(half).setListener(incomingEndListener).start()
+                try {
+                    if (finished) return
+                    finished = true
+                    resetOnEnd(outgoing, sequence).onAnimationEnd(animation)
+                    if (canceled || sequence != transitionSequence) return
+                    incoming.animate().alpha(1f).setDuration(half).setListener(incomingEndListener).start()
+                } catch (t: RuntimeException) {
+                    reportTransitionFailure("fade_black", t)
+                    try {
+                        showImageImmediately(incoming, outgoing, prefs)
+                    } catch (recoveryFailure: RuntimeException) {
+                        reportTransitionFailure("fade_black recovery", recoveryFailure)
+                    }
+                }
             }
 
             override fun onAnimationCancel(animation: Animator) {
@@ -854,45 +1012,52 @@ class ScreensaverEngine(
         outgoing: ImageView,
         fromRight: Boolean,
         incomingEndListener: AnimatorListenerAdapter,
-        sequence: Long
+        sequence: Long,
+        durationMs: Long
     ) {
         val w = (binding.root.width.takeIf { it > 0 } ?: incoming.width.takeIf { it > 0 }
         ?: context.resources.displayMetrics.widthPixels).toFloat()
         incoming.alpha = 1f; incoming.translationX = if (fromRight) w else -w
-        incoming.animate().translationX(0f).setDuration(transitionMs).setListener(incomingEndListener).start()
-        outgoing.animate().translationX(if (fromRight) -w else w).setDuration(transitionMs).setListener(resetOnEnd(outgoing, sequence)).start()
+        incoming.animate().translationX(0f).setDuration(durationMs).setListener(incomingEndListener).start()
+        outgoing.animate().translationX(if (fromRight) -w else w).setDuration(durationMs).setListener(resetOnEnd(outgoing, sequence)).start()
     }
 
     private fun zoomIn(
         incoming: ImageView,
         outgoing: ImageView,
         incomingEndListener: AnimatorListenerAdapter,
-        sequence: Long
+        sequence: Long,
+        durationMs: Long
     ) {
         incoming.alpha = 0f; incoming.scaleX = 0.85f; incoming.scaleY = 0.85f
-        incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(transitionMs).setListener(incomingEndListener).start()
-        outgoing.animate().alpha(0f).setDuration(transitionMs).setListener(resetOnEnd(outgoing, sequence)).start()
+        incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(durationMs).setListener(incomingEndListener).start()
+        outgoing.animate().alpha(0f).setDuration(durationMs).setListener(resetOnEnd(outgoing, sequence)).start()
     }
 
     private fun zoomOut(
         incoming: ImageView,
         outgoing: ImageView,
         incomingEndListener: AnimatorListenerAdapter,
-        sequence: Long
+        sequence: Long,
+        durationMs: Long
     ) {
         incoming.alpha = 0f
-        incoming.animate().alpha(1f).setDuration(transitionMs).setListener(incomingEndListener).start()
-        outgoing.animate().alpha(0f).scaleX(1.15f).scaleY(1.15f).setDuration(transitionMs).setListener(resetOnEnd(outgoing, sequence)).start()
+        incoming.animate().alpha(1f).setDuration(durationMs).setListener(incomingEndListener).start()
+        outgoing.animate().alpha(0f).scaleX(1.15f).scaleY(1.15f).setDuration(durationMs).setListener(resetOnEnd(outgoing, sequence)).start()
     }
 
     private fun resetOnEnd(view: ImageView, sequence: Long) = object : AnimatorListenerAdapter() {
         private var finished = false
         override fun onAnimationEnd(animation: Animator) {
-            if (finished) return
-            finished = true
-            if (sequence != transitionSequence) return
-            kenBurnsAnimators[view]?.cancel()
-            resetViewState(view, clearDrawable = true)
+            try {
+                if (finished) return
+                finished = true
+                if (sequence != transitionSequence) return
+                cancelKenBurns(view)
+                resetViewState(view, clearDrawable = true)
+            } catch (t: RuntimeException) {
+                reportTransitionFailure("animation cleanup", t)
+            }
         }
 
         override fun onAnimationCancel(animation: Animator) {

@@ -4,6 +4,20 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-07-24 — v2.8.1: slideshow transition production hardening
+
+- **Slideshow / Glide ownership**: Kept one completed Glide target owned by each image slot until reuse or shutdown, ensuring resources are explicitly released and preventing stale callbacks from clearing or overwriting newer images.
+- **Slideshow / Refresh safety**: Re-resolved pending images against refreshed source lists before changing the active slot, preventing list reshuffles or removals from stalling the slideshow or corrupting navigation state.
+- **Slideshow / Transition lifecycle**: Centralized image-target and Ken Burns animator cleanup across reset, stop, slot reuse, cancellation, and failure paths.
+- **Slideshow / Manual navigation**: Settled an in-progress transition to a valid visible frame before processing left/right skips, eliminating black gaps and partially reused outgoing layers.
+- **Slideshow / Effect recovery**: Hardened all crossfade, fade-to-black, slide-left/right, and zoom-in/out callbacks; fade-to-black now immediately restores the incoming image if its midpoint stage fails.
+- **Slideshow / Scheduling**: Normalized unknown effects to crossfade, captured one duration per transition, bounded invalid timing preferences, and repaired invalid image indices before list access.
+- **Slideshow / Overlays**: Restored clock, weather, and status-overlay z-order after image layers are brought forward.
+- **Dev diagnostics**: Dev builds now keep transition failures visible onscreen with the effect, exception, and a bounded stack trace while retaining the full trace in logcat; production builds continue with silent fallback recovery.
+- **Lifecycle / Coroutines**: Preserved coroutine cancellation during initial source loading and periodic refresh so slideshow shutdown does not retain canceled work.
+
+---
+
 ## 2026-07-22 — v2.8.0: slideshow display and transition safeguards
 
 - **Slideshow / Image fitting**: Changed photo layers from `centerCrop` to `fitCenter` so photos are shown fully instead of being aggressively cropped at the edges.
