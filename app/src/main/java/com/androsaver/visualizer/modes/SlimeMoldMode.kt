@@ -16,9 +16,9 @@ import kotlin.math.*
  *   Treble → sensor angle (wider = more meandering)
  *   Beat   → teleport burst + trail strength spike
  *
- * Port of psysuals `effects/slimemold.py` (v3.11.0).
+ * Port of psysuals `effects/slimemold.py` (v3.13.0).
  * Agent count reduced from 10 000 to 2 500 for Android performance.
- * Trail grid runs at RES_DIV=8 (≈240×135 for 1080p), rendered as small rects.
+ * Trail grid uses a finer divisor on TV-sized displays.
  * NumPy vectorised ops replaced with scalar Kotlin loops over FloatArrays.
  */
 class SlimeMoldMode : BaseMode() {
@@ -27,7 +27,8 @@ class SlimeMoldMode : BaseMode() {
 
     private companion object {
         const val N       = 2_500
-        const val RES_DIV = 8
+        const val RES_DIV_SMALL = 8
+        const val RES_DIV_TV = 6
         const val BASE_SA = 0.5236f   // 30 degrees
         const val BASE_SD = 7
         val TAU = (2.0 * PI).toFloat()
@@ -39,18 +40,25 @@ class SlimeMoldMode : BaseMode() {
 
     private var gridW = 0; private var gridH = 0
     private var trail = FloatArray(0)   // [gridW × gridH], indexed trail[ix + iy * gridW]
+    private var diffuseTrail = FloatArray(0)
     private var hue   = 0.30f
     private var initialized = false
 
     override fun reset() {
         initialized = false; hue = 0.30f
         if (trail.isNotEmpty()) trail.fill(0f)
+        if (diffuseTrail.isNotEmpty()) diffuseTrail.fill(0f)
     }
 
+    private fun renderDiv(W: Float, H: Float): Int =
+        if (minOf(W, H) >= 900f) RES_DIV_TV else RES_DIV_SMALL
+
     private fun init(W: Float, H: Float) {
-        gridW = maxOf(1, (W / RES_DIV).toInt())
-        gridH = maxOf(1, (H / RES_DIV).toInt())
+        val div = renderDiv(W, H)
+        gridW = maxOf(1, (W / div).toInt())
+        gridH = maxOf(1, (H / div).toInt())
         trail = FloatArray(gridW * gridH)
+        diffuseTrail = FloatArray(gridW * gridH)
         val cx = gridW / 2f; val cy = gridH / 2f
         val rSpread = minOf(gridW, gridH) * 0.25f
         for (i in 0 until N) {
@@ -77,8 +85,9 @@ class SlimeMoldMode : BaseMode() {
         val mid  = audio.mid
         val high = audio.treble
 
-        val targetGridW = maxOf(1, (W / RES_DIV).toInt())
-        val targetGridH = maxOf(1, (H / RES_DIV).toInt())
+        val div = renderDiv(W, H)
+        val targetGridW = maxOf(1, (W / div).toInt())
+        val targetGridH = maxOf(1, (H / div).toInt())
         if (!initialized || gridW != targetGridW || gridH != targetGridH) init(W, H)
 
         hue = (hue + 0.002f + mid * 0.003f) % 1f
@@ -119,6 +128,8 @@ class SlimeMoldMode : BaseMode() {
             py[i] = ((py[i] + sin(ang[i]) * spd) % gridH + gridH) % gridH
 
             // Deposit trail
+            // Clamp against the actual trail shape: floating-point modulo can
+            // still round a coordinate to the upper edge.
             val ix = px[i].toInt().coerceIn(0, gridW - 1)
             val iy = py[i].toInt().coerceIn(0, gridH - 1)
             trail[ix + iy * gridW] += dep
@@ -126,7 +137,6 @@ class SlimeMoldMode : BaseMode() {
 
         // Diffuse + decay
         val decay = 0.94f - bass * 0.01f
-        val newTrail = FloatArray(trail.size)
         for (iy in 0 until gridH) {
             for (ix in 0 until gridW) {
                 val ixm = maxOf(0, ix - 1); val ixp = minOf(gridW - 1, ix + 1)
@@ -134,10 +144,12 @@ class SlimeMoldMode : BaseMode() {
                 val diffused = (trail[ixm + iy  * gridW] + trail[ixp + iy  * gridW] +
                                 trail[ix  + iym * gridW] + trail[ix  + iyp * gridW] +
                                 trail[ix  + iy  * gridW] * 4f) / 8f
-                newTrail[ix + iy * gridW] = diffused * decay
+                diffuseTrail[ix + iy * gridW] = diffused * decay
             }
         }
-        trail = newTrail
+        val previous = trail
+        trail = diffuseTrail
+        diffuseTrail = previous
 
         // Render trail grid
         val cellW = W / gridW; val cellH = H / gridH

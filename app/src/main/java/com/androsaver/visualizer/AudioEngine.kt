@@ -40,11 +40,13 @@ class AudioEngine {
     // Latest waveform/fft bytes — combined when both arrive
     @Volatile private var lastWave: FloatArray? = null
     @Volatile private var lastFft: FloatArray? = null
+    @Volatile private var running = false
     private var firstFrame = true
     private var fftPrimed = false
 
     val data: AudioData get() = _data.get()
 
+    @Synchronized
     fun start() {
         if (visualizer != null) return
         try {
@@ -54,17 +56,21 @@ class AudioEngine {
                 v.captureSize = maxCap
                 v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
                     override fun onWaveFormDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
+                        if (!running) return
                         lastWave = bytes.toWaveform()
                         publish()
                     }
                     override fun onFftDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
+                        if (!running) return
                         lastFft = bytes.toFftMagnitude()
                         publish()
                     }
                 }, Visualizer.getMaxCaptureRate(), true, true)
+                running = true
                 v.enabled = true
                 visualizer = v
             } catch (e: Exception) {
+                running = false
                 try { v.release() } catch (_: Exception) {}
                 throw e
             }
@@ -143,9 +149,14 @@ class AudioEngine {
         }
     }
 
+    @Synchronized
     fun stop() {
-        visualizer?.apply {
-            try { enabled = false; release() } catch (_: Exception) {}
+        running = false
+        visualizer?.let { active ->
+            // Best-effort teardown: a failure disabling capture must not skip
+            // release, and repeated stop calls remain harmless.
+            try { active.enabled = false } catch (_: Exception) {}
+            try { active.release() } catch (_: Exception) {}
         }
         visualizer = null
         synchronized(this) {
@@ -165,6 +176,7 @@ class AudioEngine {
 
     private fun publish() {
         synchronized(this) {
+            if (!running) return
             val wave = lastWave ?: return
             val rawFft = lastFft ?: return
 

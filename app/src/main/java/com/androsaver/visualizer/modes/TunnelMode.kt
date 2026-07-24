@@ -8,7 +8,7 @@ import kotlin.math.*
  * First-person tunnel ride.
  * Rings scroll toward the camera with rotating star polygons at each ring centre.
  * Triangles are spawned continuously by bass/beat and fly toward the camera.
- * Port of psysuals Tunnel (v2.0.0 restored original).
+ * Port of psysuals Tunnel (v3.13.0).
  */
 class TunnelMode : BaseMode() {
 
@@ -65,18 +65,22 @@ class TunnelMode : BaseMode() {
         val bass = beat
         val mid  = audio.mid
         val high = audio.treble
+        val motion = displayMotionScale(draw)
+        val bassM = bass * motion
+        val midM = mid * motion
+        val highM = high * motion
         hue += 0.006f
 
-        val dt = 0.022f + bass * 0.09f + mid * 0.04f + high * 0.03f
+        val dt = 0.018f + bassM * 0.09f + midM * 0.04f + highM * 0.03f
         time += dt
 
         // ── Spawn triangles ───────────────────────────────────────────────────
-        val spawnN = (bass * 1.2f + if (mid > 0.5f) mid * 1.5f else 0f).toInt()
+        val spawnN = (bassM * 1.2f + if (midM > 0.5f) midM * 1.5f else 0f).toInt()
         repeat(spawnN) {
             val spawnZ = Z_FAR * (0.80f + Math.random().toFloat() * 0.18f)
             val rvel   = (if (Math.random() < 0.5) 1f else -1f) *
-                         (0.04f + Math.random().toFloat() * 0.08f) * (1f + mid * 1.5f)
-            val size   = (0.45f + Math.random().toFloat() * 0.65f) * (1.0f + bass * 1.5f + high * 0.5f)
+                         (0.04f + Math.random().toFloat() * 0.08f) * (1f + midM * 1.5f)
+            val size   = (0.45f + Math.random().toFloat() * 0.65f) * (1.0f + bassM * 1.5f + highM * 0.5f)
             tris.add(Tri(
                 z    = spawnZ,
                 rot  = (Math.random() * TAU).toFloat(),
@@ -97,9 +101,9 @@ class TunnelMode : BaseMode() {
         // ── Draw tunnel rings + interior stars ────────────────────────────────
         for (i in 0 until ordered.size - 1) {
             val r1 = ordered[i]; val r2 = ordered[i + 1]
-            val (cx1, cy1) = path(r1.pt, high)
+            val (cx1, cy1) = path(r1.pt, highM)
             val (sx1, sy1, sc1) = proj(cx1, cy1, r1.z, draw.W, draw.H)
-            val (cx2, cy2) = path(r2.pt, high)
+            val (cx2, cy2) = path(r2.pt, highM)
             val (_, _, sc2) = proj(cx2, cy2, r2.z, draw.W, draw.H)
 
             val sr1 = maxOf(1f, TUBE_R * sc1)
@@ -107,7 +111,7 @@ class TunnelMode : BaseMode() {
 
             val nearT = maxOf(0f, 1f - r1.z / Z_FAR)
             val h     = (hue + nearT) % 1f
-            val bright = (0.06f + nearT * 0.60f + mid * 0.15f * nearT + bass * nearT * 0.40f).coerceIn(0f, 1f)
+            val bright = (0.06f + nearT * 0.60f + midM * 0.15f * nearT + bassM * nearT * 0.40f).coerceIn(0f, 1f)
 
             val (hr, hg, hb) = hsl3(h, l = bright * 0.35f)
             draw.circle(sx1, sy1, sr1 + 4f, hr, hg, hb, 0.55f, filled = false, segments = N_SIDES)
@@ -118,7 +122,7 @@ class TunnelMode : BaseMode() {
                 val angle = side.toFloat() / N_SIDES * TAU
                 val p1x = sx1 + cos(angle) * sr1; val p1y = sy1 + sin(angle) * sr1
                 val p2x = sx1 + cos(angle) * sr2; val p2y = sy1 + sin(angle) * sr2
-                val hs = (h + side.toFloat() / N_SIDES * 0.25f + high * 0.10f) % 1f
+                val hs = (h + side.toFloat() / N_SIDES * 0.25f + highM * 0.10f) % 1f
                 val (wr, wg, wb) = hsl3(hs, l = bright * 0.55f)
                 draw.line(p1x, p1y, p2x, p2y, wr, wg, wb, 0.7f)
             }
@@ -126,10 +130,10 @@ class TunnelMode : BaseMode() {
             // Interior rotating star polygon
             val nStar  = 3 + (i % 4)
             val sDir   = if (i % 2 == 0) 1f else -1f
-            val sRot   = time * 0.45f * sDir + i * 0.52f + mid * 0.15f
-            val sR     = maxOf(2f, sr1 * (0.24f + high * 0.12f))
+            val sRot   = time * 0.45f * sDir + i * 0.52f + midM * 0.15f
+            val sR     = maxOf(2f, sr1 * (0.24f + highM * 0.12f))
             val sH     = (h + 0.5f) % 1f
-            val sL     = minOf(bright * 1.1f + mid * 0.25f + high * 0.15f, 0.95f)
+            val sL     = minOf(bright * 1.1f + midM * 0.25f + highM * 0.15f, 0.95f)
             val sPts   = FloatArray(nStar * 2)
             for (v in 0 until nStar) {
                 sPts[v * 2]     = sx1 + cos(v.toFloat() / nStar * TAU + sRot) * sR
@@ -143,9 +147,9 @@ class TunnelMode : BaseMode() {
         val liveTris = ArrayList<Tri>()
         for (tri in tris) {
             tri.z   -= dt
-            tri.rot += tri.rvel * (1f + mid * 1.5f)
+            tri.rot += tri.rvel * (1f + midM * 1.5f)
             if (tri.z < Z_NEAR) continue
-            val (tcx, tcy) = path(tri.pt, high)
+            val (tcx, tcy) = path(tri.pt, highM)
             val (tsx, tsy, tsc) = proj(tcx, tcy, tri.z, draw.W, draw.H)
             val nearT  = maxOf(0f, 1f - tri.z / Z_FAR)
             val tr     = maxOf(3f, tri.size * tsc)

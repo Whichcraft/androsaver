@@ -7,11 +7,12 @@ import kotlin.math.*
 /**
  * Chromatic — prismatic raindrop ripples with RGB-separated outlines.
  *
- * Port of psysuals `effects/chromatic.py` (v3.11.0).
+ * Port of psysuals `effects/chromatic.py` (v3.13.0).
  */
 class ChromaticMode : BaseMode() {
 
     override val name = "Chromatic"
+    private val rng = kotlin.random.Random(0xC4A0)
 
     private companion object {
         const val MAX_RINGS = 14
@@ -37,12 +38,12 @@ class ChromaticMode : BaseMode() {
 
     private fun spawn(bass: Float, W: Float, H: Float) {
         if (rings.size >= MAX_RINGS) return
-        val cx    = W / 2f + (Math.random().toFloat() - 0.5f) * W / 3f
-        val cy    = H / 2f + (Math.random().toFloat() - 0.5f) * H / 3f
+        val cx    = W / 2f + (rng.nextFloat() - 0.5f) * W / 3f
+        val cy    = H / 2f + (rng.nextFloat() - 0.5f) * H / 3f
         val maxR  = hypot(maxOf(cx, W - cx), maxOf(cy, H - cy)) * 1.1f
         val speed = 3f + bass * 5f
         val inten = 0.5f + bass * 0.5f
-        rings.add(Ring(cx, cy, 0f, maxR, speed, inten, Math.random().toFloat() * TAU))
+        rings.add(Ring(cx, cy, 0f, maxR, speed, inten, rng.nextFloat() * TAU))
     }
 
     private fun wavePoints(cx: Float, cy: Float, radius: Float, warp: Float, phase: Float, outPts: FloatArray) {

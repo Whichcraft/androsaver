@@ -64,7 +64,7 @@ than the corridor frames.
 ### FlowFieldMode
 Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)` — equivalent on a dark background.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.
 
-Seed detection: particles are initialised on the first draw call when W/H are known (tick==0 or all-zero check).
+Seed detection: particles are initialised on the first draw call when W/H are known. v3.13 reallocations preserve existing wrapped positions and use isolated per-effect random state.
 
 **Bass gravity + treble scatter** (added v2.8.0): per-particle, apply two extra forces each frame:
 - Bass attract: `(W*0.5 - px) * bass*0.0018` (toward centre)
@@ -121,10 +121,10 @@ Port directly.  `draw.fadeBlack(8f/255f)` from `TRAIL_ALPHA=8`. Swirling growth 
 N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.circle(radius=1.5f, segments=4)` with `setAdditiveBlend()`.  `_FADE_ALPHA=24` trail decay mapped to `draw.fadeBlack(24f/255f)`.  The current Android port also rebuilds particles on resize and uses the later upstream dipole `r3` term.
 
 ### SlimeMoldMode
-N reduced 10 000 → 2 500; RES_DIV raised 4 → 8 (trail grid ~240×135 for 1080p).  NumPy vectorised sensing and movement replaced with scalar Kotlin loops.  Trail grid rendered as coloured rects.  3×3 diffusion approximated with 5-tap cross kernel.  The simulation grid is rebuilt whenever either render dimension changes.
+N reduced 10 000 → 2 500; the grid divisor is 8 on smaller displays and 6 at TV size. NumPy vectorised sensing and movement are scalar Kotlin loops. Deposit indices are clamped before writes, diffusion buffers are reused, and the grid rebuilds whenever either dimension changes.
 
 ### CliffordMode
-N reduced 40 000 → 8 000 for Android performance.  NumPy vectorised map iterations replaced with scalar Kotlin loops over `FloatArray(N)`.  Attractor presets and dynamic framing are approximated via a preallocated multi-pass sample buffer rather than the full Python density framebuffer path. `_FADE_ALPHA=18` trail decay mapped to `draw.fadeBlack(18f/255f)`. Particles drawn as tiny circles (radius 1.5f, segments=4, additive blend). Android currently runs the heavier later-lineage multi-pass accumulation/framing path rather than the earlier lighter approximation.
+N is 7 000 with six passes for Android performance and to remain below `GLDraw`'s 262k-vertex batch ceiling. NumPy map iterations are scalar Kotlin loops over preallocated arrays. Dynamic framing approximates the Python density framebuffer; v3.13's faster morphing, high-contrast emission, hot cores, and isolated seeded RNG are ported. `_FADE_ALPHA=18` maps to `draw.fadeBlack(18f/255f)`.
 
 ### MobiusMode
 Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d` array pre-allocated (longitude wires and scratch `pts2dV` removed in v3.9.0).  Treble-driven rotation contribution is aligned with the later upstream implementation.
@@ -133,10 +133,10 @@ Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rota
 Port directly. Wavy raindrop ripples outline. `_FADE_ALPHA=24` → `draw.fadeBlack(24f/255f)` replaces `BLEND_RGB_MULT(232,228,236)`. Closed polygons drawn with RGB-separated offsets and custom sine-wave ripple function.  Rings are removed based on updated post-growth radius to match the later upstream stale-radius fix.
 
 ### PersistenceMode
-Port directly where it fits the GL renderer.  `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`.  Platonic solids wireframe models (Tetrahedron, Octahedron, Cube, Icosahedron, Dodecahedron) normalized to unit sphere, projected with perspective and depth-faded. Double-pass `draw.line()` for both glow and color passes of model edges. Upstream's later offscreen `RES_DIV=2` pygame-surface path does not map 1:1 to the Android batching renderer, so the port keeps the direct GL draw approach.
+Port directly where it fits the GL renderer. `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`. Platonic solids are projected with v3.13's viewport-filling `0.95 * height` focal scale and depth fading; the obsolete treble flash ring is removed. Upstream's offscreen `RES_DIV=2` pygame path does not map 1:1 to direct Android GL batching.
 
 ### SynapseMode
-Port directly.  `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`.  Signal pulses and node glows drawn with `setAdditiveBlend()` circles. Outgoing edge lists pre-calculated; signals capped at `MAX_SIGNALS=240` and fan-outs limited to prevent runaway cascades.  The Android graph rebuilds when the render size changes.
+Port directly. `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`. v3.13 living topology ranges from 28–90 nodes; nodes wander around anchors, beats grow the graph, and periodic changes add or shed nodes. Every mutation rewires nearest neighbours and clears stale edge-index signals. Signals remain capped at `MAX_SIGNALS=240`.
 
 ### HeartbeatMode
 Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon drawn with 120-point `FloatArray` passed to `draw.polygon()` twice (glow + col).  Rings are culled after per-frame growth is applied, matching the later upstream state-handling fix.

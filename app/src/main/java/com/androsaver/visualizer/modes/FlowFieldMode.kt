@@ -12,12 +12,13 @@ import kotlin.math.*
  * persistent buffer.  Bass warps field intensity and particle speed; beat
  * fires a phase jump that instantly reshapes all flow lines.
  *
- * Port of psysuals `FlowField` class (v3.11.0).
+ * Port of psysuals `FlowField` class (v3.13.0).
  * pygame BLEND_RGB_MULT(247/255) ≈ fadeBlack(8/255) on a dark background.
  */
 class FlowFieldMode : BaseMode() {
 
     override val name = "FlowField"
+    private val rng = kotlin.random.Random(0xF10F)
 
     private companion object {
         const val N_MAX  = 40000
@@ -43,16 +44,35 @@ class FlowFieldMode : BaseMode() {
         lastH = 0f
     }
 
-    private fun initParticles(W: Float, H: Float) {
-        n = (25000 * W * H / (1920 * 1080)).toInt().coerceIn(8000, N_MAX)
-        px = FloatArray(n)
-        py = FloatArray(n)
-        for (i in 0 until n) {
-            px[i] = Math.random().toFloat() * W
-            py[i] = Math.random().toFloat() * H
+    private fun allocateParticles(count: Int, W: Float, H: Float, preserve: Boolean) {
+        val safeW = W.coerceAtLeast(1f)
+        val safeH = H.coerceAtLeast(1f)
+        val oldPx = px
+        val oldPy = py
+        n = count.coerceIn(8000, N_MAX)
+        px = FloatArray(n) { rng.nextFloat() * safeW }
+        py = FloatArray(n) { rng.nextFloat() * safeH }
+        if (preserve) {
+            val keep = minOf(oldPx.size, oldPy.size, n)
+            for (i in 0 until keep) {
+                px[i] = ((oldPx[i] % safeW) + safeW) % safeW
+                py[i] = ((oldPy[i] % safeH) + safeH) % safeH
+            }
         }
-        lastW = W
-        lastH = H
+        lastW = safeW
+        lastH = safeH
+    }
+
+    private fun initParticles(W: Float, H: Float, preserve: Boolean = false) {
+        val target = (25000 * W * H / (1920 * 1080)).toInt().coerceIn(8000, N_MAX)
+        allocateParticles(target, W, H, preserve)
+    }
+
+    /** Adjust density in the same fixed 2,000-particle steps as psysuals. */
+    fun adjustParticles(delta: Int = 2000, W: Float = lastW, H: Float = lastH) {
+        if (W <= 0f || H <= 0f) return
+        val target = (n + delta).coerceIn(8000, N_MAX)
+        if (target != n) allocateParticles(target, W, H, preserve = true)
     }
 
     private fun fieldAngle(i: Int, bass: Float): Float {
@@ -76,7 +96,7 @@ class FlowFieldMode : BaseMode() {
         // Seed particles on first frame and rebuild on viewport changes.
         if (tick == 0 || px.isEmpty() || W != lastW || H != lastH ||
             (px.size > 1 && px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
-            initParticles(W, H)
+            initParticles(W, H, preserve = px.isNotEmpty())
         }
 
         hue  = (hue + 0.0013f + bass * 0.002f + high * 0.001f) % 1f
@@ -109,8 +129,8 @@ class FlowFieldMode : BaseMode() {
             val attractY = (cy - py[i]) * (bass * 0.0018f)
 
             // Treble scatter: random kick in any direction
-            val scatterX = (Math.random().toFloat() * 2f - 1f) * scatter
-            val scatterY = (Math.random().toFloat() * 2f - 1f) * scatter
+            val scatterX = (rng.nextFloat() * 2f - 1f) * scatter
+            val scatterY = (rng.nextFloat() * 2f - 1f) * scatter
 
             var nx = px[i] + cos(ang) * spd + attractX + scatterX
             var ny = py[i] + sin(ang) * spd + attractY + scatterY

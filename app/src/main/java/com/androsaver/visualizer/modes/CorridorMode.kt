@@ -8,7 +8,7 @@ import kotlin.math.*
  * CorridorMode — first-person neon rainbow corridor.
  * Concentric rounded-rectangle frames fly toward the camera with a full rainbow
  * sweep across depth; beat flares nearest frames and spawns glowing sparks.
- * Port of psysuals `Corridor` class (v1.4.1).
+ * Port of psysuals `Corridor` class (v3.13.0).
  *
  * Spark trailing: psysuals uses a dedicated spark_surf faded at alpha=10/255 per frame,
  * giving ~25 frames persistence.  Android has one framebuffer, so we maintain a
@@ -93,16 +93,20 @@ class CorridorMode : BaseMode() {
         val bass = beat
         val mid  = audio.mid
         val high = audio.treble
+        val motion = displayMotionScale(draw)
+        val bassM = bass * motion
+        val midM = mid * motion
+        val highM = high * motion
         val W = draw.W; val H = draw.H
 
         hue  += 0.005f
-        val dt   = 0.028f + bass * 0.08f + mid * 0.06f + high * 0.04f
+        val dt   = 0.022f + bassM * 0.08f + midM * 0.06f + highM * 0.04f
         time    += dt
 
         val fov = minOf(W, H) * 0.72f
 
         // ── Spawn sparks — driven by treble transients and bass ───────────────
-        val spawnN = (bass * 4f + high * 6f).toInt()
+        val spawnN = (bassM * 4f + highM * 6f).toInt()
         repeat(spawnN) {
             if (sparks.size < MAX_SPARKS * 2) {
                 val z = Z_FAR * (0.55f + Math.random().toFloat() * 0.37f)
@@ -137,12 +141,12 @@ class CorridorMode : BaseMode() {
         for (f in frames.sortedByDescending { it.z }) {
             val z     = maxOf(f.z, 0.01f)
             val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - z * 0.5f, mid = mid)
+            val (pcx, pcy) = path(time - z * 0.5f, mid = midM)
             val cxS = pcx * fov / z + W / 2f
             val cyS = pcy * fov / z + H / 2f
 
             val h      = (hue + nearT) % 1f
-            val bright = (0.06f + nearT * 0.70f + mid * 0.15f * nearT + bass * nearT * 0.50f)
+            val bright = (0.06f + nearT * 0.70f + midM * 0.15f * nearT + bassM * nearT * 0.50f)
                             .coerceIn(0f, 1f)
 
             val halfH = WORLD_H * fov / z
@@ -173,12 +177,12 @@ class CorridorMode : BaseMode() {
         for (sp in sparks) {
             val z     = maxOf(sp.z, 0.01f)
             val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - sp.z * 0.5f, mid = mid)
+            val (pcx, pcy) = path(time - sp.z * 0.5f, mid = midM)
             curBuf[bi++] = (pcx + sp.ox) * fov / z + W / 2f         // sx
             curBuf[bi++] = (pcy + sp.oy) * fov / z + H / 2f         // sy
-            curBuf[bi++] = maxOf(2f, fov / z * 0.05f * (1f + high * 1.5f))  // r scales with treble
+            curBuf[bi++] = maxOf(2f, fov / z * 0.05f * (1f + highM * 1.5f)) // r scales with treble
             curBuf[bi++] = (sp.hue + nearT * 0.35f) % 1f             // h
-            curBuf[bi++] = 0.35f + nearT * 0.60f + high * 0.25f      // bright
+            curBuf[bi++] = 0.35f + nearT * 0.60f + highM * 0.25f     // bright
         }
         sparkHist[sparkHistHead]     = curBuf
         sparkHistSize[sparkHistHead] = curCount

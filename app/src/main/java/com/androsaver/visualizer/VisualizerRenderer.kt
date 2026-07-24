@@ -23,7 +23,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     /** Index into [modes] of the currently active mode. */
     var modeIndex: Int = 0
         set(v) {
-            field = v % modes.size
+            field = Math.floorMod(v, modes.size)
             resetPending = true
             clearFrameCount = 2
         }
@@ -73,6 +73,10 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         draw.onSurfaceCreated()
         modes.forEach { it.reset() }
+        tick = 0
+        lastFrameNs = 0L
+        clearFrameCount = 2
+        resetPending = false
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {

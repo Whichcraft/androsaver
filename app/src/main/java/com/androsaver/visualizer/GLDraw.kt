@@ -166,6 +166,16 @@ class GLDraw(var W: Int, var H: Int) {
     // ── Lifecycle ──────────────────────────────────────────────────────────────
 
     fun onSurfaceCreated() {
+        // A recreated EGL context invalidates every old numeric handle. Clear
+        // them before rebuilding so no stale FBO/program can be reused.
+        program = 0; vbo = 0; quadVbo = 0
+        threshProg = 0; blurProg = 0; compProg = 0
+        sceneFboId = 0; sceneTexId = 0
+        bloomAFboId = 0; bloomATexId = 0
+        bloomBFboId = 0; bloomBTexId = 0
+        bloomEnabled = true
+        triCount = 0; lineCount = 0
+
         program = buildProgram(VERT_SRC, FRAG_SRC)
         aPos   = GLES20.glGetAttribLocation(program, "aPos")
         aColor = GLES20.glGetAttribLocation(program, "aColor")
@@ -199,16 +209,20 @@ class GLDraw(var W: Int, var H: Int) {
         compBloomLoc  = GLES20.glGetUniformLocation(compProg, "uBloom")
         compStrLoc    = GLES20.glGetUniformLocation(compProg, "uStrength")
         compPosLoc    = GLES20.glGetAttribLocation (compProg, "aPos")
+        if (threshProg == 0 || blurProg == 0 || compProg == 0) {
+            bloomEnabled = false
+        }
 
         GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
     }
 
     fun onSurfaceChanged(w: Int, h: Int) {
-        W = w; H = h
-        GLES20.glViewport(0, 0, w, h)
-        Matrix.orthoM(projMatrix, 0, 0f, w.toFloat(), h.toFloat(), 0f, -1f, 1f)
-        if (bloomEnabled) setupBloomFbos(w, h)
+        W = w.coerceAtLeast(1)
+        H = h.coerceAtLeast(1)
+        GLES20.glViewport(0, 0, W, H)
+        Matrix.orthoM(projMatrix, 0, 0f, W.toFloat(), H.toFloat(), 0f, -1f, 1f)
+        if (bloomEnabled) setupBloomFbos(W, H)
     }
 
     fun beginFrame() {

@@ -16,7 +16,7 @@ import kotlin.math.*
  *   Treble → strobe flash
  *   Beat   → speed spike + hue jump
  *
- * Port of psysuals `effects/persistence.py` (v3.11.0 lineage).
+ * Port of psysuals `effects/persistence.py` (v3.13.0 lineage).
  * TRAIL_ALPHA=5 → fadeBlack(5f/255f) — very long persistence for moiré build-up.
 */
 private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>>)
@@ -24,6 +24,7 @@ private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>
 class PersistenceMode : BaseMode() {
 
     override val name = "Persistence"
+    private val rng = kotlin.random.Random(0x513E)
 
     private companion object {
         const val MAX_SHAPES = 8
@@ -108,9 +109,9 @@ class PersistenceMode : BaseMode() {
         }
     }
 
-    private val rotX = FloatArray(MAX_SHAPES) { (Math.random() * 2 * PI).toFloat() }
-    private val rotY = FloatArray(MAX_SHAPES) { (Math.random() * 2 * PI).toFloat() }
-    private val rotZ = FloatArray(MAX_SHAPES) { (Math.random() * 2 * PI).toFloat() }
+    private val rotX = FloatArray(MAX_SHAPES) { rng.nextFloat() * TAU }
+    private val rotY = FloatArray(MAX_SHAPES) { rng.nextFloat() * TAU }
+    private val rotZ = FloatArray(MAX_SHAPES) { rng.nextFloat() * TAU }
 
     private val speedsX = FloatArray(MAX_SHAPES) { 0.008f * (1f + it * 0.12f) }
     private val speedsY = FloatArray(MAX_SHAPES) { 0.012f * (1f + it * 0.08f) }
@@ -124,9 +125,9 @@ class PersistenceMode : BaseMode() {
     override fun reset() {
         hue = 0f; boost = 0f; beatPrev = 0f
         for (i in 0 until MAX_SHAPES) {
-            rotX[i] = (Math.random() * 2 * PI).toFloat()
-            rotY[i] = (Math.random() * 2 * PI).toFloat()
-            rotZ[i] = (Math.random() * 2 * PI).toFloat()
+            rotX[i] = rng.nextFloat() * TAU
+            rotY[i] = rng.nextFloat() * TAU
+            rotZ[i] = rng.nextFloat() * TAU
         }
     }
 
@@ -163,7 +164,9 @@ class PersistenceMode : BaseMode() {
         draw.fadeBlack(5f / 255f)
 
         val cx      = W / 2f; val cy = H / 2f
-        val baseR   = minOf(W, H) * 0.38f
+        // Camera focal scale: the old value left the perspective solids
+        // undersized after depth projection.
+        val baseR   = H * 0.95f
         val fov     = baseR
         val spdMul  = 1f + bass * 2.5f + boost
         val nShapes = maxOf(3, minOf(MAX_SHAPES, 3 + (mid * 5).toInt()))
@@ -229,11 +232,5 @@ class PersistenceMode : BaseMode() {
             }
         }
 
-        // Treble: brief radial flash ring
-        if (high > 0.50f) {
-            val flashR = minOf(W, H) * 0.48f * high
-            val fc = GLDraw.hsl(hue, l = 0.15f * high)
-            draw.circle(cx, cy, flashR, fc[0], fc[1], fc[2], fc[3], filled = false, segments = 40)
-        }
     }
 }

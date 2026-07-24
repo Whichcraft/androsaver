@@ -34,4 +34,13 @@ abstract class BaseMode {
         for (i in lo until hi) sum += this[i]
         return sum / (hi - lo)
     }
+
+    /**
+     * Keep high-energy perspective motion comfortable on smaller displays.
+     * TV-sized surfaces retain full motion while smaller surfaces are damped.
+     */
+    protected fun displayMotionScale(draw: GLDraw): Float {
+        val shortest = minOf(draw.W.coerceAtLeast(1), draw.H.coerceAtLeast(1))
+        return (shortest / 1080f).coerceIn(0.55f, 1f)
+    }
 }

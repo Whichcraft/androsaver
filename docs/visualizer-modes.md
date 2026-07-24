@@ -29,18 +29,18 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 10 | `PlasmaMode` | Plasma | Full-screen sine-wave interference |
 | 11 | `BranchesMode` | Branches | Recursive fractal lightning tree |
 | 12 | `ButterfliesMode` | Butterflies | Neon butterfly pairs entering, orbiting, departing |
-| 13 | `FlowFieldMode` | FlowField | 4 000 particles riding a sine/cosine noise field with bass gravity + treble scatter |
+| 13 | `FlowFieldMode` | FlowField | 8 000–40 000 particles riding a sine/cosine noise field with bass gravity + treble scatter |
 | 14 | `FireworksMode` | Fireworks | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
 | 16 | `LatticeMode` | Lattice | 14×9 FFT-mapped crystal grid with shockwave ring on beat |
 | 17 | `MyceliumMode` | Mycelium | Multi-colony fungal network with spores and rotating satellite rings |
 | 18 | `MagnetarMode` | Magnetar | Rotating magnetic dipole field with 4 000 particles |
-| 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with trail diffusion |
-| 20 | `CliffordMode` | Clifford | Dense strange attractor with dynamic framing |
+| 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with adaptive-grid trail diffusion |
+| 20 | `CliffordMode` | Clifford | Six-pass strange attractor with dynamic framing and hot cores |
 | 21 | `MobiusMode` | Mobius | 3-D wireframe Mobius strip |
 | 22 | `ChromaticMode` | Chromatic | RGB-split ripple rings |
 | 23 | `PersistenceMode` | Persistence | Nested rotating 3D Platonic-solid wireframes |
-| 24 | `SynapseMode` | Synapse | Neural graph with traveling signal pulses |
+| 24 | `SynapseMode` | Synapse | Living 28–90-node graph with safe rewiring and traveling signals |
 | 25 | `HeartbeatMode` | Heartbeat | Expanding morphing neon rings |
 | 26 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
 | 27 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
@@ -100,7 +100,7 @@ Up to 3 pairs of neon butterflies. Solo enters from a screen edge; partner joins
 
 ## FlowFieldMode
 
-4 000 particles surfing a continuously-evolving 3-layer sine/cosine noise field. Rainbow trails on a very slow fade (8/255 ≈ 40-frame persistence). Per-particle forces: bass pulls all particles gently toward screen centre (gravity `(centre − pos) × bass × 0.0018`); treble pushes particles in random directions (scatter `± treble × 3.2` per axis). Beat fires a phase jump that instantly reshapes all flow lines. Silence: particles drift gently, no gravity or scatter.
+8 000–40 000 particles surfing a continuously-evolving 2-layer sine/cosine noise field. Particle reallocations preserve existing wrapped positions. Rainbow trails use a very slow fade (8/255 ≈ 40-frame persistence). Per-particle forces: bass pulls toward screen centre; treble adds scatter. Beat fires a phase jump that instantly reshapes all flow lines. Silence: particles drift gently, no gravity or scatter.
 
 ## FireworksMode
 
@@ -124,11 +124,11 @@ Swirling growth pattern around multiple colonies (cores). Up to 180 active tips 
 
 ## SlimeMoldMode
 
-Physarum-style 2 500-agent slime simulation. Agents sense three directions (forward, left-offset, right-offset) and steer toward the strongest trail signal. Trails diffuse (3×3 box kernel) and decay each frame. Grid resolution: RES_DIV=8 (~240×135 cells for 1080p). Beat teleports 5% of agents back toward centre. Trail rendered as coloured rects mapped hue ∝ trail intensity. The simulation grid is rebuilt whenever either render dimension changes, avoiding stale state after viewport or aspect-ratio changes. Silence: agents slowly form patterns with minimal trail.
+Physarum-style 2 500-agent slime simulation. Agents sense three directions and steer toward the strongest trail signal. Trails diffuse and decay in reusable buffers. Grid resolution uses divisor 8 on smaller displays and 6 on TV-sized displays. Deposit coordinates are clamped against the actual trail shape before every indexed write. Beat teleports 5% of agents back toward centre. The grid is rebuilt whenever either render dimension changes.
 
 ## CliffordMode
 
-Strange attractor (Clifford map). 8 000 walkers iterate `x' = sin(a·y) - cos(b·x)`, `y' = sin(c·x) - cos(d·y)` 3 times per frame. Features curated presets plus dynamic framing and recovery to prevent collapse. Parameters (a, b, c, d) drift toward target values; beat snaps to new presets with jitter. Colour by polar angle and distance of particle position. The Android port now uses a heavier multi-pass accumulation/framing path closer to the later upstream implementation. Trail: fadeBlack(18/255).
+Strange attractor (Clifford map). 7 000 walkers iterate `x' = sin(a·y) - cos(b·x)`, `y' = sin(c·x) - cos(d·y)` six times per frame—the largest density that remains below the Android GL batch ceiling. Features curated presets, dynamic framing, collapse recovery, faster parameter morphing, high-contrast hot cores, and isolated seeded random state. Trail: fadeBlack(18/255).
 
 ## MobiusMode
 
@@ -140,11 +140,11 @@ Prismatic raindrop ripples. Expanding waves split red, green, and blue channels 
 
 ## PersistenceMode
 
-Up to 8 nested polygons (triangle through decagon) rotating in 3D space with perspective projection. Non-coplanar orbital speeds on X, Y, and Z axes generate holographic 3D wagon-wheel moiré and mandala patterns. Line thickness and brightness are faded based on depth factor. Double-pass line drawing for neon glow. Very long trail persistence (fadeBlack(5/255) ≈ 50-frame trail). Beat fires a speed spike; mid controls polygon count; treble fires a background radial flash ring.
+Up to 8 nested Platonic-solid wireframes rotate in 3D with perspective projection. Non-coplanar orbital speeds generate holographic wagon-wheel moiré and mandala patterns. The v3.13 focal scale fills most of the viewport; the old treble flash ring was removed so it no longer obscures the geometry. Double-pass edges provide neon glow, with very long fadeBlack(5/255) persistence.
 
 ## SynapseMode
 
-55-node neural-network graph. Nodes wired to 3 nearest neighbours each. When a node fires, signal pulses travel down a subset of outgoing edges to prevent runaway cascades (~20–30 ms transit). On arrival, the target node fires (cascade propagation, capped at 18 nodes per frame). Beat fires 1–4 random nodes simultaneously. Glow per node decays over ~30 frames. Auto-fire every 8–25 frames (scaled by mid). The node graph is rebuilt when the render size changes so resize events cannot leave stale edge geometry behind. Trail: fadeBlack(18/255).
+A living 28–90-node neural graph. Strong beats add nodes; periodic mutations add or shed a node, then safely rebuild nearest-neighbour edges and clear signals that held old edge indices. Nodes wander around stable anchors while remaining clamped to the viewport. Signal cascades remain capped at 240 active pulses and 18 arrivals per frame. Resize events rebuild all topology state. Trail: fadeBlack(18/255).
 
 ## HeartbeatMode
 

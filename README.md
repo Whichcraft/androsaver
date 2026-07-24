@@ -4,14 +4,14 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 
 ## What's New in v2.8
 
-**Major visualizer overhaul and psysuals v3.10/v3.11 integration:**
+**Major visualizer overhaul and psysuals v3.13 integration:**
 
 - **Mycelium** — Reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
 - **Persistence** — Shifted nested rotating polygons into a true 3D perspective projection space with depth-based thickness, brightness shading (depth cueing), and non-coplanar axis rotation.
 - **Butterflies** — Reverted to the stable chase/orbit motion behavior, removing size variations and swarm separation/cohesion forces to achieve smoother, glitch-free flight paths.
 - **FlowField & Lattice** — Optimized rendering and particle limits to maintain a solid 60 FPS on low-end TV stick devices.
 - **Fireworks** — Renamed and aligned with the upstream firework-rocket effect, replacing the old Vortex naming and behavior.
-- **Runtime hardening** — recent backports also improved resize safety, startup stability, and per-mode viewport handling across effects such as Aurora, Magnetar, SlimeMold, TriFlux, Bubbles, Synapse, Chromatic, and Heartbeat.
+- **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
 
 ## What's New in v2.2
 
@@ -396,18 +396,18 @@ See [visualizer-music-reactivity.md](visualizer-music-reactivity.md) for a detai
 | **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
 | **Branches** ✨ | Psychedelic fractal lightning tree — nine neon arms split recursively to depth 7 with glowing halos and bright cores; mid frequencies twist branch angles live; beats fire extra arms |
 | **Butterflies** | Neon butterfly pairs in mutual-pursuit spirals with periodic wander breaks, synchronized wing phases, and beat-fired sparkles |
-| **FlowField** | 4 000 rainbow particles surfing a continuously evolving field; bass pulls toward center, treble scatters, and beats reshape the flow |
+| **FlowField** | 8 000+ rainbow particles surfing a continuously evolving field; bass pulls toward center, treble scatters, and beats reshape the flow |
 | **Fireworks** | Firework rockets arc upward, explode into glowing embers, and auto-launch in the background; beats fire extra rockets |
 | **Aurora** | Five layered Northern Lights curtains with additive glow; bass billows amplitude, treble drives shimmer speed, and beats trigger bloom flashes |
 | **Lattice** | Crystal grid of glowing nodes and double-stroke beams with center-out frequency mapping and beat shockwaves |
 | **Mycelium** | Multi-colony fungal growth with bioluminescent filament trails, orbiting spores, and beat-driven bloom bursts |
 | **Magnetar** | 4 000 particles riding a rotating magnetic dipole field with equatorial shockwave bursts on beats |
-| **SlimeMold** | Physarum-style agent simulation with trail diffusion; beats teleport part of the colony back toward center |
-| **Clifford** | Dense strange-attractor cloud with curated presets, dynamic framing, and long glowing persistence trails |
+| **SlimeMold** | Physarum-style agent simulation with trail diffusion and a finer TV-size grid; beats teleport part of the colony back toward center |
+| **Clifford** | High-contrast six-pass strange-attractor storm with curated presets, dynamic framing, and glowing persistence trails |
 | **Mobius** | 3-D wireframe Mobius strip with perspective projection and beat-driven shiver/twist bursts |
 | **Chromatic** | Prismatic ripple rings with RGB-separated outlines and treble-controlled chromatic split |
-| **Persistence** | Nested rotating 3D Platonic-solid wireframes with perspective depth cueing and very long trail persistence |
-| **Synapse** | Neural graph of firing nodes and traveling pulses with beat-triggered cascades |
+| **Persistence** | Viewport-filling rotating 3D Platonic-solid wireframes with perspective depth cueing and very long trail persistence |
+| **Synapse** | Living neural graph that grows, sheds, and wanders nodes while firing traveling signal cascades |
 | **Heartbeat** | Expanding morphing rings that swing between circular and polygonal forms and pulse in layered neon glows |
 | **Spectrum** | Log-spaced spectrum analyser with peak markers and waveform overlay |
 | **Waterfall** | Scrolling time-frequency spectrogram; beat flashes the leading edge |

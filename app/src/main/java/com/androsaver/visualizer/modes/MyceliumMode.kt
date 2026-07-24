@@ -11,7 +11,7 @@ import kotlin.math.*
  * Rewritten in v3.9.0 to support multiple colonies (cores) with a swirling
  * growth pattern for fuller screen coverage.
  *
- * Port of psysuals `effects/mycelium.py` (v3.11.0).
+ * Port of psysuals `effects/mycelium.py` (v3.13.0).
  */
 class MyceliumMode : BaseMode() {
 
@@ -97,7 +97,10 @@ class MyceliumMode : BaseMode() {
         for (i in 0 until n) {
             val idx = coreIdx ?: (0 until CORE_COUNT).random()
             val ang = Math.random().toFloat() * TAU
-            val radius = 4f + Math.random().toFloat() * (minDim * 0.035f - 4f)
+            // Keep the random range valid on tiny preview/test surfaces.
+            val radiusLow = 2f
+            val radiusHigh = maxOf(radiusLow + 1f, minDim * 0.035f)
+            val radius = radiusLow + Math.random().toFloat() * (radiusHigh - radiusLow)
             val hoff = Math.random().toFloat() * 0.15f
             val core = cores[idx]
             tips.add(

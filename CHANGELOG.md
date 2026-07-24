@@ -4,6 +4,20 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-07-24 — v2.8.2: persistent slideshow diagnostics and psysuals v3.13
+
+- **Slideshow / All transition effects**: Replaced the independent two-view callback chains with one sequence-guarded `ValueAnimator` pipeline for Crossfade, Fade to Black, Slide Left, Slide Right, Zoom In, and Zoom Out. Both image layers now advance from the same bounded animation fraction and settle through one completion path.
+- **Slideshow / Crash containment**: Added `Throwable` guards around transition creation, every animation frame and completion, Ken Burns interaction, manual navigation, image-target cleanup, Glide callbacks, source initialization/loading/refresh, cache access, and fallback recovery. Production builds recover to a visible image without exposing diagnostics.
+- **Dev diagnostics**: Added a dedicated full-screen, final-layer error overlay to the dev flavor. It remains visible for the slideshow session, is repeatedly raised above image/clock/weather layers, retains additional failures, and has an independent status-text fallback.
+- **Dev diagnostics / Image failures**: Error reports now include the configured and resolved transition, image-source provider, attempted and displayed image names, redacted image URL, orientation, HTTP header names, session/sequence/index/view state, thread, cause and suppressed-cause chains, Glide root causes, and a bounded stack trace.
+- **Image pipeline**: Added per-provider 60-second timeout diagnostics, source attribution across refreshes and fallback cache entries, guarded background cache writes, and whole-pipeline catches while preserving coroutine cancellation.
+- **Visualizer / psysuals v3.13**: Updated the `psysuals` submodule to upstream `v3.13.0` (`8bb5ce3`), then backported every Android-applicable runtime and rendering change. Desktop-only pygame/ModernGL, monitor/process, librosa, settings-file, benchmark, and Python test-runner changes do not have Android counterparts.
+- **Visualizer / Effects**: Backported viewport-scaled motion for Cube, Tunnel, and Corridor; viewport-preserving FlowField allocation; adaptive reusable SlimeMold diffusion; tiny-display-safe Mycelium ranges; six-pass high-contrast Clifford rendering; viewport-filling Persistence geometry; and Synapse's living 28–90-node topology with safe rewiring.
+- **Visualizer / Runtime hardening**: Isolated random state in changed simulation modes, made audio capture shutdown idempotent and release-safe, reset stale GL handles and bloom state after EGL context recreation, clamped zero-sized surfaces, and made renderer mode selection and surface recreation defensive.
+- **Regression checks**: Plain Kotlin/JVM source compilation and a 240-frame audio-spike stress run passed for all changed visualizer modes at 100×80, 320×240, 1280×720, and 1920×1080. A Java source audit exercised all six transition equations and verified the persistent dev-overlay/error-detail contract. The Android APK build remains delegated to GitHub Actions.
+
+---
+
 ## 2026-07-24 — v2.8.1: slideshow transition production hardening
 
 - **Slideshow / Glide ownership**: Kept one completed Glide target owned by each image slot until reuse or shutdown, ensuring resources are explicitly released and preventing stale callbacks from clearing or overwriting newer images.

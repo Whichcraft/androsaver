@@ -7,18 +7,21 @@ import kotlin.math.*
 /**
  * Clifford — strange attractor with audio-morphing parameters.
  *
- * 8 000 parallel walkers are iterated through the Clifford map each frame.
- * Updated through v3.11.0 with preset-driven framing and multi-pass density accumulation.
+ * 7 000 parallel walkers are iterated through the Clifford map in six passes.
+ * Updated through v3.13.0 with denser framing and high-contrast emission.
  *
- * Port of psysuals `effects/clifford.py` (v3.11.0).
+ * Port of psysuals `effects/clifford.py` (v3.13.0).
  */
 class CliffordMode : BaseMode() {
 
     override val name = "Clifford"
+    private val rng = kotlin.random.Random(0xC11F)
 
     private companion object {
-        const val N = 8_000
-        const val STEPS = 4
+        // Six passes keep v3.13's denser shape while 7k walkers stay below
+        // GLDraw's 262k-vertex batch ceiling (one particle is six vertices).
+        const val N = 7_000
+        const val STEPS = 6
         val TAU = (2.0 * Math.PI).toFloat()
         val PI_F = Math.PI.toFloat()
 
@@ -55,19 +58,19 @@ class CliffordMode : BaseMode() {
         newParams(force = true)
         a = ta; b = tb; c = tc; d = td
         for (i in 0 until N) {
-            xs[i] = (Math.random().toFloat() * 3.2f - 1.6f)
-            ys[i] = (Math.random().toFloat() * 3.2f - 1.6f)
+            xs[i] = (rng.nextFloat() * 3.2f - 1.6f)
+            ys[i] = (rng.nextFloat() * 3.2f - 1.6f)
         }
-        hue = Math.random().toFloat(); beatPrev = 0f
+        hue = rng.nextFloat(); beatPrev = 0f
     }
 
     private fun newParams(force: Boolean = false) {
-        val base = PRESETS.random()
+        val base = PRESETS.random(rng)
         val jitter = if (force) 0f else 0.18f
-        ta = base[0] + (Math.random().toFloat() * 2f - 1f) * jitter
-        tb = base[1] + (Math.random().toFloat() * 2f - 1f) * jitter
-        tc = base[2] + (Math.random().toFloat() * 2f - 1f) * jitter
-        td = base[3] + (Math.random().toFloat() * 2f - 1f) * jitter
+        ta = base[0] + (rng.nextFloat() * 2f - 1f) * jitter
+        tb = base[1] + (rng.nextFloat() * 2f - 1f) * jitter
+        tc = base[2] + (rng.nextFloat() * 2f - 1f) * jitter
+        td = base[3] + (rng.nextFloat() * 2f - 1f) * jitter
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -78,12 +81,12 @@ class CliffordMode : BaseMode() {
 
         if (tick == 0) reset()
 
-        hue = (hue + 0.0025f + high * 0.003f) % 1f
+        hue = (hue + 0.004f + mid * 0.002f + high * 0.006f) % 1f
 
         if (bass > 0.8f && beatPrev <= 0.8f) newParams()
         beatPrev = bass
 
-        val spd = 0.008f + mid * 0.012f + bass * 0.006f
+        val spd = 0.022f + mid * 0.025f + bass * 0.020f
         a += (ta - a) * spd; b += (tb - b) * spd
         c += (tc - c) * spd; d += (td - d) * spd
 
@@ -103,7 +106,7 @@ class CliffordMode : BaseMode() {
         draw.fadeBlack(18f / 255f)
 
         draw.setAdditiveBlend()
-        // Run 4 steps per frame and retain samples for smoother framing.
+        // Run six steps per frame and retain samples for smoother framing.
         for (step in 0 until STEPS) {
             val base = step * N
             for (i in 0 until N) {
@@ -150,10 +153,13 @@ class CliffordMode : BaseMode() {
             if (px >= 0f && px < W && py >= 0f && py < H) {
                 val ang = (atan2(allY[i], allX[i]) / (2f * PI_F) + 0.5f)
                 val rad = (sqrt(allX[i] * allX[i] + allY[i] * allY[i]) * 0.18f).coerceIn(0f, 1f)
-                val h = (hue + ang * 0.55f + rad * 0.20f) % 1f
-                val bright = 0.32f + bass * 0.20f + (1f - rad) * 0.18f
+                val h = (hue + ang * 0.45f + rad * 0.20f) % 1f
+                val hot = ((0.42f - rad) / 0.42f).coerceIn(0f, 1f)
+                val bright = (0.58f + bass * 0.30f + high * 0.20f +
+                    (1f - rad) * 0.18f + hot * (0.18f + bass * 0.20f))
+                    .coerceIn(0f, 1f)
                 val cArr = GLDraw.hsl(h, l = bright)
-                draw.particle(px, py, 1.5f, cArr[0], cArr[1], cArr[2], 0.6f)
+                draw.particle(px, py, 1.5f, cArr[0], cArr[1], cArr[2], 0.82f)
             }
         }
         draw.setNormalBlend()
