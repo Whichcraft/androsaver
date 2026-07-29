@@ -4,7 +4,7 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## Unreleased
+## 2026-07-29 — v2.8.5: slideshow lifecycle and runtime robustness
 
 - **Slideshow / Glide callbacks**: Deferred target cleanup out of Glide target callbacks, preventing `IllegalStateException` when a refreshed image is removed while a load completes.
 - **Slideshow / lifecycle**: Cancelled stale handler work and weather/cache requests on stop; cache fallback and refresh results remain session-scoped.
