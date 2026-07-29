@@ -35,13 +35,12 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API; session re-authenticated automatically every 25 minutes
 - **Device storage source** — uses photos from the TV's local storage via MediaStore
 - All sources can be active simultaneously; images are merged and shuffled
-- **Offline cache** — up to 200 images / 300 MB stored locally; used automatically as a fallback when sources are unreachable
+- **Offline cache** — up to 200 images / 150 MB stored locally; used automatically as a fallback when sources are unreachable
 - Six transition effects: **Crossfade**, **Fade to Black**, **Slide Left**, **Slide Right**, **Zoom In**, **Zoom Out**, plus a **Random** mode
 - Configurable time per image (5 s – 30 min) and transition speed (1 – 5 seconds)
 - Transition timing is deterministic: the configured image time is always honored, and when **Random** is selected only the effect choice changes
 - **Ken Burns effect** — slow pan and zoom animation; each photo always comes to rest centered
 - **EXIF orientation** — portrait photos from phones are displayed upright regardless of source
-- **Visualizer overlay** — music visualizer rendered semi-transparently on top of the slideshow
 
 ### Music Visualizer
 Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
@@ -53,7 +52,7 @@ Designed for listening sessions: start playing music in any app, let the screen 
   - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Subtle → Normal → High → Intense)
   - Any other key — dismiss the screensaver
 - **Music Genre hint** — tunes the beat-detection frequency weighting to the music style (Any / Electronic / Rock / Classical); see [genre hint details](#music-genre-hint) below
-- Auto-cycle mode rotates through all effects on a configurable interval (off by default)
+- Auto-cycle mode rotates through effects on a configurable interval
 - Configurable effect and intensity via Settings
 
 ### Photo Slideshow
@@ -87,7 +86,7 @@ The easiest way to install on an Amazon Fire TV or Android TV device is via the 
 
 - Android 5.0+ (API 21)
 - Any Android device — optimised for Android TV (tested on Huawei TV Stick and Amazon Fire TV Stick), also works on tablets and phones
-- Android Studio Hedgehog or later (to build from source)
+- Android Studio with Android SDK 35 and JDK 21 (to build from source)
 - `RECORD_AUDIO` permission required for the Music Visualizer (prompted automatically when you select Visualizer mode in Settings)
 - `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` permission required for the Device Photos source (prompted when you enable the toggle)
 
@@ -291,8 +290,6 @@ All sources can be enabled at the same time — images from all sources are merg
 | **Transition Speed** | 1 s, 2 s, 3 s, 4 s, 5 s | 1.5 s | Duration of the animation between images |
 | **Transition Effect** | Crossfade, Fade to Black, Slide Left, Slide Right, Zoom In, Zoom Out, Random | Crossfade | Animation style used between images |
 | **Ken Burns Effect** | On / Off | On | Slow pan and zoom applied to each photo |
-| **Visualizer Overlay** | On / Off | Off | Render the music visualizer semi-transparently over photos |
-| **Overlay Opacity** | 0.1 – 1.0 | 0.3 | Opacity of the visualizer overlay |
 
 | Effect | Description |
 |--------|-------------|
@@ -424,12 +421,10 @@ ScreensaverService (DreamService)
         │   ├── ImmichSource         ← Immich REST API + API key auth
         │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
         │   ├── SynologySource       ← Synology DSM FileStation API; re-login every 25 min
-        │   ├── LocalStorageSource   ← MediaStore device photos + EXIF orientation
-        │   ├── ImageCache           ← offline fallback (200 images / 300 MB); EXIF preserved
-        │   ├── ExifRotationTransformation ← corrects orientation for local/cached images
+        │   ├── LocalStorageSource   ← MediaStore device photos
+        │   ├── ImageCache           ← offline fallback (200 images / 150 MB)
         │   ├── Ken Burns animator   ← pan/zoom per photo; always ends centered
         │   ├── transition pipeline  ← per-slot Glide targets + transition/session guards
-        │   └── VisualizerView       ← optional overlay (semi-transparent)
         ├── Music Visualizer mode
         │   ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
         │   └── VisualizerView (GLSurfaceView)
@@ -460,7 +455,7 @@ UpdateChecker                      ← checks version.json on GitHub Releases (S
 UpdateInstaller                    ← downloads APK via OkHttp, installs via FileProvider
 ```
 
-Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. The slideshow pipeline tracks one Glide target per image slot, explicitly clears stale loads before reuse, ignores late callbacks from older transition sequences, and guards slideshow start/refresh work with a session token so old async results cannot corrupt a newer run. EXIF orientation is applied for local and cached images via a custom `BitmapTransformation`; remote JPEG images are handled by Glide's built-in `Downsampler`. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
+Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backend), scaled to display resolution, and rendered across two alternating `ImageView`s with configurable transition effects. The slideshow pipeline tracks one Glide target per image slot, explicitly clears stale loads before reuse, ignores late callbacks from older transition sequences, and guards slideshow start/refresh work with a session token so old async results cannot corrupt a newer run. Glide applies embedded EXIF orientation during decoding for local, cached, and remote images. The visualizer is a Kotlin/OpenGL port of [psysuals](https://github.com/Whichcraft/psysuals).
 
 ## Privacy
 

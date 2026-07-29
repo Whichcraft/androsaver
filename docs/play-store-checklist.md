@@ -139,7 +139,7 @@ No user data is shared with the developer or any third party. The app makes API 
 
 ### Is all data encrypted in transit?
 
-**Yes** — all API calls use HTTPS. Credentials at rest are stored in AES-256 `EncryptedSharedPreferences`.
+**Public cloud and update traffic use HTTPS.** Self-hosted image sources offer a user-controlled HTTP/HTTPS setting; users should select HTTPS whenever their server supports it. Credentials use AES-256 `EncryptedSharedPreferences` when Android encrypted storage is available.
 
 ### Can users request data deletion?
 

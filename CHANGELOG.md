@@ -4,6 +4,17 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## Unreleased
+
+- **Slideshow / Glide callbacks**: Deferred target cleanup out of Glide target callbacks, preventing `IllegalStateException` when a refreshed image is removed while a load completes.
+- **Slideshow / lifecycle**: Cancelled stale handler work and weather/cache requests on stop; cache fallback and refresh results remain session-scoped.
+- **Image handling**: Removed the redundant custom EXIF transform because Glide already applies embedded EXIF orientation during decode; cache metadata no longer performs per-file EXIF scans.
+- **Networking and credentials**: Public image downloads retain normal TLS validation, self-hosted trust-all behavior is limited to configured hosts, refresh-token requests are serialized, and temporary credentials are not written to cache-failure logs.
+- **Visualizer / runtime**: Mode changes are applied on the GL thread, Plasma validates shader/program creation and preserves resources between mode switches, and small/empty audio or surface inputs are handled defensively.
+- **Updates and boot**: APK updates use HTTPS and a temporary download file; boot work is delegated to WorkManager.
+
+---
+
 ## 2026-07-24 — v2.8.3: Android image-cache runtime compatibility
 
 - **Image cache / Android runtime**: Replaced `MutableList.removeLast()` in cache eviction with `removeAt(lastIndex)`. Builds made with JDK 21 otherwise bind to `java.util.List.removeLast()`, which is absent on older Android runtimes and caused a `NoSuchMethodError` during background Synology cache writes.

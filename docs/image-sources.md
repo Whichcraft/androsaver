@@ -7,7 +7,8 @@ interface ImageSource {
 }
 ```
 
-`ImageItem` carries: `url: String`, `headers: Map<String, String>`, `exifOrientation: Int`
+`ImageItem` carries: `url: String`, `name: String`, `headers: Map<String, String>`.
+Glide reads and applies embedded EXIF orientation while decoding.
 
 Sources are queried concurrently by `ScreensaverEngine`; results are merged and shuffled. All active sources run simultaneously.
 
@@ -19,7 +20,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **API:** Google Drive REST API v3 (`files.list` with `mimeType = image/*`)
 - **Auth:** OAuth 2.0 device-auth flow (no Google Play Services); tokens stored encrypted via `GoogleAuthManager`
 - **Setup:** Client ID + Client Secret + Folder ID → `GoogleDriveSetupActivity` → `GoogleAuthActivity`
-- **Token refresh:** Automatic via refresh token on 401
+- **Token refresh:** Refresh token is exchanged before each source listing; concurrent refreshes are serialized.
 - **Prefs keys:** `Prefs.GOOGLE_ACCESS_TOKEN`, `Prefs.GOOGLE_REFRESH_TOKEN`, `Prefs.GOOGLE_FOLDER_ID`
 - **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
 
@@ -29,7 +30,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **API:** Microsoft Graph API (`/me/drive/items/{id}/children`)
 - **Auth:** Azure device-auth flow; `OneDriveAuthManager` handles refresh
 - **Setup:** Client ID + Folder path → `OneDriveSetupActivity` → `OneDriveAuthActivity`
-- **Prefs keys:** `Prefs.ONEDRIVE_ACCESS_TOKEN`, `Prefs.ONEDRIVE_REFRESH_TOKEN`, `Prefs.ONEDRIVE_FOLDER_ID`
+- **Prefs keys:** `Prefs.ONEDRIVE_ACCESS_TOKEN`, `Prefs.ONEDRIVE_REFRESH_TOKEN`, `Prefs.ONEDRIVE_FOLDER`
 - **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
 
 ## DropboxSource
@@ -38,7 +39,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **API:** Dropbox API v2 (`/files/list_folder` + download URLs)
 - **Auth:** OAuth code flow; App Key + App Secret required; auto-refresh via `DropboxAuthManager`
 - **Setup:** App Key + App Secret + Folder path → `DropboxSetupActivity` → `DropboxAuthActivity`
-- **Prefs keys:** `Prefs.DROPBOX_ACCESS_TOKEN`, `Prefs.DROPBOX_REFRESH_TOKEN`, `Prefs.DROPBOX_APP_KEY`, `Prefs.DROPBOX_APP_SECRET`, `Prefs.DROPBOX_FOLDER_PATH`
+- **Prefs keys:** `Prefs.DROPBOX_ACCESS_TOKEN`, `Prefs.DROPBOX_REFRESH_TOKEN`, `Prefs.DROPBOX_APP_KEY`, `Prefs.DROPBOX_APP_SECRET`, `Prefs.DROPBOX_FOLDER`
 - **Concurrency Throttle:** Temporary link fetches throttled via Semaphore to maximum 10 concurrent requests to prevent connection pool exhaustion.
 
 ## ImmichSource
@@ -47,14 +48,14 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **API:** Immich REST API (`/api/assets` with optional album filter)
 - **Auth:** API key in `x-api-key` header (no OAuth)
 - **Setup:** Host + Port + HTTPS toggle + API key + optional Album ID → `ImmichSetupActivity`
-- **Prefs keys:** `Prefs.IMMICH_HOST`, `Prefs.IMMICH_PORT`, `Prefs.IMMICH_HTTPS`, `Prefs.IMMICH_API_KEY`, `Prefs.IMMICH_ALBUM_ID`
+- **Prefs keys:** `Prefs.IMMICH_HOST`, `Prefs.IMMICH_PORT`, `Prefs.IMMICH_USE_HTTPS`, `Prefs.IMMICH_API_KEY`, `Prefs.IMMICH_ALBUM_ID`
 - **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
 
 ## NextcloudSource
 
 - **File:** `com.androsaver.source.NextcloudSource`
 - **API:** WebDAV PROPFIND on configured folder path
-- **Auth:** Basic auth with app password; accepts self-signed TLS certs (custom TrustManager in OkHttp)
+- **Auth:** Basic auth with app password. Configured self-hosted hosts may use self-signed TLS certificates; public cloud hosts retain normal certificate validation.
 - **Setup:** Host + Port + HTTPS toggle + Username + App Password + Folder path → `NextcloudSetupActivity`
 - **Prefs keys:** `Prefs.NEXTCLOUD_HOST`, `Prefs.NEXTCLOUD_USERNAME`, `Prefs.NEXTCLOUD_PASSWORD`, `Prefs.NEXTCLOUD_FOLDER`
 
@@ -64,7 +65,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **API:** Synology DSM FileStation REST API
 - **Auth:** Username/password → session SID cookie; **re-login every 25 minutes** (DSM sessions expire)
 - **Setup:** Host + Port + HTTPS + Username + Password + Folder → `SynologySetupActivity`
-- **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_HTTPS`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
+- **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_USE_HTTPS`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
 
 ## DefaultImagesSource
 
@@ -81,16 +82,17 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **API:** Android `MediaStore.Images` (up to 500 most recent photos)
 - **Auth:** `READ_MEDIA_IMAGES` (API 33+) or `READ_EXTERNAL_STORAGE` (API < 33); permission prompted on enable
 - **No setup activity** — enabled via toggle in Sources screen
-- **Prefs keys:** `Prefs.LOCAL_STORAGE_ENABLED`
+- **Prefs keys:** `Prefs.ENABLE_LOCAL_STORAGE`
 
 ---
 
 ## ImageCache
 
 - **File:** `com.androsaver.ImageCache`
-- Stores downloaded images on-disk: ≤ 200 images / ≤ 300 MB
+- Stores downloaded images on-disk: ≤ 200 images / ≤ 150 MB
 - Used automatically as fallback when all sources fail (network unavailable)
-- EXIF orientation preserved in cache metadata
+- Preserves original image bytes, including embedded EXIF metadata
+- Serializes manifest updates and writes the manifest through a temporary file to avoid partial-cache corruption.
 
 ---
 

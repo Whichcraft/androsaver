@@ -2,6 +2,7 @@ package com.androsaver.visualizer
 
 import android.opengl.GLSurfaceView
 import com.androsaver.visualizer.modes.*
+import java.util.concurrent.atomic.AtomicInteger
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -20,18 +21,22 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     var frameTimeMs = 0f
         private set
 
-    /** Index into [modes] of the currently active mode. */
-    var modeIndex: Int = 0
-        set(v) {
-            field = Math.floorMod(v, modes.size)
-            resetPending = true
-            clearFrameCount = 2
-        }
+    private var activeModeIndex = 0
+    @Volatile private var requestedModeIndex = 0
+    private val pendingModeIndex = AtomicInteger(-1)
+    private val modeRequestLock = Any()
 
-    // Written on main thread, read on GL thread — volatile ensures visibility.
-    // Because resetPending is written *after* modeIndex, the GL thread is guaranteed
-    // to see the updated modeIndex when it observes resetPending == true (JMM).
-    @Volatile private var resetPending = false
+    /** Index requested by the UI thread; applied atomically by the GL thread. */
+    var modeIndex: Int
+        get() = requestedModeIndex
+        set(v) {
+            // Avoid Math.floorMod(), which is unavailable on Android API 21–23.
+            val normalized = ((v % modes.size) + modes.size) % modes.size
+            synchronized(modeRequestLock) {
+                requestedModeIndex = normalized
+                pendingModeIndex.set(normalized)
+            }
+        }
 
     val modes = listOf(
         YantraMode(),
@@ -72,11 +77,14 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         draw.onSurfaceCreated()
-        modes.forEach { it.reset() }
+        modes.forEach { it.onSurfaceCreated() }
+        synchronized(modeRequestLock) {
+            activeModeIndex = requestedModeIndex
+            pendingModeIndex.set(-1)
+        }
         tick = 0
         lastFrameNs = 0L
         clearFrameCount = 2
-        resetPending = false
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -91,13 +99,15 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         }
         lastFrameNs = frameStart
 
-        if (resetPending) {
-            modes[modeIndex].reset()
-            resetPending = false
+        val requested = pendingModeIndex.getAndSet(-1)
+        if (requested >= 0) {
+            modes[requested].reset()
+            activeModeIndex = requested
+            clearFrameCount = 2
             tick = 0
         }
         val audio = audio.data
-        val mode  = modes[modeIndex]
+        val mode  = modes[activeModeIndex]
 
         val scaledAudio = if (beatGain == 1.0f) audio
                           else audio.copy(beat = (audio.beat * beatGain).coerceIn(0f, 2f), gain = beatGain)

@@ -9,6 +9,8 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.androsaver.HttpClients
 import okhttp3.FormBody
 import okhttp3.Request
@@ -81,11 +83,14 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
         }
     }
 
-    internal fun refreshAccessTokenSilently(): String? {
+    internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
         val prefs = com.androsaver.Prefs.get(context)
-        val refreshToken = prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null) ?: return null
-        val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null) ?: return null
-        val clientSecret = prefs.getString(Prefs.GOOGLE_CLIENT_SECRET, null) ?: return null
+        val refreshToken = prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null)
+            ?: return@withLock null
+        val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null)
+            ?: return@withLock null
+        val clientSecret = prefs.getString(Prefs.GOOGLE_CLIENT_SECRET, null)
+            ?: return@withLock null
 
         val body = FormBody.Builder()
             .add("client_id", clientId)
@@ -99,7 +104,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             .post(body)
             .build()
 
-        return try {
+        try {
             val json = client.newCall(request).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
             val token = json.get("access_token")?.asString
             if (token != null) {
@@ -114,5 +119,6 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
 
     companion object {
         private const val TAG = "GoogleDriveSource"
+        private val refreshMutex = Mutex()
     }
 }

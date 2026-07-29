@@ -26,20 +26,18 @@ import com.androsaver.source.NextcloudSource
 import com.androsaver.source.OneDriveSource
 import com.androsaver.source.SynologySource
 import com.androsaver.visualizer.VisualizerView
-import androidx.exifinterface.media.ExifInterface
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
-import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.Transition
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -88,6 +86,7 @@ class ScreensaverEngine(
     private var slideshowRunnable: Runnable? = null
     private var imageRefreshRunnable: Runnable? = null
     private var retryRunnable: Runnable? = null
+    private var finishRunnable: Runnable? = null
     private var consecutiveLoadFailures = 0
     private var displayedIndex = -1
     private var transitionSequence = 0L
@@ -104,6 +103,8 @@ class ScreensaverEngine(
     private var lastDetectedGenre = ""
     private var clockRunnable: Runnable? = null
     private var weatherRunnable: Runnable? = null
+    private var weatherRequestJob: Job? = null
+    private var weatherRequestGeneration = 0L
     private val kenBurnsAnimators = mutableMapOf<ImageView, ValueAnimator>()
     private val imageTargets = mutableMapOf<ImageView, Target<Drawable>>()
     private val imageCache by lazy { ImageCache(context) }
@@ -112,12 +113,17 @@ class ScreensaverEngine(
     private val dateFmt  = SimpleDateFormat("EEE, d MMM", Locale.getDefault())
 
     fun start(prefs: SharedPreferences) {
+        finishRunnable?.let { handler.removeCallbacks(it) }
+        finishRunnable = null
         binding.imageView1.alpha = 1f
         binding.imageView2.alpha = 0f
 
         if (!checkSchedule(prefs)) {
             binding.root.setBackgroundColor(0xFF000000.toInt())
-            handler.postDelayed({ onRequestFinish() }, 500)
+            finishRunnable = Runnable {
+                finishRunnable = null
+                onRequestFinish()
+            }.also { handler.postDelayed(it, 500) }
             return
         }
 
@@ -142,6 +148,11 @@ class ScreensaverEngine(
     fun resumeVisualizer() { visualizerView?.startVisualizer() }
 
     fun stop() {
+        // The Handler belongs exclusively to this engine. This also removes
+        // one-shot callbacks (fallback notices and deferred Glide cleanup)
+        // that are intentionally not stored in dedicated fields.
+        handler.removeCallbacksAndMessages(null)
+        finishRunnable = null
         stopSlideshow()
         stopImageRefresh()
         stopVisualizerMode()
@@ -245,6 +256,7 @@ class ScreensaverEngine(
     // ── Clock ─────────────────────────────────────────────────────────────────
 
     private fun startClock() {
+        clockRunnable?.let { handler.removeCallbacks(it) }
         binding.clockOverlay.visibility = View.VISIBLE
         clockRunnable = object : Runnable {
             override fun run() {
@@ -267,22 +279,26 @@ class ScreensaverEngine(
     // ── Weather ───────────────────────────────────────────────────────────────
 
     private fun startWeather(prefs: SharedPreferences) {
+        stopWeather()
         val city   = prefs.getString(Prefs.WEATHER_CITY, "") ?: ""
         val apiKey = prefs.getString(Prefs.WEATHER_API_KEY, "") ?: ""
         if (city.isBlank() || apiKey.isBlank()) return
-        refreshWeather(city, apiKey)
+        val generation = weatherRequestGeneration
+        refreshWeather(city, apiKey, generation)
         weatherRunnable = object : Runnable {
             override fun run() {
-                refreshWeather(city, apiKey)
+                refreshWeather(city, apiKey, generation)
                 handler.postDelayed(this, 30 * 60 * 1000L)
             }
         }
         handler.postDelayed(weatherRunnable!!, 30 * 60 * 1000L)
     }
 
-    private fun refreshWeather(city: String, apiKey: String) {
-        scope.launch {
+    private fun refreshWeather(city: String, apiKey: String, generation: Long) {
+        weatherRequestJob?.cancel()
+        weatherRequestJob = scope.launch {
             val data = weatherFetcher.getWeather(city, apiKey)
+            if (generation != weatherRequestGeneration) return@launch
             if (data != null) {
                 binding.weatherTemp.text = "%.0f°C".format(data.tempC)
                 binding.weatherDesc.text = data.description
@@ -294,8 +310,11 @@ class ScreensaverEngine(
     }
 
     private fun stopWeather() {
+        weatherRequestGeneration++
         weatherRunnable?.let { handler.removeCallbacks(it) }
         weatherRunnable = null
+        weatherRequestJob?.cancel()
+        weatherRequestJob = null
         binding.weatherWidget.visibility = View.GONE
     }
 
@@ -428,7 +447,7 @@ class ScreensaverEngine(
 
         val sources = getConfiguredSources(prefs)
         if (sources.isEmpty()) {
-            tryFallbackCache(session)
+            scope.launch { tryFallbackCache(session) }
             return
         }
 
@@ -468,7 +487,10 @@ class ScreensaverEngine(
                 if (items.isEmpty()) {
                     tryFallbackCache(session)
                 } else {
-                    scope.launch(Dispatchers.IO) {
+                    // ImageCache moves its file/network work to Dispatchers.IO.
+                    // Keep this caller on Main so diagnostic/UI handling in the
+                    // catch block never reads or mutates Views from an IO thread.
+                    scope.launch {
                         try {
                             imageCache.saveImages(items, "mixed")
                         } catch (t: Throwable) {
@@ -490,10 +512,11 @@ class ScreensaverEngine(
         }
     }
 
-    private fun tryFallbackCache(session: Long) {
+    private suspend fun tryFallbackCache(session: Long) {
         try {
             if (session != slideshowSession) return
             val cached = imageCache.getCachedItems()
+            if (session != slideshowSession) return
             if (cached.isNotEmpty()) {
                 if (!devTransitionErrorVisible) {
                     binding.statusText.text = context.getString(R.string.cache_fallback_notice)
@@ -637,9 +660,7 @@ class ScreensaverEngine(
                             imageSourceNames.clear()
                             imageSourceNames.putAll(freshSources)
                             displayedIndex = currentDisplayed?.let { current ->
-                                imageItems.indexOfFirst {
-                                    it.url == current.url && it.orientation == current.orientation
-                                }
+                                imageItems.indexOfFirst { it.url == current.url }
                             } ?: -1
                             displayedItem = displayedIndex.takeIf { it >= 0 }?.let { imageItems[it] }
                             currentIndex = when {
@@ -647,7 +668,9 @@ class ScreensaverEngine(
                                 displayedIndex >= 0 -> (displayedIndex + 1) % imageItems.size
                                 else -> 0
                             }
-                            scope.launch(Dispatchers.IO) {
+                            // ImageCache performs its own IO dispatch. Keeping this
+                            // coroutine on Main makes failure reporting UI-safe.
+                            scope.launch {
                                 try {
                                     imageCache.saveImages(fresh, "mixed")
                                 } catch (t: Throwable) {
@@ -708,14 +731,8 @@ class ScreensaverEngine(
             GlideUrl(item.url)
         }
 
-        val glideRequest = Glide.with(context).load(glideUrl)
+        val request = Glide.with(context).load(glideUrl)
             .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
-        // Apply explicit EXIF rotation for local/cached images where orientation is pre-read.
-        // Remote HTTP images (orientation == 0) are handled by Glide's Downsampler.
-        val request = if (item.orientation != 0 && item.orientation != ExifInterface.ORIENTATION_NORMAL)
-            glideRequest.apply(RequestOptions().transform(ExifRotationTransformation(item.orientation)))
-        else
-            glideRequest
 
         var glideFailureReported = false
         val target = object : CustomTarget<Drawable>(
@@ -732,14 +749,20 @@ class ScreensaverEngine(
                                 IllegalStateException("image list became empty"),
                                 attemptedItem = item
                             )
-                            clearImageTarget(incoming)
+                            // Glide forbids clear()/into() while it is dispatching a target
+                            // callback, even when the request has become unusable.
+                            handler.post {
+                                if (imageTargets[incoming] === this) clearImageTarget(incoming)
+                            }
                             return
                         }
                         val resolvedItemIndex = findImageItemIndex(item)
                         if (resolvedItemIndex < 0) {
                             // The periodic refresh removed this item while it was loading.
-                            clearImageTarget(incoming)
                             handler.post {
+                                // Glide forbids clear()/into() while it is dispatching a target
+                                // callback. Defer both operations until this callback returns.
+                                if (imageTargets[incoming] === this) clearImageTarget(incoming)
                                 if (requestSequence == transitionSequence) showNextImage()
                             }
                             return
@@ -833,9 +856,9 @@ class ScreensaverEngine(
     }
 
     private fun findImageItemIndex(item: ImageItem): Int =
-        imageItems.indexOfFirst { it.url == item.url && it.orientation == item.orientation }
+        imageItems.indexOfFirst { it.url == item.url }
 
-    private fun imageKey(item: ImageItem): String = "${item.orientation}\u0000${item.url}"
+    private fun imageKey(item: ImageItem): String = item.url
 
     private fun scheduleNextSlide(prefs: SharedPreferences, effect: String) {
         val durationMs = prefs.getString(Prefs.SLIDE_DURATION, "10000")
@@ -1181,7 +1204,6 @@ class ScreensaverEngine(
         }
         append(item.name.ifBlank { "(unnamed)" }).append('\n')
         append("  URL: ").append(diagnosticUrl(item.url)).append('\n')
-        append("  Orientation: ").append(item.orientation).append('\n')
         append("  Header names: ")
             .append(item.headers.keys.sorted().joinToString().ifBlank { "none" })
             .append('\n')

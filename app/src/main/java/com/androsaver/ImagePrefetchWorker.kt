@@ -6,6 +6,7 @@ import androidx.preference.PreferenceManager
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.androsaver.source.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -46,6 +47,7 @@ class ImagePrefetchWorker(
                     try {
                         withTimeoutOrNull(60_000L) { src.getImageUrls() } ?: emptyList()
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Prefetch error from ${src.name}", e)
                         emptyList()
                     }
@@ -58,6 +60,7 @@ class ImagePrefetchWorker(
                 imageCache.saveImages(items, "mixed")
                 if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Prefetch successfully cached ${items.size} images")
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Failed to cache prefetched images", e)
                 return Result.retry()
             }

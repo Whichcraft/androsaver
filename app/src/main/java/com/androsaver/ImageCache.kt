@@ -2,15 +2,15 @@ package com.androsaver
 
 import android.content.Context
 import android.util.Log
-import androidx.exifinterface.media.ExifInterface
 import com.androsaver.source.ImageItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.security.MessageDigest
@@ -27,27 +27,35 @@ class ImageCache(private val context: Context) {
     }
 
     private val gson = Gson()
-    private val client = HttpClients.trustAll
     private val dir: File get() = File(context.cacheDir, CACHE_DIR).also { it.mkdirs() }
 
     data class Entry(val url: String, val file: String, val source: String, val ts: Long, val size: Long)
 
-    fun hasCache(): Boolean = readManifest().isNotEmpty()
+    suspend fun hasCache(): Boolean = withContext(Dispatchers.IO) {
+        mutex.withLock { readManifest().isNotEmpty() }
+    }
 
-    fun getCachedItems(): List<ImageItem> =
-        readManifest().mapNotNull { e ->
-            val f = File(dir, e.file)
-            if (!f.exists()) return@mapNotNull null
-            val orientation = try { ExifInterface(f.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED) } catch (_: Exception) { ExifInterface.ORIENTATION_UNDEFINED }
-            ImageItem(url = f.toURI().toString(), name = e.file, orientation = orientation)
+    suspend fun getCachedItems(): List<ImageItem> = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            readManifest().mapNotNull { e ->
+                val f = File(dir, e.file)
+                if (!f.exists()) return@mapNotNull null
+                ImageItem(url = f.toURI().toString(), name = e.file)
+            }
         }
+    }
 
     suspend fun saveImages(items: List<ImageItem>, sourceName: String) = withContext(Dispatchers.IO) {
+        val coroutineContext = currentCoroutineContext()
         mutex.withLock {
             val manifest = readManifest().toMutableList()
             val existing = manifest.map { it.url }.toHashSet()
             var saved = 0
             for (item in items.take(MAX_ENTRIES)) {
+                // Synchronous OkHttp calls are not themselves coroutine-aware.
+                // Stop the potentially long cache loop after the current request
+                // when its owner (DreamService or WorkManager) is cancelled.
+                coroutineContext.ensureActive()
                 if (item.url in existing) continue
                 try {
                     val req = Request.Builder().url(item.url).apply {
@@ -55,7 +63,8 @@ class ImageCache(private val context: Context) {
                     }.build()
                     val fname = sha16(item.url) + ".jpg"
                     val file = File(dir, fname)
-                    val size = client.newCall(req).execute().use { response ->
+                    val size = HttpClients.forHost(context, req.url.host)
+                        .newCall(req).execute().use { response ->
                         if (!response.isSuccessful) return@use 0L
                         val body = response.body ?: return@use 0L
                         body.byteStream().use { input ->
@@ -67,10 +76,18 @@ class ImageCache(private val context: Context) {
                     }
                     if (size > 0L) {
                         manifest.add(Entry(item.url, fname, sourceName, System.currentTimeMillis(), size))
+                        existing.add(item.url)
                         saved++
+                    } else {
+                        file.delete()
                     }
                 } catch (e: Exception) {
-                    if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Cache miss for ${item.url}: ${e.message}")
+                    // Some download URLs contain short-lived access tokens or a
+                    // Synology SID in their query string. Never copy them to logcat.
+                    val label = item.name.ifBlank { "image" }
+                    if (BuildConfig.DEBUG_LOGGING) {
+                        Log.w(TAG, "Cache miss for $label (${e::class.java.simpleName})")
+                    }
                 }
             }
             evict(manifest)
@@ -102,7 +119,15 @@ class ImageCache(private val context: Context) {
 
     private fun writeManifest(entries: List<Entry>) {
         synchronized(this) {
-            try { File(dir, MANIFEST).writeText(gson.toJson(entries)) } catch (_: Exception) {}
+            try {
+                val manifest = File(dir, MANIFEST)
+                val temporary = File(dir, "$MANIFEST.tmp")
+                temporary.writeText(gson.toJson(entries))
+                if (!temporary.renameTo(manifest)) {
+                    manifest.writeText(temporary.readText())
+                    temporary.delete()
+                }
+            } catch (_: Exception) {}
         }
     }
 

@@ -1,6 +1,6 @@
 # Privacy Policy — AndroSaver
 
-_Last updated: 2026-04-01_
+_Last updated: 2026-07-29_
 
 ## 1. Overview
 
@@ -14,19 +14,19 @@ AndroSaver is an Android screensaver app that displays photo slideshows and musi
 
 ### 2.1 Cloud Storage Credentials (Google Drive, OneDrive, Dropbox)
 
-When you connect a cloud storage account, AndroSaver stores OAuth 2.0 access and refresh tokens locally on your device using Android's `EncryptedSharedPreferences` (AES-256 encryption). These tokens are:
+When Android encrypted storage is available, AndroSaver stores OAuth 2.0 access and refresh tokens locally using Android's `EncryptedSharedPreferences` (AES-256 encryption). If Android's encrypted storage cannot be initialized, the app falls back to its local preferences so configured sources remain usable. These tokens are:
 
 - Used solely to fetch image files from your own account via the respective provider's API.
 - Never transmitted to the app developer or any third party.
-- Deleted when you disconnect the source in Settings.
+- Changeable or removable from the relevant source settings.
 
 ### 2.2 Self-Hosted Server Credentials (Immich, Nextcloud, Synology NAS)
 
-Host address, port, username, password or API key are stored locally in `EncryptedSharedPreferences` and used solely to authenticate with the server you have configured. They are never sent anywhere other than the server you entered.
+Host address, port, username, password or API key are stored locally and, when Android encrypted storage is available, protected with `EncryptedSharedPreferences`. They are used solely to authenticate with the server you have configured and are never sent anywhere else.
 
 ### 2.3 Photos and Images
 
-Photos are fetched from your configured sources over an encrypted connection (HTTPS), displayed on screen, and cached locally on the device (up to 200 images / 300 MB) as an offline fallback. The app developer never receives copies of your photos. Photos are never uploaded, analysed, or shared.
+Photos are fetched from your configured sources, displayed on screen, and cached locally on the device (up to 200 images / 150 MB) as an offline fallback. Public cloud and update traffic use HTTPS. Self-hosted sources offer a user-controlled HTTP/HTTPS setting; choose HTTPS whenever your server supports it. The app developer never receives copies of your photos. Photos are never uploaded, analysed, or shared.
 
 ### 2.4 Microphone / Audio (RECORD_AUDIO Permission)
 
@@ -44,7 +44,7 @@ If you enable the weather widget, the city name you enter and your OpenWeatherMa
 
 ### 2.6 Software Update Check
 
-Each time the Settings screen opens, the app queries the GitHub Releases API (`api.github.com/repos/Whichcraft/androsaver/releases`) to check whether a newer version is available. This request contains only standard HTTP headers (User-Agent, Accept). No identifying information about the device or user is transmitted.
+Each time the Settings screen opens, the app downloads a small version manifest from the selected GitHub Release channel. No credentials, photos, or device-identifying application data are deliberately included in that request.
 
 ---
 
@@ -61,7 +61,7 @@ AndroSaver does **not** share any user data with the developer or any advertisin
 | Your Nextcloud server | Fetch images | Requires explicit setup + toggle |
 | Your Synology NAS | Fetch images | Requires explicit setup + toggle |
 | OpenWeatherMap API | Current weather for entered city | Requires explicit setup + toggle |
-| GitHub Releases API | Check for app updates | Always, on Settings open |
+| GitHub Releases | Check for app updates | Always, on Settings open |
 
 ---
 

@@ -3,9 +3,7 @@ package com.androsaver.source
 data class ImageItem(
     val url: String,
     val name: String = "",
-    val headers: Map<String, String> = emptyMap(),
-    /** ExifInterface.ORIENTATION_* constant; 0 = unknown (let Glide handle it). */
-    val orientation: Int = 0
+    val headers: Map<String, String> = emptyMap()
 )
 
 interface ImageSource {

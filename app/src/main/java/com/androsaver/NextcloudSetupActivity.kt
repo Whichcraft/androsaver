@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.androsaver.databinding.ActivityNextcloudSetupBinding
 import com.androsaver.source.NextcloudSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class NextcloudSetupActivity : AppCompatActivity() {
@@ -84,6 +85,7 @@ class NextcloudSetupActivity : AppCompatActivity() {
                     getString(R.string.connection_success_no_images)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 binding.testStatus.text = getString(R.string.connection_failed, e.message ?: "Unknown error")
             }
             binding.testConnectionButton.isEnabled = true

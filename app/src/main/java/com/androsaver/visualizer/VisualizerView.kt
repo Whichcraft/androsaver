@@ -11,6 +11,7 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
 
     internal val audio   = AudioEngine()
     val renderer         = VisualizerRenderer(audio)
+    private var started = false
 
     init {
         setEGLContextClientVersion(2)
@@ -28,11 +29,15 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
     }
 
     fun startVisualizer() {
+        if (started) return
+        started = true
         audio.start()
         onResume()
     }
 
     fun stopVisualizer() {
+        if (!started) return
+        started = false
         onPause()
         audio.stop()
     }

@@ -9,6 +9,8 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.androsaver.HttpClients
 import okhttp3.FormBody
 import okhttp3.Request
@@ -87,10 +89,12 @@ class OneDriveSource(private val context: Context) : ImageSource {
         }
     }
 
-    internal fun refreshAccessTokenSilently(): String? {
+    internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
         val prefs = com.androsaver.Prefs.get(context)
-        val refreshToken = prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null) ?: return null
-        val clientId     = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null) ?: return null
+        val refreshToken = prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null)
+            ?: return@withLock null
+        val clientId = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null)
+            ?: return@withLock null
 
         val body = FormBody.Builder()
             .add("client_id", clientId)
@@ -99,7 +103,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
             .add("scope", "Files.Read offline_access")
             .build()
 
-        return try {
+        try {
             val json = client.newCall(
                 Request.Builder()
                     .url("https://login.microsoftonline.com/common/oauth2/v2.0/token")
@@ -121,5 +125,6 @@ class OneDriveSource(private val context: Context) : ImageSource {
 
     companion object {
         private const val TAG = "OneDriveSource"
+        private val refreshMutex = Mutex()
     }
 }

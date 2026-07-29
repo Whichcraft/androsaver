@@ -21,8 +21,6 @@ Use `Prefs.<CONSTANT>` everywhere — never raw strings.
 | `TRANSITION_EFFECT` | `transition_effect` | ListPreference | `crossfade` |
 | `TRANSITION_SPEED` | `transition_speed` | ListPreference | `1500` (ms) |
 | `KEN_BURNS_ENABLED` | `ken_burns_enabled` | SwitchPreference | `true` |
-| `VIZ_OVERLAY_ENABLED` | `viz_overlay_on_slideshow` | SwitchPreference | `false` |
-| `VIZ_OVERLAY_OPACITY` | `viz_overlay_opacity` | ListPreference | `0.3` |
 
 Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoom_in`, `zoom_out`, `random`
 
@@ -75,9 +73,9 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 
 ---
 
-## Credentials & Source Config (stored in EncryptedSharedPreferences)
+## Credentials & Source Config
 
-Sensitive user keys, tokens, and passwords listed below are automatically routed to `EncryptedSharedPreferences` via the `SecurePreferences` wrapper to comply with security requirements. Non-sensitive settings remain in standard plaintext default SharedPreferences. An automatic migration is performed on start to safely transition existing plaintext credentials into encrypted storage.
+Sensitive user keys, tokens, and passwords listed below are routed to `EncryptedSharedPreferences` via `SecurePreferences` when Android's encrypted storage is available. Non-sensitive settings remain in default SharedPreferences. Migration writes the encrypted copy before plaintext cleanup.
 
 ### Google Drive
 | Prefs Constant | Key |

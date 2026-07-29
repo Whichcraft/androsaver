@@ -87,19 +87,44 @@ class PlasmaMode : BaseMode() {
     // ── Lifecycle ──────────────────────────────────────────────────────────────
 
     override fun reset() {
-        // GL objects re-initialised lazily on first draw
-        program = 0
+        time = 0f
+        hue = 0f
     }
 
-    private fun initGL() {
-        if (program != 0) return
+    override fun onSurfaceCreated() {
+        // A recreated EGL context invalidates all handles from the old context.
+        program = 0
+        vbo = 0
+        reset()
+    }
+
+    private fun initGL(): Boolean {
+        if (program != 0 && vbo != 0) return true
         val vert = compile(GLES20.GL_VERTEX_SHADER,   VERT)
         val frag = compile(GLES20.GL_FRAGMENT_SHADER, FRAG)
-        program  = GLES20.glCreateProgram().also {
-            GLES20.glAttachShader(it, vert)
-            GLES20.glAttachShader(it, frag)
-            GLES20.glLinkProgram(it)
+        if (vert == 0 || frag == 0) {
+            if (vert != 0) GLES20.glDeleteShader(vert)
+            if (frag != 0) GLES20.glDeleteShader(frag)
+            return false
         }
+        val candidate = GLES20.glCreateProgram()
+        if (candidate == 0) {
+            GLES20.glDeleteShader(vert)
+            GLES20.glDeleteShader(frag)
+            return false
+        }
+        GLES20.glAttachShader(candidate, vert)
+        GLES20.glAttachShader(candidate, frag)
+        GLES20.glLinkProgram(candidate)
+        GLES20.glDeleteShader(vert)
+        GLES20.glDeleteShader(frag)
+        val linkStatus = IntArray(1)
+        GLES20.glGetProgramiv(candidate, GLES20.GL_LINK_STATUS, linkStatus, 0)
+        if (linkStatus[0] == GLES20.GL_FALSE) {
+            GLES20.glDeleteProgram(candidate)
+            return false
+        }
+        program = candidate
         aPos  = GLES20.glGetAttribLocation(program,  "aPos")
         uTime = GLES20.glGetUniformLocation(program, "uTime")
         uBass = GLES20.glGetUniformLocation(program, "uBass")
@@ -117,14 +142,20 @@ class PlasmaMode : BaseMode() {
         val ids = IntArray(1)
         GLES20.glGenBuffers(1, ids, 0)
         vbo = ids[0]
+        if (vbo == 0) {
+            GLES20.glDeleteProgram(program)
+            program = 0
+            return false
+        }
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo)
         GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, quad.size * 4, buf, GLES20.GL_STATIC_DRAW)
+        return true
     }
 
     // ── Draw ───────────────────────────────────────────────────────────────────
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        initGL()
+        if (!initGL()) return
 
         val beat = audio.beat
         val bass = beat
@@ -149,9 +180,17 @@ class PlasmaMode : BaseMode() {
         // GLDraw.endFrame() called by VisualizerRenderer restores program + flushes empty batches.
     }
 
-    private fun compile(type: Int, src: String): Int =
-        GLES20.glCreateShader(type).also { s ->
-            GLES20.glShaderSource(s, src)
-            GLES20.glCompileShader(s)
+    private fun compile(type: Int, src: String): Int {
+        val shader = GLES20.glCreateShader(type)
+        if (shader == 0) return 0
+        GLES20.glShaderSource(shader, src)
+        GLES20.glCompileShader(shader)
+        val status = IntArray(1)
+        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, status, 0)
+        if (status[0] == GLES20.GL_FALSE) {
+            GLES20.glDeleteShader(shader)
+            return 0
         }
+        return shader
+    }
 }

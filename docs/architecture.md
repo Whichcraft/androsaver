@@ -5,20 +5,19 @@
 | File | Role |
 |------|------|
 | `ScreensaverService.kt` | DreamService entry point; system integration |
-| `ScreensaverEngine.kt` | Orchestrates slideshow + visualizer; manages transitions, overlays, remote control; uses per-slot Glide targets, transition sequence guards, and slideshow session tokens to keep async image loading from corrupting transitions |
+| `ScreensaverEngine.kt` | Orchestrates slideshow + visualizer; manages transitions, overlays, remote control, cancellable weather/cache work, and per-slot Glide targets with session/sequence guards |
 | `SettingsActivity.kt` | Settings UI host; contains `SettingsFragment` and `SourcesFragment` |
 | `PreviewActivity.kt` | In-app preview without activating system screensaver |
 | `Prefs.kt` | **All SharedPreferences key constants** — always use these |
-| `ImageCache.kt` | Disk cache (≤200 images / 300 MB); offline fallback; EXIF-aware |
-| `ExifRotationTransformation.kt` | Glide transform for EXIF orientation correction |
+| `ImageCache.kt` | Disk cache (≤200 images / 150 MB); offline fallback; serialized, atomic manifest updates |
 | `UpdateChecker.kt` | Polls GitHub Releases; supports Stable/Dev channels |
-| `UpdateInstaller.kt` | Downloads APK and installs via FileProvider |
-| `HttpClients.kt` | Shared OkHttp client instances |
+| `UpdateInstaller.kt` | HTTPS-only APK download via temporary file, then FileProvider install |
+| `HttpClients.kt` | Shared OkHttp clients; normal TLS for public hosts and opt-in trust-all only for configured self-hosted hosts |
 | `WeatherFetcher.kt` | OpenWeatherMap current conditions fetcher |
-| `BootReceiver.kt` | Receives BOOT_COMPLETED; pre-refreshes OAuth tokens for Google Drive, OneDrive, and Dropbox on device boot |
+| `BootReceiver.kt` | Receives BOOT_COMPLETED and delegates constrained prefetch work to WorkManager |
 | `PrefetchScheduler.kt` | Schedules periodic background prefetching of images using WorkManager |
 | `ImagePrefetchWorker.kt` | Background worker that queries remote image sources concurrently to warm cache |
-| `SecurePreferences.kt` | Transparent SharedPreferences wrapper that encrypts credentials using EncryptedSharedPreferences |
+| `SecurePreferences.kt` | SharedPreferences wrapper that uses EncryptedSharedPreferences for credentials when available and migrates safely from plaintext |
 | `SecurePreferenceDataStore.kt` | PreferenceDataStore interface bridge for Settings screen integration |
 
 ## Package: `com.androsaver.auth`
@@ -37,7 +36,7 @@ Setup activities: `GoogleDriveSetupActivity`, `GoogleAuthActivity`, `OneDriveSet
 
 | File | Source | Auth |
 |------|--------|------|
-| `ImageSource.kt` | Interface: `suspend fun getImageUrls(): List<ImageItem>`; also defines `ImageItem` data class (url, headers, exifOrientation) | — |
+| `ImageSource.kt` | Interface: `suspend fun getImageUrls(): List<ImageItem>`; also defines `ImageItem` data class (url, name, headers) | — |
 | `GoogleDriveSource.kt` | Google Drive REST API v3 | OAuth token (auto-refresh) |
 | `OneDriveSource.kt` | Microsoft Graph API | OAuth token (auto-refresh) |
 | `DropboxSource.kt` | Dropbox API v2 | OAuth token (auto-refresh) |
@@ -57,8 +56,8 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `AudioEngine.kt` | Android `Visualizer` API → FFT (512 bins) → bass/mid/high bands + beat detection; applies genre weighting; warm-starts smoothing and suppresses phantom first-frame beats |
 | `AudioData.kt` | Snapshot: bass, mid, high (0–1), beat (0–2), gain (current beatGain multiplier), waveform[], fft[] |
 | `GLDraw.kt` | GL ES 2.0 utilities: shader compilation, matrix math, line/quad/circle/glyph drawing; bloom post-processing pipeline (scene FBO → luminance threshold → half-res 2-pass Gaussian blur → additive composite); pre-allocated `FloatBuffer` fields for zero GC pressure |
-| `VisualizerRenderer.kt` | `GLSurfaceView.Renderer`; owns mode list; calls `mode.draw(gl, audio, tick)` each frame; exposes `frameTimeMs` (EMA-smoothed render time in ms) |
-| `BaseMode.kt` | Abstract base: `abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)` |
+| `VisualizerRenderer.kt` | `GLSurfaceView.Renderer`; applies UI mode requests atomically on the GL thread, resets the selected mode, and exposes EMA-smoothed `frameTimeMs` |
+| `BaseMode.kt` | Abstract base: `draw(gl, audio, tick)` plus reset and EGL-context recreation hooks |
 
 ### 27 Visualizer Modes (`com.androsaver.visualizer.modes`)
 
@@ -108,17 +107,19 @@ See `docs/visualizer-modes.md` for audio reactivity details.
 ## Data Flow
 
 ```
-DreamService.onDreamingStarted()
+DreamService.onAttachedToWindow()
   └─ ScreensaverEngine.start()
        ├─ [Slideshow] load images from N sources → ImageCache → Glide → 2 alternating ImageView slots
        │    ├─ one Glide CustomTarget tracked per slot; old slot target cleared before reuse
        │    ├─ late image callbacks ignored via transition-sequence guard
        │    ├─ slideshow start/refresh/fallback work fenced by slideshow-session token
        │    └─ next slide scheduled only after the current image is displayed; transition speed is added on top of image dwell time
-       │    └─ optional VisualizerView overlay (semi-transparent, 10–70% opacity)
        └─ [Visualizer] VisualizerView.start()
             ├─ AudioEngine: Visualizer API → FFT → AudioData (60 fps)
             └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [27 modes]
+
+DreamService.onDreamingStarted() → resume visualizer
+DreamService.onDreamingStopped() → pause visualizer
 
 Remote control (D-pad events in ScreensaverEngine):
   Visualizer: ←/→ = prev/next mode | ↑/↓ = intensity | other = finish()
@@ -136,7 +137,7 @@ Remote control (D-pad events in ScreensaverEngine):
 | `READ_MEDIA_IMAGES` | Device storage image source (API 33+) |
 | `READ_EXTERNAL_STORAGE` | Device storage image source (API < 33, `maxSdkVersion=32`) |
 | `REQUEST_INSTALL_PACKAGES` | Self-update: install downloaded APK |
-| `RECEIVE_BOOT_COMPLETED` | `BootReceiver` pre-refreshes OAuth tokens on device boot |
+| `RECEIVE_BOOT_COMPLETED` | `BootReceiver` restores the WorkManager prefetch schedule after boot |
 
 ## Build Variants
 

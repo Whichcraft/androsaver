@@ -16,6 +16,15 @@ abstract class BaseMode {
     open fun reset() {}
 
     /**
+     * Called after a new EGL context is created. Modes that own GL handles must
+     * invalidate them here because numeric handles from the old context are no
+     * longer usable.
+     */
+    open fun onSurfaceCreated() {
+        reset()
+    }
+
+    /**
      * Draw one frame.
      *
      * @param draw  GL drawing utilities; coordinate space is actual screen pixels.

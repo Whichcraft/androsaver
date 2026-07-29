@@ -93,8 +93,15 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
             }
         }
 
-        encEditor?.apply()
-        editor?.apply()
+        // Persist the encrypted copy before removing plaintext. Using two
+        // asynchronous apply() calls here could lose credentials if the process
+        // died after the plaintext removal but before the encrypted write.
+        if (encEditor != null && !encEditor.commit()) {
+            throw IllegalStateException("Could not persist encrypted preference migration")
+        }
+        if (editor != null && !editor.commit()) {
+            Log.w(TAG, "Encrypted migration succeeded but plaintext cleanup did not")
+        }
     }
 
     private fun getPrefs(key: String): SharedPreferences {

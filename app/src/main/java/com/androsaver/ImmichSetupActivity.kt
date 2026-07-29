@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.androsaver.databinding.ActivityImmichSetupBinding
 import com.androsaver.source.ImmichSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class ImmichSetupActivity : AppCompatActivity() {
@@ -81,6 +82,7 @@ class ImmichSetupActivity : AppCompatActivity() {
                     getString(R.string.connection_success_no_images)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 binding.testStatus.text = getString(R.string.connection_failed, e.message ?: "Unknown error")
             }
             binding.testConnectionButton.isEnabled = true

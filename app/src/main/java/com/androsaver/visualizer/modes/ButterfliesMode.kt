@@ -118,9 +118,14 @@ class ButterfliesMode : BaseMode() {
             val spd = (1.5f + bass * 0.8f + beat * 0.4f) * scale
             x += cos(heading) * spd; y += sin(heading) * spd
 
-            val cl = (28f * scale).toInt()
-            x = x.coerceIn(cl.toFloat(), (screenW - cl).toFloat())
-            y = y.coerceIn(cl.toFloat(), (screenH - cl).toFloat())
+            // During surface creation Android can briefly report a viewport
+            // smaller than the butterfly sprite. Keep the coerce range ordered;
+            // Float.coerceIn() throws when minimum > maximum.
+            val cl = 28f * scale
+            val marginX = minOf(cl, screenW.coerceAtLeast(1) / 2f)
+            val marginY = minOf(cl, screenH.coerceAtLeast(1) / 2f)
+            x = x.coerceIn(marginX, screenW - marginX)
+            y = y.coerceIn(marginY, screenH - marginY)
         }
 
         fun draw(draw: GLDraw, outlineHue: Float) {
@@ -249,12 +254,15 @@ class ButterfliesMode : BaseMode() {
     }
 
     private fun edgeSpawn(): Pair<Float, Float> {
-        val m = 60f
+        val mX = minOf(60f, screenW.coerceAtLeast(1) / 2f)
+        val mY = minOf(60f, screenH.coerceAtLeast(1) / 2f)
+        val spanX = maxOf(0f, screenW - 2f * mX)
+        val spanY = maxOf(0f, screenH - 2f * mY)
         return when ((Math.random() * 4).toInt()) {
-            0    -> m to (m + Math.random().toFloat() * (screenH - 2 * m))
-            1    -> (screenW - m) to (m + Math.random().toFloat() * (screenH - 2 * m))
-            2    -> (m + Math.random().toFloat() * (screenW - 2 * m)) to m
-            else -> (m + Math.random().toFloat() * (screenW - 2 * m)) to (screenH - m)
+            0    -> mX to (mY + Math.random().toFloat() * spanY)
+            1    -> (screenW - mX) to (mY + Math.random().toFloat() * spanY)
+            2    -> (mX + Math.random().toFloat() * spanX) to mY
+            else -> (mX + Math.random().toFloat() * spanX) to (screenH - mY)
         }
     }
 

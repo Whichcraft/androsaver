@@ -259,6 +259,7 @@ class AudioEngine {
      */
     private fun ByteArray.toFftMagnitude(): FloatArray {
         val bins = (size / 2).coerceAtMost(FFT_BINS)
+        if (bins == 0) return FloatArray(0)
         val mag = FloatArray(bins)
         // DC and Nyquist are real-only
         mag[0] = abs(this[0].toFloat()) / 128f

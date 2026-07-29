@@ -1,6 +1,8 @@
 package com.androsaver
 
+import android.content.Context
 import okhttp3.OkHttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
@@ -29,7 +31,7 @@ internal object HttpClients {
             override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
             override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
         }
-        val sslContext = SSLContext.getInstance("SSL").apply {
+        val sslContext = SSLContext.getInstance("TLS").apply {
             init(null, arrayOf<TrustManager>(trustManager), SecureRandom())
         }
         OkHttpClient.Builder()
@@ -38,5 +40,21 @@ internal object HttpClients {
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
+    }
+
+    fun forHost(context: Context, host: String): OkHttpClient {
+        val prefs = Prefs.get(context.applicationContext)
+        val configuredHosts = sequenceOf(
+            prefs.getString(Prefs.NEXTCLOUD_HOST, null),
+            prefs.getString(Prefs.SYNOLOGY_HOST, null),
+            prefs.getString(Prefs.IMMICH_HOST, null)
+        ).mapNotNull(::normalizeHost).toSet()
+        return if (host.lowercase() in configuredHosts) trustAll else standard
+    }
+
+    private fun normalizeHost(value: String?): String? {
+        val raw = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val candidate = if ("://" in raw) raw else "https://$raw"
+        return candidate.toHttpUrlOrNull()?.host?.lowercase()
     }
 }

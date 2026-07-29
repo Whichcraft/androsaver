@@ -1,7 +1,6 @@
 package com.androsaver
 
 import android.content.Context
-import androidx.preference.PreferenceManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.Registry
 import com.bumptech.glide.annotation.GlideModule
@@ -22,16 +21,7 @@ class AndroSaverGlideModule : AppGlideModule() {
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
         val dynamicCallFactory = object : Call.Factory {
             override fun newCall(request: Request): Call {
-                val host = request.url.host
-                val prefs = com.androsaver.Prefs.get(context)
-                val selfHosted = setOf(
-                    prefs.getString(Prefs.NEXTCLOUD_HOST, null)?.trim(),
-                    prefs.getString(Prefs.SYNOLOGY_HOST, null)?.trim(),
-                    prefs.getString(Prefs.IMMICH_HOST, null)?.trim()
-                ).filter { !it.isNullOrBlank() }
-                
-                val client = if (host in selfHosted) HttpClients.trustAll else HttpClients.standard
-                return client.newCall(request)
+                return HttpClients.forHost(context, request.url.host).newCall(request)
             }
         }
 

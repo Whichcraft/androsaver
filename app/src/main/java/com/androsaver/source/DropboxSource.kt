@@ -60,7 +60,12 @@ class DropboxSource(private val context: Context) : ImageSource {
 
         while (hasMore) {
             val (entries, nextCursor, more) = if (cursor == null) {
-                val body = """{"path":"$path","recursive":false,"limit":2000}"""
+                val payload = JsonObject().apply {
+                    addProperty("path", path)
+                    addProperty("recursive", false)
+                    addProperty("limit", 2000)
+                }
+                val body = gson.toJson(payload)
                     .toRequestBody("application/json".toMediaType())
                 val request = Request.Builder()
                     .url("https://api.dropboxapi.com/2/files/list_folder")
@@ -68,7 +73,8 @@ class DropboxSource(private val context: Context) : ImageSource {
                     .post(body).build()
                 parseListResponse(client.newCall(request).execute().use { it.body?.string() } ?: return files)
             } else {
-                val body = """{"cursor":"$cursor"}"""
+                val payload = JsonObject().apply { addProperty("cursor", cursor) }
+                val body = gson.toJson(payload)
                     .toRequestBody("application/json".toMediaType())
                 val request = Request.Builder()
                     .url("https://api.dropboxapi.com/2/files/list_folder/continue")
@@ -119,7 +125,8 @@ class DropboxSource(private val context: Context) : ImageSource {
             async {
                 semaphore.withPermit {
                     try {
-                        val body = """{"path":"$path"}"""
+                        val payload = JsonObject().apply { addProperty("path", path) }
+                        val body = gson.toJson(payload)
                             .toRequestBody("application/json".toMediaType())
                         val request = Request.Builder()
                             .url("https://api.dropboxapi.com/2/files/get_temporary_link")

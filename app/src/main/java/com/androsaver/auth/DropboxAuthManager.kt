@@ -8,6 +8,8 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.Credentials
 import okhttp3.FormBody
 import okhttp3.Request
@@ -63,30 +65,37 @@ class DropboxAuthManager(private val context: Context) {
     }
 
     /** Returns a valid access token, refreshing silently if necessary. */
-    suspend fun getValidAccessToken(): String? = withContext(Dispatchers.IO) {
-        val prefs = com.androsaver.Prefs.get(context)
-        val appKey       = prefs.getString(Prefs.DROPBOX_APP_KEY, null) ?: return@withContext null
-        val appSecret    = prefs.getString(Prefs.DROPBOX_APP_SECRET, null) ?: return@withContext null
-        val refreshToken = prefs.getString(Prefs.DROPBOX_REFRESH_TOKEN, null) ?: return@withContext null
+    suspend fun getValidAccessToken(): String? = refreshMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val prefs = com.androsaver.Prefs.get(context)
+            val appKey = prefs.getString(Prefs.DROPBOX_APP_KEY, null)
+                ?: return@withContext null
+            val appSecret = prefs.getString(Prefs.DROPBOX_APP_SECRET, null)
+                ?: return@withContext null
+            val refreshToken = prefs.getString(Prefs.DROPBOX_REFRESH_TOKEN, null)
+                ?: return@withContext null
 
-        val body = FormBody.Builder()
-            .add("grant_type", "refresh_token")
-            .add("refresh_token", refreshToken)
-            .build()
+            val body = FormBody.Builder()
+                .add("grant_type", "refresh_token")
+                .add("refresh_token", refreshToken)
+                .build()
 
-        try {
-            val json = client.newCall(
-                Request.Builder()
-                    .url("https://api.dropboxapi.com/oauth2/token")
-                    .header("Authorization", Credentials.basic(appKey, appSecret))
-                    .post(body).build()
-            ).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            try {
+                val json = client.newCall(
+                    Request.Builder()
+                        .url("https://api.dropboxapi.com/oauth2/token")
+                        .header("Authorization", Credentials.basic(appKey, appSecret))
+                        .post(body).build()
+                ).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
 
-            if (json.has("error")) return@withContext null
-            val newToken = json.get("access_token").asString
-            prefs.edit().putString(Prefs.DROPBOX_ACCESS_TOKEN, newToken).apply()
-            newToken
-        } catch (e: Exception) { null }
+                if (json.has("error")) return@withContext null
+                val newToken = json.get("access_token").asString
+                prefs.edit().putString(Prefs.DROPBOX_ACCESS_TOKEN, newToken).apply()
+                newToken
+            } catch (e: Exception) {
+                null
+            }
+        }
     }
 
     fun isAuthorized(): Boolean =
@@ -98,5 +107,9 @@ class DropboxAuthManager(private val context: Context) {
             .remove(Prefs.DROPBOX_ACCESS_TOKEN)
             .remove(Prefs.DROPBOX_REFRESH_TOKEN)
             .apply()
+    }
+
+    companion object {
+        private val refreshMutex = Mutex()
     }
 }

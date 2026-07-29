@@ -3,26 +3,14 @@ package com.androsaver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.androsaver.auth.DropboxAuthManager
-import com.androsaver.source.GoogleDriveSource
-import com.androsaver.source.OneDriveSource
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        // WorkManager owns the network constraints, retries, and process
+        // lifetime. Do not keep a boot broadcast open while three synchronous
+        // token refresh requests run; BroadcastReceiver work has a short
+        // execution window and can be killed before pending.finish().
         PrefetchScheduler.schedule(context)
-        val pending = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                GoogleDriveSource(context).refreshAccessTokenSilently()
-                OneDriveSource(context).refreshAccessTokenSilently()
-                DropboxAuthManager(context).getValidAccessToken()
-            } finally {
-                pending.finish()
-            }
-        }
     }
 }
