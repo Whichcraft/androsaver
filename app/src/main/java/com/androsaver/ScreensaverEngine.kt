@@ -42,6 +42,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -438,7 +439,11 @@ class ScreensaverEngine(
         resetSlideshowViews()
 
         val uriString = prefs.getString(Prefs.STATIC_IMAGE_URI, null)
-        if (uriString.isNullOrBlank()) {
+        val localPath = prefs.getString(Prefs.STATIC_IMAGE_LOCAL_PATH, null)
+            ?.takeIf { File(it).isFile }
+        val imageSource: Any? = localPath?.let { File(it) }
+            ?: uriString?.takeIf { it.isNotBlank() }?.let { android.net.Uri.parse(it) }
+        if (imageSource == null) {
             binding.statusText.text = context.getString(R.string.static_image_not_selected)
             binding.statusText.visibility = View.VISIBLE
             return
@@ -475,7 +480,7 @@ class ScreensaverEngine(
             }
         }
         imageTargets[imageView] = target
-        Glide.with(context).load(android.net.Uri.parse(uriString)).into(target)
+        Glide.with(context).load(imageSource).into(target)
     }
 
     private fun parseBackgroundColor(prefs: SharedPreferences): Int {

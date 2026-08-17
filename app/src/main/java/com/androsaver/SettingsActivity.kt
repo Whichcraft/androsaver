@@ -25,7 +25,10 @@ import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.SwitchPreferenceCompat
 import com.androsaver.auth.DropboxAuthManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -115,8 +118,23 @@ class SettingsActivity : AppCompatActivity() {
                 // Some providers do not offer persistable permissions; the URI can
                 // still be used for the current session.
             }
-            Prefs.get(requireContext()).edit().putString(Prefs.STATIC_IMAGE_URI, uri.toString()).apply()
-            updateStaticImageSummary(uri)
+            val appContext = requireContext().applicationContext
+            viewLifecycleOwner.lifecycleScope.launch {
+                val localPath = withContext(Dispatchers.IO) {
+                    copyStaticImageToPrivateStorage(appContext, uri)
+                }
+                if (localPath == null) {
+                    android.widget.Toast.makeText(
+                        appContext, R.string.static_image_copy_failed, android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
+                Prefs.get(appContext).edit()
+                    .putString(Prefs.STATIC_IMAGE_URI, uri.toString())
+                    .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, localPath)
+                    .apply()
+                updateStaticImageSummary(uri)
+            }
         }
 
         private val audioPermissionLauncher = registerForActivityResult(
@@ -283,6 +301,26 @@ class SettingsActivity : AppCompatActivity() {
             preference.summary = selected?.let {
                 Uri.parse(it).lastPathSegment?.substringAfterLast('/') ?: "Selected image"
             } ?: getString(R.string.static_image_not_selected)
+        }
+
+        private fun copyStaticImageToPrivateStorage(context: android.content.Context, uri: Uri): String? {
+            val directory = File(context.filesDir, "static_background")
+            if (!directory.exists() && !directory.mkdirs()) return null
+            val destination = File(directory, "background_image")
+            val temporary = File.createTempFile("background_image_", ".tmp", directory)
+            return try {
+                val input = context.contentResolver.openInputStream(uri) ?: return null
+                input.use { source ->
+                    temporary.outputStream().use { target -> source.copyTo(target) }
+                }
+                if (destination.exists() && !destination.delete()) return null
+                if (!temporary.renameTo(destination)) return null
+                destination.absolutePath
+            } catch (_: Exception) {
+                null
+            } finally {
+                if (temporary.exists()) temporary.delete()
+            }
         }
 
         private fun updateSourcesSummary() {

@@ -72,6 +72,7 @@ object Prefs {
 
     // Static background image
     const val STATIC_IMAGE_URI   = "static_image_uri"
+    const val STATIC_IMAGE_LOCAL_PATH = "static_image_local_path"
     const val STATIC_IMAGE_SCALE = "static_image_scale"
     const val STATIC_BACKGROUND_COLOR = "static_background_color"
 

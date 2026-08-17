@@ -9,7 +9,7 @@ All notable changes to AndroSaver are documented here.
 - **Static image mode**: Added a screensaver mode that lets users choose a persistent image from device storage through the settings menu.
 - **Image behavior**: Added configurable Fill/Crop, Fit/Letterbox, Original Size/Center, and explicitly labelled Stretch rendering modes for portrait and landscape images and displays.
 - **Background color**: Added a configurable hex color for unused space when an image is fitted or centered, with safe fallback to black for invalid values.
-- **Settings**: Persisted selected document URI permissions and show a useful status when no image is selected or the image cannot be loaded.
+- **Settings**: Copy the selected image into private app storage for reliable offline use, retain the document URI as a fallback, and show useful status when no image is selected or the image cannot be loaded.
 - **Developer workflow**: Documented that Android builds and verification are performed by the GitHub builder rather than locally.
 
 ---
