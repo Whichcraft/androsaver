@@ -4,7 +4,7 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
-## 2026-08-17 — v2.9.0: configurable static background images
+## 2026-08-17 — v2.9.3: configurable static background images
 
 - **Static image mode**: Added a screensaver mode that lets users choose a persistent image from device storage through the settings menu.
 - **Image behavior**: Added configurable Fill/Crop, Fit/Letterbox, Original Size/Center, and explicitly labelled Stretch rendering modes for portrait and landscape images and displays.
