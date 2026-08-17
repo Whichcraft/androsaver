@@ -132,6 +132,7 @@ class ScreensaverEngine(
         when (mode) {
             Prefs.MODE_VISUALIZER -> startVisualizerMode(prefs)
             Prefs.MODE_BLANK -> startBlankMode()
+            Prefs.MODE_STATIC -> startStaticImageMode(prefs)
             else -> startSlideshowMode(prefs)
         }
 
@@ -427,10 +428,73 @@ class ScreensaverEngine(
         binding.devErrorOverlay.visibility = View.GONE
     }
 
+    private fun startStaticImageMode(prefs: SharedPreferences) {
+        binding.root.setBackgroundColor(parseBackgroundColor(prefs))
+        binding.visualizerContainer.visibility = View.GONE
+        binding.imageView1.visibility = View.VISIBLE
+        binding.imageView2.visibility = View.GONE
+        binding.statusText.visibility = View.GONE
+        binding.devErrorOverlay.visibility = View.GONE
+        resetSlideshowViews()
+
+        val uriString = prefs.getString(Prefs.STATIC_IMAGE_URI, null)
+        if (uriString.isNullOrBlank()) {
+            binding.statusText.text = context.getString(R.string.static_image_not_selected)
+            binding.statusText.visibility = View.VISIBLE
+            return
+        }
+
+        binding.imageView1.scaleType = when (prefs.getString(Prefs.STATIC_IMAGE_SCALE, "crop")) {
+            "fit" -> ImageView.ScaleType.FIT_CENTER
+            "center" -> ImageView.ScaleType.CENTER
+            "stretch" -> ImageView.ScaleType.FIT_XY
+            else -> ImageView.ScaleType.CENTER_CROP
+        }
+        val imageView = binding.imageView1
+        val target = object : CustomTarget<Drawable>(
+            imageView.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels,
+            imageView.height.takeIf { it > 0 } ?: context.resources.displayMetrics.heightPixels
+        ) {
+            override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
+                if (imageTargets[imageView] !== this) return
+                imageView.setImageDrawable(resource)
+                imageView.alpha = 1f
+            }
+
+            override fun onLoadCleared(placeholder: Drawable?) {
+                if (imageTargets[imageView] === this) imageTargets.remove(imageView)
+                imageView.setImageDrawable(null)
+            }
+
+            override fun onLoadFailed(errorDrawable: Drawable?) {
+                if (imageTargets[imageView] !== this) return
+                imageTargets.remove(imageView)
+                imageView.setImageDrawable(errorDrawable)
+                binding.statusText.text = context.getString(R.string.static_image_load_failed)
+                binding.statusText.visibility = View.VISIBLE
+            }
+        }
+        imageTargets[imageView] = target
+        Glide.with(context).load(android.net.Uri.parse(uriString)).into(target)
+    }
+
+    private fun parseBackgroundColor(prefs: SharedPreferences): Int {
+        val value = prefs.getString(Prefs.STATIC_BACKGROUND_COLOR, "#000000") ?: "#000000"
+        return try {
+            android.graphics.Color.parseColor(value.trim().let {
+                if (it.startsWith("#")) it else "#$it"
+            })
+        } catch (_: IllegalArgumentException) {
+            0xFF000000.toInt()
+        }
+    }
+
     private fun startSlideshowMode(prefs: SharedPreferences) {
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.VISIBLE
+        binding.imageView1.scaleType = ImageView.ScaleType.FIT_CENTER
+        binding.imageView2.scaleType = ImageView.ScaleType.FIT_CENTER
         devTransitionErrorVisible = false
         binding.devErrorOverlay.text = ""
         binding.devErrorOverlay.visibility = View.GONE

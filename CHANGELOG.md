@@ -4,6 +4,16 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-08-17 — Unreleased: configurable static background images
+
+- **Static image mode**: Added a screensaver mode that lets users choose a persistent image from device storage through the settings menu.
+- **Image behavior**: Added configurable Fill/Crop, Fit/Letterbox, Original Size/Center, and explicitly labelled Stretch rendering modes for portrait and landscape images and displays.
+- **Background color**: Added a configurable hex color for unused space when an image is fitted or centered, with safe fallback to black for invalid values.
+- **Settings**: Persisted selected document URI permissions and show a useful status when no image is selected or the image cannot be loaded.
+- **Developer workflow**: Documented that Android builds and verification are performed by the GitHub builder rather than locally.
+
+---
+
 ## 2026-07-29 — v2.8.5: slideshow lifecycle and runtime robustness
 
 - **Slideshow / Glide callbacks**: Deferred target cleanup out of Glide target callbacks, preventing `IllegalStateException` when a refreshed image is removed while a load completes.

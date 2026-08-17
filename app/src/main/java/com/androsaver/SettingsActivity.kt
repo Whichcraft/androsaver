@@ -2,6 +2,7 @@ package com.androsaver
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -100,6 +101,24 @@ class SettingsActivity : AppCompatActivity() {
 
         private var pendingUpdateUrl: String? = null
 
+        private val staticImagePicker = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode != android.app.Activity.RESULT_OK) return@registerForActivityResult
+            val uri = result.data?.data ?: return@registerForActivityResult
+            try {
+                val flags = result.data?.flags?.and(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                ) ?: Intent.FLAG_GRANT_READ_URI_PERMISSION
+                requireContext().contentResolver.takePersistableUriPermission(uri, flags)
+            } catch (_: SecurityException) {
+                // Some providers do not offer persistable permissions; the URI can
+                // still be used for the current session.
+            }
+            Prefs.get(requireContext()).edit().putString(Prefs.STATIC_IMAGE_URI, uri.toString()).apply()
+            updateStaticImageSummary(uri)
+        }
+
         private val audioPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { granted ->
@@ -116,6 +135,16 @@ class SettingsActivity : AppCompatActivity() {
                 val prefs = Prefs.get(requireContext())
                 val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) ?: Prefs.MODE_SLIDESHOW
                 updateModeVisibility(currentMode)
+                updateStaticImageSummary()
+
+                findPreference<Preference>(Prefs.STATIC_IMAGE_URI)?.setOnPreferenceClickListener {
+                    staticImagePicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "image/*"
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                    })
+                    true
+                }
 
                 findPreference<ListPreference>(Prefs.SCREENSAVER_MODE)?.setOnPreferenceChangeListener { _, newValue ->
                     updateModeVisibility(newValue as String)
@@ -239,10 +268,20 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun updateModeVisibility(mode: String) {
             val isSlideshow = mode == Prefs.MODE_SLIDESHOW
+            val isStatic = mode == Prefs.MODE_STATIC
             val isVisualizer = mode == Prefs.MODE_VISUALIZER
             findPreference<Preference>("image_sources")?.isVisible = isSlideshow
             findPreference<androidx.preference.PreferenceCategory>("cat_slideshow")?.isVisible = isSlideshow
+            findPreference<androidx.preference.PreferenceCategory>("cat_static")?.isVisible = isStatic
             findPreference<androidx.preference.PreferenceCategory>("cat_visualizer")?.isVisible = isVisualizer
+        }
+
+        private fun updateStaticImageSummary(uri: Uri? = null) {
+            val preference = findPreference<Preference>(Prefs.STATIC_IMAGE_URI) ?: return
+            val selected = uri ?: Prefs.get(requireContext()).getString(Prefs.STATIC_IMAGE_URI, null)
+            preference.summary = selected?.let {
+                Uri.parse(it).lastPathSegment?.substringAfterLast('/') ?: "Selected image"
+            } ?: getString(R.string.static_image_not_selected)
         }
 
         private fun updateSourcesSummary() {

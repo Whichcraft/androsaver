@@ -119,6 +119,8 @@
     <string name="preview_screensaver">Start Now</string>
     <string name="preview_screensaver_summary">Launch the screensaver immediately</string>
     <string name="cache_fallback_notice">Network unavailable — showing cached images</string>
+    <string name="static_image_not_selected">No static image selected. Choose one in AndroSaver Settings.</string>
+    <string name="static_image_load_failed">The selected static image could not be loaded.</string>
 
     <!-- Permissions -->
     <string name="audio_permission_denied">Microphone permission denied — the visualizer will run silently without audio reactivity</string>

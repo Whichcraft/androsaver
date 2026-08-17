@@ -68,6 +68,12 @@ object Prefs {
     const val MODE_SLIDESHOW   = "slideshow"
     const val MODE_VISUALIZER  = "visualizer"
     const val MODE_BLANK       = "blank"
+    const val MODE_STATIC      = "static"
+
+    // Static background image
+    const val STATIC_IMAGE_URI   = "static_image_uri"
+    const val STATIC_IMAGE_SCALE = "static_image_scale"
+    const val STATIC_BACKGROUND_COLOR = "static_background_color"
 
     // Visualizer
     const val VISUALIZER_MODE      = "visualizer_mode"

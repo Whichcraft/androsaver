@@ -5,6 +5,7 @@ All identified bugs, memory leaks, concurrency issues, and performance bottlenec
 ## Pending Tasks
 
 - [ ] Replace the bundled slideshow example images with a curated set of public-domain photos before release.
+- [x] Add a screensaver menu option to select a static background image and configure its rendering behavior. Offer the useful display modes **Fill/Crop** (preserve aspect ratio and crop overflow), **Fit/Letterbox** (show the complete image with unused space), and **Original Size/Center** (preserve pixels and center smaller images without upscaling); treat **Stretch** (may distort the image) as an optional explicitly labelled advanced mode rather than the default. Include a menu setting for the letterbox/background color, and ensure all modes behave consistently for portrait and landscape images/displays, including rotation and mismatched aspect ratios.
 
 ---
 
