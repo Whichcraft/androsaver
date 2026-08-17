@@ -278,7 +278,8 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun updateStaticImageSummary(uri: Uri? = null) {
             val preference = findPreference<Preference>(Prefs.STATIC_IMAGE_URI) ?: return
-            val selected = uri ?: Prefs.get(requireContext()).getString(Prefs.STATIC_IMAGE_URI, null)
+            val selected = uri?.toString()
+                ?: Prefs.get(requireContext()).getString(Prefs.STATIC_IMAGE_URI, null)
             preference.summary = selected?.let {
                 Uri.parse(it).lastPathSegment?.substringAfterLast('/') ?: "Selected image"
             } ?: getString(R.string.static_image_not_selected)
