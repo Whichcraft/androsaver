@@ -27,6 +27,7 @@ class Mobius(Effect):
         super().__init__(**kwargs)
         self._ry = 0.0   # rotation around Y
         self._rx = 0.0   # rotation around X
+        self._rw = 0.0   # fourth-dimensional projection rotation
         self._hue    = 0.55
         self._shiver = 0.0
         self._beat_prev = 0.0
@@ -36,8 +37,15 @@ class Mobius(Effect):
 
     # ------------------------------------------------------------------
 
-    def _project(self, pts3d, W, H, fov=3.0):
-        """Perspective-project Nx3 → Nx2 pixel array."""
+    def _project(self, pts4d, W, H, fov=3.0):
+        """Rotate in XW, then perspective-project Nx4 → Nx2 pixel array."""
+        x4, w4 = pts4d[:, 0], pts4d[:, 3]
+        cw, sw = math.cos(self._rw), math.sin(self._rw)
+        xr4 = x4 * cw - w4 * sw
+        wr4 = x4 * sw + w4 * cw
+        depth4 = np.maximum(0.35, fov + 0.35 - wr4)
+        pts3d = pts4d[:, :3].copy()
+        pts3d[:, 0] = xr4 / depth4
         cy, sy = math.cos(self._ry), math.sin(self._ry)
         cx, sx = math.cos(self._rx), math.sin(self._rx)
 
@@ -62,7 +70,8 @@ class Mobius(Effect):
         x    = (1.0 + v_scalar * cohu) * np.cos(u)
         y    = (1.0 + v_scalar * cohu) * np.sin(u)
         z    = v_scalar * np.sin(hu) * twist
-        return np.stack([x, y, z], axis=1)
+        w = v_scalar * np.sin(hu) * 0.35
+        return np.stack([x, y, z, w], axis=1)
 
     def draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
@@ -73,6 +82,7 @@ class Mobius(Effect):
         self._hue   = (self._hue + 0.0012 + mid * 0.002) % 1.0
         self._ry   += 0.008 + bass * 0.025 + mid * 0.012 + high * 0.015
         self._rx   += 0.003 + bass * 0.008
+        self._rw   += 0.004 + mid * 0.008 + high * 0.012
 
         if bass > 0.75 and self._beat_prev <= 0.75:
             self._shiver = 1.0

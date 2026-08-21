@@ -24,7 +24,7 @@ Controls:
 
 from __future__ import annotations
 
-__version__ = "3.14.0"
+__version__ = "3.15.0"
 
 import argparse
 import atexit
@@ -45,9 +45,19 @@ from core.display_manager import DisplayManager
 from core.ui_manager import UIManager
 from effects import MODES
 from effects.palette import palette
+from core.quality import QualityGovernor
+from core.postprocess import PostProcessChain
 
 _CROSSFADE_FRAMES = 45
 _BG_MODES = 9
+_PRESET_MORPH_BEATS = 8
+RECIPES = (
+    {"name": "Hyperbolic Liquid Cathedral", "foreground": "Hyperbolic", "background": "LiquidLight", "bg_alpha": 112},
+    {"name": "Tesseract Persistence", "foreground": "Tesseract", "background": "Persistence", "bg_alpha": 96},
+    {"name": "Cymatic Ferrofluid", "foreground": "Cymatica", "background": "Ferrofluid", "bg_alpha": 104},
+    {"name": "Morphogenic Plasma", "foreground": "Morphogenesis", "background": "Plasma", "bg_alpha": 108},
+    {"name": "Aurora Fireworks", "foreground": "Fireworks", "background": "Aurora", "bg_alpha": 118},
+)
 
 class VisualizerApp:
     def __init__(self):
@@ -89,6 +99,10 @@ class VisualizerApp:
         self.bg_vis = self.bg_cls(renderer=self.display.renderer)
         self.bg_surf = pygame.Surface((config.WIDTH, config.HEIGHT))
         self.bg_alpha = self.settings.get("bg_alpha", 102)
+        self.recipe_idx = -1
+        self.postfx_mode = self.settings.get("postfx_mode", 0) % len(PostProcessChain.MODES)
+        self._preset_morph = None
+        self._parameter_morph = None
         
         self.prev_surf = None
         self.prev_surf_scaled = None
@@ -102,7 +116,11 @@ class VisualizerApp:
         self.effect_gain = self.settings.get("effect_gain", config.DEFAULT_EFFECT_GAIN)
         self.current_genre = "detecting..."
         self._genre_check_cd = 0
-        self.silence_frames = 0
+        self.silence_frames = 0  # retained as a compatibility diagnostic
+        self._silence_last_generation = None
+        self._silence_last_audio_time = None
+        self._silence_quiet_seconds = 0.0
+        self._silence_loud_blocks = 0
         self.is_silent = True
         
         self.hud_level = self.settings.get("hud_level", 2)
@@ -116,6 +134,10 @@ class VisualizerApp:
         self.tap_bpm = 0.0
         self.tap_bpm_expiry = 0.0
         self.tap_flash_end = 0.0
+        self._phase_anchor_tick = 0
+        self._phase_last_onset = 0.0
+        self._phase_anchor_time = 0.0
+        self._phase_was_silent = True
         
         self.span_vis2_idx = (self.mode_idx + 1) % len(MODES)
         self.span_mode = len(self.display.xmonitors) >= 2 and not self.args.span_child
@@ -127,6 +149,8 @@ class VisualizerApp:
         self.dev_name_cache = {}
         
         self.clock = pygame.time.Clock()
+        self.quality = QualityGovernor(config.FPS)
+        self.postfx = PostProcessChain(self.display.renderer)
         self.fade = self._make_fade(self.fade_alpha)
 
     def _setup_signals(self):
@@ -148,6 +172,8 @@ class VisualizerApp:
         desc += "  H / Shift+H     HUD visibility / Detail\n"
         desc += "  M / Shift+M     Tap Tempo / Span Mode\n"
         desc += "  D               Device picker / Span cycle\n"
+        desc += "  Shift+R         Curated foreground/background recipe\n"
+        desc += "  Shift+X         Cycle psychedelic post-process\n"
         desc += "  Q / Esc         Quit"
         
         parser = argparse.ArgumentParser(
@@ -208,6 +234,68 @@ class VisualizerApp:
         self.bg_name, self.bg_cls = MODES[self.bg_mode_i]
         self.bg_vis = self.bg_cls(renderer=self.display.renderer)
 
+    def _apply_recipe(self, recipe_idx: int) -> None:
+        """Select one curated foreground/background pairing explicitly."""
+        recipe = RECIPES[recipe_idx % len(RECIPES)]
+        mode_by_name = {name: index for index, (name, _) in enumerate(MODES)}
+        foreground = mode_by_name.get(recipe["foreground"])
+        background = mode_by_name.get(recipe["background"])
+        if foreground is None or background is None:
+            return
+        if foreground != self.mode_idx:
+            self._switch_mode(foreground)
+        self._set_background_mode(background)
+        self.bg_alpha = int(max(0, min(255, recipe["bg_alpha"])))
+        self.bg_on = True
+        self.recipe_idx = recipe_idx % len(RECIPES)
+
+    def _start_preset_morph(self, preset: dict) -> None:
+        """Begin a bounded preset blend; discrete mode changes occur midway."""
+        bpm = float(getattr(self, "bpm", 0.0) or config.BPM or 0.0)
+        if 60.0 <= bpm <= 200.0:
+            duration = 60.0 / bpm * _PRESET_MORPH_BEATS * config.FPS
+        else:
+            duration = 4.0 * config.FPS
+        self._preset_morph = {
+            "start": self.tick, "duration": max(1, int(round(duration))), "switched": False,
+            "mode_idx": int(preset.get("mode_idx", self.mode_idx)),
+            "bg_mode_i": int(preset.get("bg_mode_i", self.bg_mode_i)),
+            "bg_on": bool(preset.get("bg_on", self.bg_on)),
+            "from_gain": float(self.effect_gain), "to_gain": float(preset.get("intensity", self.effect_gain)),
+            "from_alpha": float(self.bg_alpha), "to_alpha": float(preset.get("bg_alpha", self.bg_alpha)),
+            "from_cf": float(self.cf_frames), "to_cf": float(preset.get("cf_frames", self.cf_frames)),
+        }
+
+    def _advance_preset_morph(self) -> None:
+        morph = self._preset_morph
+        if morph is None:
+            return
+        progress = min(1.0, max(0.0, (self.tick - morph["start"]) / morph["duration"]))
+        if not morph["switched"] and progress >= 0.5:
+            self._switch_mode(morph["mode_idx"])
+            self._set_background_mode(morph["bg_mode_i"])
+            self.bg_on = morph["bg_on"]
+            morph["switched"] = True
+        self.effect_gain = morph["from_gain"] + (morph["to_gain"] - morph["from_gain"]) * progress
+        self.bg_alpha = int(round(morph["from_alpha"] + (morph["to_alpha"] - morph["from_alpha"]) * progress))
+        self.cf_frames = morph["from_cf"] + (morph["to_cf"] - morph["from_cf"]) * progress
+        if progress >= 1.0:
+            self._preset_morph = None
+
+    def _advance_parameter_morph(self) -> None:
+        morph = self._parameter_morph
+        if morph is None:
+            return
+        progress = min(1.0, max(0.0, (self.tick - morph["start"]) / morph["duration"]))
+        values = {
+            name: source + (morph["target"][name] - source) * progress
+            for name, source in morph["source"].items()
+            if name in morph["target"]
+        }
+        self.vis.set_morph_values(values)
+        if progress >= 1.0:
+            self._parameter_morph = None
+
     def _quit(self):
         self._quit_requested = True
 
@@ -215,6 +303,8 @@ class VisualizerApp:
         if getattr(self, "_cleanup_done", False):
             return
         self._cleanup_done = True
+        if hasattr(self, "postfx"):
+            self.postfx.release()
         self._save_settings()
         for effect in (getattr(self, "vis", None), getattr(self, "bg_vis", None)):
             release = getattr(effect, "release", None)
@@ -250,9 +340,11 @@ class VisualizerApp:
             "cf_frames": self.cf_frames,
             "hud_level": self.hud_level,
             "effect_gain": self.effect_gain,
+            "postfx_mode": self.postfx_mode,
         })
 
     def _switch_mode(self, new_idx: int):
+        old_values = self.vis.get_morph_values() if hasattr(self.vis, "get_morph_values") else {}
         if hasattr(self.vis, "release") and callable(self.vis.release):
             self.vis.release()
         if not (self.args.gl and self.vis.IS_GL):
@@ -265,6 +357,17 @@ class VisualizerApp:
         self.mode_idx = new_idx % len(MODES)
         self.name, self.VisCls = MODES[self.mode_idx]
         self.vis = self.VisCls(renderer=self.display.renderer)
+        new_values = self.vis.get_morph_values() if hasattr(self.vis, "get_morph_values") else {}
+        common = old_values.keys() & new_values.keys()
+        if common:
+            self._parameter_morph = {
+                "start": self.tick,
+                "duration": max(1, int(self.cf_frames)),
+                "source": {name: old_values[name] for name in common},
+                "target": {name: new_values[name] for name in common},
+            }
+        else:
+            self._parameter_morph = None
         self.effect_gain = config.DEFAULT_EFFECT_GAIN
         self._update_target_res()
 
@@ -282,6 +385,8 @@ class VisualizerApp:
         self.bg_vis = self.bg_cls(renderer=self.display.renderer)
         self.bg_surf = pygame.Surface((config.WIDTH, config.HEIGHT))
         self.prev_surf_scaled = None
+        if hasattr(self, "postfx"):
+            self.postfx.renderer = self.display.renderer
         self._update_target_res()
 
     def _release_for_display_change(self):
@@ -294,6 +399,8 @@ class VisualizerApp:
         if renderer is not None and hasattr(renderer, "release"):
             renderer.release()
         self.display.renderer = None
+        if hasattr(self, "postfx"):
+            self.postfx.renderer = None
 
     def run(self):
         try:
@@ -315,9 +422,14 @@ class VisualizerApp:
                 if self.args.gl and self.display.renderer:
                     present = self._present_surface if self._present_surface is not None else self.display.target
                     self.display.renderer.blit(present)
+                    if self.postfx_mode and self.vis.IS_GL:
+                        self.display.renderer.postprocess_screen(
+                            self.postfx, self.postfx_mode, min(1.0, self.effect_gain), self.tick
+                        )
                     self.display.target.fill((0, 0, 0, 0))
 
                 pygame.display.flip()
+                self.quality.observe(self.clock.get_rawtime(), enabled=True)
                 self.clock.tick(config.FPS)
                 self.tick += 1
         finally:
@@ -373,6 +485,7 @@ class VisualizerApp:
                             self.tap_bpm = 60.0 / np.median(np.diff(self.tap_times))
                             self.tap_bpm_expiry = t + 8.0
                             self.tap_flash_end = t + 0.5
+                            self._phase_anchor_tick = self.tick
                 elif event.key == pygame.K_a:
                     if self.span_mode:
                         self.span_vis2_idx = (self.span_vis2_idx - 1) % len(MODES)
@@ -392,20 +505,22 @@ class VisualizerApp:
                         self._set_background_mode(self.bg_mode_i + 1)
                     else:
                         self.bg_on = not self.bg_on
+                elif event.key == pygame.K_r and event.mod & pygame.KMOD_SHIFT:
+                    self._apply_recipe(self.recipe_idx + 1)
+                elif event.key == pygame.K_x and event.mod & pygame.KMOD_SHIFT:
+                    self.postfx_mode = (self.postfx_mode + 1) % len(PostProcessChain.MODES)
                 elif event.key == pygame.K_p:
                     if event.mod & pygame.KMOD_SHIFT:
                         self.active_preset = (self.active_preset + 1) % max(1, len(self.presets))
                         if self.presets:
                             p = self.presets[self.active_preset]
-                            self._switch_mode(p["mode_idx"])
-                            self.effect_gain = p.get("intensity", 0.7)
-                            self.bg_on = p.get("bg_on", False)
-                            self._set_background_mode(p.get("bg_mode_i", 0))
-                            self._update_target_res()
+                            self._start_preset_morph(p)
                     else:
                         preset_name = f"Preset {len(self.presets) + 1}"
                         entry = {"mode_idx": self.mode_idx, "intensity": self.effect_gain,
-                                 "bg_on": self.bg_on, "bg_mode_i": self.bg_mode_i}
+                                 "bg_on": self.bg_on, "bg_mode_i": self.bg_mode_i,
+                                 "bg_alpha": self.bg_alpha, "cf_frames": self.cf_frames,
+                                 "postfx_mode": self.postfx_mode}
                         self.presets.append({"name": preset_name, **entry})
                         sett.save_preset(preset_name, entry)
                         self.active_preset = len(self.presets) - 1
@@ -467,10 +582,91 @@ class VisualizerApp:
             return self.beat * auto_scale * self.effect_gain
         return self.beat * self.effect_gain
 
+    def _update_beat_phase(self, audio_time, bpm, onset_time):
+        """Publish a bounded phase that reaches zero at predicted beat times."""
+        try:
+            now = float(audio_time)
+            tempo = float(bpm)
+            onset = float(onset_time)
+        except (TypeError, ValueError):
+            now = tempo = onset = float("nan")
+
+        if self.is_silent:
+            phase = (self.tick / max(1.0, config.FPS) * 0.25) % 1.0
+        elif self.using_tap and np.isfinite(tempo) and tempo > 0:
+            phase = ((self.tick - self._phase_anchor_tick) * tempo /
+                     (60.0 * max(1.0, config.FPS))) % 1.0
+        elif (
+            np.isfinite(now) and np.isfinite(tempo) and np.isfinite(onset)
+            and 60.0 <= tempo <= 200.0 and onset > 0.0
+        ):
+            if onset != self._phase_last_onset or self._phase_anchor_time <= 0.0:
+                self._phase_last_onset = onset
+                self._phase_anchor_time = onset
+            if now < self._phase_anchor_time:
+                self._phase_anchor_time = now
+            phase = ((now - self._phase_anchor_time) * tempo / 60.0) % 1.0
+        else:
+            phase = (self.tick / max(1.0, config.FPS) * 0.25) % 1.0
+        config.BEAT_PHASE = float(phase if np.isfinite(phase) else 0.0)
+
+    def _update_silence_state(self, rms, fft_mean, audio_time, generation):
+        """Update the silence gate once per newly published audio block."""
+        if generation == self._silence_last_generation:
+            return
+        self._silence_last_generation = generation
+
+        block_seconds = config.BLOCK_SIZE / config.SAMPLE_RATE
+        try:
+            current_audio_time = float(audio_time)
+        except (TypeError, ValueError):
+            current_audio_time = float("nan")
+        if (
+            self._silence_last_audio_time is not None
+            and np.isfinite(current_audio_time)
+            and np.isfinite(self._silence_last_audio_time)
+            and current_audio_time > self._silence_last_audio_time
+        ):
+            elapsed = min(current_audio_time - self._silence_last_audio_time, 1.0)
+        else:
+            elapsed = block_seconds
+        self._silence_last_audio_time = current_audio_time
+
+        finite = np.isfinite(rms) and np.isfinite(fft_mean)
+        if not finite:
+            self._silence_quiet_seconds = 0.0
+            self._silence_loud_blocks = 0
+            return
+
+        if self.is_silent:
+            loud_now = rms >= config.SILENCE_RMS_EXIT or fft_mean >= config.SILENCE_FFT_EXIT
+            if loud_now:
+                self._silence_loud_blocks += 1
+                self._silence_quiet_seconds = 0.0
+                if self._silence_loud_blocks >= config.SILENCE_EXIT_BLOCKS:
+                    self.is_silent = False
+                    self._silence_loud_blocks = 0
+            else:
+                self._silence_loud_blocks = 0
+            return
+
+        quiet_now = rms < config.SILENCE_RMS_ENTER and fft_mean < config.SILENCE_FFT_ENTER
+        if quiet_now:
+            self._silence_quiet_seconds += elapsed
+            if self._silence_quiet_seconds >= config.SILENCE_ENTER_SECONDS:
+                self.is_silent = True
+                self._silence_loud_blocks = 0
+        else:
+            self._silence_quiet_seconds = 0.0
+
     def _update(self):
+        self._advance_preset_morph()
+        self._advance_parameter_morph()
         self._update_genre()
             
         self.waveform, self.fft, raw_beat, mid_e, treble_e, bpm, audio_time = self.audio.get_audio()
+        generation = getattr(self.audio, "get_audio_generation", lambda: audio_time)()
+        envelopes = getattr(self.audio, "get_envelopes", lambda: (0.0, 0.0, 0.0))()
         if self.audio.beat_tracker.enabled:
             bpm = self.audio.beat_tracker.analyze(fallback_bpm=bpm)
             raw_beat = self.audio.beat_tracker.refine_beat(raw_beat, audio_time)
@@ -478,25 +674,11 @@ class VisualizerApp:
         rms = float(np.sqrt(np.mean(self.waveform ** 2)))
         fft_mean = float(np.mean(self.fft)) if len(self.fft) else 0.0
 
-        if self.is_silent:
-            silent_now = (
-                rms < config.SILENCE_RMS_EXIT
-                and fft_mean < config.SILENCE_FFT_EXIT
-            )
-        else:
-            silent_now = (
-                rms < config.SILENCE_RMS_ENTER
-                and fft_mean < config.SILENCE_FFT_ENTER
-            )
-
-        if silent_now:
-            self.silence_frames += 1
-        else:
-            self.silence_frames = 0
-            self.is_silent = False
-
-        if self.silence_frames >= config.SILENCE_FRAMES_ENTER:
-            self.is_silent = True
+        was_silent = self.is_silent
+        self._update_silence_state(rms, fft_mean, audio_time, generation)
+        if was_silent and not self.is_silent:
+            self._phase_last_onset = 0.0
+            self._phase_anchor_time = 0.0
 
         if self.is_silent:
             raw_beat = 0.0
@@ -523,6 +705,12 @@ class VisualizerApp:
             
         config.MID_ENERGY = mid_e
         config.TREBLE_ENERGY = treble_e
+        if self.is_silent:
+            config.BASS_ENVELOPE = config.MID_ENVELOPE = config.TREBLE_ENVELOPE = 0.0
+        else:
+            config.BASS_ENVELOPE = float(np.clip(envelopes[0], 0.0, 6.0))
+            config.MID_ENVELOPE = float(np.clip(envelopes[1], 0.0, 6.0))
+            config.TREBLE_ENVELOPE = float(np.clip(envelopes[2], 0.0, 6.0))
         config.EFFECT_GAIN = self.effect_gain
         config.IS_SILENT = self.is_silent
         
@@ -534,6 +722,9 @@ class VisualizerApp:
             config.BPM = bpm
             self.bpm = bpm
             self.using_tap = False
+
+        timing = getattr(self.audio, "get_beat_timing", lambda: (bpm, 0.0))()
+        self._update_beat_phase(audio_time, self.bpm, timing[1])
             
         if len(self.energy_hist) == self.energy_hist.maxlen:
             self.energy_sum -= self.energy_hist[0]
@@ -590,6 +781,7 @@ class VisualizerApp:
         
         genre_alpha = palette.trail_alpha if self.current_genre != "detecting..." else None
         new_alpha = genre_alpha if genre_alpha is not None else getattr(self.vis, "TRAIL_ALPHA", 28)
+        new_alpha = int(round(new_alpha))
         if new_alpha != self.fade_alpha:
             self.fade_alpha = new_alpha
             self._make_fade(self.fade_alpha)
@@ -608,6 +800,13 @@ class VisualizerApp:
                 target.blit(bg_scaled, (0, 0))
             else:
                 target.blit(self.bg_surf, (0, 0))
+
+            field = getattr(self.bg_vis, "get_motion_field", lambda: None)()
+            setter = getattr(self.vis, "set_motion_field", None)
+            if callable(setter):
+                setter(field)
+        elif callable(getattr(self.vis, "set_motion_field", None)):
+            self.vis.set_motion_field(None)
             
         self.vis.draw(target, self.waveform, self.fft, self.draw_beat, self.tick)
         
@@ -626,6 +825,9 @@ class VisualizerApp:
                 scaled_prev.set_alpha(0)
                 self.prev_surf = None
                 self.prev_surf_scaled = None
+
+        if not is_gl_fg and self.postfx_mode:
+            self.postfx.apply(target, self.postfx_mode, min(1.0, self.effect_gain), self.tick)
 
         ui_target = self._prepare_present_surface(target)
         self._present_surface = ui_target

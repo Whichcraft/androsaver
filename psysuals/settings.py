@@ -116,6 +116,13 @@ def load_presets() -> list:
             item["bg_on"] = item.get("bg_on", False) if isinstance(item.get("bg_on", False), bool) else False
             bg_mode = item.get("bg_mode_i", 0)
             item["bg_mode_i"] = max(0, bg_mode) if isinstance(bg_mode, int) and not isinstance(bg_mode, bool) else 0
+            for key, default, low, high in (
+                ("bg_alpha", _DEFAULTS["bg_alpha"], 0, 255),
+                ("cf_frames", _DEFAULTS["cf_frames"], 0, 300),
+                ("postfx_mode", 0, 0, 4),
+            ):
+                value = item.get(key, default)
+                item[key] = max(low, min(high, value)) if isinstance(value, int) and not isinstance(value, bool) else default
             valid.append(item)
         return valid
     except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError, OSError, TypeError):

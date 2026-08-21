@@ -59,6 +59,7 @@ class AudioEngineTests(unittest.TestCase):
         self.assertEqual(self.pushed[0][0].shape, (128,))
         self.assertEqual(self.pushed[0][1], 12.5)
         self.assertEqual(self.engine.get_audio()[-1], 12.5)
+        self.assertEqual(self.engine.get_audio_generation(), 1)
 
     def test_audio_callback_uses_newest_samples_for_long_blocks(self):
         time_info = types.SimpleNamespace(currentTime=3.0)
@@ -78,6 +79,20 @@ class AudioEngineTests(unittest.TestCase):
         expected = 12.0 + audio_module.config.BLOCK_SIZE / audio_module.config.SAMPLE_RATE
         self.assertAlmostEqual(self.pushed[0][1], expected)
         self.assertAlmostEqual(self.engine.get_audio()[-1], expected)
+
+    def test_band_envelopes_attack_and_release(self):
+        time_info = types.SimpleNamespace(currentTime=1.0)
+        tone = np.ones((audio_module.config.BLOCK_SIZE, 1), dtype=np.float32)
+        silence = np.zeros_like(tone)
+        self.engine._audio_cb(tone, tone.shape[0], time_info, None)
+        attack = self.engine.get_envelopes()
+        self.assertTrue(all(np.isfinite(attack)))
+        self.assertTrue(any(value > 0.0 for value in attack))
+        time_info.currentTime = 1.0 + audio_module.config.BLOCK_SIZE / audio_module.config.SAMPLE_RATE
+        self.engine._audio_cb(silence, silence.shape[0], time_info, None)
+        release = self.engine.get_envelopes()
+        self.assertTrue(all(0.0 <= value <= 6.0 for value in release))
+        self.assertTrue(any(after < before for before, after in zip(attack, release)))
 
     def test_identical_consecutive_blocks_have_no_flux(self):
         time_info = types.SimpleNamespace(currentTime=1.0)

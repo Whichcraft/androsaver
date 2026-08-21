@@ -1,4 +1,5 @@
 from typing import ClassVar
+import math
 
 import numpy as np
 import pygame
@@ -15,6 +16,7 @@ class Effect:
     
     # Set to True if the effect renders directly to the GL backbuffer
     IS_GL = False
+    MORPH_SCHEMA = {}
 
     # Cache for display info, invalidated when config dimensions change
     _cached_info: ClassVar[tuple[int, int, pygame.Surface | None]] = (0, 0, None)
@@ -52,7 +54,9 @@ class Effect:
 
     def _render_div(self) -> int:
         """Return the effect's effective internal render divisor."""
-        return max(1, min(int(getattr(self, "RES_DIV", 1)), self._auto_res_div()))
+        base = max(1, min(int(getattr(self, "RES_DIV", 1)), self._auto_res_div()))
+        quality_scale = max(0.5, min(1.0, float(getattr(config, "QUALITY_SCALE", 1.0))))
+        return max(base, min(8, int(math.ceil(base / quality_scale))))
 
     def _render_size(self) -> tuple[int, int, int]:
         """Return (internal_width, internal_height, divisor)."""
@@ -73,3 +77,29 @@ class Effect:
              fft: np.ndarray, beat: float, tick: int) -> None:
         """Called once per frame. Draw directly onto surf."""
         raise NotImplementedError("Each effect must implement the draw method.")
+
+    def get_motion_field(self):
+        """Return an optional read-only ``(vx, vy)`` field for a consumer."""
+        return None
+
+    def set_motion_field(self, field) -> None:
+        """Accept an optional producer field; effects may safely ignore it."""
+        self._motion_field = field
+
+    def get_morph_values(self):
+        return {
+            name: float(getattr(self, name))
+            for name in self.MORPH_SCHEMA
+            if hasattr(self, name)
+        }
+
+    def set_morph_values(self, values) -> None:
+        for name, bounds in self.MORPH_SCHEMA.items():
+            if name not in values:
+                continue
+            try:
+                value = float(values[name])
+            except (TypeError, ValueError):
+                continue
+            if np.isfinite(value):
+                setattr(self, name, max(bounds[0], min(bounds[1], value)))

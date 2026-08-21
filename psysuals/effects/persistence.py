@@ -22,6 +22,7 @@ _MAX_SHAPES = 8
 
 
 class Persistence(Effect):
+    MORPH_SCHEMA = {"_morph_projection": (0.0, 1.0)}
     TRAIL_ALPHA = 5   # very long persistence for 3D moiré build-up
     RES_DIV     = 2
 
@@ -48,6 +49,7 @@ class Persistence(Effect):
         self._rot_x = self._rng.uniform(0, math.tau, _MAX_SHAPES).tolist()
         self._rot_y = self._rng.uniform(0, math.tau, _MAX_SHAPES).tolist()
         self._rot_z = self._rng.uniform(0, math.tau, _MAX_SHAPES).tolist()
+        self._rot_w = self._rng.uniform(0, math.tau, _MAX_SHAPES).tolist()
         
         # Non-coplanar speed ratios for complex 3D orbital dynamics
         self._speeds_x = [0.008 * (1 + i * 0.12) for i in range(_MAX_SHAPES)]
@@ -55,6 +57,7 @@ class Persistence(Effect):
         self._speeds_z = [0.015 * (1 + i * 0.15) for i in range(_MAX_SHAPES)]
         
         self._boost = 0.0
+        self._morph_projection = 0.5
         self._beat_prev = 0.0
         self._scaled = None
 
@@ -143,7 +146,7 @@ class Persistence(Effect):
         # scale leaves the projected solids visually undersized because of
         # perspective depth. Use a substantially wider focal scale so the
         # outer figures occupy most of the viewport height.
-        base_r = H * 0.95
+        base_r = H * (0.90 + self._morph_projection * 0.10)
         fov = base_r
         spd_mul = 1.0 + bass * 2.5 + self._boost
 
@@ -154,6 +157,7 @@ class Persistence(Effect):
             self._rot_x[i] += self._speeds_x[i] * spd_mul
             self._rot_y[i] += self._speeds_y[i] * spd_mul
             self._rot_z[i] += self._speeds_z[i] * spd_mul
+            self._rot_w[i] += (0.006 + high * 0.004) * spd_mul
 
             ax, ay, az = self._rot_x[i], self._rot_y[i], self._rot_z[i]
             r = 0.2 + 0.8 * (i + 1) / n_shapes
@@ -167,6 +171,16 @@ class Persistence(Effect):
             R = self._Rx(ax) @ self._Ry(ay) @ self._Rz(az)
             scaled_verts = u_verts * r
             rotated_verts = (R @ scaled_verts.T).T
+
+            # Lightweight fourth-coordinate rotation adds an inside-out
+            # projection accent while retaining the existing 3-D solids.
+            rw = self._rot_w[i]
+            w4 = rotated_verts[:, 0] * math.sin(rw) + rotated_verts[:, 2] * math.cos(rw)
+            x4 = rotated_verts[:, 0] * math.cos(rw) - rotated_verts[:, 2] * math.sin(rw)
+            depth4 = np.maximum(0.35, 2.8 - w4)
+            rotated_verts[:, 0] = x4 / depth4
+            rotated_verts[:, 1] /= depth4
+            rotated_verts[:, 2] /= depth4
 
             projected = []
             depths = []

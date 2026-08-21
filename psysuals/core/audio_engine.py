@@ -43,7 +43,13 @@ class AudioEngine:
         self._raw_beat_energy = 0.0
         self._mid_energy = 0.0
         self._treble_energy = 0.0
+        self._bass_envelope = 0.0
+        self._mid_envelope = 0.0
+        self._treble_envelope = 0.0
+        self._bass_avg = 0.1
+        self._envelope_time = 0.0
         self._audio_time = 0.0
+        self._audio_generation = 0
         self._blackman_window = np.blackman(config.BLOCK_SIZE).astype(np.float32)
 
         self._prev_spectrum = np.zeros(config.BLOCK_SIZE // 2, dtype=np.float32)
@@ -86,6 +92,13 @@ class AudioEngine:
             return 0.0
         start, end = self._band_bounds(arr.size, start_frac, end_frac)
         return float(arr[start:end].mean()) if end > start else 0.0
+
+    @staticmethod
+    def _follow_envelope(current, target, elapsed):
+        tau = (config.ENVELOPE_ATTACK_SECONDS
+               if target > current else config.ENVELOPE_RELEASE_SECONDS)
+        coefficient = 1.0 - np.exp(-elapsed / max(tau, 1e-4))
+        return float(current + coefficient * (target - current))
 
     def apply_genre_weights(self, genre: str) -> None:
         n = self._n_fft_bins
@@ -211,6 +224,23 @@ class AudioEngine:
                 treble = self._band_mean(self._smooth_fft, 0.20, 0.50)
                 self._treble_avg = self._treble_avg * 0.98 + treble * 0.02
                 self._treble_energy = treble / (self._treble_avg + 1e-6)
+                bass = self._band_mean(self._smooth_fft, 0.0, 0.04)
+                self._bass_avg = self._bass_avg * 0.98 + bass * 0.02
+                elapsed = block_end_time - self._envelope_time
+                if not np.isfinite(elapsed) or elapsed <= 0.0:
+                    elapsed = config.BLOCK_SIZE / config.SAMPLE_RATE
+                elapsed = min(max(float(elapsed), 1e-4), 1.0)
+                self._envelope_time = block_end_time
+                self._bass_envelope = self._follow_envelope(
+                    self._bass_envelope, np.clip(bass / (self._bass_avg + 1e-6), 0.0, 6.0), elapsed
+                )
+                self._mid_envelope = self._follow_envelope(
+                    self._mid_envelope, np.clip(self._mid_energy, 0.0, 6.0), elapsed
+                )
+                self._treble_envelope = self._follow_envelope(
+                    self._treble_envelope, np.clip(self._treble_energy, 0.0, 6.0), elapsed
+                )
+                self._audio_generation += 1
         except Exception:
             import traceback
             traceback.print_exc(file=sys.stderr)
@@ -231,6 +261,21 @@ class AudioEngine:
                 self._bpm,
                 self._audio_time,
             )
+
+    def get_audio_generation(self) -> int:
+        """Return the count of successfully published callback blocks."""
+        with self._lock:
+            return self._audio_generation
+
+    def get_beat_timing(self) -> tuple[float, float]:
+        """Return fallback BPM and the most recent audio-clock onset time."""
+        with self._lock:
+            return self._bpm, self._last_onset_time
+
+    def get_envelopes(self) -> tuple[float, float, float]:
+        """Return bounded attack/release envelopes for bass, mids, treble."""
+        with self._lock:
+            return self._bass_envelope, self._mid_envelope, self._treble_envelope
 
     def is_active(self) -> bool:
         """Return True if the audio stream is currently running."""

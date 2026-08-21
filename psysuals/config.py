@@ -22,6 +22,8 @@ def assert_initialized():
         )
 FPS    = 60
 LOW_SPEC = False
+QUALITY_TIER = 2       # 0=low, 1=balanced, 2=high
+QUALITY_SCALE = 1.0    # shared internal-resolution multiplier
 
 SAMPLE_RATE = 44100
 BLOCK_SIZE  = 1024
@@ -31,7 +33,13 @@ CHANNELS    = 1
 # Effects can read these directly for mid/treble reactivity.
 MID_ENERGY    = 0.0   # bins 20-100  (~860 Hz – 4.3 kHz)
 TREBLE_ENERGY = 0.0   # bins 100-256 (~4.3 kHz – 11 kHz)
+BASS_ENVELOPE = 0.0
+MID_ENVELOPE = 0.0
+TREBLE_ENVELOPE = 0.0
 BPM           = 0.0   # detected tempo (60–200), 0 until enough beats seen
+ENVELOPE_ATTACK_SECONDS = 0.035
+ENVELOPE_RELEASE_SECONDS = 0.18
+BEAT_PHASE    = 0.0   # predicted beat position, 0.0 at beat boundary
 DEFAULT_EFFECT_GAIN = 0.7
 EFFECT_GAIN         = DEFAULT_EFFECT_GAIN  # current effect intensity
 IS_SILENT           = True
@@ -42,7 +50,8 @@ SILENCE_RMS_ENTER = 0.0035
 SILENCE_RMS_EXIT  = 0.0060
 SILENCE_FFT_ENTER = 0.0015
 SILENCE_FFT_EXIT  = 0.0030
-SILENCE_FRAMES_ENTER = 6
+SILENCE_ENTER_SECONDS = 0.14
+SILENCE_EXIT_BLOCKS = 2
 SILENCE_BEAT_FLOOR   = 0.015
 SILENCE_MID_FLOOR    = 0.020
 SILENCE_TREBLE_FLOOR = 0.018

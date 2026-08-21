@@ -28,7 +28,7 @@ _audio_cb()
     │  exponential smoothing (α = 0.50) → _smooth_fft
     │  weighted spectral flux across available FFT bins → raw beat energy
     │  onset timestamps → fallback BPM
-    │  mid / treble rolling normalisation
+    │  bass / mid / treble rolling normalisation and attack/release envelopes
     ▼
 get_audio()
     returns (waveform, fft, raw_beat, mid_energy, treble_energy, bpm, audio_time)
@@ -58,12 +58,33 @@ beat = max(beat_decay, silence_beat_floor if is_silent else 0.0)
 
 `avg` is the rolling average of the last 40 raw-beat samples. The result is volume-adaptive and decays smoothly between kicks.
 
+`AudioEngine.get_envelopes()` exposes bounded attack/release envelopes for
+bass, mids, and treble. Their time constants use callback timestamps, so
+transient response and decay do not depend on render FPS.
+
+The app also publishes `config.BEAT_PHASE`, a normalized `0.0 .. 1.0` position
+within the current beat cycle. When fallback BPM and onset timestamps are
+available, phase `0.0` is anchored to the latest onset; tap tempo uses the tap
+frame as its anchor. With no reliable timing, a slow deterministic idle phase
+is used and no beat impulse is created.
+
+Saved-preset changes blend numeric intensity, background alpha, and crossfade
+length over eight beats when BPM is known, or a short time-based fallback when
+it is not. The discrete foreground/background mode switch occurs at the
+midpoint; a new preset safely replaces an active morph.
+
+Effects may declare a bounded `MORPH_SCHEMA` for compatible mode transitions.
+The current Lattice↔Hyperbolic and Tesseract↔Persistence pairs interpolate
+their shared projection/warp parameter during the existing crossfade; effects
+without a schema retain the unchanged transition behavior.
+
 ### Silence handling
 
 Before and after tracks, the app applies a silence gate with hysteresis using waveform RMS plus average FFT energy:
 
-- Enter silence after several frames under the low threshold.
-- Exit silence only after crossing a higher threshold.
+- Enter silence after `SILENCE_ENTER_SECONDS` of quiet audio blocks under the low thresholds (currently about 140 ms).
+- Exit silence after `SILENCE_EXIT_BLOCKS` fresh audio blocks (currently two, about 46 ms at 44.1 kHz/1024 samples) cross either higher threshold.
+- Repeated render frames do not advance the gate; non-finite samples and stale callback data are ignored.
 - While silent, `raw_beat` is forced to zero, the rolling beat history is cleared, and `MID_ENERGY` / `TREBLE_ENERGY` are clamped to faint idle floors.
 
 This prevents normalization noise from turning silence into fake beat spikes while still keeping effects gently alive at a low-motion baseline.
@@ -71,6 +92,12 @@ This prevents normalization noise from turning silence into fake beat spikes whi
 ---
 
 ## Render loop
+
+The visualizer observes raw render time after each presented frame. A bounded
+quality governor uses a rolling 90th-percentile window and cooldown hysteresis
+to publish `config.QUALITY_TIER` and `config.QUALITY_SCALE`; effects consume
+the scale through the base render-resolution contract. It never increases an
+effect's declared population or iteration limits.
 
 The render loop in `psysualizer.py` uses a dual-target strategy to support both CPU and GPU effects:
 
@@ -122,7 +149,7 @@ Fullscreen/display changes release foreground effects, background effects, and t
 
 ### Resource safety
 
-Effects keep bounded runtime state even when normalized beat values are unusually high. Bubbles cap visual geometry and cached surface dimensions; Fireworks cap rockets and embers and only trigger beat bursts on rising edges. Reduced-resolution effects retain their internal render targets and scale into the display surface instead of silently reallocating to full resolution.
+Effects keep bounded runtime state even when normalized beat values are unusually high. Bubbles cap visual geometry and cached surface dimensions; Fireworks cap rockets and embers and only trigger beat bursts on rising edges. Butterflies cap the flock at 12 agents and six pairs, use seeded per-effect randomness, and match only nearby free agents. Reduced-resolution effects retain their internal render targets and scale into the display surface instead of silently reallocating to full resolution.
 
 ---
 
@@ -156,6 +183,12 @@ Inputs passed to `draw()`:
 | `fft` | `np.ndarray` `(512,)` | Smoothed log-scaled spectrum |
 | `beat` | `float` | Normalised beat impulse after gain / decay |
 | `tick` | `int` | Frame counter |
+
+Butterflies use the standard CPU effect contract. Their persistent trail is
+rendered at the effect's reduced internal resolution and scaled into `surf`.
+Agents progress from cocoon emergence to free flight, pairing, orbiting wing
+synchronisation, and eventual breakup; `release()` clears all owned surfaces
+and simulation state and is safe to call more than once.
 
 Effects may also read:
 
@@ -198,6 +231,9 @@ Rules that matter in this repo:
 | `core/audio_engine.py` | `AudioEngine`: capture, FFT, beat/genre detection |
 | `core/display_manager.py` | `DisplayManager`: monitors, X11, windowing, span mode; lazily loads the GL renderer only when `--gl` is active |
 | `core/ui_manager.py` | `UIManager`: HUD, pane, picker rendering |
+| `core/postprocess.py` | bounded optional psychedelic post-processing chain |
+| `core/quality.py` | rolling frame-time quality governor and resolution-tier selection |
+| `core/regression_tester.py` | headless effect contract and registry regression checks |
 | `effects/utils.py` | `hsl()` and `_hsl_batch()` colour helpers |
 | `effects/palette.py` | shared hue/saturation/lightness palette driven by audio |
 | `settings.py` | persistent settings and preset storage under `~/.config/psysuals/` |

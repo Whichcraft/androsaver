@@ -217,6 +217,16 @@ class GLRenderer:
         self.ctx.blend_func = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA)
         self.render(self._blit_vao)
 
+    def postprocess_screen(self, chain, mode, intensity, tick):
+        """Read the presented screen, apply a chain, and present it again."""
+        width, height = self.ctx.screen.size
+        raw = self.ctx.screen.read(components=3, alignment=1)
+        pixels = np.frombuffer(raw, dtype=np.uint8).reshape(height, width, 3)[::-1]
+        surface = pygame.Surface((width, height))
+        pygame.surfarray.blit_array(surface, pixels.transpose(1, 0, 2))
+        chain.apply(surface, mode, intensity, tick)
+        self.blit(surface)
+
     def surface_texture(self, surface: "pygame.Surface") -> "moderngl.Texture":
         """Upload a pygame surface to a reusable texture."""
         self._feedback_tex = self._upload_surface(

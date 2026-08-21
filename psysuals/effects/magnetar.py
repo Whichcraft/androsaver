@@ -34,6 +34,9 @@ class Magnetar(Effect):
         self._trail = pygame.Surface((1, 1))
         self._scaled = pygame.Surface((1, 1))
         self._fade = pygame.Surface((1, 1), pygame.SRCALPHA)
+        self._grid_x = self._grid_y = None
+        self._contour = None
+        self._contour_scaled = None
         self._reset_particles()
 
     def _reset_particles(self):
@@ -47,6 +50,37 @@ class Magnetar(Effect):
         self._fade = pygame.Surface((W, H), pygame.SRCALPHA)
         self._fade.fill((0, 0, 0, self._FADE_ALPHA))
         self._scaled = pygame.Surface((config.WIDTH, config.HEIGHT))
+        xs = np.linspace(-1.0, 1.0, W, dtype=np.float32)
+        ys = np.linspace(-1.0, 1.0, H, dtype=np.float32)
+        self._grid_x, self._grid_y = np.meshgrid(xs, ys)
+        self._contour = np.zeros((H, W), dtype=np.float32)
+        self._contour_scaled = pygame.Surface((config.WIDTH, config.HEIGHT))
+
+    def _draw_contours(self, surf, mx, my, bass, high):
+        rx, ry = self._grid_x, self._grid_y
+        r2 = rx * rx + ry * ry + 0.04
+        r = np.sqrt(r2)
+        r3 = r2 * r + 0.1
+        dot = rx * mx + ry * my
+        bx = (3.0 * dot * rx / r2 - mx) / r3
+        by = (3.0 * dot * ry / r2 - my) / r3
+        magnitude = np.sqrt(bx * bx + by * by)
+        self._contour[:] = np.tanh(magnitude * 0.20)
+        bands = np.abs(np.sin(self._contour * 6.0 + self._rot * 0.2))
+        hue = (self._hue + self._contour * 0.18 + high * 0.03) % 1.0
+        glow = np.clip(bands * (0.20 + bass * 0.10), 0.0, 1.0)
+        red = np.clip((np.sin(hue * math.tau) * 127 + 128) * glow, 0, 255)
+        green = np.clip((np.sin((hue + 0.333) * math.tau) * 127 + 128) * glow, 0, 255)
+        blue = np.clip((np.sin((hue + 0.667) * math.tau) * 127 + 128) * glow, 0, 255)
+        pixels = surfarray.pixels3d(self._trail)
+        try:
+            pixels[:] = np.stack((red, green, blue), axis=-1).astype(np.uint8).transpose(1, 0, 2)
+        finally:
+            del pixels
+        if self._contour_scaled.get_size() != surf.get_size():
+            self._contour_scaled = pygame.Surface(surf.get_size())
+        pygame.transform.scale(self._trail, surf.get_size(), self._contour_scaled)
+        surf.blit(self._contour_scaled, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     def draw(self, surf, waveform, fft, beat, tick):
         W, H, RD = self._render_size()
@@ -79,6 +113,7 @@ class Magnetar(Effect):
         tilt = math.pi * 0.12 + mid * 0.30
         mx   = math.cos(self._rot) * math.cos(tilt)
         my   = math.sin(self._rot) * math.cos(tilt)
+        self._draw_contours(surf, mx, my, bass, high)
 
         r2  = rx * rx + ry * ry + 0.04
         r   = np.sqrt(r2)
