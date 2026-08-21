@@ -2,6 +2,7 @@ package com.androsaver
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
@@ -13,11 +14,13 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -225,8 +228,10 @@ class SettingsActivity : AppCompatActivity() {
 
                 configureWeatherPreference(Prefs.WEATHER_CITY)
                 configureWeatherPreference(Prefs.WEATHER_API_KEY)
-                configureColorPreference(Prefs.STATIC_BACKGROUND_COLOR)
-                configureColorPreference(Prefs.SLIDESHOW_BACKGROUND_COLOR)
+                configureColorPickerPreference(Prefs.STATIC_BACKGROUND_COLOR)
+                configureColorPickerPreference(Prefs.SLIDESHOW_BACKGROUND_COLOR)
+                configureBackgroundMode(Prefs.STATIC_BACKGROUND_MODE, Prefs.STATIC_BACKGROUND_COLOR)
+                configureBackgroundMode(Prefs.SLIDESHOW_BACKGROUND_MODE, Prefs.SLIDESHOW_BACKGROUND_COLOR)
                 findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED)
                     ?.setOnPreferenceChangeListener { _, newValue ->
                         updateWeatherSummary(enabled = newValue as Boolean)
@@ -335,22 +340,84 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        private fun configureColorPreference(key: String) {
-            findPreference<EditTextPreference>(key)?.setOnPreferenceChangeListener { preference, newValue ->
-                val normalized = (newValue as? String)?.trim()?.let {
-                    if (it.matches(Regex("#?[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"))) {
-                        "#" + it.removePrefix("#").uppercase()
-                    } else null
-                }
-                if (normalized == null) {
-                    Toast.makeText(requireContext(), R.string.invalid_background_color, Toast.LENGTH_SHORT).show()
-                    false
-                } else {
-                    Prefs.get(requireContext()).edit().putString(key, normalized).apply()
-                    preference.summary = normalized
-                    false
+        private fun configureColorPickerPreference(key: String) {
+            findPreference<Preference>(key)?.apply {
+                updateColorPreferenceSummary(this, key)
+                setOnPreferenceClickListener {
+                    showColorPicker(key)
+                    true
                 }
             }
+        }
+
+        private fun configureBackgroundMode(modeKey: String, colorKey: String) {
+            val modePreference = findPreference<ListPreference>(modeKey) ?: return
+            val colorPreference = findPreference<Preference>(colorKey)
+            fun updateVisibility(value: String?) {
+                colorPreference?.isVisible = value != ImageBackground.AUTO
+            }
+            updateVisibility(Prefs.get(requireContext()).getString(modeKey, ImageBackground.AUTO))
+            modePreference.setOnPreferenceChangeListener { _, newValue ->
+                updateVisibility(newValue as? String)
+                true
+            }
+        }
+
+        private fun updateColorPreferenceSummary(preference: Preference, key: String) {
+            val color = Prefs.get(requireContext()).getString(key, "#000000") ?: "#000000"
+            preference.summary = "Selected color $color"
+        }
+
+        private fun showColorPicker(key: String) {
+            val prefs = Prefs.get(requireContext())
+            val initial = try {
+                Color.parseColor(prefs.getString(key, "#000000") ?: "#000000")
+            } catch (_: IllegalArgumentException) {
+                Color.BLACK
+            }
+            val content = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(48, 8, 48, 0)
+            }
+            val preview = View(requireContext()).apply {
+                setBackgroundColor(initial)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    72
+                ).apply { bottomMargin = 16 }
+            }
+            content.addView(preview)
+            val channels = arrayOf(
+                "Red" to Color.red(initial),
+                "Green" to Color.green(initial),
+                "Blue" to Color.blue(initial)
+            )
+            val values = IntArray(3) { channels[it].second }
+            channels.forEachIndexed { index, (label, value) ->
+                content.addView(TextView(requireContext()).apply { text = label })
+                content.addView(SeekBar(requireContext()).apply {
+                    max = 255
+                    progress = value
+                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                            values[index] = progress
+                            preview.setBackgroundColor(Color.rgb(values[0], values[1], values[2]))
+                        }
+                        override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+                        override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+                    })
+                })
+            }
+            AlertDialog.Builder(requireContext())
+                .setTitle("Choose manual background color")
+                .setView(content)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    val value = "#%02X%02X%02X".format(values[0], values[1], values[2])
+                    prefs.edit().putString(key, value).apply()
+                    findPreference<Preference>(key)?.let { updateColorPreferenceSummary(it, key) }
+                }
+                .show()
         }
 
         private fun updateWeatherSummary(enabled: Boolean? = null) {

@@ -447,7 +447,7 @@ class ScreensaverEngine(
     }
 
     private fun startStaticImageMode(prefs: SharedPreferences) {
-        binding.root.setBackgroundColor(parseBackgroundColor(prefs, Prefs.STATIC_BACKGROUND_COLOR))
+        applyImageBackground(prefs, Prefs.STATIC_BACKGROUND_MODE, Prefs.STATIC_BACKGROUND_COLOR, null)
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.GONE
@@ -483,6 +483,7 @@ class ScreensaverEngine(
                     Prefs.STATIC_IMAGE_SCALE,
                     Prefs.STATIC_IMAGE_SCALE_PORTRAIT
                 )
+                applyImageBackground(prefs, Prefs.STATIC_BACKGROUND_MODE, Prefs.STATIC_BACKGROUND_COLOR, resource)
                 imageView.alpha = 1f
             }
 
@@ -506,7 +507,7 @@ class ScreensaverEngine(
     }
 
     private fun startSlideshowMode(prefs: SharedPreferences) {
-        binding.root.setBackgroundColor(parseBackgroundColor(prefs, Prefs.SLIDESHOW_BACKGROUND_COLOR))
+        applyImageBackground(prefs, Prefs.SLIDESHOW_BACKGROUND_MODE, Prefs.SLIDESHOW_BACKGROUND_COLOR, null)
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.VISIBLE
@@ -836,6 +837,7 @@ class ScreensaverEngine(
                             Prefs.SLIDESHOW_IMAGE_SCALE,
                             Prefs.SLIDESHOW_IMAGE_SCALE_PORTRAIT
                         )
+                        applyImageBackground(prefs, Prefs.SLIDESHOW_BACKGROUND_MODE, Prefs.SLIDESHOW_BACKGROUND_COLOR, resource)
                         activeView = if (activeView == 1) 2 else 1
                         displayedIndex = resolvedItemIndex
                         displayedItem = imageItems[resolvedItemIndex]
@@ -953,6 +955,20 @@ class ScreensaverEngine(
         } catch (_: IllegalArgumentException) {
             0xFF000000.toInt()
         }
+    }
+
+    private fun applyImageBackground(
+        prefs: SharedPreferences,
+        modeKey: String,
+        colorKey: String,
+        drawable: Drawable?
+    ) {
+        ImageBackground.apply(
+            binding.root,
+            drawable,
+            prefs.getString(modeKey, ImageBackground.AUTO),
+            parseBackgroundColor(prefs, colorKey)
+        )
     }
 
     private fun findImageItemIndex(item: ImageItem): Int =

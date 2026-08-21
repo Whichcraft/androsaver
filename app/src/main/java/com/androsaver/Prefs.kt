@@ -79,11 +79,13 @@ object Prefs {
     const val STATIC_IMAGE_DISPLAY_NAME = "static_image_display_name"
     const val STATIC_IMAGE_SCALE = "static_image_scale"
     const val STATIC_IMAGE_SCALE_PORTRAIT = "static_image_scale_portrait"
+    const val STATIC_BACKGROUND_MODE = "static_background_mode"
     const val STATIC_BACKGROUND_COLOR = "static_background_color"
 
     // Slideshow image rendering
     const val SLIDESHOW_IMAGE_SCALE = "slideshow_image_scale"
     const val SLIDESHOW_IMAGE_SCALE_PORTRAIT = "slideshow_image_scale_portrait"
+    const val SLIDESHOW_BACKGROUND_MODE = "slideshow_background_mode"
     const val SLIDESHOW_BACKGROUND_COLOR = "slideshow_background_color"
 
     // Visualizer

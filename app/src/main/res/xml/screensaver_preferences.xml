@@ -49,17 +49,24 @@
             android:entries="@array/image_scale_entries"
             android:entryValues="@array/image_scale_values"
             android:defaultValue="fit" />
-        <EditTextPreference
+        <ListPreference
+            android:key="static_background_mode"
+            android:title="Unused Space Background"
+            android:summary="%s"
+            android:entries="@array/background_mode_entries"
+            android:entryValues="@array/background_mode_values"
+            android:defaultValue="auto" />
+        <Preference
             android:key="static_background_color"
-            android:title="Unused Space Color"
-            android:summary="Hex color used behind fitted or centered images, e.g. #000000"
-            android:defaultValue="#000000" />
+            android:title="Manual Unused Space Color"
+            android:summary="Tap to choose a fallback color" />
     </PreferenceCategory>
 
     <PreferenceCategory android:key="cat_slideshow" android:title="Slideshow">
         <ListPreference android:key="slideshow_image_scale" android:title="Landscape Image Behavior" android:entries="@array/image_scale_entries" android:entryValues="@array/image_scale_values" android:defaultValue="fit" android:summary="%s" />
         <ListPreference android:key="slideshow_image_scale_portrait" android:title="Portrait Image Behavior" android:entries="@array/image_scale_entries" android:entryValues="@array/image_scale_values" android:defaultValue="fit" android:summary="%s" />
-        <EditTextPreference android:key="slideshow_background_color" android:title="Unused Space Color" android:summary="Hex color used behind fitted or centered images, e.g. #000000" android:defaultValue="#000000" />
+        <ListPreference android:key="slideshow_background_mode" android:title="Unused Space Background" android:entries="@array/background_mode_entries" android:entryValues="@array/background_mode_values" android:defaultValue="auto" android:summary="%s" />
+        <Preference android:key="slideshow_background_color" android:title="Manual Unused Space Color" android:summary="Tap to choose a fallback color" />
         <SwitchPreferenceCompat android:key="ken_burns_enabled" android:title="Ken Burns Effect" android:summary="Slow pan and zoom while each photo is displayed" android:defaultValue="true" />
         <ListPreference android:key="transition_duration" android:title="Time per Image" android:entries="@array/duration_entries" android:entryValues="@array/duration_values" android:defaultValue="10000" android:summary="%s" />
         <ListPreference android:key="transition_speed" android:title="Transition Speed" android:entries="@array/transition_speed_entries" android:entryValues="@array/transition_speed_values" android:defaultValue="2000" android:summary="%s" />

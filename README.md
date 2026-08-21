@@ -13,6 +13,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **Fireworks** — Renamed and aligned with the upstream firework-rocket effect, replacing the old Vortex naming and behavior.
 - **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
 - **Static image mode** — choose a local or configured-source image, with independent portrait and landscape behavior settings.
+- **Adaptive unused-space background** — fitted and centered images can use an automatically derived subdued color gradient, with a manual RGB color picker fallback.
 - **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.14.0 while Android-applicable fixes are backported to Kotlin.
 
 ## What's New in v2.2

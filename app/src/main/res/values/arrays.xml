@@ -173,6 +173,15 @@
         <item>stretch</item>
     </string-array>
 
+    <string-array name="background_mode_entries">
+        <item>Auto image gradient</item>
+        <item>Manual color</item>
+    </string-array>
+    <string-array name="background_mode_values">
+        <item>auto</item>
+        <item>manual</item>
+    </string-array>
+
     <string-array name="visualizer_intensity_entries">
         <item>Off</item>
         <item>Low</item>

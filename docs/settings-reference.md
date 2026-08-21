@@ -23,7 +23,8 @@ Use `Prefs.<CONSTANT>` everywhere — never raw strings.
 | `KEN_BURNS_ENABLED` | `ken_burns_enabled` | SwitchPreference | `true` |
 | `SLIDESHOW_IMAGE_SCALE` | `slideshow_image_scale` | ListPreference | `fit` (landscape) |
 | `SLIDESHOW_IMAGE_SCALE_PORTRAIT` | `slideshow_image_scale_portrait` | ListPreference | `fit` (portrait) |
-| `SLIDESHOW_BACKGROUND_COLOR` | `slideshow_background_color` | EditTextPreference | `#000000` |
+| `SLIDESHOW_BACKGROUND_MODE` | `slideshow_background_mode` | ListPreference | `auto` |
+| `SLIDESHOW_BACKGROUND_COLOR` | `slideshow_background_color` | Color picker fallback | `#000000` |
 
 Image rendering behavior is configurable independently for landscape and portrait
 images in both Static Image and Slideshow modes. Slideshow also has its own
@@ -32,8 +33,9 @@ unused-space/background color setting.
 Image behavior values are `crop` (Fill/Crop), `fit` (Fit/Letterbox), `center`
 (Original Size/Center), and `stretch` (advanced; may distort). Static defaults
 are crop for landscape or square images and fit for portrait images. Slideshow
-defaults to fit for every orientation. Background colors accept `#RRGGBB` or
-`#AARRGGBB`.
+defaults to fit for every orientation. Unused-space backgrounds default to `auto`, which derives a
+subdued three-stop gradient from the decoded image. Manual mode exposes an RGB
+color picker and uses the selected color behind fitted or centered images.
 
 Static Image stores a private app-local copy after selection. Remote source URLs,
 session IDs, and temporary bearer links are not used as the restart fallback.
@@ -47,7 +49,8 @@ session IDs, and temporary bearer links are not used as the restart fallback.
 | `STATIC_IMAGE_DISPLAY_NAME` | `static_image_display_name` | Internal label | — |
 | `STATIC_IMAGE_SCALE` | `static_image_scale` | ListPreference | `crop` (landscape/square) |
 | `STATIC_IMAGE_SCALE_PORTRAIT` | `static_image_scale_portrait` | ListPreference | `fit` |
-| `STATIC_BACKGROUND_COLOR` | `static_background_color` | EditTextPreference | `#000000` |
+| `STATIC_BACKGROUND_MODE` | `static_background_mode` | ListPreference | `auto` |
+| `STATIC_BACKGROUND_COLOR` | `static_background_color` | Color picker fallback | `#000000` |
 
 Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoom_in`, `zoom_out`, `random`
 
