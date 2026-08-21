@@ -274,9 +274,13 @@ class ButterfliesMode : BaseMode() {
     override fun reset() {
         pairs.clear()
         globalHue = Math.random().toFloat()
-        val offsets = intArrayOf(0,
-            (300 + Math.random() * 400).toInt(),
-            (800 + Math.random() * 600).toInt())
+        val offsets = IntArray(MAX_PAIRS) { i ->
+            when (i) {
+                0 -> 0
+                1 -> (300 + Math.random() * 400).toInt()
+                else -> (800 + Math.random() * 600).toInt()
+            }
+        }
         for (i in 0 until MAX_PAIRS) {
             pairs.add(ButterflyPair(spawnDelay = offsets[i]))
         }
