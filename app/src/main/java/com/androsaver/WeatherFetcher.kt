@@ -59,7 +59,7 @@ class WeatherFetcher(context: Context) {
             .apply()
     }
 
-    private fun fetchFromApi(city: String, apiKey: String): WeatherData? {
+    private suspend fun fetchFromApi(city: String, apiKey: String): WeatherData? {
         return try {
             val url = OWM_URL.toHttpUrl().newBuilder()
                 .addQueryParameter("q", city)

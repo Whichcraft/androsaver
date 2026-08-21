@@ -82,10 +82,10 @@ object UpdateInstaller {
         if (archive.packageName != context.packageName) throw java.io.IOException("Downloaded APK package mismatch")
         val current = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)
         val archiveSigners = if (android.os.Build.VERSION.SDK_INT >= 28) {
-            archive.signingInfo.apkContentsSigners
+            archive.signingInfo?.apkContentsSigners
         } else archive.signatures
         val currentSigners = if (android.os.Build.VERSION.SDK_INT >= 28) {
-            current.signingInfo.apkContentsSigners
+            current.signingInfo?.apkContentsSigners
         } else current.signatures
         if (archiveSigners == null || currentSigners == null ||
             archiveSigners.size != currentSigners.size ||
