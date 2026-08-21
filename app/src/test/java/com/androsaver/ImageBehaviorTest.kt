@@ -4,8 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ImageBehaviorTest {
-    @Test fun staticDefaultsAreCropLandscapeFitPortrait() {
-        assertEquals(ImageBehavior.CROP, ImageBehavior.defaultFor(Prefs.MODE_STATIC, false))
+    @Test fun staticDefaultsAreFitForBothOrientations() {
+        assertEquals(ImageBehavior.FIT, ImageBehavior.defaultFor(Prefs.MODE_STATIC, false))
         assertEquals(ImageBehavior.FIT, ImageBehavior.defaultFor(Prefs.MODE_STATIC, true))
     }
 
@@ -15,7 +15,7 @@ class ImageBehaviorTest {
     }
 
     @Test fun invalidValuesUseModeDefault() {
-        assertEquals(ImageBehavior.CROP, ImageBehavior.resolve(Prefs.MODE_STATIC, false, "bogus", null))
+        assertEquals(ImageBehavior.FIT, ImageBehavior.resolve(Prefs.MODE_STATIC, false, "bogus", null))
         assertEquals(ImageBehavior.FIT, ImageBehavior.resolve(Prefs.MODE_SLIDESHOW, true, null, "bogus"))
     }
 }
