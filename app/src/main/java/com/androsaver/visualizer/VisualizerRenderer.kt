@@ -95,8 +95,20 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         renderErrorMode = "unknown"
         renderErrorReported = false
         try {
-            draw.onSurfaceCreated()
-            modes.forEach { it.onSurfaceCreated() }
+            try {
+                draw.onSurfaceCreated()
+            } catch (t: Throwable) {
+                failRender("GL setup", t)
+                return
+            }
+            for (mode in modes) {
+                try {
+                    mode.onSurfaceCreated()
+                } catch (t: Throwable) {
+                    failRender("mode reset: ${mode.name}", t)
+                    return
+                }
+            }
             surfaceReady = true
         } catch (t: Throwable) {
             failRender("surface creation", t)
@@ -184,7 +196,12 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         renderErrorMode = modeName
         if (renderErrorReported) return
         renderErrorReported = true
-        val wrapped = IllegalStateException("Visualizer mode '$renderErrorMode' failed", throwable)
+        val cause = throwable.message?.takeIf { it.isNotBlank() }
+            ?: throwable::class.java.simpleName
+        val wrapped = IllegalStateException(
+            "Visualizer stage '$renderErrorMode' failed: ${cause.take(240)}",
+            throwable
+        )
         android.util.Log.e("VisualizerRenderer", wrapped.message, wrapped)
         onRenderError?.invoke(wrapped)
     }
