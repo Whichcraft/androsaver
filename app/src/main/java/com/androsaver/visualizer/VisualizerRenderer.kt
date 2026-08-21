@@ -19,6 +19,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     private var renderError: Throwable? = null
     private var renderErrorMode = "unknown"
     private var renderErrorReported = false
+    private var surfaceReady = false
 
     /** Set by the host so render failures are visible outside Logcat. */
     var onRenderError: ((Throwable) -> Unit)? = null
@@ -89,8 +90,17 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     // ── GLSurfaceView.Renderer ─────────────────────────────────────────────────
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        draw.onSurfaceCreated()
-        modes.forEach { it.onSurfaceCreated() }
+        surfaceReady = false
+        renderError = null
+        renderErrorMode = "unknown"
+        renderErrorReported = false
+        try {
+            draw.onSurfaceCreated()
+            modes.forEach { it.onSurfaceCreated() }
+            surfaceReady = true
+        } catch (t: Throwable) {
+            failRender("surface creation", t)
+        }
         synchronized(modeRequestLock) {
             activeModeIndex = requestedModeIndex
             pendingModeIndex.set(-1)
@@ -98,16 +108,18 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         tick = 0
         lastFrameNs = 0L
         clearFrameCount = 2
-        renderError = null
-        renderErrorMode = "unknown"
-        renderErrorReported = false
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        draw.onSurfaceChanged(width, height)
+        try {
+            draw.onSurfaceChanged(width, height)
+        } catch (t: Throwable) {
+            failRender("surface resize", t)
+        }
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        if (!surfaceReady) return
         val frameStart = System.nanoTime()
         if (lastFrameNs > 0L) {
             val elapsed = (frameStart - lastFrameNs) / 1_000_000f
