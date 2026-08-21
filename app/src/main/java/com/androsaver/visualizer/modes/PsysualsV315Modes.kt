@@ -4,6 +4,8 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
+private fun fadeTrail(draw: GLDraw, alpha: Float) = draw.fadeBlack(alpha / 255f)
+
 /**
  * OpenGL ES adaptations of the v3.15 psysuals field effects.  The upstream
  * implementations render numpy/pygame surfaces; these versions keep the same
@@ -111,7 +113,7 @@ class CymaticaMode : ScalarFieldMode() {
             val px = x / (cols - 1f) * 2f - 1f
             val py = y / (rows - 1f) * 2f - 1f
             val nodal = cos(PI * m * px + phase) * cos(PI * n * py - phase * 0.7f)
-            values[y * cols + x] = exp(-abs(nodal) * (8f - audio.treble)).coerceIn(0f, 1f)
+            values[y * cols + x] = exp(-abs(nodal) * (8f - audio.treble).toDouble()).toFloat().coerceIn(0f, 1f)
         }
         paint(draw, audio, 0.92f)
         draw.setAdditiveBlend()
@@ -148,7 +150,7 @@ class FerrofluidMode : BaseMode() {
     private val ring = FloatArray(34)
     override fun reset() { phase = 0f; hue = 0f }
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        clearTrail(draw, 10f)
+        fadeTrail(draw, 10f)
         phase += 0.012f + audio.beat * 0.02f
         hue = (hue + 0.001f) % 1f
         val cx = draw.W * 0.5f; val cy = draw.H * 0.5f
@@ -158,7 +160,7 @@ class FerrofluidMode : BaseMode() {
             val py = cy + sin(ang) * draw.H * 0.24f
             for (level in 1..5) {
                 val radius = level * minOf(draw.W, draw.H) * 0.035f + audio.beat * 8f
-                for (i in 0..16) { val a = i / 16f * 2f * PI; ring[i * 2] = px + cos(a) * radius; ring[i * 2 + 1] = py + sin(a) * radius * 0.62f }
+                for (i in 0..16) { val a = i / 16f * 2f * PI.toFloat(); ring[i * 2] = px + cos(a) * radius; ring[i * 2 + 1] = py + sin(a) * radius * 0.62f }
                 val c = GLDraw.hsl((hue + pole * 0.13f + level * 0.03f) % 1f, 1f, 0.2f + level * 0.07f)
                 draw.lineStrip(ring, 17, c[0], c[1], c[2], 0.38f)
             }
@@ -197,17 +199,17 @@ class HyperbolicMode : BaseMode() {
     private val arc = FloatArray(18)
     override fun reset() { phase = 0f; hue = 0f }
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        clearTrail(draw, 18f)
+        fadeTrail(draw, 18f)
         phase += 0.01f + audio.mid * 0.018f; hue = (hue + 0.001f) % 1f
         val cx = draw.W / 2f; val cy = draw.H / 2f; val scale = minOf(draw.W, draw.H) * 0.46f
         for (ringIdx in 1..6) {
             val radius = scale * (ringIdx / 6f).pow(0.72f)
-            for (i in 0..8) { val a = i / 8f * 2f * PI + phase * (if (ringIdx % 2 == 0) -1 else 1); arc[i * 2] = cx + cos(a) * radius; arc[i * 2 + 1] = cy + sin(a) * radius }
+            for (i in 0..8) { val a = i / 8f * 2f * PI.toFloat() + phase * (if (ringIdx % 2 == 0) -1 else 1); arc[i * 2] = cx + cos(a) * radius; arc[i * 2 + 1] = cy + sin(a) * radius }
             val c = GLDraw.hsl((hue + ringIdx * 0.08f) % 1f, 1f, 0.18f + ringIdx * 0.06f)
             draw.lineStrip(arc, 9, c[0], c[1], c[2], 0.65f)
         }
         for (i in 0 until 12) {
-            val a = phase * 0.5f + i * PI / 6f
+            val a = phase * 0.5f + i * PI.toFloat() / 6f
             draw.line(cx, cy, cx + cos(a) * scale, cy + sin(a) * scale, 0.2f, 0.5f, 1f, 0.35f)
         }
     }
@@ -220,7 +222,7 @@ class TesseractMode : BaseMode() {
     private val pts = FloatArray(16 * 2)
     override fun reset() { phase = 0f; hue = 0f }
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        clearTrail(draw, 20f)
+        fadeTrail(draw, 20f)
         phase += 0.01f + audio.beat * 0.025f; hue = (hue + 0.001f) % 1f
         val scale = minOf(draw.W, draw.H) * 0.27f
         for (i in 0 until 16) {
