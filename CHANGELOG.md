@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.15.0] — 2026-08-21
+
+### Changed
+- **Butterflies courtship simulation** — Replaced the fixed three-pair chase
+  with bounded cocoon emergence, nearest-neighbour pairing, mirrored orbiting
+  dance, beat-synchronised wings, sparkle-ready audio response, and deliberate
+  pair breakup/re-pairing. The effect remains deterministic, resize-safe, and
+  compatible with the CPU/Pygame rendering contract.
+
+### Documentation and verification
+- Updated the Butterflies effect reference, architecture resource-safety notes,
+  Ubuntu virtual-environment setup, and effect controls description.
+
 ## [3.14.0] — 2026-08-21
 
 ### Fixed
@@ -18,7 +31,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Documentation and verification
 - Updated README, architecture, effect behavior, and release notes for the completed audit remediation.
-- Verified 52 unit tests, the 27-effect headless smoke test, byte compilation, and whitespace checks.
+- Verified 52 unit tests, the 34-effect headless smoke test, byte compilation, and whitespace checks.
 
 
 ## [3.13.0] — 2026-07-22
@@ -31,7 +44,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Settings resilience** — Handle unavailable config directories and malformed settings/presets without aborting startup; log failed writes and remove temporary files.
 - **Idempotent GL cleanup** — Make shared VBO cleanup safe during repeated shutdown paths.
 - **Optional librosa fallback** — Handle all import-time failures from the optional beat-tracking dependency and retain the fallback tracker.
-- **Effect RNG isolation** — Use per-effect seeded generators in Persistence, FlowField, Chromatic, and Clifford so their random sequences do not interfere with one another.
+- **Effect RNG isolation** — Use per-effect seeded generators in Persistence, FlowField, and Chromatic so their random sequences do not interfere with one another.
 - **FlowField particle tuning** — Up/down arrows now add or remove 2,000 particles at a time while FlowField is active, preserving existing particle positions and clamping the range to the supported budget.
 - **Display fallback** — Retry failed display initialization with plain CPU/windowed flags instead of repeating an OpenGL failure.
 - **Audio teardown** — Make stream stop/close failures best-effort so device fallback can continue and cleanup always clears stream state.
@@ -42,10 +55,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Persistence geometry** — Increased the geometric figure target to roughly 80% of render height and removed the outgoing treble flash circles.
 - **Persistence projection scale** — Enlarged the camera focal scale so the outer geometric figures visibly fill most of the viewport instead of appearing undersized.
 - **Persistence viewport calibration** — Calibrated the projection against rendered bounds so the outer figures target approximately 80% of viewport height.
-- **Clifford visual rework** — Increased attractor density and iteration passes, strengthened emission and beat bloom, and added high-contrast hot cores for a more powerful presentation.
 - **SlimeMold edge indexing** — Clamp particle deposit coordinates to the actual trail dimensions to prevent resize/rounding-induced `IndexError` crashes.
 - **Aurora first-frame initialization** — Allocate the reusable wave buffer during construction so the first frame cannot assign through `None`.
-- **Clifford first-frame initialization** — Initialize the rework's bloom state before its first speed calculation.
 - **Mycelium small-display initialization** — Initialize display dimensions before seeding tips and clamp tiny-display tip radii to a valid random range.
 - **Signal-safe pygame shutdown** — Defer pygame/audio teardown until the main loop exits so Ctrl-C cannot uninitialize a surface during an active effect draw, and make repeated shutdown requests harmless.
 - **TV display tuning** — Use a finer Slimemold render grid on TV-sized displays while retaining its chunkier laptop profile.
@@ -74,7 +85,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added automated tests for audio callback padding/truncation, genre warm-up, device fallback, UTF-8 settings/preset corruption, signed monitor geometry, transient `xrandr` failure, shader allocation cleanup, resize behavior, child-process races, benchmark CLI parsing, and idempotent GL release. The test count is intentionally maintained by the test suite rather than hardcoded here.
 - Added coverage for FlowField's 2,000-particle interactive adjustment steps.
 - Added coverage for failed stream teardown, monitor geometry changes, display fallback flags, FBO cache ownership, seeded effect initialization, and beat-tracker shutdown races.
-- Added regression coverage for Aurora, Clifford, Mycelium, Slimemold, and Synapse first-frame/render paths.
+- Added regression coverage for Aurora, Mycelium, Slimemold, and Synapse first-frame/render paths.
 - Added coverage for display-aware Slimemold resolution and laptop motion scaling inputs.
 - Added a GitHub Actions matrix for Python 3.10 and 3.12 with native Pygame dependencies, unit tests, and the headless smoke test.
 - Hardened partially initialized display cleanup so `__del__` cannot fail when child-process state was never created.
@@ -88,7 +99,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Slime mold broadcast error** — Fixed `pix[:] = colors` → `pix[:] = colors.T` in `slimemold.py:150` where `pixels2d` returns `(W, H)` but the trail/color array is `(H, W)`.
 - **HUD trail spacing missing variable** — Added `spacing = 3` in `_render_hud()` to fix `NameError` when drawing multiband bars.
 - **FlowField index swap** — Corrected `pix[ix, iy]` → `pix[iy, ix]` in `flowfield.py` to align with `pixels2d` returning `(W, H)` layout.
-- **Clifford transpose removal** — Changed `pix[:] = colors.T` → `pix[:] = colors` in `clifford.py` since density/colors already match `pixels2d` shape.
 - **Magnetar index swap** — Corrected `pix[ix, iy]` → `pix[iy, ix]` in `magnetar.py` to align with `pixels2d` `(W, H)` layout.
 - **Genre weight flux glitch** — Stored weighted spectrum in `_prev_spectrum` instead of raw spectrum, so `apply_genre_weights()` between frames no longer causes a one-frame spectral flux spike. (M27)
 - **Waveform double-copy** — Replaced `self._waveform = mono.copy()` with in-place `self._waveform[:] = mono` to avoid an unnecessary allocation on every audio callback. (M28)
@@ -179,7 +189,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Fireworks sub-pixel zoom drift** — `int(W * zoom)` → `round(W * zoom)` to prevent centering error accumulation. (B6)
 - **Lattice aspect-agnostic scaling** — `min(W, H) / 640.0` for glow thickness and shockwave width. (B8)
 - **Butterflies trail surface on resize** — Fresh `pygame.Surface(surf.get_size())` on size mismatch instead of stale scaled surface. (B9)
-- **Flowfield/clifford stale config refs** — Compare against `surf.get_size()` instead of `config.WIDTH/HEIGHT`. (B10)
 - **IS_GL compositing inversion** — Guard in `_render()` skips fade/background/crossfade blits for IS_GL effects; backbuffer shows correctly behind SRCALPHA overlays. (B16)
 - **Aurora phases on resize** — `_phases` now rebuilt alongside `_ks` on resize to stay in sync with harmonic structure. (B7)
 - **Duplicate SIGINT handling** — Removed outer `try/except KeyboardInterrupt` in `__main__`; signal handler now owns all cleanup. (B11)
@@ -220,9 +229,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Butterflies _Pair.draw() seeded RNG** — Pass `self._rng` through to `_Pair` and `_Butterfly` classes, replacing `random.*` with `self._rng.*` in the hot draw loop and all helper methods. (O11)
 - **Nova list(zip) → np.column_stack** — Replaced `list(zip(xs.tolist(), ys.tolist()))` with `np.column_stack([xs, ys])` in per-layer per-sym loop. (O13)
 - **Effects __init__ import guard** — Noted that all effects already defer to `__init__`, mitigating the fragility concern. (I5)
-- **Resolved stale config refs** — Flowfield, clifford, lattice already migrated to `surf.get_size()` in earlier passes. (I9)
-- **Clifford meshgrid hoist** — Hoisted `np.meshgrid` and grid coordinate arrays into `_reset_state()` so they're only rebuilt on resize, saving ~16 MB per frame at 1080p. (O1)
-- **Clifford pre-allocated point buffer** — Replaced per-frame `all_x = []`/`all_y = []` + `np.concatenate` with a pre-allocated `(4, N)` array filled in-place. (O2)
 - **FlowField pre-allocated arrays** — Pre-allocated `_angles`, `_ir`/`_ig`/`_ib`, and `_colors_arr` to avoid per-frame `np.zeros` and uint32 array allocation in the hot loop. (O6)
 - **Lattice beam drawing dedup** — Factored duplicated horizontal/vertical beam drawing into `_draw_beam()` helper, reducing ~40 lines to 8. (I17)
 - **Lattice _resize split** — Split `_resize` into `_init_surfaces()` (surface/geometry) and `_build_grid()` (grid nodes/column peaks) for cleaner separation. (I18)
@@ -238,7 +244,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Slime mold broadcast error** — Fixed `pix[:] = colors` → `pix[:] = colors.T` in `slimemold.py:150` where `pixels2d` returns `(W, H)` but the trail/color array is `(H, W)`.
 - **HUD trail spacing missing variable** — Added `spacing = 3` in `_render_hud()` to fix `NameError` when drawing multiband bars.
 - **FlowField index swap** — Corrected `pix[ix, iy]` → `pix[iy, ix]` in `flowfield.py` to align with `pixels2d` returning `(W, H)` layout.
-- **Clifford transpose removal** — Changed `pix[:] = colors.T` → `pix[:] = colors` in `clifford.py` since density/colors already match `pixels2d` shape.
 - **Magnetar index swap** — Corrected `pix[ix, iy]` → `pix[iy, ix]` in `magnetar.py` to align with `pixels2d` `(W, H)` layout.
 - **Genre weight flux glitch** — Stored weighted spectrum in `_prev_spectrum` instead of raw spectrum, so `apply_genre_weights()` between frames no longer causes a one-frame spectral flux spike. (M27)
 - **Waveform double-copy** — Replaced `self._waveform = mono.copy()` with in-place `self._waveform[:] = mono` to avoid an unnecessary allocation on every audio callback. (M28)
@@ -329,7 +334,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Fireworks sub-pixel zoom drift** — `int(W * zoom)` → `round(W * zoom)` to prevent centering error accumulation. (B6)
 - **Lattice aspect-agnostic scaling** — `min(W, H) / 640.0` for glow thickness and shockwave width. (B8)
 - **Butterflies trail surface on resize** — Fresh `pygame.Surface(surf.get_size())` on size mismatch instead of stale scaled surface. (B9)
-- **Flowfield/clifford stale config refs** — Compare against `surf.get_size()` instead of `config.WIDTH/HEIGHT`. (B10)
 - **IS_GL compositing inversion** — Guard in `_render()` skips fade/background/crossfade blits for IS_GL effects; backbuffer shows correctly behind SRCALPHA overlays. (B16)
 - **Aurora phases on resize** — `_phases` now rebuilt alongside `_ks` on resize to stay in sync with harmonic structure. (B7)
 - **Duplicate SIGINT handling** — Removed outer `try/except KeyboardInterrupt` in `__main__`; signal handler now owns all cleanup. (B11)
@@ -370,9 +374,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Butterflies _Pair.draw() seeded RNG** — Pass `self._rng` through to `_Pair` and `_Butterfly` classes, replacing `random.*` with `self._rng.*` in the hot draw loop and all helper methods. (O11)
 - **Nova list(zip) → np.column_stack** — Replaced `list(zip(xs.tolist(), ys.tolist()))` with `np.column_stack([xs, ys])` in per-layer per-sym loop. (O13)
 - **Effects __init__ import guard** — Noted that all effects already defer to `__init__`, mitigating the fragility concern. (I5)
-- **Resolved stale config refs** — Flowfield, clifford, lattice already migrated to `surf.get_size()` in earlier passes. (I9)
-- **Clifford meshgrid hoist** — Hoisted `np.meshgrid` and grid coordinate arrays into `_reset_state()` so they're only rebuilt on resize, saving ~16 MB per frame at 1080p. (O1)
-- **Clifford pre-allocated point buffer** — Replaced per-frame `all_x = []`/`all_y = []` + `np.concatenate` with a pre-allocated `(4, N)` array filled in-place. (O2)
 - **FlowField pre-allocated arrays** — Pre-allocated `_angles`, `_ir`/`_ig`/`_ib`, and `_colors_arr` to avoid per-frame `np.zeros` and uint32 array allocation in the hot loop. (O6)
 - **Lattice beam drawing dedup** — Factored duplicated horizontal/vertical beam drawing into `_draw_beam()` helper, reducing ~40 lines to 8. (I17)
 - **Lattice _resize split** — Split `_resize` into `_init_surfaces()` (surface/geometry) and `_build_grid()` (grid nodes/column peaks) for cleaner separation. (I18)
@@ -386,7 +387,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ### Changed
 - **Mycelium** — Completely reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
 - **Persistence** — Reworked nested rotating polygons into 3D perspective projection space with depth cueing (depth-based thickness and brightness shading) and non-coplanar axis rotation.
-- **Clifford Attractor** — Rewritten to use high-speed 2D density mapping via `np.bincount`, logarithmic density scaling, dynamic percentile framing, and 3D diffuse relief shading from a rotating light source.
 - **Butterflies** — Reverted to the stable April 2026 version to remove size variations and swarm forces, restoring classic chase/orbit motion behavior.
 - **FlowField** — Shifted initial resolution divisor to start 2 levels faster (`RES_DIV = 3`).
 - **Lattice** — Shifted initial resolution divisor up by 1 level to start 1 level faster.
@@ -426,7 +426,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **HiDPI scaling** — internal render divisors now adapt to the actual display size so low-res effects stay sharper on large screens without forcing every frame to full resolution.
 - **Magnetar** — particle density now scales higher on large displays, and the internal particle state is rebuilt on resize so the field stays full after geometry changes.
 - **SlimeMold** — increased internal simulation fidelity, added resize-safe buffer rebuilds, and smooth-scaled the output to reduce chunky Android pixels.
-- **Clifford** — replaced unconstrained random parameter jumps with curated presets plus dynamic framing and collapse recovery, keeping the attractor broad instead of collapsing into a tiny bright point.
 - **Möbius** — removed the interior longitude wires so the band reads cleanly without straight cross-lines.
 - **Chromatic** — replaced concentric RGB circles with wavy chromatic raindrop ripples that read properly on Android.
 - **Mycelium** — reworked from a single center-out burst into a multi-colony swirling growth pattern for fuller, more psychedelic screen coverage.
@@ -457,7 +456,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Magnetar** — ~6 000 particles riding an analytical rotating magnetic dipole field; beat fires an equatorial shockwave.
 - **SlimeMold** — Physarum-style multi-agent trail simulation; self-organising vein network that pulses and reforms with the music.
 - **Droste** — infinite self-similar recursive zoom portal with spiralling geometry fed into the feedback loop.
-- **Clifford** — 40 000-walker strange attractor with audio-morphing parameters (a, b, c, d); beat jumps to a new attractor shape.
 - **Möbius** — perspective-projected 3-D Möbius strip wireframe with twist shiver on beat.
 - **Chromatic** — expanding ring waves that split red, green, and blue channels outward, creating prismatic aberration halos.
 - **Persistence** — nested counter-rotating polygons with very long trail persistence for wagon-wheel moiré accumulation.

@@ -66,6 +66,7 @@ uniform float u_bass;
 uniform float u_mid;
 uniform float u_beat;
 uniform float u_high;
+uniform float u_warp;
 
 #define PI 3.14159265358979
 
@@ -93,11 +94,18 @@ void main() {
     float fm = 1.0 + u_mid * 0.7;
     float t  = u_time;
 
-    // Four-wave interference — matches numpy Plasma exactly
-    float v = (sin(p.x * fm          +  t       ) +
-               sin(p.y * fm * 0.8    +  t * 1.4 ) +
-               sin((p.x * 0.6 + p.y * 0.8) * fm + t * 0.9) +
-               sin(r    * fm * 0.5   -  t * 1.2 )) * 0.25;
+    // A bounded domain warp breaks the regular grid before seven-wave
+    // quasiperiodic interference is evaluated.
+    vec2 q = p + u_warp * vec2(sin(p.y * 0.72 + t * 0.71),
+                               cos(p.x * 0.61 - t * 0.53));
+    float v = 0.0;
+    for (int i = 0; i < 7; ++i) {
+        float a = 6.2831853 * float(i) / 7.0;
+        vec2 k = vec2(cos(a), sin(a));
+        v += sin(dot(q * fm, k) + t * (0.72 + float(i) * 0.07));
+    }
+    v /= 7.0;
+    v += sin(length(q) * fm * 0.46 - t * 1.2) * 0.16;
 
     float h = mod(v * 0.55 + 0.5 + u_hue + u_bass * 0.35, 1.0);
     float l = clamp(0.28 + v * 0.22 + u_beat * 0.22 + u_high * 0.08, 0.0, 0.95);
@@ -138,6 +146,7 @@ class PlasmaGL(Effect):
         super().__init__(**kwargs)
         self._hue      = 0.0
         self._time     = 0.0
+        self._warp     = 0.0
         self._prog     = None   # compiled lazily on first draw
         self._vao      = None
         self._fbo_cache: dict = {}  # (w,h) → Framebuffer, for draw_frame reuse (max 8)
@@ -160,11 +169,12 @@ class PlasmaGL(Effect):
 
     def _advance(self, fft: np.ndarray, beat: float) -> tuple[float, float, float]:
         """Tick time forward; return (bass, mid, high) scalar energies."""
-        bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        bass = min(max(float(beat), 0.0), 1.5)
+        mid  = min(max(float(config.MID_ENERGY), 0.0), 4.0)
+        high = min(max(float(config.TREBLE_ENERGY), 0.0), 4.0)
         self._hue  += 0.002
         self._time += 0.018 + bass * 0.05 + mid * 0.03 + high * 0.02
+        self._warp = min(0.42, 0.08 + bass * 0.12 + mid * 0.025 + high * 0.015)
         return bass, mid, high
 
     def _set_uniforms(self, bass: float, mid: float, high: float, beat: float) -> None:
@@ -174,6 +184,7 @@ class PlasmaGL(Effect):
         self._prog["u_mid"]  = mid
         self._prog["u_beat"] = float(beat)
         self._prog["u_high"] = high
+        self._prog["u_warp"] = self._warp
 
     # ── Desktop draw — same signature as all other effects ────────────────────
 
@@ -217,10 +228,14 @@ class PlasmaGL(Effect):
         self._ensure_fallback(w, h)
         fm = 1.0 + mid * 0.7
         t  = self._time
-        v  = (np.sin(self._X * fm              +  t       ) +
-              np.sin(self._Y * fm * 0.8        +  t * 1.4 ) +
-              np.sin((self._X*0.6 + self._Y*0.8)*fm + t*0.9) +
-              np.sin(self._R * fm * 0.5        -  t * 1.2 )) * 0.25
+        qx = self._X + self._warp * np.sin(self._Y * 0.72 + t * 0.71)
+        qy = self._Y + self._warp * np.cos(self._X * 0.61 - t * 0.53)
+        v = np.zeros_like(self._X)
+        for index in range(7):
+            angle = math.tau * index / 7.0
+            v += np.sin((qx * np.cos(angle) + qy * np.sin(angle)) * fm
+                        + t * (0.72 + index * 0.07))
+        v = v / 7.0 + np.sin(np.sqrt(qx * qx + qy * qy) * fm * 0.46 - t * 1.2) * 0.16
         h = (v * 0.55 + 0.5 + self._hue + bass * 0.35) % 1.0
         l = np.clip(0.28 + v * 0.22 + beat * 0.22 + high * 0.08, 0.0, 0.95)
         rgb = _hsl_arr(h, l)

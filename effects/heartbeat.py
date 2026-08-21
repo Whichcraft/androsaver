@@ -14,6 +14,8 @@ import math
 from typing import NamedTuple
 
 import pygame
+import numpy as np
+import pygame.surfarray as surfarray
 
 import config
 from .base import Effect
@@ -37,6 +39,48 @@ class Heartbeat(Effect):
         self._rings: list[_Ring] = []
         self._beat_prev = 0.0
         self._auto_cd   = 45
+        self._plate_w = self._plate_h = 0
+        self._plate_x = self._plate_y = None
+        self._plate_field = None
+        self._plate_surface = None
+        self._plate_scaled = None
+        self._plate_flash = 0.0
+
+    def _reset_plate(self, W, H):
+        self._plate_w = max(32, W // 4)
+        self._plate_h = max(24, H // 4)
+        xs = np.linspace(-1.0, 1.0, self._plate_w, dtype=np.float32)
+        ys = np.linspace(-1.0, 1.0, self._plate_h, dtype=np.float32)
+        self._plate_x, self._plate_y = np.meshgrid(xs, ys)
+        self._plate_field = np.zeros((self._plate_h, self._plate_w), dtype=np.float32)
+        self._plate_surface = pygame.Surface((self._plate_w, self._plate_h))
+        self._plate_scaled = pygame.Surface((W, H))
+
+    def _draw_plate(self, surf, fft, bass, mid, high, tick):
+        W, H = surf.get_size()
+        if self._plate_surface is None or self._plate_surface.get_size() != (max(32, W // 4), max(24, H // 4)):
+            self._reset_plate(W, H)
+        values = np.asarray(fft).reshape(-1)
+        dominant = int(np.argmax(np.abs(values[:128]))) if values.size else 0
+        mode = 1 + dominant % 5
+        next_mode = mode + 1
+        mix = (tick * 0.006 + mid * 0.08) % 1.0
+        mode_a = np.cos(math.pi * mode * self._plate_x) * np.cos(math.pi * (mode + 1) * self._plate_y)
+        mode_b = np.cos(math.pi * next_mode * self._plate_x) * np.cos(math.pi * (next_mode + 1) * self._plate_y)
+        self._plate_field[:] = mode_a * (1.0 - mix) + mode_b * mix
+        nodal = np.clip(np.exp(-np.abs(self._plate_field) * 14.0), 0.0, 1.0)
+        opacity = min(0.55, 0.08 + self._plate_flash * 0.35 + bass * 0.08 + high * 0.025)
+        hue = (self._hue + nodal * 0.65) % 1.0
+        red = np.clip((np.sin(hue * math.tau) * 127 + 128) * nodal * opacity, 0, 255)
+        green = np.clip((np.sin((hue + 0.333) * math.tau) * 127 + 128) * nodal * opacity, 0, 255)
+        blue = np.clip((np.sin((hue + 0.667) * math.tau) * 127 + 128) * nodal * opacity, 0, 255)
+        pixels = surfarray.pixels3d(self._plate_surface)
+        try:
+            pixels[:] = np.stack((red, green, blue), axis=-1).astype(np.uint8).transpose(1, 0, 2)
+        finally:
+            del pixels
+        pygame.transform.smoothscale(self._plate_surface, surf.get_size(), self._plate_scaled)
+        surf.blit(self._plate_scaled, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     # ------------------------------------------------------------------
 
@@ -62,10 +106,12 @@ class Heartbeat(Effect):
         self._hue = (self._hue + 0.005 + mid * 0.004) % 1.0
 
         if bass > 0.60 and self._beat_prev <= 0.60:
+            self._plate_flash = min(1.0, self._plate_flash + 0.75)
             self._spawn(bass, W, H)
             if bass > 0.85:
                 self._spawn(bass * 0.7, W, H, offset_hue=0.25)
         self._beat_prev = bass
+        self._plate_flash *= 0.92
 
         self._auto_cd -= 1
         if self._auto_cd <= 0 and len(self._rings) < 4:
@@ -74,6 +120,8 @@ class Heartbeat(Effect):
 
         spd_mul = 1.0 + mid * 0.8
         cx, cy  = W // 2, H // 2
+
+        self._draw_plate(surf, fft, bass, mid, high, tick)
 
         live = []
         for ring in self._rings:

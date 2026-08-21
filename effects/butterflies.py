@@ -1,385 +1,96 @@
-"""Butterflies — up to three pairs dancing to the music.
-
-Each pair: a solo butterfly flutters in first; its partner joins after
-10–30 s.  Once together they *chase each other* in a tightening mutual
-orbit — both turning toward the other's position, creating a playful
-love-pursuit spiral.  After a random lifetime the pair wanders off-screen
-and vanishes.  New pairs can re-enter from the edges.
-Wing flapping syncs when partners are close; sparkles on the beat.
-
-Trail is managed on an internal surface (TRAIL_ALPHA = 0) so it is
-preserved correctly on Android / OpenGL backends where the display
-backbuffer is not guaranteed between frames.
-"""
+"""Bounded, deterministic butterflies that emerge, pair, dance, and dissolve."""
 import math
-
 import numpy as np
 import pygame
-
 import config
+from .base import Effect
 from .utils import hsl
 
+def _delta(a, b): return (b - a + math.pi) % math.tau - math.pi
 
-from .base import Effect
-
-# ── Wing geometry ─────────────────────────────────────────────────────────────
-
-def _wing_poly(x, y, heading, side, upper, flap, scale):
-    """Four-point polygon for one wing.
-    side: +1 / -1  (which perpendicular direction)
-    upper: +1 front/larger wing, -1 rear/smaller wing
-    flap: 0..1 (0 = closed, 1 = fully spread)
-    """
+def _wing(x, y, heading, side, upper, flap, scale):
     ca, sa = math.cos(heading), math.sin(heading)
-    off  = 5.0 * scale * upper
-    ax   = x + ca * off
-    ay   = y + sa * off
-    ws   = scale * (22 if upper == 1 else 13)
-    spread  = (0.22 + flap * 0.68) * math.pi / 2
-    w_ang   = heading + side * spread + upper * 0.10
-    tip_x   = ax + math.cos(w_ang) * ws
-    tip_y   = ay + math.sin(w_ang) * ws
-    fe_ang  = w_ang - side * math.pi * 0.28
-    fe_x    = ax + math.cos(fe_ang) * ws * 0.58
-    fe_y    = ay + math.sin(fe_ang) * ws * 0.58
-    re_ang  = w_ang + side * math.pi * 0.32
-    re_x    = ax + math.cos(re_ang) * ws * 0.52
-    re_y    = ay + math.sin(re_ang) * ws * 0.52
-    return [(int(ax), int(ay)), (int(fe_x), int(fe_y)),
-            (int(tip_x), int(tip_y)), (int(re_x), int(re_y))]
-
-
-# ── Single butterfly ──────────────────────────────────────────────────────────
+    ax, ay = x + ca * 5 * scale * upper, y + sa * 5 * scale * upper
+    width = scale * (22 if upper > 0 else 13)
+    ang = heading + side * (.22 + flap * .68) * math.pi / 2 + upper * .1
+    def pt(a, r): return (int(ax + math.cos(a) * width * r), int(ay + math.sin(a) * width * r))
+    return [pt(ang, 0), pt(ang-side*.88, .58), pt(ang, 1), pt(ang+side*1.01, .52)]
 
 class _Butterfly:
-    def __init__(self, x, y, hue, rng, scale=4.0):
-        self.x           = float(x)
-        self.y           = float(y)
-        self.heading     = float(rng.uniform(0, math.tau))
-        self.wing_phase  = float(rng.uniform(0, math.tau))
-        self._rng        = rng
-        self.hue         = hue
-        self.scale       = scale
-        self._wander_des = self.heading
-        self._wander_cd  = 0
-        self._depart_ang = None
-
-    def off_screen(self, W, H):
-        m = 80 * self.scale
-        return (self.x < -m or self.x > W + m or
-                self.y < -m or self.y > H + m)
-
-    def start_depart(self):
-        if self._depart_ang is None:
-            self._depart_ang = float(self._rng.uniform(0, math.tau))
-
-    def update(self, bass, beat, t, W, H, chase_pos=None):
-        """Update position and wing phase.
-
-        chase_pos: if set, the butterfly steers toward this (x, y) target
-                   instead of wandering.  Used for the mutual-chase love pairs.
-        """
-        self.wing_phase += 0.09 + bass * 0.16 + beat * 0.06
-
-        if self._depart_ang is not None:
-            self.heading += (self._depart_ang - self.heading + math.pi) % math.tau - math.pi
-            spd = (2.5 + bass * 0.5) * self.scale
-            self.x += math.cos(self.heading) * spd
-            self.y += math.sin(self.heading) * spd
-            return
-
-        if chase_pos is not None:
-            desired = math.atan2(chase_pos[1] - self.y, chase_pos[0] - self.x)
-        else:
-            self._wander_cd -= 1
-            if self._wander_cd <= 0:
-                self._wander_des = (self.heading
-                                    + float(self._rng.uniform(-math.pi * 0.6, math.pi * 0.6)))
-                self._wander_cd = int(self._rng.integers(60, 180))
-            desired = self._wander_des
-
-        # ── Boundary repulsion ────────────────────────────────────────────────
-        m = min(int(50 * self.scale), W // 5, H // 5)
-        rx, ry = 0.0, 0.0
-        if m > 0:
-            if self.x < m:
-                rx = (m - self.x) / m
-            elif self.x > W - m:
-                rx = (W - m - self.x) / m
-            if self.y < m:
-                ry = (m - self.y) / m
-            elif self.y > H - m:
-                ry = (H - m - self.y) / m
-
-        if rx or ry:
-            push = self.scale * max(abs(rx), abs(ry)) * 2.5
-            self.x += rx * push
-            self.y += ry * push
-            desired = math.atan2(ry, rx)
-            diff = (desired - self.heading + math.pi) % math.tau - math.pi
-            self.heading += max(-0.35, min(0.35, diff * 0.50))
-            self._wander_des = desired
-            self._wander_cd  = int(self._rng.integers(60, 180))
-        else:
-            diff = (desired - self.heading + math.pi) % math.tau - math.pi
-            self.heading += max(-0.10, min(0.10, diff * 0.14))
-
-        spd = (1.5 + bass * 0.8 + beat * 0.4) * self.scale
-        self.x += math.cos(self.heading) * spd
-        self.y += math.sin(self.heading) * spd
-
-        cl = min(int(28 * self.scale), max(1, W // 2), max(1, H // 2))
-        self.x = max(float(cl), min(float(W - cl), self.x))
-        self.y = max(float(cl), min(float(H - cl), self.y))
-
-    def draw(self, surf, outline_col=None):
-        flap     = math.sin(self.wing_phase) * 0.5 + 0.5
-        body_col = hsl(self.hue, l=0.28)
-        wc1      = hsl(self.hue, l=0.58)
-        wc2      = hsl((self.hue + 0.10) % 1.0, l=0.46)
-        
-        # Consolidate wing drawing - fewer polygon calls
-        for upper in (-1, 1):
-            col = wc1 if upper == 1 else wc2
-            for side in (-1, 1):
-                pts = _wing_poly(self.x, self.y, self.heading,
-                                 side, upper, flap, self.scale)
-                pygame.draw.polygon(surf, col, pts)
-                # Skip outline when scale is small or just draw one
-                if self.scale > 3.0:
-                    pygame.draw.polygon(surf, (20, 20, 20), pts, 1)
-
-        ca, sa = math.cos(self.heading), math.sin(self.heading)
-        bl = int(8 * self.scale) # Slightly shorter body
-        hx, hy = int(self.x + ca * bl), int(self.y + sa * bl)
-        tx, ty = int(self.x - ca * bl), int(self.y - sa * bl)
-        lw = max(1, int(2 * self.scale))
-        pygame.draw.line(surf, body_col, (hx, hy), (tx, ty), lw)
-
-
-
-# ── Pair ──────────────────────────────────────────────────────────────────────
-
-def _edge_spawn(W, H, rng):
-    """Return a position just inside one screen edge."""
-    m = min(60, max(1, min(W, H) // 3))
-    edge = int(rng.integers(0, 4))
-    y0, y1 = m, max(m + 1, H - m)
-    x0, x1 = m, max(m + 1, W - m)
-    if edge == 0:  return float(m), float(rng.uniform(y0, y1))
-    if edge == 1:  return float(W - m), float(rng.uniform(y0, y1))
-    if edge == 2:  return float(rng.uniform(x0, x1)), float(m)
-    return float(rng.uniform(x0, x1)), float(H - m)
-
-
-# Scale is 70 % of the original 7.2 / 6.84
-_SOLO_SCALE = round(7.2  * 0.70, 2)   # 5.04
-_LOVE_SCALE = round(6.84 * 0.70, 2)   # 4.79
-
+    def __init__(self, x, y, hue, rng, scale=4.8, state='cocoon'):
+        self.x, self.y = float(x), float(y); self.vx, self.vy = rng.uniform(-.4,.4,2)
+        self.heading = float(rng.uniform(0, math.tau)); self.wing_phase = float(rng.uniform(0, math.tau))
+        self.hue=hue%1; self.scale=scale; self.state=state; self.age=0; self.partner=None; self._rng=rng
+        self._wander=self.heading; self._wander_cd=int(rng.integers(30,120)); self._seed=float(rng.random()*math.tau)
+    def off_screen(self,w,h):
+        m=70*self.scale; return self.x < -m or self.x > w+m or self.y < -m or self.y > h+m
+    def update(self,bass,mids,treble,beat,w,h,target=None):
+        self.age += 1
+        if self.state=='cocoon': self.wing_phase += .035; self.x += self.vx*.35; self.y += self.vy*.35; return
+        self.wing_phase += .10+bass*.20+beat*.06; self._wander_cd -= 1
+        if target is None:
+            if self._wander_cd<=0: self._wander += float(self._rng.uniform(-.8,.8)); self._wander_cd=int(self._rng.integers(35,130))
+            desired=self._wander+math.sin(self.age*.013+self._seed)*(.15+treble*.4)
+        else: desired=math.atan2(target[1]-self.y,target[0]-self.x)
+        if self.x<50: desired=0
+        elif self.x>w-50: desired=math.pi
+        if self.y<50: desired=math.pi/2
+        elif self.y>h-50: desired=-math.pi/2
+        self.heading += max(-.18,min(.18,_delta(self.heading,desired)*(.12 if target is None else .22)))
+        speed=(1.1+bass*.9+mids*.35+beat*.5)*self.scale/4.8
+        self.vx=self.vx*.88+math.cos(self.heading)*speed*.12; self.vy=self.vy*.88+math.sin(self.heading)*speed*.12
+        self.x+=self.vx; self.y+=self.vy
+    def draw(self,surf,treble=0):
+        flap=math.sin(self.wing_phase)*.5+.5; body=hsl(self.hue,l=.28); c1=hsl(self.hue,l=.58+treble*.12); c2=hsl((self.hue+.1)%1,l=.45)
+        for upper,col in ((-1,c2),(1,c1)):
+            for side in (-1,1):
+                pts=_wing(self.x,self.y,self.heading,side,upper,flap,self.scale); pygame.draw.polygon(surf,col,pts)
+                if self.scale>3: pygame.draw.polygon(surf,(18,12,24),pts,1)
+        ca,sa=math.cos(self.heading),math.sin(self.heading); n=int(8*self.scale)
+        pygame.draw.line(surf,body,(int(self.x-ca*n),int(self.y-sa*n)),(int(self.x+ca*n),int(self.y+sa*n)),max(1,int(self.scale*1.5)))
 
 class _Pair:
-    """One loving pair of butterflies with its own lifecycle.
-
-    Once both butterflies are alive they chase each other — solo steers
-    toward love and love steers toward solo, each targeting a point offset
-    by a rotating angle at a shrinking radius.  This creates a playful
-    spiral pursuit that eventually settles into a tight mutual orbit.
-    """
-
-    def __init__(self, hue, rng, spawn_delay=0):
-        self.hue          = hue
-        self._rng         = rng
-        self._spawn_delay = spawn_delay
-        self._join_delay  = int(rng.integers(600, 1800))
-        self._lifetime    = int(rng.integers(2400, 5400))
-        self._age         = -spawn_delay
-        self._orbit_ang   = float(rng.uniform(0, math.tau))
-        self._orbit_r     = 240.0    # starts wide, shrinks to ~40
-        self.solo         = None
-        self.love         = None
-        self._departing   = False
-        # Wander-break: occasionally one butterfly leaves the orbit briefly
-        self._break_cd    = int(rng.integers(800, 1600))  # frames until next break
-        self._break_timer = 0                          # counts down during break
-
-    def dead(self, W, H):
-        if not self._departing:
-            return False
-        b1_gone = self.solo is None or self.solo.off_screen(W, H)
-        b2_gone = self.love is None or self.love.off_screen(W, H)
-        return b1_gone and b2_gone
-
-    def update(self, bass, beat, global_hue, t, W, H):
-        self._age += 1
-
-        if self.solo is None and self._age >= 0:
-            x, y = _edge_spawn(W, H, self._rng)
-            self.solo = _Butterfly(x, y, hue=global_hue, rng=self._rng, scale=_SOLO_SCALE)
-
-        if self.solo is None:
-            return
-
-        self.solo.hue = global_hue
-        if self.love:
-            self.love.hue = (global_hue + 0.50) % 1.0
-
-        if self.love is None and self._age >= self._join_delay:
-            x, y = _edge_spawn(W, H, self._rng)
-            self.love = _Butterfly(x, y,
-                                   hue=(global_hue + 0.50) % 1.0,
-                                   rng=self._rng,
-                                   scale=_LOVE_SCALE)
-
-        if self._age >= self._lifetime and not self._departing:
-            self._departing = True
-            self.solo.start_depart()
-            if self.love:
-                self.love.start_depart()
-
-        if self.love is not None and not self._departing:
-            # Wander-break countdown
-            if self._break_timer > 0:
-                self._break_timer -= 1
-            else:
-                self._break_cd -= 1
-                if self._break_cd <= 0:
-                    self._break_timer = int(self._rng.integers(200, 500))
-                    self._break_cd    = int(self._rng.integers(900, 1800))
-                    # Expand orbit radius back out so reunion feels fresh
-                    self._orbit_r = min(self._orbit_r + 80.0, 200.0)
-
-            if self._break_timer > 0:
-                # One butterfly wanders freely; the orbit pauses
-                self.solo.update(bass, beat, t, W, H)
-                self.love.update(bass, beat, t, W, H)
-            else:
-                # Mutual chase: orbit angle rotates faster as radius shrinks
-                # (conservation-of-angular-momentum feel)
-                ang_speed = 0.012 + beat * 0.020 + 0.003 * max(0.0, 1.0 - self._orbit_r / 240)
-                self._orbit_ang += ang_speed
-                if self._orbit_r > 40.0:
-                    self._orbit_r -= 0.06
-
-                r = self._orbit_r
-                # Solo chases: point offset from love's position at opposite angle
-                solo_target = (
-                    self.love.x + math.cos(self._orbit_ang + math.pi) * r,
-                    self.love.y + math.sin(self._orbit_ang + math.pi) * r,
-                )
-                # Love chases: point offset from solo's position at the orbit angle
-                love_target = (
-                    self.solo.x + math.cos(self._orbit_ang) * r,
-                    self.solo.y + math.sin(self._orbit_ang) * r,
-                )
-                self.solo.update(bass, beat, t, W, H, chase_pos=solo_target)
-                self.love.update(bass, beat, t, W, H, chase_pos=love_target)
-        else:
-            self.solo.update(bass, beat, t, W, H)
-            if self.love:
-                self.love.update(bass, beat, t, W, H)
-
-        # Wing sync when close
-        if self.love is not None:
-            dist = math.hypot(self.love.x - self.solo.x,
-                              self.love.y - self.solo.y)
-            sync_range = 130 * _SOLO_SCALE
-            if dist < sync_range:
-                sync = 1.0 - dist / sync_range
-                diff = self.love.wing_phase - self.solo.wing_phase
-                self.love.wing_phase -= diff * sync * 0.12
-
-    def draw(self, surf, beat, global_hue):
-        if self.solo is None:
-            return
-
-        if self.love and beat > 0.8 and not self._departing:
-            dist = math.hypot(self.love.x - self.solo.x,
-                              self.love.y - self.solo.y)
-            if dist < 300:
-                mx = (self.solo.x + self.love.x) / 2
-                my = (self.solo.y + self.love.y) / 2
-                for _ in range(4):
-                    sx = int(mx + float(self._rng.normal(0, 25)))
-                    sy = int(my + float(self._rng.normal(0, 25)))
-                    pygame.draw.circle(surf,
-                                       hsl((global_hue + 0.12) % 1.0, l=0.80),
-                                       (sx, sy), int(self._rng.integers(2, 5)))
-
-        oc1 = hsl((global_hue + 0.05) % 1.0, l=0.20)
-        oc2 = hsl((global_hue + 0.55) % 1.0, l=0.20)
-        self.solo.draw(surf, outline_col=oc1)
-        if self.love:
-            self.love.draw(surf, outline_col=oc2)
-
-
-# ── Main effect ───────────────────────────────────────────────────────────────
+    def __init__(self,a,b,rng):
+        self.a,self.b,self._rng=a,b,rng; self.age=0; self.orbit=float(rng.uniform(0,math.tau)); self.radius=float(rng.uniform(35,80)); self.break_at=int(rng.integers(360,900)); a.partner=b; b.partner=a; a.state=b.state='paired'
+    def update(self,bass,mids,treble,beat,w,h):
+        self.age+=1; self.orbit += .012+beat*.025+mids*.008; self.radius=max(28,self.radius-.015-beat*.03)
+        if self.age>self.break_at and self._rng.random()<.012+treble*.01: self.a.partner=self.b.partner=None; self.a.state=self.b.state='free'; return False
+        ax,ay,bx,by=self.a.x,self.a.y,self.b.x,self.b.y; c,s=math.cos(self.orbit),math.sin(self.orbit)
+        self.a.update(bass,mids,treble,beat,w,h,(bx+c*self.radius,by+s*self.radius)); self.b.update(bass,mids,treble,beat,w,h,(ax-c*self.radius,ay-s*self.radius))
+        phase=(self.a.wing_phase+self.b.wing_phase)*.5; self.a.wing_phase+=(phase-self.a.wing_phase)*.12; self.b.wing_phase+=(phase-self.b.wing_phase)*.12; return True
 
 class Butterflies(Effect):
-    """Three pairs of butterflies.  Each pair has its own lifecycle:
-    solo → partner joins → mutual love chase → wander off-screen → new pair.
-
-    TRAIL_ALPHA = 0: trails are managed on an internal surface so they survive
-    on Android / OpenGL backends where the display backbuffer is not preserved
-    between frames.
-    """
-
-    TRAIL_ALPHA = 0    # owns its trail surface
-    RES_DIV     = 2    # Render at 1/2 resolution
-    MAX_PAIRS   = 3
-    _PAIR_OFFSET_1 = 0
-    _PAIR_OFFSET_2_LOW = 300
-    _PAIR_OFFSET_2_HIGH = 700
-    _PAIR_OFFSET_3_LOW = 800
-    _PAIR_OFFSET_3_HIGH = 1400
-    # Fade equivalent to the old TRAIL_ALPHA=22 main-loop overlay:
-    #   semi-transparent black at alpha 22 → multiply by (255-22)/255 ≈ 233/255
-    _FADE_FILL  = (233, 233, 233)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
-        W, H = self._render_size()[:2]
-        self._tick       = 0
-        self._global_hue = float(self._rng.random())
-        self._trail      = pygame.Surface((W, H))
-        self._trail.fill((0, 0, 0))
-        self._scaled     = pygame.Surface((1, 1))
-        self._pairs: list[_Pair] = []
-        offsets = [self._PAIR_OFFSET_1,
-                   int(self._rng.integers(self._PAIR_OFFSET_2_LOW, self._PAIR_OFFSET_2_HIGH)),
-                   int(self._rng.integers(self._PAIR_OFFSET_3_LOW, self._PAIR_OFFSET_3_HIGH))]
-        for i, off in enumerate(offsets):
-            hue = (self._global_hue + i / self.MAX_PAIRS) % 1.0
-            self._pairs.append(_Pair(hue, self._rng, spawn_delay=off))
-
-    def draw(self, surf, waveform, fft, beat, tick):
-        dest_w, dest_h = surf.get_size()
-        W, H = self._render_size()[:2]
-        if self._trail.get_size() != (W, H):
-            self._trail = pygame.Surface((W, H))
-            self._trail.fill((0, 0, 0))
-            self._scaled = pygame.Surface((dest_w, dest_h))
-        elif self._scaled.get_size() != (dest_w, dest_h):
-            self._scaled = pygame.Surface((dest_w, dest_h))
-        self._tick       += 1
-        self._global_hue  = (self._global_hue + 0.0014) % 1.0
-        bass = float(np.mean(fft[:min(6, len(fft))]))
-
-        self._pairs = [p for p in self._pairs if not p.dead(W, H)]
-        while len(self._pairs) < self.MAX_PAIRS:
-            hue = (self._global_hue + float(self._rng.random()) * 0.5) % 1.0
-            self._pairs.append(_Pair(hue, self._rng, spawn_delay=int(self._rng.integers(60, 200))))
-
-        # Fade the internal trail surface each frame
-        self._trail.fill(self._FADE_FILL, special_flags=pygame.BLEND_RGB_MULT)
-
-        for i, pair in enumerate(self._pairs):
-            gh = (self._global_hue + i / self.MAX_PAIRS) % 1.0
-            pair.update(bass, beat, gh, self._tick, W, H)
-            pair.draw(self._trail, beat, gh)
-
-        if surf.get_size() != self._trail.get_size():
-            pygame.transform.scale(self._trail, surf.get_size(), self._scaled)
-            surf.blit(self._scaled, (0, 0), special_flags=pygame.BLEND_RGB_MAX)
-        else:
-            surf.blit(self._trail, (0, 0), special_flags=pygame.BLEND_RGB_MAX)
+    TRAIL_ALPHA=0; RES_DIV=2; MAX_POPULATION=12; MAX_PAIRS=6
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs); self._rng=np.random.default_rng(config.RNG_SEED); self._tick=0; self._hue=float(self._rng.random()); self._butterflies=[]; self._pairs=[]; self._trail=None; self._scaled=None
+    @staticmethod
+    def _spawn(w,h,rng):
+        e=int(rng.integers(4)); m=min(35,max(4,min(w,h)//4)); return ((-m,float(rng.uniform(0,h))) if e==0 else (w+m,float(rng.uniform(0,h))) if e==1 else (float(rng.uniform(0,w)),-m) if e==2 else (float(rng.uniform(0,w)),h+m))
+    def _surfaces(self,w,h,dw,dh):
+        if self._trail is None or self._trail.get_size()!=(w,h): self._trail=pygame.Surface((w,h)); self._trail.fill((0,0,0))
+        if self._scaled is None or self._scaled.get_size()!=(dw,dh): self._scaled=pygame.Surface((dw,dh))
+    def draw(self,surf,waveform,fft,beat,tick):
+        dw,dh=surf.get_size(); w,h=self._render_size()[:2]; self._surfaces(w,h,dw,dh); self._tick+=1; self._hue=(self._hue+.0012+getattr(config,'TREBLE_ENERGY',0)*.0005)%1
+        bass=float(np.mean(fft[:min(6,len(fft))])) if len(fft) else 0.; mids=float(getattr(config,'MID_ENERGY',0)); treble=float(getattr(config,'TREBLE_ENERGY',0)); self._trail.fill((239,239,239),special_flags=pygame.BLEND_RGB_MULT)
+        if len(self._butterflies)<self.MAX_POPULATION and (self._tick<20 or self._tick%24==0):
+            x,y=self._spawn(w,h,self._rng); self._butterflies.append(_Butterfly(x,y,self._hue+self._rng.random()*.25,self._rng,state='cocoon'))
+        for b in self._butterflies:
+            if b.state=='cocoon' and b.age>18: b.state='free'
+        free=[b for b in self._butterflies if b.state=='free' and b.partner is None]
+        for a in free:
+            if len(self._pairs)>=self.MAX_PAIRS: break
+            c=[b for b in free if b is not a and b.partner is None and math.hypot(a.x-b.x,a.y-b.y)<180]
+            if c: self._pairs.append(_Pair(a,min(c,key=lambda q:math.hypot(a.x-q.x,a.y-q.y)),self._rng))
+        for p in self._pairs[:]:
+            if not p.update(bass,mids,treble,beat,w,h): self._pairs.remove(p)
+        alive=[]
+        for b in self._butterflies:
+            if b.partner is None: b.update(bass,mids,treble,beat,w,h)
+            b.hue=(self._hue+(0.5 if b.partner else 0))%1
+            if b.state=='cocoon': pygame.draw.circle(self._trail,hsl(b.hue,l=.55),(int(b.x),int(b.y)),max(1,int(2+b.age*.08)))
+            elif not b.off_screen(w,h): b.draw(self._trail,treble)
+            if not b.off_screen(w,h) or b.partner is not None: alive.append(b)
+        self._butterflies=alive[:self.MAX_POPULATION]
+        if (w,h)!=(dw,dh): pygame.transform.scale(self._trail,(dw,dh),self._scaled); surf.blit(self._scaled,(0,0),special_flags=pygame.BLEND_RGB_MAX)
+        else: surf.blit(self._trail,(0,0),special_flags=pygame.BLEND_RGB_MAX)
+    def release(self): self._trail=None; self._scaled=None; self._butterflies.clear(); self._pairs.clear()

@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 import pygame
+import pygame.surfarray as surfarray
 
 import config
 from .base import Effect
@@ -27,6 +28,11 @@ class Mycelium(Effect):
         self._spores: list = []
         self._cores: list[tuple[float, float, float]] = []
         self._W, self._H = config.WIDTH, config.HEIGHT
+        self._halo_w = self._halo_h = 0
+        self._halo = None
+        self._halo_surface = None
+        self._halo_scaled = None
+        self._motion_field = None
         self.max_segs = _MAX_SEGS
         self.max_tips = _MAX_TIPS
         if getattr(config, "LOW_SPEC", False):
@@ -35,6 +41,44 @@ class Mycelium(Effect):
             
         self._build_cores()
         self._seed_tips(14 if getattr(config, "LOW_SPEC", False) else 28)
+
+    def _reset_halo(self, W, H):
+        self._halo_w = max(32, W // 4)
+        self._halo_h = max(24, H // 4)
+        self._halo = np.zeros((self._halo_h, self._halo_w), dtype=np.float32)
+        self._halo_surface = pygame.Surface((self._halo_w, self._halo_h))
+        self._halo_scaled = pygame.Surface((W, H))
+
+    def _draw_halo(self, surf, bass, mid, high):
+        W, H = surf.get_size()
+        expected = (max(32, W // 4), max(24, H // 4))
+        if self._halo is None or (self._halo_w, self._halo_h) != expected:
+            self._reset_halo(W, H)
+        self._halo *= 0.965
+        for cx, cy, _ in self._cores:
+            ix = int(np.clip(cx / max(1, W) * self._halo_w, 0, self._halo_w - 1))
+            iy = int(np.clip(cy / max(1, H) * self._halo_h, 0, self._halo_h - 1))
+            self._halo[iy, ix] = min(1.0, self._halo[iy, ix] + 0.16 + bass * 0.16 + self._pulse * 0.22)
+        for tx, ty, *_ in self._tips[:80]:
+            ix = int(np.clip(tx / max(1, W) * self._halo_w, 0, self._halo_w - 1))
+            iy = int(np.clip(ty / max(1, H) * self._halo_h, 0, self._halo_h - 1))
+            self._halo[iy, ix] = min(1.0, self._halo[iy, ix] + 0.025 + high * 0.01)
+        t = self._halo
+        self._halo[:] = np.clip(
+            (np.roll(t, 1, 0) + np.roll(t, -1, 0) + np.roll(t, 1, 1) + np.roll(t, -1, 1) + t * 4.0) / 8.0,
+            0.0, 1.0)
+        hue = (self._hue + self._halo * 0.45 + mid * 0.02) % 1.0
+        glow = np.clip(self._halo * 1.8, 0.0, 1.0)
+        red = np.clip((np.sin(hue * math.tau) * 127 + 128) * glow, 0, 255)
+        green = np.clip((np.sin((hue + 0.333) * math.tau) * 127 + 128) * glow, 0, 255)
+        blue = np.clip((np.sin((hue + 0.667) * math.tau) * 127 + 128) * glow, 0, 255)
+        pixels = surfarray.pixels3d(self._halo_surface)
+        try:
+            pixels[:] = np.stack((red, green, blue), axis=-1).astype(np.uint8).transpose(1, 0, 2)
+        finally:
+            del pixels
+        pygame.transform.smoothscale(self._halo_surface, surf.get_size(), self._halo_scaled)
+        surf.blit(self._halo_scaled, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     def _build_cores(self):
         W, H = self._W, self._H
@@ -92,6 +136,7 @@ class Mycelium(Effect):
         self._hue = (self._hue + 0.003 + mid * 0.002) % 1.0
         self._phase += 0.010 + mid * 0.012 + high * 0.006
         self._pulse = max(0.0, self._pulse - 0.03)
+        self._draw_halo(surf, bass, mid, high)
 
         # Beat spawns new tips
         if bass > 0.65 and len(self._tips) < self.max_tips:
@@ -139,6 +184,12 @@ class Mycelium(Effect):
                     math.sin(tx * 0.013 + self._phase + core_idx * 0.7) * 0.55
                     + math.cos(ty * 0.011 - self._phase * 1.2 + depth * 0.25) * 0.35
                 )
+                if self._motion_field is not None:
+                    vx, vy = self._motion_field
+                    if vx.ndim == 2 and vy.shape == vx.shape and vx.size:
+                        fy = min(vx.shape[0] - 1, max(0, int(ty / max(1, H) * vx.shape[0])))
+                        fx = min(vx.shape[1] - 1, max(0, int(tx / max(1, W) * vx.shape[1])))
+                        field += float(np.clip(vx[fy, fx] - vy[fy, fx], -2.0, 2.0)) * 0.04
                 ta2 = ta + (swirl + field - ta) * 0.22 + float(gauss[idx])
                 length = max(2.5, speed * (1.0 - depth * 0.030) * float(len_mul[idx]))
                 ex = (tx + math.cos(ta2) * length) % W
@@ -269,3 +320,13 @@ class Mycelium(Effect):
             val = min(0.95, 0.3 + high * 0.5) * fade
             r = max(1.0, ssize * fade * (1.0 + high * 0.8))
             pygame.draw.circle(surf, hsl(hue, l=val), (int(sx), int(sy)), int(r))
+
+    def set_motion_field(self, field) -> None:
+        if not field or len(field) != 2:
+            self._motion_field = None
+            return
+        vx, vy = field
+        if isinstance(vx, np.ndarray) and isinstance(vy, np.ndarray) and vx.shape == vy.shape and vx.ndim == 2:
+            self._motion_field = (vx, vy)
+        else:
+            self._motion_field = None

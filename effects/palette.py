@@ -21,6 +21,7 @@ _GENRE_PRESETS = {
     "classical":  (0.75, 0.001, 0.00, 35),
     "any":        (None, 0.002, 0.10, 28),
 }
+_TRANSITION_FRAMES = 90
 
 
 class ColorPalette:
@@ -32,20 +33,39 @@ class ColorPalette:
         self._drift      = 0.002
         self._sat_boost  = 0.10
         self._target_hue = None      # None = free drift
+        self._target_drift = self._drift
+        self._target_sat_boost = self._sat_boost
+        self._target_trail_alpha = self.trail_alpha
+        self._transition_start_hue = self.base_hue
+        self._transition_frames = _TRANSITION_FRAMES
+        self._transition_elapsed = _TRANSITION_FRAMES
+        self._genre = None
 
     def set_genre(self, genre: str) -> None:
+        if genre == self._genre:
+            return
         target, drift, sat_boost, trail = _GENRE_PRESETS.get(
             genre, _GENRE_PRESETS["any"])
         self._target_hue = target
-        self._drift      = drift
-        self._sat_boost  = sat_boost
-        self.trail_alpha = trail
+        self._target_drift = drift
+        self._target_sat_boost = sat_boost
+        self._target_trail_alpha = trail
+        self._transition_start_hue = self.base_hue
+        self._transition_elapsed = 0
+        self._genre = genre
 
     def update(self, beat: float, mid: float, treble: float, tick: int) -> None:
-        if self._target_hue is not None:
-            # Nudge base_hue toward target
-            diff = (self._target_hue - self.base_hue + 0.5) % 1.0 - 0.5
-            self.base_hue = (self.base_hue + diff * 0.01 + mid * self._drift) % 1.0
+        if self._transition_elapsed < self._transition_frames:
+            self._transition_elapsed += 1
+            progress = min(1.0, self._transition_elapsed / self._transition_frames)
+            self._drift += (self._target_drift - self._drift) * progress
+            self._sat_boost += (self._target_sat_boost - self._sat_boost) * progress
+            self.trail_alpha += (self._target_trail_alpha - self.trail_alpha) * progress
+            if self._target_hue is not None:
+                diff = (self._target_hue - self._transition_start_hue + 0.5) % 1.0 - 0.5
+                self.base_hue = (self._transition_start_hue + diff * progress) % 1.0
+        if self._target_hue is not None and self._transition_elapsed >= self._transition_frames:
+            self.base_hue = (self.base_hue + mid * self._drift) % 1.0
         else:
             self.base_hue = (self.base_hue + 0.001 + mid * self._drift) % 1.0
         self._beat   = beat
