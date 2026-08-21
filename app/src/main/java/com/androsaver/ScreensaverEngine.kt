@@ -470,8 +470,6 @@ class ScreensaverEngine(
                 prefs.getString(Prefs.STATIC_IMAGE_SCALE_PORTRAIT, null))
         )
         val imageView = binding.imageView1
-        val staticCenterRequested = prefs.getString(Prefs.STATIC_IMAGE_SCALE, null) == ImageBehavior.CENTER ||
-            prefs.getString(Prefs.STATIC_IMAGE_SCALE_PORTRAIT, null) == ImageBehavior.CENTER
         val target = object : CustomTarget<Drawable>(
             imageView.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels,
             imageView.height.takeIf { it > 0 } ?: context.resources.displayMetrics.heightPixels
@@ -503,7 +501,7 @@ class ScreensaverEngine(
         }
         imageTargets[imageView] = target
         val staticRequest = Glide.with(context).load(imageSource)
-        if (staticCenterRequested) staticRequest.downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.CENTER_INSIDE)
+            .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
         staticRequest.into(target)
     }
 
@@ -779,18 +777,21 @@ class ScreensaverEngine(
         } else if (item.headers.isNotEmpty()) {
             val b = LazyHeaders.Builder()
             item.headers.forEach { (k, v) -> b.addHeader(k, v) }
+            item.insecureEndpoint?.let {
+                b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
+            }
             GlideUrl(item.url, b.build())
         } else {
-            GlideUrl(item.url)
+            val b = LazyHeaders.Builder()
+            item.insecureEndpoint?.let {
+                b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
+            }
+            GlideUrl(item.url, b.build())
         }
 
         val prefs = Prefs.get(context)
-        val centerRequested = prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, null) == ImageBehavior.CENTER ||
-            prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE_PORTRAIT, null) == ImageBehavior.CENTER
         val request = Glide.with(context).load(glideUrl)
-            .downsample(if (centerRequested)
-                com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.CENTER_INSIDE
-            else com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
+            .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
 
         var glideFailureReported = false
         val target = object : CustomTarget<Drawable>(

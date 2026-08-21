@@ -28,14 +28,20 @@ class SynologySetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = com.androsaver.Prefs.get(this)
-        binding.hostEdit.setText(prefs.getString(Prefs.SYNOLOGY_HOST, ""))
-        binding.portEdit.setText(prefs.getString(Prefs.SYNOLOGY_PORT, "5000"))
-        binding.usernameEdit.setText(prefs.getString(Prefs.SYNOLOGY_USERNAME, ""))
-        binding.passwordEdit.setText(prefs.getString(Prefs.SYNOLOGY_PASSWORD, ""))
-        binding.folderEdit.setText(prefs.getString(Prefs.SYNOLOGY_FOLDER, "/photos"))
-        binding.httpsSwitch.isChecked = prefs.getBoolean(Prefs.SYNOLOGY_USE_HTTPS, true)
-        binding.allowInsecureSwitch.isChecked = prefs.getBoolean(Prefs.SYNOLOGY_ALLOW_INSECURE, false)
+        try {
+            val prefs = com.androsaver.Prefs.get(this)
+            binding.hostEdit.setText(prefs.getString(Prefs.SYNOLOGY_HOST, ""))
+            binding.portEdit.setText(prefs.getString(Prefs.SYNOLOGY_PORT, "5000"))
+            binding.usernameEdit.setText(prefs.getString(Prefs.SYNOLOGY_USERNAME, ""))
+            binding.passwordEdit.setText(prefs.getString(Prefs.SYNOLOGY_PASSWORD, ""))
+            binding.folderEdit.setText(prefs.getString(Prefs.SYNOLOGY_FOLDER, "/photos"))
+            binding.httpsSwitch.isChecked = prefs.getBoolean(Prefs.SYNOLOGY_USE_HTTPS, true)
+            binding.allowInsecureSwitch.isChecked = prefs.getBoolean(Prefs.SYNOLOGY_ALLOW_INSECURE, false)
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            binding.saveButton.isEnabled = false
+            binding.testConnectionButton.isEnabled = false
+        }
     }
 
     private fun validatedPort(): String? {
@@ -71,18 +77,14 @@ class SynologySetupActivity : AppCompatActivity() {
     private fun testConnection() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
-        // Stage values only for the probe; restore the previous configuration below.
-        val prefs = Prefs.get(this)
-        val snapshot = PreferenceSnapshot(prefs, setOf(Prefs.SYNOLOGY_HOST, Prefs.SYNOLOGY_PORT, Prefs.SYNOLOGY_USERNAME, Prefs.SYNOLOGY_PASSWORD, Prefs.SYNOLOGY_FOLDER, Prefs.SYNOLOGY_USE_HTTPS, Prefs.SYNOLOGY_ALLOW_INSECURE))
-        prefs.edit()
-            .putString(Prefs.SYNOLOGY_HOST, binding.hostEdit.text.toString().trim())
-            .putString(Prefs.SYNOLOGY_PORT, port)
-            .putString(Prefs.SYNOLOGY_USERNAME, binding.usernameEdit.text.toString())
-            .putString(Prefs.SYNOLOGY_PASSWORD, binding.passwordEdit.text.toString())
-            .putString(Prefs.SYNOLOGY_FOLDER, binding.folderEdit.text.toString().trim().ifEmpty { "/photos" })
-            .putBoolean(Prefs.SYNOLOGY_USE_HTTPS, binding.httpsSwitch.isChecked)
-            .putBoolean(Prefs.SYNOLOGY_ALLOW_INSECURE, binding.allowInsecureSwitch.isChecked)
-            .apply()
+        val config = SynologySource.ConnectionConfig(
+            host = binding.hostEdit.text.toString().trim(),
+            port = port,
+            username = binding.usernameEdit.text.toString(),
+            password = binding.passwordEdit.text.toString(),
+            useHttps = binding.httpsSwitch.isChecked,
+            allowInsecure = binding.allowInsecureSwitch.isChecked
+        )
 
         binding.testConnectionButton.isEnabled = false
         binding.testStatus.visibility = View.VISIBLE
@@ -90,13 +92,12 @@ class SynologySetupActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val ok = withTimeout(60_000L) { SynologySource(this@SynologySetupActivity).probeConnection() }
+                val ok = withTimeout(60_000L) { SynologySource(this@SynologySetupActivity).probeConnection(config) }
                 binding.testStatus.text = if (ok) getString(R.string.connection_success_no_images) else getString(R.string.connection_failed, "Server rejected the request")
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 binding.testStatus.text = getString(R.string.connection_failed, e.message ?: "Unknown error")
             } finally {
-                snapshot.restore()
                 binding.testConnectionButton.isEnabled = true
             }
         }

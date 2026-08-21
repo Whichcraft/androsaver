@@ -52,6 +52,12 @@ class LatticeMode : BaseMode() {
     private var lastW = 0
     private var lastH = 0
     private var colPeaks = FloatArray(14) { 0.2f }
+    private var rawEnergies = FloatArray(14)
+    private var scaledEnergies = FloatArray(14)
+    private var sxArr = FloatArray(22 * 14)
+    private var syArr = FloatArray(22 * 14)
+    private var bright = FloatArray(22 * 14)
+    private val colorScratch = FloatArray(4)
 
     override fun reset() {
         hue = 0.52f
@@ -101,6 +107,11 @@ class LatticeMode : BaseMode() {
             }
             // Reset peaks when grid size changes
             if (colPeaks.size != nCols) colPeaks = FloatArray(nCols) { 0.2f }
+            if (rawEnergies.size != nCols) rawEnergies = FloatArray(nCols)
+            if (scaledEnergies.size != nCols) scaledEnergies = FloatArray(nCols)
+            if (sxArr.size < nodes.size) sxArr = FloatArray(nodes.size)
+            if (syArr.size < nodes.size) syArr = FloatArray(nodes.size)
+            if (bright.size < nodes.size) bright = FloatArray(nodes.size)
         }
 
         val fft = audio.fft
@@ -128,21 +139,17 @@ class LatticeMode : BaseMode() {
         if (colPeaks.size != nCols) colPeaks = FloatArray(nCols) { 0.2f }
 
         // Dynamic frequency peak normalization with noise gate
-        val rawEnergies = FloatArray(nCols) { col ->
-            maxOf(fft[getBin(col, nCols, fft.size)] - 0.015f, 0f)
+        for (col in 0 until nCols) {
+            rawEnergies[col] = maxOf(fft[getBin(col, nCols, fft.size)] - 0.015f, 0f)
         }
         for (col in 0 until nCols) {
             colPeaks[col] = maxOf(colPeaks[col] * 0.996f, rawEnergies[col])
             colPeaks[col] = maxOf(colPeaks[col], 0.08f)
         }
         // Node column brightness scaled by mids and raw energy
-        val scaledEnergies = FloatArray(nCols) { col ->
-            (rawEnergies[col] / colPeaks[col]) * (0.50f + mid * 0.30f)
+        for (col in 0 until nCols) {
+            scaledEnergies[col] = (rawEnergies[col] / colPeaks[col]) * (0.50f + mid * 0.30f)
         }
-
-        val sxArr = FloatArray(nodes.size)
-        val syArr = FloatArray(nodes.size)
-        val bright = FloatArray(nodes.size)
 
         for (ni in nodes.indices) {
             val nd = nodes[ni]
@@ -169,16 +176,16 @@ class LatticeMode : BaseMode() {
                     val niR = ni + 1
 
                     // Base faint line
-                    val cBase = GLDraw.hsl(nhue, s = 0.25f, l = 0.06f)
+                    val cBase = hsl(nhue, s = 0.25f, l = 0.06f)
                     draw.line(sxArr[ni], syArr[ni], sxArr[niR], syArr[niR], cBase[0], cBase[1], cBase[2], 1f)
 
                     val avgB = (bright[ni] + bright[niR]) * 0.5f
                     if (avgB > 0.1f) {
                         // Glow line
-                        val cOuter = GLDraw.hsl(nhue, l = minOf(avgB * 0.15f, 0.25f))
+                        val cOuter = hsl(nhue, l = minOf(avgB * 0.15f, 0.25f))
                         draw.line(sxArr[ni], syArr[ni], sxArr[niR], syArr[niR], cOuter[0], cOuter[1], cOuter[2], 1f)
                         // Core line
-                        val cCore = GLDraw.hsl(nhue, l = minOf(avgB * 0.40f, 0.70f))
+                        val cCore = hsl(nhue, l = minOf(avgB * 0.40f, 0.70f))
                         draw.line(sxArr[ni], syArr[ni], sxArr[niR], syArr[niR], cCore[0], cCore[1], cCore[2], 1f)
                     }
                 }
@@ -186,16 +193,16 @@ class LatticeMode : BaseMode() {
                     val niD = ni + nCols
 
                     // Base faint line
-                    val cBase = GLDraw.hsl(nhue, s = 0.25f, l = 0.06f)
+                    val cBase = hsl(nhue, s = 0.25f, l = 0.06f)
                     draw.line(sxArr[ni], syArr[ni], sxArr[niD], syArr[niD], cBase[0], cBase[1], cBase[2], 1f)
 
                     val avgB = (bright[ni] + bright[niD]) * 0.5f
                     if (avgB > 0.1f) {
                         // Glow line
-                        val cOuter = GLDraw.hsl(nhue, l = minOf(avgB * 0.15f, 0.25f))
+                        val cOuter = hsl(nhue, l = minOf(avgB * 0.15f, 0.25f))
                         draw.line(sxArr[ni], syArr[ni], sxArr[niD], syArr[niD], cOuter[0], cOuter[1], cOuter[2], 1f)
                         // Core line
-                        val cCore = GLDraw.hsl(nhue, l = minOf(avgB * 0.40f, 0.70f))
+                        val cCore = hsl(nhue, l = minOf(avgB * 0.40f, 0.70f))
                         draw.line(sxArr[ni], syArr[ni], sxArr[niD], syArr[niD], cCore[0], cCore[1], cCore[2], 1f)
                     }
                 }
@@ -208,7 +215,7 @@ class LatticeMode : BaseMode() {
             val nhue = (hue + nd.hOff) % 1f
 
             // Base faint node (shimmers with treble)
-            val cBase = GLDraw.hsl(nhue, s = 0.25f, l = 0.08f)
+            val cBase = hsl(nhue, s = 0.25f, l = 0.08f)
             draw.circle(sxArr[ni], syArr[ni], (2f + high * 1.8f) * scaleFactor, cBase[0], cBase[1], cBase[2], 1f, filled = true, segments = 8)
 
             val b = bright[ni]
@@ -219,16 +226,21 @@ class LatticeMode : BaseMode() {
                 val rOuter = maxOf(3f, baseR * 3f)
 
                 // Outer soft glow
-                val cOuter = GLDraw.hsl(nhue, l = minOf(b * 0.15f + 0.02f, 0.25f))
+                val cOuter = hsl(nhue, l = minOf(b * 0.15f + 0.02f, 0.25f))
                 draw.circle(sxArr[ni], syArr[ni], rOuter, cOuter[0], cOuter[1], cOuter[2], 1f, filled = true, segments = 12)
                 // Middle soft glow
-                val cMid = GLDraw.hsl(nhue, l = minOf(b * 0.40f + 0.08f, 0.60f))
+                val cMid = hsl(nhue, l = minOf(b * 0.40f + 0.08f, 0.60f))
                 draw.circle(sxArr[ni], syArr[ni], rMid, cMid[0], cMid[1], cMid[2], 1f, filled = true, segments = 12)
                 // Core bright center
-                val cCore = GLDraw.hsl(nhue, l = minOf(b * 0.75f + 0.15f + high * 0.05f, 0.95f))
+                val cCore = hsl(nhue, l = minOf(b * 0.75f + 0.15f + high * 0.05f, 0.95f))
                 draw.circle(sxArr[ni], syArr[ni], rCore, cCore[0], cCore[1], cCore[2], 1f, filled = true, segments = 10)
             }
         }
         draw.setNormalBlend()
+    }
+
+    private fun hsl(h: Float, s: Float = 1f, l: Float = 0.5f): FloatArray {
+        GLDraw.hsl(h, s, l, 1f, colorScratch)
+        return colorScratch
     }
 }

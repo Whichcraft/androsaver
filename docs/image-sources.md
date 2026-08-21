@@ -7,7 +7,7 @@ interface ImageSource {
 }
 ```
 
-`ImageItem` carries: `url: String`, `name: String`, `headers: Map<String, String>`, and a stable non-secret `stableId` used for cache/slideshow identity. Temporary fetch URLs and headers remain in memory only.
+`ImageItem` carries: `url: String`, `name: String`, `headers: Map<String, String>`, a stable non-secret `stableId` used for cache/slideshow identity, and optional `insecureEndpoint` transport metadata. The latter is only emitted for an explicitly opted-in self-hosted provider and is matched against the exact scheme, host, and port before the trust-all client can be used. Temporary fetch URLs and headers remain in memory only.
 Glide reads and applies embedded EXIF orientation while decoding.
 
 Enabled providers are constructed by `ImageSourceRegistry`, shared by the
@@ -28,7 +28,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Setup:** Client ID + Client Secret + Folder ID → `GoogleDriveSetupActivity` → `GoogleAuthActivity`
 - **Token refresh:** Refresh token is exchanged before each source listing; concurrent refreshes are serialized.
 - **Prefs keys:** `Prefs.GOOGLE_ACCESS_TOKEN`, `Prefs.GOOGLE_REFRESH_TOKEN`, `Prefs.GOOGLE_FOLDER_ID`
-- **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
+- **Pagination Limit:** Maximum 2,000 files returned, 40 pages, or 20,000 entries scanned (whichever comes first); response bodies are bounded.
 
 ## OneDriveSource
 
@@ -37,7 +37,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Auth:** Azure device-auth flow; `OneDriveAuthManager` handles refresh
 - **Setup:** Client ID + Folder path → `OneDriveSetupActivity` → `OneDriveAuthActivity`
 - **Prefs keys:** `Prefs.ONEDRIVE_ACCESS_TOKEN`, `Prefs.ONEDRIVE_REFRESH_TOKEN`, `Prefs.ONEDRIVE_FOLDER`
-- **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
+- **Pagination Limit:** Maximum 2,000 files returned, 40 pages, or 20,000 entries scanned; response bodies are bounded.
 
 ## DropboxSource
 
@@ -47,6 +47,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Setup:** App Key + App Secret + Folder path → `DropboxSetupActivity` → `DropboxAuthActivity`
 - **Prefs keys:** `Prefs.DROPBOX_ACCESS_TOKEN`, `Prefs.DROPBOX_REFRESH_TOKEN`, `Prefs.DROPBOX_APP_KEY`, `Prefs.DROPBOX_APP_SECRET`, `Prefs.DROPBOX_FOLDER`
 - **Concurrency Throttle:** Temporary link fetches throttled via Semaphore to maximum 10 concurrent requests to prevent connection pool exhaustion.
+- **Pagination Limit:** Maximum 2,000 files returned, 100 pages, or 20,000 entries scanned; repeated cursors stop enumeration.
 
 ## ImmichSource
 
@@ -55,7 +56,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Auth:** API key in `x-api-key` header (no OAuth)
 - **Setup:** Host + Port + HTTPS toggle + API key + optional Album ID → `ImmichSetupActivity`
 - **Prefs keys:** `Prefs.IMMICH_HOST`, `Prefs.IMMICH_PORT`, `Prefs.IMMICH_USE_HTTPS`, `Prefs.IMMICH_API_KEY`, `Prefs.IMMICH_ALBUM_ID`
-- **Pagination Limit:** Maximum 2,000 files returned to protect against memory/socket exhaustion.
+- **Pagination Limit:** Maximum 2,000 files returned, 40 pages, or 20,000 entries scanned; response bodies are bounded.
 
 ## NextcloudSource
 
@@ -64,6 +65,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Auth:** Basic auth with app password. HTTPS and certificate/hostname validation are enabled by default; HTTP or self-signed certificates require the provider's explicit unsafe option.
 - **Setup:** Host + Port + HTTPS toggle + Username + App Password + Folder path → `NextcloudSetupActivity`
 - **Prefs keys:** `Prefs.NEXTCLOUD_HOST`, `Prefs.NEXTCLOUD_USERNAME`, `Prefs.NEXTCLOUD_PASSWORD`, `Prefs.NEXTCLOUD_FOLDER`
+- **Safety:** WebDAV response URLs must resolve to the configured origin before credentials are attached; folder and username components are encoded as path segments. The response body is bounded to prevent oversized XML exhaustion.
 
 ## SynologySource
 
@@ -72,6 +74,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **Auth:** Username/password POST → session SID; the SID is used only in memory for the active listing/download URLs
 - **Setup:** Host + Port + HTTPS + Username + Password + Folder → `SynologySetupActivity`
 - **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_USE_HTTPS`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
+- **Pagination Limit:** Maximum 2,000 files returned, 100 pages, or 20,000 entries scanned; response bodies are bounded.
 
 ## DefaultImagesSource
 

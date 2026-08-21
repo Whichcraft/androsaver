@@ -533,7 +533,13 @@ class GLDraw(var W: Int, var H: Int) {
 
     /** Closed polygon from [pts] = [x0,y0, x1,y1, ...].  Filled = triangle fan. */
     fun polygon(pts: FloatArray, r: Float, g: Float, b: Float, a: Float = 1f, filled: Boolean = false) {
-        val n = pts.size / 2
+        polygon(pts, pts.size / 2, r, g, b, a, filled)
+    }
+
+    /** Closed polygon using only the first [pointCount] points of a reusable buffer. */
+    fun polygon(pts: FloatArray, pointCount: Int, r: Float, g: Float, b: Float,
+                a: Float = 1f, filled: Boolean = false) {
+        val n = pointCount.coerceAtMost(pts.size / 2)
         if (n < 2) return
         if (filled && n >= 3) {
             var sumX = 0.0

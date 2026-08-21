@@ -20,7 +20,10 @@ class AndroSaverGlideModule : AppGlideModule() {
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
         val dynamicCallFactory = object : Call.Factory {
             override fun newCall(request: Request): Call {
-                return HttpClients.forHost(context, request.url.host).newCall(request)
+                val client = HttpClients.forGlideRequest(context, request)
+                return client.newCall(request.newBuilder()
+                    .removeHeader(HttpClients.INSECURE_ENDPOINT_HEADER)
+                    .build())
             }
         }
 

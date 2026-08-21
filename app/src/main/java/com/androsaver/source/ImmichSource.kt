@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
 import com.androsaver.awaitResponse
+import com.androsaver.stringLimited
 import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import okhttp3.Request
@@ -18,19 +19,26 @@ class ImmichSource(private val context: Context) : ImageSource {
 
     override val name = "Immich"
 
+    internal data class ConnectionConfig(
+        val host: String,
+        val port: String,
+        val apiKey: String,
+        val useHttps: Boolean,
+        val allowInsecure: Boolean
+    )
+
     override fun isConfigured(): Boolean {
         val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.IMMICH_HOST, null).isNullOrEmpty() &&
                !prefs.getString(Prefs.IMMICH_API_KEY, null).isNullOrEmpty()
     }
 
-    suspend fun probeConnection(): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val prefs = Prefs.get(context)
-        val host = prefs.getString(Prefs.IMMICH_HOST, null) ?: return@withContext false
-        val port = prefs.getString(Prefs.IMMICH_PORT, "2283") ?: "2283"
-        val key = prefs.getString(Prefs.IMMICH_API_KEY, null) ?: return@withContext false
-        val https = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, true)
-        val insecure = prefs.getBoolean(Prefs.IMMICH_ALLOW_INSECURE, false)
+    suspend fun probeConnection(config: ConnectionConfig): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val host = config.host
+        val port = config.port
+        val key = config.apiKey
+        val https = config.useHttps
+        val insecure = config.allowInsecure
         if (!https && !insecure) throw java.io.IOException("HTTP is disabled")
         val base = "${if (https) "https" else "http"}://$host:$port".toHttpUrlOrNull()
             ?.takeIf { it.encodedPath == "/" && it.query == null }?.toString()?.removeSuffix("/")
@@ -59,41 +67,45 @@ class ImmichSource(private val context: Context) : ImageSource {
             val client = HttpClients.forHost(context, host, allowInsecure)
 
             if (albumId.isNotEmpty()) {
-                fetchAlbumAssets(client, baseUrl, apiKey, albumId)
+                fetchAlbumAssets(client, baseUrl, apiKey, albumId, if (allowInsecure) baseUrl else null)
             } else {
-                fetchAllAssets(client, baseUrl, apiKey)
+                fetchAllAssets(client, baseUrl, apiKey, if (allowInsecure) baseUrl else null)
             }
         }
 
-    private suspend fun fetchAllAssets(client: okhttp3.OkHttpClient, baseUrl: String, apiKey: String): List<ImageItem> {
+    private suspend fun fetchAllAssets(client: okhttp3.OkHttpClient, baseUrl: String, apiKey: String, insecureEndpoint: String?): List<ImageItem> {
         val items = mutableListOf<ImageItem>()
         var page = 1
         val pageSize = 500
         val maxFetch = 2000
-        while (items.size < maxFetch) {
+        var scanned = 0
+        var pages = 0
+        while (items.size < maxFetch && scanned < MAX_SCANNED_ENTRIES && pages < MAX_PAGES) {
             val url = "$baseUrl/api/assets?page=$page&size=$pageSize"
             val json = get(client, url, apiKey)
             val array = JSONArray(json)
             if (array.length() == 0) break
-            parseAssets(array, baseUrl, apiKey, items, maxFetch)
+            scanned += array.length()
+            pages++
+            parseAssets(array, baseUrl, apiKey, items, maxFetch, insecureEndpoint)
             if (array.length() < pageSize) break
             page++
         }
         return items
     }
 
-    private suspend fun fetchAlbumAssets(client: okhttp3.OkHttpClient, baseUrl: String, apiKey: String, albumId: String): List<ImageItem> {
+    private suspend fun fetchAlbumAssets(client: okhttp3.OkHttpClient, baseUrl: String, apiKey: String, albumId: String, insecureEndpoint: String?): List<ImageItem> {
         val encodedId = URLEncoder.encode(albumId, "UTF-8")
         val url  = "$baseUrl/api/albums/$encodedId"
         val json = get(client, url, apiKey)
         val obj  = JSONObject(json)
         val array = obj.optJSONArray("assets") ?: return emptyList()
         val items = mutableListOf<ImageItem>()
-        parseAssets(array, baseUrl, apiKey, items, 2000)
+        parseAssets(array, baseUrl, apiKey, items, 2000, insecureEndpoint)
         return items
     }
 
-    private fun parseAssets(array: JSONArray, baseUrl: String, apiKey: String, out: MutableList<ImageItem>, maxLimit: Int) {
+    private fun parseAssets(array: JSONArray, baseUrl: String, apiKey: String, out: MutableList<ImageItem>, maxLimit: Int, insecureEndpoint: String?) {
         for (i in 0 until array.length()) {
             if (out.size >= maxLimit) break
             val asset = array.getJSONObject(i)
@@ -103,7 +115,7 @@ class ImmichSource(private val context: Context) : ImageSource {
             val name = asset.optString("originalFileName", id)
             // Use preview thumbnail for faster loading; Glide handles the auth header
             val url  = "$baseUrl/api/assets/$id/thumbnail?size=preview"
-            out.add(ImageItem(url = url, name = name, headers = mapOf("x-api-key" to apiKey), stableId = "immich:$id"))
+            out.add(ImageItem(url = url, name = name, headers = mapOf("x-api-key" to apiKey), stableId = "immich:$id", insecureEndpoint = insecureEndpoint))
         }
     }
 
@@ -119,10 +131,13 @@ class ImmichSource(private val context: Context) : ImageSource {
             response.close()
             throw java.io.IOException("HTTP error code $code")
         }
-        return response.use { it.body?.string() } ?: throw java.io.IOException("Empty response body")
+        return response.use { it.body?.stringLimited(MAX_RESPONSE_BYTES) } ?: throw java.io.IOException("Empty response body")
     }
 
     companion object {
         private const val TAG = "ImmichSource"
+        private const val MAX_PAGES = 40
+        private const val MAX_SCANNED_ENTRIES = 20_000
+        private const val MAX_RESPONSE_BYTES = 8L * 1024 * 1024
     }
 }

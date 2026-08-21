@@ -34,6 +34,12 @@ class TunnelMode : BaseMode() {
 
     private val rings = ArrayList<Ring>(N_RINGS)
     private val tris  = ArrayList<Tri>(120)
+    private val ordered = ArrayList<Ring>(N_RINGS)
+    private val pathScratch = FloatArray(2)
+    private val projScratch = FloatArray(3)
+    private val starPts = FloatArray(12)
+    private val triPts = FloatArray(6)
+    private val colorScratch = FloatArray(4)
     private var hue  = 0f
     private var time = 0f
 
@@ -47,15 +53,18 @@ class TunnelMode : BaseMode() {
         }
     }
 
-    private fun path(t: Float, treble: Float = 0f): Pair<Float, Float> {
+    private fun path(t: Float, treble: Float = 0f, out: FloatArray = pathScratch) {
         val scale = 1f + treble * 0.45f
-        return sin(t * 0.21f) * 0.8f * scale to cos(t * 0.16f) * 0.6f * scale
+        out[0] = sin(t * 0.21f) * 0.8f * scale
+        out[1] = cos(t * 0.16f) * 0.6f * scale
     }
 
-    private fun proj(wx: Float, wy: Float, wz: Float, W: Int, H: Int): Triple<Float, Float, Float> {
+    private fun proj(wx: Float, wy: Float, wz: Float, W: Int, H: Int, out: FloatArray = projScratch) {
         val fov = minOf(W, H) * 0.75f
         val z   = maxOf(wz, 0.01f)
-        return Triple(wx * fov / z + W / 2f, wy * fov / z + H / 2f, fov / z)
+        out[0] = wx * fov / z + W / 2f
+        out[1] = wy * fov / z + H / 2f
+        out[2] = fov / z
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -96,15 +105,26 @@ class TunnelMode : BaseMode() {
             r.z -= dt
             if (r.z < Z_NEAR) { r.z += Z_FAR; r.pt = time + r.z }
         }
-        val ordered = rings.sortedByDescending { it.z }
+        ordered.clear()
+        // Insertion-sort the fixed 30-ring list in place; this avoids creating a
+        // comparator/iterator object on every frame while preserving draw order.
+        for (ring in rings) {
+            var insertAt = ordered.size
+            while (insertAt > 0 && ordered[insertAt - 1].z < ring.z) insertAt--
+            ordered.add(insertAt, ring)
+        }
 
         // ── Draw tunnel rings + interior stars ────────────────────────────────
         for (i in 0 until ordered.size - 1) {
             val r1 = ordered[i]; val r2 = ordered[i + 1]
-            val (cx1, cy1) = path(r1.pt, highM)
-            val (sx1, sy1, sc1) = proj(cx1, cy1, r1.z, draw.W, draw.H)
-            val (cx2, cy2) = path(r2.pt, highM)
-            val (_, _, sc2) = proj(cx2, cy2, r2.z, draw.W, draw.H)
+            path(r1.pt, highM)
+            val cx1 = pathScratch[0]; val cy1 = pathScratch[1]
+            proj(cx1, cy1, r1.z, draw.W, draw.H)
+            val sx1 = projScratch[0]; val sy1 = projScratch[1]; val sc1 = projScratch[2]
+            path(r2.pt, highM)
+            val cx2 = pathScratch[0]; val cy2 = pathScratch[1]
+            proj(cx2, cy2, r2.z, draw.W, draw.H)
+            val sx2 = projScratch[0]; val sy2 = projScratch[1]; val sc2 = projScratch[2]
 
             val sr1 = maxOf(1f, TUBE_R * sc1)
             val sr2 = maxOf(1f, TUBE_R * sc2)
@@ -113,17 +133,20 @@ class TunnelMode : BaseMode() {
             val h     = (hue + nearT) % 1f
             val bright = (0.06f + nearT * 0.60f + midM * 0.15f * nearT + bassM * nearT * 0.40f).coerceIn(0f, 1f)
 
-            val (hr, hg, hb) = hsl3(h, l = bright * 0.35f)
+            val glowColor = hsl3(h, l = bright * 0.35f)
+            val hr = glowColor[0]; val hg = glowColor[1]; val hb = glowColor[2]
             draw.circle(sx1, sy1, sr1 + 4f, hr, hg, hb, 0.55f, filled = false, segments = N_SIDES)
-            val (cr, cg, cb) = hsl3(h, l = bright)
+            val coreColor = hsl3(h, l = bright)
+            val cr = coreColor[0]; val cg = coreColor[1]; val cb = coreColor[2]
             draw.circle(sx1, sy1, sr1, cr, cg, cb, 1f, filled = false, segments = N_SIDES)
 
             for (side in 0 until N_SIDES) {
                 val angle = side.toFloat() / N_SIDES * TAU
                 val p1x = sx1 + cos(angle) * sr1; val p1y = sy1 + sin(angle) * sr1
-                val p2x = sx1 + cos(angle) * sr2; val p2y = sy1 + sin(angle) * sr2
+                val p2x = sx2 + cos(angle) * sr2; val p2y = sy2 + sin(angle) * sr2
                 val hs = (h + side.toFloat() / N_SIDES * 0.25f + highM * 0.10f) % 1f
-                val (wr, wg, wb) = hsl3(hs, l = bright * 0.55f)
+                val sideColor = hsl3(hs, l = bright * 0.55f)
+                val wr = sideColor[0]; val wg = sideColor[1]; val wb = sideColor[2]
                 draw.line(p1x, p1y, p2x, p2y, wr, wg, wb, 0.7f)
             }
 
@@ -134,42 +157,49 @@ class TunnelMode : BaseMode() {
             val sR     = maxOf(2f, sr1 * (0.24f + highM * 0.12f))
             val sH     = (h + 0.5f) % 1f
             val sL     = minOf(bright * 1.1f + midM * 0.25f + highM * 0.15f, 0.95f)
-            val sPts   = FloatArray(nStar * 2)
             for (v in 0 until nStar) {
-                sPts[v * 2]     = sx1 + cos(v.toFloat() / nStar * TAU + sRot) * sR
-                sPts[v * 2 + 1] = sy1 + sin(v.toFloat() / nStar * TAU + sRot) * sR
+                starPts[v * 2]     = sx1 + cos(v.toFloat() / nStar * TAU + sRot) * sR
+                starPts[v * 2 + 1] = sy1 + sin(v.toFloat() / nStar * TAU + sRot) * sR
             }
-            val (sr, sg, sb) = hsl3(sH, l = sL)
-            draw.polygon(sPts, sr, sg, sb, 1f, filled = false)
+            val starColor = hsl3(sH, l = sL)
+            draw.polygon(starPts, nStar, starColor[0], starColor[1], starColor[2], 1f, filled = false)
         }
 
         // ── Advance and draw triangles ────────────────────────────────────────
-        val liveTris = ArrayList<Tri>()
-        for (tri in tris) {
+        var writeIndex = 0
+        for (readIndex in tris.indices) {
+            val tri = tris[readIndex]
             tri.z   -= dt
             tri.rot += tri.rvel * (1f + midM * 1.5f)
             if (tri.z < Z_NEAR) continue
-            val (tcx, tcy) = path(tri.pt, highM)
-            val (tsx, tsy, tsc) = proj(tcx, tcy, tri.z, draw.W, draw.H)
+            path(tri.pt, highM)
+            val tcx = pathScratch[0]; val tcy = pathScratch[1]
+            proj(tcx, tcy, tri.z, draw.W, draw.H)
+            val tsx = projScratch[0]; val tsy = projScratch[1]; val tsc = projScratch[2]
             val nearT  = maxOf(0f, 1f - tri.z / Z_FAR)
             val tr     = maxOf(3f, tri.size * tsc)
             val h      = (tri.hue + nearT * 0.4f) % 1f
             val bright = (0.35f + nearT * 0.60f).coerceAtMost(0.95f)
-            val pts = FloatArray(6)
             for (v in 0 until 3) {
-                pts[v * 2]     = tsx + cos(tri.rot + v * TAU / 3f) * tr
-                pts[v * 2 + 1] = tsy + sin(tri.rot + v * TAU / 3f) * tr
+                triPts[v * 2]     = tsx + cos(tri.rot + v * TAU / 3f) * tr
+                triPts[v * 2 + 1] = tsy + sin(tri.rot + v * TAU / 3f) * tr
             }
-            val (dr, dg, db) = hsl3(h, l = bright * 0.30f)
-            draw.polygon(pts, dr, dg, db, 0.8f, filled = false)
-            val (cr, cg, cb) = hsl3(h, l = bright)
-            draw.polygon(pts, cr, cg, cb, 1f, filled = false)
-            liveTris.add(tri)
+            val dimColor = hsl3(h, l = bright * 0.30f)
+            draw.polygon(triPts, dimColor[0], dimColor[1], dimColor[2], 0.8f, filled = false)
+            val triColor = hsl3(h, l = bright)
+            draw.polygon(triPts, triColor[0], triColor[1], triColor[2], 1f, filled = false)
+            if (writeIndex != readIndex) tris[writeIndex] = tri
+            writeIndex++
         }
-        tris.clear(); tris.addAll(if (liveTris.size > 30) liveTris.takeLast(30) else liveTris)
+        while (tris.size > writeIndex) tris.removeAt(tris.lastIndex)
+        if (tris.size > 30) {
+            val drop = tris.size - 30
+            repeat(drop) { tris.removeAt(0) }
+        }
     }
 
-    private fun hsl3(h: Float, s: Float = 1f, l: Float = 0.5f): Triple<Float, Float, Float> {
-        val c = GLDraw.hsl(h, s, l); return Triple(c[0], c[1], c[2])
+    private fun hsl3(h: Float, s: Float = 1f, l: Float = 0.5f): FloatArray {
+        GLDraw.hsl(h, s, l, 1f, colorScratch)
+        return colorScratch
     }
 }

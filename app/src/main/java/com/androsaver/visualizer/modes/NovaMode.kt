@@ -26,6 +26,12 @@ class NovaMode : BaseMode() {
     private val rvel = FloatArray(N_LAYERS)
     private val poff = FloatArray(N_LAYERS)
     private val pvel = FloatArray(N_LAYERS)
+    private val bands = FloatArray(N_LAYERS)
+    private val wave = FloatArray(N_WAVE)
+    private val waveRev = FloatArray(N_WAVE)
+    private val pts = FloatArray(N_WAVE * 2)
+    private val triPts = FloatArray(6)
+    private val colorScratch = FloatArray(4)
 
     override fun reset() {
         hue = 0f; time = 0f
@@ -53,7 +59,10 @@ class NovaMode : BaseMode() {
         hue  = (hue + 0.007f) % 1f
         time += 0.018f + bass * 0.025f + mid * 0.015f
 
-        val bands = floatArrayOf(bass, mid, high, (bass + mid + high) / 3f)
+        bands[0] = bass
+        bands[1] = mid
+        bands[2] = high
+        bands[3] = (bass + mid + high) / 3f
 
         val cx    = W / 2f
         val cy    = H / 2f
@@ -71,10 +80,10 @@ class NovaMode : BaseMode() {
 
         // Downsample waveform to N_WAVE points
         val step  = maxOf(1, waveform.size / N_WAVE)
-        val wave  = FloatArray(N_WAVE) { i ->
-            if (i * step < waveform.size) waveform[i * step] else 0f
+        for (i in 0 until N_WAVE) {
+            wave[i] = if (i * step < waveform.size) waveform[i * step] else 0f
+            waveRev[i] = wave[N_WAVE - 1 - i]
         }
-        val waveRev = wave.reversedArray()
 
         val sector = TAU / N_SYM
 
@@ -87,44 +96,41 @@ class NovaMode : BaseMode() {
             val bright = (0.44f + e * 0.30f + mid * 0.15f + bass * 0.10f).coerceIn(0f, 1f)
             val amp    = baseR * (0.14f + e * 0.20f + bass * 0.10f + high * 0.15f)
 
-            val color = GLDraw.hsl(h, 1f, bright)
+            GLDraw.hsl(h, 1f, bright, 1f, colorScratch)
 
             for (sym in 0 until N_SYM) {
                 val wSlice   = if (sym % 2 == 0) wave else waveRev
                 val angleOff = sym.toFloat() * sector + rot[i]
-                val pts      = FloatArray(wSlice.size * 2)
                 for (j in wSlice.indices) {
                     val theta = j.toFloat() / wSlice.size * sector + angleOff
                     val rPt   = maxOf(2f, baseR + rOff + wSlice[j] * amp)
                     pts[j * 2]     = cx + cos(theta) * rPt
                     pts[j * 2 + 1] = cy + sin(theta) * rPt
                 }
-                if (pts.size >= 4) {
-                    draw.lineStrip(pts, color[0], color[1], color[2], 1f)
+                if (wSlice.size >= 2) {
+                    draw.lineStrip(pts, wSlice.size, colorScratch[0], colorScratch[1], colorScratch[2], 1f)
                 }
             }
 
             // Concentric ring outline for each layer
             val ringR = maxOf(1f, baseR + rOff)
-            val ringColor = GLDraw.hsl(h, 1f, bright * 0.28f)
+            GLDraw.hsl(h, 1f, bright * 0.28f, 1f, colorScratch)
             draw.circle(cx, cy, ringR,
-                ringColor[0], ringColor[1], ringColor[2], ringColor[3],
+                colorScratch[0], colorScratch[1], colorScratch[2], colorScratch[3],
                 filled = false, segments = 64)
         }
 
         // Two counter-rotating triangle rings
-        data class TriLayer(val tRvel: Float, val tRFrac: Float, val tHOff: Float)
-        val triLayers = listOf(
-            TriLayer( 0.012f, 0.58f, 0.25f),
-            TriLayer(-0.008f, 0.82f, 0.55f)
-        )
-        for ((triIdx, triLayer) in triLayers.withIndex()) {
-            val tRot  = rot[0] * triLayer.tRvel / 0.005f + mid * 0.20f
+        for (triIdx in 0 until 2) {
+            val tRvel = if (triIdx == 0) 0.012f else -0.008f
+            val tRFrac = if (triIdx == 0) 0.58f else 0.82f
+            val tHOff = if (triIdx == 0) 0.25f else 0.55f
+            val tRot  = rot[0] * tRvel / 0.005f + mid * 0.20f
             // Treble adds radial jitter to outer triangle positions
-            val tR    = maxR * triLayer.tRFrac * (1f + poff[0] * 0.25f) + sin(time * 8f + triIdx) * (high * 20f)
-            val tH    = (hue + triLayer.tHOff) % 1f
+            val tR    = maxR * tRFrac * (1f + poff[0] * 0.25f) + sin(time * 8f + triIdx) * (high * 20f)
+            val tH    = (hue + tHOff) % 1f
             val tL    = (0.50f + bass * 0.20f + mid * 0.15f + high * 0.15f).coerceIn(0f, 1f)
-            val tColor = GLDraw.hsl(tH, 1f, tL)
+            GLDraw.hsl(tH, 1f, tL, 1f, colorScratch)
 
             for (sym in 0 until N_SYM) {
                 val aMid  = sym.toFloat() / N_SYM * TAU + tRot
@@ -138,12 +144,10 @@ class NovaMode : BaseMode() {
                 val baseRX  = cx + cos(aR)  * tR * 0.82f
                 val baseRY  = cy + sin(aR)  * tR * 0.82f
 
-                val triPts = floatArrayOf(
-                    tipX,   tipY,
-                    baseLX, baseLY,
-                    baseRX, baseRY
-                )
-                draw.polygon(triPts, tColor[0], tColor[1], tColor[2], 1f, filled = false)
+                triPts[0] = tipX; triPts[1] = tipY
+                triPts[2] = baseLX; triPts[3] = baseLY
+                triPts[4] = baseRX; triPts[5] = baseRY
+                draw.polygon(triPts, colorScratch[0], colorScratch[1], colorScratch[2], 1f, filled = false)
             }
         }
 
@@ -151,27 +155,22 @@ class NovaMode : BaseMode() {
         val cRot1 =  time * 1.8f
         val cRot2 = -time * 1.2f + PI.toFloat() / 3f
         val cR = maxR * (0.06f + bass * 0.04f + mid * 0.03f)
-        for ((cRot, hOff) in listOf(cRot1 to 0.0f, cRot2 to 0.5f)) {
+        for (centralLayer in 0 until 2) {
+            val cRot = if (centralLayer == 0) cRot1 else cRot2
+            val hOff = if (centralLayer == 0) 0f else 0.5f
             val tH = (hue + hOff) % 1f
             val tL = (0.55f + bass * 0.25f + high * 0.20f).coerceIn(0f, 1f)
-            val tColor = GLDraw.hsl(tH, 1f, tL)
+            GLDraw.hsl(tH, 1f, tL, 1f, colorScratch)
             for (k in 0 until 3) {
                 val aMid = k.toFloat() / 3f * TAU + cRot
                 val aL   = aMid - PI.toFloat() / 3f * 0.55f
                 val aR   = aMid + PI.toFloat() / 3f * 0.55f
-                val triPts = floatArrayOf(
-                    cx + cos(aMid) * cR * 1.25f, cy + sin(aMid) * cR * 1.25f,
-                    cx + cos(aL)   * cR * 0.75f, cy + sin(aL)   * cR * 0.75f,
-                    cx + cos(aR)   * cR * 0.75f, cy + sin(aR)   * cR * 0.75f
-                )
-                draw.polygon(triPts, tColor[0], tColor[1], tColor[2], 1f, filled = false)
+                triPts[0] = cx + cos(aMid) * cR * 1.25f; triPts[1] = cy + sin(aMid) * cR * 1.25f
+                triPts[2] = cx + cos(aL) * cR * 0.75f; triPts[3] = cy + sin(aL) * cR * 0.75f
+                triPts[4] = cx + cos(aR) * cR * 0.75f; triPts[5] = cy + sin(aR) * cR * 0.75f
+                draw.polygon(triPts, colorScratch[0], colorScratch[1], colorScratch[2], 1f, filled = false)
             }
         }
     }
 
-    private fun FloatArray.reversedArray(): FloatArray {
-        val out = FloatArray(size)
-        for (i in indices) out[i] = this[size - 1 - i]
-        return out
-    }
 }

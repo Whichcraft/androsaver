@@ -30,9 +30,15 @@ class OneDriveSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = com.androsaver.Prefs.get(this)
-        binding.clientIdEdit.setText(prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, ""))
-        binding.folderEdit.setText(prefs.getString(Prefs.ONEDRIVE_FOLDER, ""))
+        try {
+            val prefs = com.androsaver.Prefs.get(this)
+            binding.clientIdEdit.setText(prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, ""))
+            binding.folderEdit.setText(prefs.getString(Prefs.ONEDRIVE_FOLDER, ""))
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            binding.authorizeButton.isEnabled = false
+            binding.revokeButton.isEnabled = false
+        }
     }
 
     private fun saveAndAuthorize() {
@@ -41,21 +47,35 @@ class OneDriveSetupActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.onedrive_client_id_required, Toast.LENGTH_SHORT).show()
             return
         }
-        com.androsaver.Prefs.get(this).edit()
-            .putString(Prefs.ONEDRIVE_CLIENT_ID, clientId)
-            .putString(Prefs.ONEDRIVE_FOLDER, binding.folderEdit.text.toString().trim())
-            .apply()
+        try {
+            val saved = com.androsaver.Prefs.get(this).edit()
+                .putString(Prefs.ONEDRIVE_CLIENT_ID, clientId)
+                .putString(Prefs.ONEDRIVE_FOLDER, binding.folderEdit.text.toString().trim())
+                .commit()
+            if (!saved) throw IllegalStateException("Credential storage failed")
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            return
+        }
         startActivity(Intent(this, OneDriveAuthActivity::class.java))
     }
 
     private fun revokeAuth() {
-        authManager.clearAuth()
+        try {
+            authManager.clearAuth()
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            return
+        }
         updateAuthStatus()
         Toast.makeText(this, R.string.auth_revoked, Toast.LENGTH_SHORT).show()
     }
 
     private fun updateAuthStatus() {
-        val authorized = authManager.isAuthorized()
+        val authorized = try { authManager.isAuthorized() } catch (_: Throwable) {
+            binding.revokeButton.isEnabled = false
+            return
+        }
         binding.authStatusText.text = if (authorized)
             getString(R.string.onedrive_authorized)
         else

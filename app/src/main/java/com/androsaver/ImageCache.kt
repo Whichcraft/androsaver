@@ -35,12 +35,12 @@ class ImageCache(private val context: Context) {
     data class Entry(val key: String?, val file: String, val source: String, val ts: Long, val size: Long)
 
     suspend fun hasCache(): Boolean = withContext(Dispatchers.IO) {
-        mutex.withLock { readManifest().isNotEmpty() }
+        mutex.withLock { reconcileManifest().isNotEmpty() }
     }
 
     suspend fun getCachedItems(): List<ImageItem> = withContext(Dispatchers.IO) {
         mutex.withLock {
-            readManifest().mapNotNull { e ->
+            reconcileManifest().mapNotNull { e ->
                 val key = e.key ?: return@mapNotNull null
                 val f = File(dir, e.file)
                 if (!f.exists()) return@mapNotNull null
@@ -51,7 +51,7 @@ class ImageCache(private val context: Context) {
 
     suspend fun saveImages(items: List<ImageItem>, sourceName: String) = withContext(Dispatchers.IO) {
         val coroutineContext = currentCoroutineContext()
-        val existing = mutex.withLock { readManifest().mapNotNull { it.key }.toHashSet() }
+        val existing = mutex.withLock { reconcileManifest().mapNotNull { it.key }.toHashSet() }
         val newEntries = mutableListOf<Entry>()
         for (item in items.asSequence().filter { it.url.startsWith("http://") || it.url.startsWith("https://") }.take(MAX_ENTRIES)) {
             coroutineContext.ensureActive()
@@ -88,7 +88,7 @@ class ImageCache(private val context: Context) {
         val fileName = sha16(item.stableId) + ".img"
         val file = File(dir, fileName)
         try {
-            HttpClients.forHost(context, request.url.host).newCall(request).awaitResponse().use { response ->
+                HttpClients.forImageItem(context, item).newCall(request).awaitResponse().use { response ->
                 if (!response.isSuccessful) return null
                 val body = response.body ?: return null
                 if (body.contentLength() > MAX_IMAGE_BYTES) return null
@@ -161,6 +161,21 @@ class ImageCache(private val context: Context) {
             }
             else emptyList()
         } catch (_: Exception) { emptyList() }
+    }
+
+    /** Removes manifest entries whose files were partially evicted or corrupted. */
+    private fun reconcileManifest(): List<Entry> {
+        val manifest = readManifest()
+        val valid = manifest.filter { entry ->
+            val file = File(dir, entry.file)
+            file.isFile && file.length() == entry.size && isDecodableImage(file)
+        }
+        if (valid.size != manifest.size) {
+            val validFiles = valid.map { it.file }.toHashSet()
+            manifest.filter { it.file !in validFiles }.forEach { File(dir, it.file).delete() }
+            writeManifest(valid)
+        }
+        return valid
     }
 
     private fun writeManifest(entries: List<Entry>) {

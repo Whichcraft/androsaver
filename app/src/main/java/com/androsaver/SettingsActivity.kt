@@ -151,21 +151,29 @@ class SettingsActivity : AppCompatActivity() {
             }
             val appContext = requireContext().applicationContext
             viewLifecycleOwner.lifecycleScope.launch {
-                val localPath = withContext(Dispatchers.IO) {
-                    StaticImageStore.copyUri(appContext, uri)
-                }
-                if (localPath == null) {
+                try {
+                    val localPath = withContext(Dispatchers.IO) {
+                        StaticImageStore.copyUri(appContext, uri)
+                    }
+                    if (localPath == null) {
+                        android.widget.Toast.makeText(
+                            appContext, R.string.static_image_copy_failed, android.widget.Toast.LENGTH_LONG
+                        ).show()
+                        return@launch
+                    }
+                    Prefs.get(appContext).edit()
+                        .remove(Prefs.STATIC_IMAGE_URI)
+                        .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, localPath)
+                        .putString(Prefs.STATIC_IMAGE_DISPLAY_NAME, uri.lastPathSegment ?: "Selected image")
+                        .apply()
+                    updateStaticImageSummary()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
                     android.widget.Toast.makeText(
                         appContext, R.string.static_image_copy_failed, android.widget.Toast.LENGTH_LONG
                     ).show()
-                    return@launch
                 }
-                Prefs.get(appContext).edit()
-                    .remove(Prefs.STATIC_IMAGE_URI)
-                    .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, localPath)
-                    .putString(Prefs.STATIC_IMAGE_DISPLAY_NAME, uri.lastPathSegment ?: "Selected image")
-                    .apply()
-                updateStaticImageSummary()
             }
         }
 
@@ -446,7 +454,8 @@ class SettingsActivity : AppCompatActivity() {
         private data class SourceLoadResult(
             val source: ImageSource,
             val images: List<ImageItem>?,
-            val timedOut: Boolean = false
+            val timedOut: Boolean = false,
+            val failureKind: com.androsaver.source.ImageSourceResult.FailureKind? = null
         )
 
         override fun onCreateView(
@@ -511,13 +520,13 @@ class SettingsActivity : AppCompatActivity() {
             sources.forEach { source ->
                 viewLifecycleOwner.lifecycleScope.launch {
                     val result = try {
-                        SourceLoadResult(source, withContext(Dispatchers.IO) {
+                        withContext(Dispatchers.IO) {
                             when (val outcome = kotlinx.coroutines.withTimeout(60_000L) { source.enumerate() }) {
-                                is com.androsaver.source.ImageSourceResult.Success -> outcome.items
-                                com.androsaver.source.ImageSourceResult.Empty -> emptyList()
-                                is com.androsaver.source.ImageSourceResult.Failure -> null
+                                is com.androsaver.source.ImageSourceResult.Success -> SourceLoadResult(source, outcome.items)
+                                com.androsaver.source.ImageSourceResult.Empty -> SourceLoadResult(source, emptyList())
+                                is com.androsaver.source.ImageSourceResult.Failure -> SourceLoadResult(source, null, failureKind = outcome.kind)
                             }
-                        })
+                        }
                     } catch (t: Throwable) {
                         if (t is kotlinx.coroutines.TimeoutCancellationException) {
                             SourceLoadResult(source, null, timedOut = true)
@@ -539,6 +548,8 @@ class SettingsActivity : AppCompatActivity() {
             remainingSources = (remainingSources - 1).coerceAtLeast(0)
             val message = when {
                 result.timedOut -> getString(R.string.image_browser_source_timeout, result.source.name)
+                result.failureKind == com.androsaver.source.ImageSourceResult.FailureKind.PERMISSION ->
+                    getString(R.string.image_browser_source_permission, result.source.name)
                 result.images == null -> getString(R.string.image_browser_source_failed, result.source.name)
                 result.images.isEmpty() -> null
                 else -> null
@@ -549,9 +560,9 @@ class SettingsActivity : AppCompatActivity() {
                 rows.add(BrowserRow(source = result.source.name))
                 result.images.orEmpty().forEach { rows.add(BrowserRow(source = result.source.name, image = it)) }
             }
+            rows.removeAll { it.message?.startsWith(getString(R.string.image_browser_limit_prefix)) == true }
             val imageCount = rows.count { it.image != null }
             if (imageCount > 0) {
-                while (rows.lastOrNull()?.message?.startsWith(getString(R.string.image_browser_limit_prefix)) == true) rows.removeAt(rows.lastIndex)
                 rows.add(BrowserRow(message = getString(R.string.image_browser_limit, imageCount)))
             }
             if (remainingSources == 0 && imageCount == 0 && rows.none { it.message == getString(R.string.image_browser_no_images) }) {
@@ -581,6 +592,12 @@ class SettingsActivity : AppCompatActivity() {
                         .apply()
                     Toast.makeText(requireContext(), R.string.image_browser_selected, Toast.LENGTH_SHORT).show()
                     parentFragmentManager.popBackStack()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    if (isAdded) {
+                        Toast.makeText(requireContext(), R.string.image_browser_download_failed, Toast.LENGTH_LONG).show()
+                    }
                 } finally {
                     if (isAdded) list.isEnabled = true
                 }

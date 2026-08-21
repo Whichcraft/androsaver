@@ -3,13 +3,14 @@ package com.androsaver.source
 import kotlinx.coroutines.CancellationException
 
 class ImageSourceAuthenticationException(message: String) : java.io.IOException(message)
+class ImageSourcePermissionException(message: String) : java.io.IOException(message)
 
 sealed class ImageSourceResult {
     data class Success(val items: List<ImageItem>) : ImageSourceResult()
     object Empty : ImageSourceResult()
     data class Failure(val kind: FailureKind) : ImageSourceResult()
 
-    enum class FailureKind { NETWORK, AUTHENTICATION, PARSE, TIMEOUT, UNKNOWN }
+    enum class FailureKind { NETWORK, AUTHENTICATION, PERMISSION, PARSE, TIMEOUT, UNKNOWN }
 }
 
 data class ImageItem(
@@ -17,7 +18,9 @@ data class ImageItem(
     val name: String = "",
     val headers: Map<String, String> = emptyMap(),
     /** Stable provider identity; never contains a temporary fetch URL or secret. */
-    val stableId: String = url
+    val stableId: String = url,
+    /** Exact configured self-hosted endpoint allowed to use the insecure client. */
+    val insecureEndpoint: String? = null
 )
 
 interface ImageSource {
@@ -33,6 +36,8 @@ interface ImageSource {
         throw e
     } catch (e: ImageSourceAuthenticationException) {
         ImageSourceResult.Failure(ImageSourceResult.FailureKind.AUTHENTICATION)
+    } catch (e: ImageSourcePermissionException) {
+        ImageSourceResult.Failure(ImageSourceResult.FailureKind.PERMISSION)
     } catch (e: java.io.IOException) {
         ImageSourceResult.Failure(ImageSourceResult.FailureKind.NETWORK)
     } catch (e: com.google.gson.JsonParseException) {

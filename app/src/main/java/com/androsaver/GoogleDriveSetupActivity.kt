@@ -28,10 +28,16 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = com.androsaver.Prefs.get(this)
-        binding.clientIdEdit.setText(prefs.getString(Prefs.GOOGLE_CLIENT_ID, ""))
-        binding.clientSecretEdit.setText(prefs.getString(Prefs.GOOGLE_CLIENT_SECRET, ""))
-        binding.folderIdEdit.setText(prefs.getString(Prefs.GOOGLE_FOLDER_ID, ""))
+        try {
+            val prefs = com.androsaver.Prefs.get(this)
+            binding.clientIdEdit.setText(prefs.getString(Prefs.GOOGLE_CLIENT_ID, ""))
+            binding.clientSecretEdit.setText(prefs.getString(Prefs.GOOGLE_CLIENT_SECRET, ""))
+            binding.folderIdEdit.setText(prefs.getString(Prefs.GOOGLE_FOLDER_ID, ""))
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            binding.authorizeButton.isEnabled = false
+            binding.revokeButton.isEnabled = false
+        }
     }
 
     private fun saveAndAuthorize() {
@@ -43,27 +49,43 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
             return
         }
 
-        com.androsaver.Prefs.get(this).edit()
-            .putString(Prefs.GOOGLE_CLIENT_ID, clientId)
-            .putString(Prefs.GOOGLE_CLIENT_SECRET, clientSecret)
-            .putString(Prefs.GOOGLE_FOLDER_ID, binding.folderIdEdit.text.toString().trim())
-            .apply()
+        try {
+            val saved = com.androsaver.Prefs.get(this).edit()
+                .putString(Prefs.GOOGLE_CLIENT_ID, clientId)
+                .putString(Prefs.GOOGLE_CLIENT_SECRET, clientSecret)
+                .putString(Prefs.GOOGLE_FOLDER_ID, binding.folderIdEdit.text.toString().trim())
+                .commit()
+            if (!saved) throw IllegalStateException("Credential storage failed")
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            return
+        }
 
         startActivity(Intent(this, GoogleAuthActivity::class.java))
     }
 
     private fun revokeAuth() {
-        com.androsaver.Prefs.get(this).edit()
-            .remove(Prefs.GOOGLE_ACCESS_TOKEN)
-            .remove(Prefs.GOOGLE_REFRESH_TOKEN)
-            .apply()
+        try {
+            val cleared = com.androsaver.Prefs.get(this).edit()
+                .remove(Prefs.GOOGLE_ACCESS_TOKEN)
+                .remove(Prefs.GOOGLE_REFRESH_TOKEN)
+                .commit()
+            if (!cleared) throw IllegalStateException("Credential storage failed")
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            return
+        }
         updateAuthStatus()
         Toast.makeText(this, R.string.auth_revoked, Toast.LENGTH_SHORT).show()
     }
 
     private fun updateAuthStatus() {
-        val prefs = com.androsaver.Prefs.get(this)
-        val authorized = !prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null).isNullOrEmpty()
+        val authorized = try {
+            !com.androsaver.Prefs.get(this).getString(Prefs.GOOGLE_REFRESH_TOKEN, null).isNullOrEmpty()
+        } catch (_: Throwable) {
+            binding.revokeButton.isEnabled = false
+            return
+        }
         binding.authStatusText.text = if (authorized) {
             getString(R.string.google_drive_authorized)
         } else {

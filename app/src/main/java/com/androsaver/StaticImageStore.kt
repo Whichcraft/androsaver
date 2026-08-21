@@ -28,7 +28,7 @@ object StaticImageStore {
                 val request = Request.Builder().url(url).apply {
                     item.headers.forEach { (name, value) -> addHeader(name, value) }
                 }.build()
-                HttpClients.forHost(context, request.url.host).newCall(request).awaitResponse().use { response ->
+                HttpClients.forImageItem(context, item).newCall(request).awaitResponse().use { response ->
                     if (!response.isSuccessful) return null
                     val body = response.body ?: return null
                     copyStream(context) { body.byteStream() }

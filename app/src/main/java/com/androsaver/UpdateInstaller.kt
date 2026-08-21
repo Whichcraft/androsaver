@@ -5,6 +5,8 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -41,6 +43,7 @@ object UpdateInstaller {
                         val buffer = ByteArray(64 * 1024)
                         var total = 0L
                         while (true) {
+                            currentCoroutineContext().ensureActive()
                             val count = input.read(buffer)
                             if (count < 0) break
                             total += count
@@ -55,7 +58,7 @@ object UpdateInstaller {
                 }
             }
             if (temporary.length() == 0L) throw java.io.IOException("Downloaded update is empty")
-            validatePackage(context, temporary)
+            validatePackage(context, temporary, update)
             if (!temporary.renameTo(destination)) {
                 temporary.copyTo(destination, overwrite = true)
                 temporary.delete()
@@ -76,20 +79,25 @@ object UpdateInstaller {
         }
     }
 
-    private fun validatePackage(context: Context, apk: File) {
+    private fun validatePackage(context: Context, apk: File, update: UpdateInfo) {
         val archive = context.packageManager.getPackageArchiveInfo(apk.absolutePath, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)
             ?: throw java.io.IOException("Downloaded file is not an APK")
         if (archive.packageName != context.packageName) throw java.io.IOException("Downloaded APK package mismatch")
         val current = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)
+        val archiveVersion = if (android.os.Build.VERSION.SDK_INT >= 28) archive.longVersionCode else archive.versionCode.toLong()
+        val currentVersion = if (android.os.Build.VERSION.SDK_INT >= 28) current.longVersionCode else current.versionCode.toLong()
+        if (archiveVersion != update.versionCode.toLong() || archiveVersion <= currentVersion) {
+            throw java.io.IOException("Downloaded APK version does not match the update")
+        }
         val archiveSigners = if (android.os.Build.VERSION.SDK_INT >= 28) {
             archive.signingInfo?.apkContentsSigners
         } else archive.signatures
         val currentSigners = if (android.os.Build.VERSION.SDK_INT >= 28) {
             current.signingInfo?.apkContentsSigners
         } else current.signatures
-        if (archiveSigners == null || currentSigners == null ||
-            archiveSigners.size != currentSigners.size ||
-            archiveSigners.zip(currentSigners).any { (a, b) -> !a.toByteArray().contentEquals(b.toByteArray()) }) {
+        val archiveSignerSet = archiveSigners?.map { it.toByteArray().toList() }?.toSet()
+        val currentSignerSet = currentSigners?.map { it.toByteArray().toList() }?.toSet()
+        if (archiveSignerSet == null || currentSignerSet == null || archiveSignerSet != currentSignerSet) {
             throw java.io.IOException("Downloaded APK signer mismatch")
         }
     }

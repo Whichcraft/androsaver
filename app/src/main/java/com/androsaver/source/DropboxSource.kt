@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
 import com.androsaver.awaitResponse
+import com.androsaver.stringLimited
 import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import com.androsaver.auth.DropboxAuthManager
@@ -57,9 +58,11 @@ class DropboxSource(private val context: Context) : ImageSource {
         val files = mutableListOf<Pair<String, String>>() // (pathLower, name)
         var cursor: String? = null
         var hasMore = true
+        var scanned = 0
+        var pages = 0
 
-        while (hasMore) {
-            val (entries, nextCursor, more) = if (cursor == null) {
+        while (hasMore && files.size < maxFetch && scanned < MAX_SCANNED_ENTRIES && pages < MAX_PAGES) {
+            val (entries, nextCursor, more, scannedEntries) = if (cursor == null) {
                 val payload = JsonObject().apply {
                     addProperty("path", path)
                     addProperty("recursive", false)
@@ -71,7 +74,10 @@ class DropboxSource(private val context: Context) : ImageSource {
                     .url("https://api.dropboxapi.com/2/files/list_folder")
                     .header("Authorization", "Bearer $accessToken")
                     .post(body).build()
-                parseListResponse(client.newCall(request).awaitResponse().use { it.body?.string() } ?: return files)
+                parseListResponse(client.newCall(request).awaitResponse().use { response ->
+                    if (!response.isSuccessful) throw java.io.IOException("Dropbox listing failed with HTTP ${response.code}")
+                    response.body?.stringLimited(MAX_RESPONSE_BYTES)
+                } ?: return files)
             } else {
                 val payload = JsonObject().apply { addProperty("cursor", cursor) }
                 val body = gson.toJson(payload)
@@ -80,10 +86,16 @@ class DropboxSource(private val context: Context) : ImageSource {
                     .url("https://api.dropboxapi.com/2/files/list_folder/continue")
                     .header("Authorization", "Bearer $accessToken")
                     .post(body).build()
-                parseListResponse(client.newCall(request).awaitResponse().use { it.body?.string() } ?: return files)
+                parseListResponse(client.newCall(request).awaitResponse().use { response ->
+                    if (!response.isSuccessful) throw java.io.IOException("Dropbox listing failed with HTTP ${response.code}")
+                    response.body?.stringLimited(MAX_RESPONSE_BYTES)
+                } ?: return files)
             }
             files.addAll(entries.take(maxFetch - files.size))
+            scanned += scannedEntries
+            pages++
             if (files.size >= maxFetch) break
+            if (nextCursor != null && nextCursor == cursor) break
             cursor = nextCursor
             hasMore = more
         }
@@ -93,13 +105,15 @@ class DropboxSource(private val context: Context) : ImageSource {
     private data class ListResult(
         val entries: List<Pair<String, String>>,
         val cursor: String?,
-        val hasMore: Boolean
+        val hasMore: Boolean,
+        val scannedEntries: Int
     )
 
     private fun parseListResponse(json: String): ListResult {
         val obj = gson.fromJson(json, JsonObject::class.java)
         val entries = mutableListOf<Pair<String, String>>()
-        obj.getAsJsonArray("entries")?.forEach { el ->
+        val allEntries = obj.getAsJsonArray("entries")
+        allEntries?.forEach { el ->
             val entry = el.asJsonObject
             if (entry.get(".tag")?.asString == "file") {
                 val name = entry.get("name")?.asString ?: return@forEach
@@ -113,7 +127,8 @@ class DropboxSource(private val context: Context) : ImageSource {
         return ListResult(
             entries  = entries,
             cursor   = obj.get("cursor")?.asString,
-            hasMore  = obj.get("has_more")?.asBoolean ?: false
+            hasMore  = obj.get("has_more")?.asBoolean ?: false,
+            scannedEntries = allEntries?.size() ?: 0
         )
     }
 
@@ -135,7 +150,7 @@ class DropboxSource(private val context: Context) : ImageSource {
                             .post(body).build()
                         val json = client.newCall(request).awaitResponse().use { response ->
                             if (!response.isSuccessful) return@withPermit null
-                            gson.fromJson(response.body?.string(), JsonObject::class.java)
+                            gson.fromJson(response.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
                         }
                         val link = json.get("link")?.asString ?: return@withPermit null
                         ImageItem(url = link, name = name, stableId = "dropbox:${path.lowercase()}")
@@ -151,5 +166,8 @@ class DropboxSource(private val context: Context) : ImageSource {
 
     companion object {
         private const val TAG = "DropboxSource"
+        private const val MAX_PAGES = 100
+        private const val MAX_SCANNED_ENTRIES = 20_000
+        private const val MAX_RESPONSE_BYTES = 8L * 1024 * 1024
     }
 }

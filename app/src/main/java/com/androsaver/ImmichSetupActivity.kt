@@ -28,13 +28,19 @@ class ImmichSetupActivity : AppCompatActivity() {
     }
 
     private fun loadSavedSettings() {
-        val prefs = com.androsaver.Prefs.get(this)
-        binding.hostEdit.setText(prefs.getString(Prefs.IMMICH_HOST, ""))
-        binding.portEdit.setText(prefs.getString(Prefs.IMMICH_PORT, "2283"))
-        binding.apiKeyEdit.setText(prefs.getString(Prefs.IMMICH_API_KEY, ""))
-        binding.albumIdEdit.setText(prefs.getString(Prefs.IMMICH_ALBUM_ID, ""))
-        binding.httpsSwitch.isChecked = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, true)
-        binding.allowInsecureSwitch.isChecked = prefs.getBoolean(Prefs.IMMICH_ALLOW_INSECURE, false)
+        try {
+            val prefs = com.androsaver.Prefs.get(this)
+            binding.hostEdit.setText(prefs.getString(Prefs.IMMICH_HOST, ""))
+            binding.portEdit.setText(prefs.getString(Prefs.IMMICH_PORT, "2283"))
+            binding.apiKeyEdit.setText(prefs.getString(Prefs.IMMICH_API_KEY, ""))
+            binding.albumIdEdit.setText(prefs.getString(Prefs.IMMICH_ALBUM_ID, ""))
+            binding.httpsSwitch.isChecked = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, true)
+            binding.allowInsecureSwitch.isChecked = prefs.getBoolean(Prefs.IMMICH_ALLOW_INSECURE, false)
+        } catch (_: Throwable) {
+            Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
+            binding.saveButton.isEnabled = false
+            binding.testConnectionButton.isEnabled = false
+        }
     }
 
     private fun validatedPort(): String? {
@@ -69,16 +75,13 @@ class ImmichSetupActivity : AppCompatActivity() {
     private fun testConnection() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
-        val prefs = Prefs.get(this)
-        val snapshot = PreferenceSnapshot(prefs, setOf(Prefs.IMMICH_HOST, Prefs.IMMICH_PORT, Prefs.IMMICH_API_KEY, Prefs.IMMICH_ALBUM_ID, Prefs.IMMICH_USE_HTTPS, Prefs.IMMICH_ALLOW_INSECURE))
-        prefs.edit()
-            .putString(Prefs.IMMICH_HOST, binding.hostEdit.text.toString().trim())
-            .putString(Prefs.IMMICH_PORT, port)
-            .putString(Prefs.IMMICH_API_KEY, binding.apiKeyEdit.text.toString().trim())
-            .putString(Prefs.IMMICH_ALBUM_ID, binding.albumIdEdit.text.toString().trim())
-            .putBoolean(Prefs.IMMICH_USE_HTTPS, binding.httpsSwitch.isChecked)
-            .putBoolean(Prefs.IMMICH_ALLOW_INSECURE, binding.allowInsecureSwitch.isChecked)
-            .apply()
+        val config = ImmichSource.ConnectionConfig(
+            host = binding.hostEdit.text.toString().trim(),
+            port = port,
+            apiKey = binding.apiKeyEdit.text.toString().trim(),
+            useHttps = binding.httpsSwitch.isChecked,
+            allowInsecure = binding.allowInsecureSwitch.isChecked
+        )
 
         binding.testConnectionButton.isEnabled = false
         binding.testStatus.visibility = View.VISIBLE
@@ -86,13 +89,12 @@ class ImmichSetupActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val ok = withTimeout(60_000L) { ImmichSource(this@ImmichSetupActivity).probeConnection() }
+                val ok = withTimeout(60_000L) { ImmichSource(this@ImmichSetupActivity).probeConnection(config) }
                 binding.testStatus.text = if (ok) getString(R.string.connection_success_no_images) else getString(R.string.connection_failed, "Server rejected the request")
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 binding.testStatus.text = getString(R.string.connection_failed, e.message ?: "Unknown error")
             } finally {
-                snapshot.restore()
                 binding.testConnectionButton.isEnabled = true
             }
         }

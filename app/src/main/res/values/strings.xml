@@ -129,6 +129,7 @@
     <string name="image_browser_no_sources">No image sources are configured. Enable one in Image Sources.</string>
     <string name="image_browser_source_timeout">%1$s timed out after 60 seconds.</string>
     <string name="image_browser_source_failed">%1$s could not be loaded.</string>
+    <string name="image_browser_source_permission">Grant photo permission to use %1$s.</string>
     <string name="image_browser_limit_prefix">Showing </string>
     <string name="image_browser_saving">Saving %s…</string>
     <string name="image_browser_download_failed">The image could not be downloaded.</string>

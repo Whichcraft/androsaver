@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
 import com.androsaver.awaitResponse
+import com.androsaver.stringLimited
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -53,8 +54,10 @@ class OneDriveSource(private val context: Context) : ImageSource {
         val items = mutableListOf<ImageItem>()
             var url: String? = startUrl
             val maxFetch = 2000
+            var scanned = 0
+            var pages = 0
 
-            while (url != null && items.size < maxFetch) {
+            while (url != null && items.size < maxFetch && scanned < MAX_SCANNED_ENTRIES && pages < MAX_PAGES) {
                 val json = client.newCall(
                     Request.Builder().url(url)
                         .header("Authorization", "Bearer $accessToken").build()
@@ -62,11 +65,13 @@ class OneDriveSource(private val context: Context) : ImageSource {
                     if (!resp.isSuccessful) {
                         throw java.io.IOException("OneDrive listing failed with HTTP ${resp.code}")
                     }
-                    gson.fromJson(resp.body?.string(), JsonObject::class.java)
+                    gson.fromJson(resp.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
                 }
 
+                pages++
                 val valueArray = json.getAsJsonArray("value")
                 if (valueArray != null) {
+                    scanned += valueArray.size()
                     for (el in valueArray) {
                         if (items.size >= maxFetch) break
                         val obj      = el.asJsonObject
@@ -123,6 +128,9 @@ class OneDriveSource(private val context: Context) : ImageSource {
 
     companion object {
         private const val TAG = "OneDriveSource"
+        private const val MAX_PAGES = 40
+        private const val MAX_SCANNED_ENTRIES = 20_000
+        private const val MAX_RESPONSE_BYTES = 8L * 1024 * 1024
         private val refreshMutex = Mutex()
     }
 }

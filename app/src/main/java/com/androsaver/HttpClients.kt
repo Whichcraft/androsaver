@@ -5,6 +5,9 @@ import okhttp3.OkHttpClient
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import com.androsaver.source.ImageItem
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
@@ -41,25 +44,26 @@ internal object HttpClients {
             .build()
     }
 
-    fun forHost(context: Context, host: String): OkHttpClient {
-        val normalized = host.trim().lowercase()
-        return try {
-            val prefs = Prefs.get(context)
-            val allowed = setOf(
-                Prefs.IMMICH_HOST to Prefs.IMMICH_ALLOW_INSECURE,
-                Prefs.NEXTCLOUD_HOST to Prefs.NEXTCLOUD_ALLOW_INSECURE,
-                Prefs.SYNOLOGY_HOST to Prefs.SYNOLOGY_ALLOW_INSECURE
-            ).any { (hostKey, allowKey) ->
-                prefs.getBoolean(allowKey, false) &&
-                    prefs.getString(hostKey, null)?.trim()?.lowercase() == normalized
-            }
-            if (allowed) trustAll else standard
-        } catch (_: Throwable) {
-            standard
-        }
-    }
-
     fun forHost(context: Context, host: String, allowInsecure: Boolean): OkHttpClient =
         if (allowInsecure) trustAll else standard
+
+    fun forImageItem(context: Context, item: ImageItem): OkHttpClient {
+        val endpoint = item.insecureEndpoint?.toHttpUrlOrNull() ?: return standard
+        val target = item.url.toHttpUrlOrNull() ?: return standard
+        return if (sameEndpoint(endpoint, target)) trustAll else standard
+    }
+
+    fun forGlideRequest(context: Context, request: okhttp3.Request): OkHttpClient {
+        val endpoint = request.header(INSECURE_ENDPOINT_HEADER)?.toHttpUrlOrNull()
+        val target = request.url
+        return if (endpoint != null && sameEndpoint(endpoint, target)) trustAll else standard
+    }
+
+    fun insecureEndpointHeader(endpoint: String): String = endpoint
+
+    const val INSECURE_ENDPOINT_HEADER = "X-AndroSaver-Insecure-Endpoint"
+
+    private fun sameEndpoint(a: HttpUrl, b: HttpUrl): Boolean =
+        a.scheme == b.scheme && a.host == b.host && a.port == b.port
 
 }

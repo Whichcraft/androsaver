@@ -37,6 +37,7 @@ class LocalStorageSource(private val context: Context) : ImageSource {
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (e is SecurityException) throw ImageSourcePermissionException("Device photo permission is unavailable")
             if (BuildConfig.DEBUG_LOGGING) Log.w("LocalStorageSource", "MediaStore query failed: ${e.message}")
         }
         items
