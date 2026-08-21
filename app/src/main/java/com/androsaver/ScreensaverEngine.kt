@@ -430,7 +430,7 @@ class ScreensaverEngine(
     }
 
     private fun startStaticImageMode(prefs: SharedPreferences) {
-        binding.root.setBackgroundColor(parseBackgroundColor(prefs))
+        binding.root.setBackgroundColor(parseBackgroundColor(prefs, Prefs.STATIC_BACKGROUND_COLOR))
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.GONE
@@ -449,12 +449,7 @@ class ScreensaverEngine(
             return
         }
 
-        binding.imageView1.scaleType = when (prefs.getString(Prefs.STATIC_IMAGE_SCALE, "crop")) {
-            "fit" -> ImageView.ScaleType.FIT_CENTER
-            "center" -> ImageView.ScaleType.CENTER
-            "stretch" -> ImageView.ScaleType.FIT_XY
-            else -> ImageView.ScaleType.CENTER_CROP
-        }
+        binding.imageView1.scaleType = imageScaleType(prefs.getString(Prefs.STATIC_IMAGE_SCALE, "crop"))
         val imageView = binding.imageView1
         val target = object : CustomTarget<Drawable>(
             imageView.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels,
@@ -463,6 +458,12 @@ class ScreensaverEngine(
             override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
                 if (imageTargets[imageView] !== this) return
                 imageView.setImageDrawable(resource)
+                imageView.scaleType = imageScaleTypeForDrawable(
+                    prefs,
+                    resource,
+                    Prefs.STATIC_IMAGE_SCALE,
+                    Prefs.STATIC_IMAGE_SCALE_PORTRAIT
+                )
                 imageView.alpha = 1f
             }
 
@@ -483,23 +484,13 @@ class ScreensaverEngine(
         Glide.with(context).load(imageSource).into(target)
     }
 
-    private fun parseBackgroundColor(prefs: SharedPreferences): Int {
-        val value = prefs.getString(Prefs.STATIC_BACKGROUND_COLOR, "#000000") ?: "#000000"
-        return try {
-            android.graphics.Color.parseColor(value.trim().let {
-                if (it.startsWith("#")) it else "#$it"
-            })
-        } catch (_: IllegalArgumentException) {
-            0xFF000000.toInt()
-        }
-    }
-
     private fun startSlideshowMode(prefs: SharedPreferences) {
+        binding.root.setBackgroundColor(parseBackgroundColor(prefs, Prefs.SLIDESHOW_BACKGROUND_COLOR))
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.VISIBLE
-        binding.imageView1.scaleType = ImageView.ScaleType.FIT_CENTER
-        binding.imageView2.scaleType = ImageView.ScaleType.FIT_CENTER
+        binding.imageView1.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, "fit"))
+        binding.imageView2.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, "fit"))
         devTransitionErrorVisible = false
         binding.devErrorOverlay.text = ""
         binding.devErrorOverlay.visibility = View.GONE
@@ -838,12 +829,18 @@ class ScreensaverEngine(
                         }
                         consecutiveLoadFailures = 0
                         cancelKenBurns(incoming)
+                        val prefs = com.androsaver.Prefs.get(context)
                         incoming.setImageDrawable(resource)
+                        incoming.scaleType = imageScaleTypeForDrawable(
+                            prefs,
+                            resource,
+                            Prefs.SLIDESHOW_IMAGE_SCALE,
+                            Prefs.SLIDESHOW_IMAGE_SCALE_PORTRAIT
+                        )
                         activeView = if (activeView == 1) 2 else 1
                         displayedIndex = resolvedItemIndex
                         displayedItem = imageItems[resolvedItemIndex]
                         currentIndex = (resolvedItemIndex + 1) % imageItems.size
-                        val prefs = com.androsaver.Prefs.get(context)
                         val effect = prefs.getString(Prefs.TRANSITION_EFFECT, "crossfade") ?: "crossfade"
                         val resolvedEffect = applyTransitionWithFallback(
                             incoming, outgoing, effect, prefs, requestSequence
@@ -922,6 +919,36 @@ class ScreensaverEngine(
         })
         imageTargets[incoming] = target
         diagnosedRequest.into(target)
+    }
+
+    private fun imageScaleType(value: String?): ImageView.ScaleType = when (value) {
+        "fit" -> ImageView.ScaleType.FIT_CENTER
+        "center" -> ImageView.ScaleType.CENTER
+        "stretch" -> ImageView.ScaleType.FIT_XY
+        else -> ImageView.ScaleType.CENTER_CROP
+    }
+
+    private fun imageScaleTypeForDrawable(
+        prefs: SharedPreferences,
+        drawable: Drawable,
+        landscapeKey: String,
+        portraitKey: String
+    ): ImageView.ScaleType {
+        val isPortrait = drawable.intrinsicHeight > drawable.intrinsicWidth
+        val key = if (isPortrait) portraitKey else landscapeKey
+        val default = if (isPortrait) "fit" else "crop"
+        return imageScaleType(prefs.getString(key, default))
+    }
+
+    private fun parseBackgroundColor(prefs: SharedPreferences, key: String): Int {
+        val value = prefs.getString(key, "#000000") ?: "#000000"
+        return try {
+            android.graphics.Color.parseColor(value.trim().let {
+                if (it.startsWith("#")) it else "#$it"
+            })
+        } catch (_: IllegalArgumentException) {
+            0xFF000000.toInt()
+        }
     }
 
     private fun findImageItemIndex(item: ImageItem): Int =

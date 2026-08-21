@@ -74,7 +74,13 @@ object Prefs {
     const val STATIC_IMAGE_URI   = "static_image_uri"
     const val STATIC_IMAGE_LOCAL_PATH = "static_image_local_path"
     const val STATIC_IMAGE_SCALE = "static_image_scale"
+    const val STATIC_IMAGE_SCALE_PORTRAIT = "static_image_scale_portrait"
     const val STATIC_BACKGROUND_COLOR = "static_background_color"
+
+    // Slideshow image rendering
+    const val SLIDESHOW_IMAGE_SCALE = "slideshow_image_scale"
+    const val SLIDESHOW_IMAGE_SCALE_PORTRAIT = "slideshow_image_scale_portrait"
+    const val SLIDESHOW_BACKGROUND_COLOR = "slideshow_background_color"
 
     // Visualizer
     const val VISUALIZER_MODE      = "visualizer_mode"

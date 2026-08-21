@@ -21,6 +21,13 @@ Use `Prefs.<CONSTANT>` everywhere — never raw strings.
 | `TRANSITION_EFFECT` | `transition_effect` | ListPreference | `crossfade` |
 | `TRANSITION_SPEED` | `transition_speed` | ListPreference | `1500` (ms) |
 | `KEN_BURNS_ENABLED` | `ken_burns_enabled` | SwitchPreference | `true` |
+| `SLIDESHOW_IMAGE_SCALE` | `slideshow_image_scale` | ListPreference | `fit` (landscape) |
+| `SLIDESHOW_IMAGE_SCALE_PORTRAIT` | `slideshow_image_scale_portrait` | ListPreference | `fit` (portrait) |
+| `SLIDESHOW_BACKGROUND_COLOR` | `slideshow_background_color` | EditTextPreference | `#000000` |
+
+Image rendering behavior is configurable independently for landscape and portrait
+images in both Static Image and Slideshow modes. Slideshow also has its own
+unused-space/background color setting.
 
 Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoom_in`, `zoom_out`, `random`
 

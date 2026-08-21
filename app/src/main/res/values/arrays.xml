@@ -160,6 +160,19 @@
         <item>stretch</item>
     </string-array>
 
+    <string-array name="image_scale_entries">
+        <item>Fill / Crop</item>
+        <item>Fit / Letterbox</item>
+        <item>Original Size / Center</item>
+        <item>Stretch (may distort)</item>
+    </string-array>
+    <string-array name="image_scale_values">
+        <item>crop</item>
+        <item>fit</item>
+        <item>center</item>
+        <item>stretch</item>
+    </string-array>
+
     <string-array name="visualizer_intensity_entries">
         <item>Off</item>
         <item>Low</item>

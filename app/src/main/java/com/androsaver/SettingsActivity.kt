@@ -11,7 +11,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Button
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -25,10 +29,76 @@ import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.SwitchPreferenceCompat
 import com.androsaver.auth.DropboxAuthManager
+import com.androsaver.source.DropboxSource
+import com.androsaver.source.GoogleDriveSource
+import com.androsaver.source.ImageItem
+import com.androsaver.source.ImageSource
+import com.androsaver.source.ImmichSource
+import com.androsaver.source.LocalStorageSource
+import com.androsaver.source.NextcloudSource
+import com.androsaver.source.OneDriveSource
+import com.androsaver.source.SynologySource
+import okhttp3.Request
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+
+private fun configuredImageSources(context: android.content.Context): List<ImageSource> {
+    val prefs = Prefs.get(context)
+    val sources = mutableListOf<ImageSource>()
+    if (prefs.getBoolean(Prefs.ENABLE_GOOGLE_DRIVE, false)) sources += GoogleDriveSource(context)
+    if (prefs.getBoolean(Prefs.ENABLE_ONEDRIVE, false)) sources += OneDriveSource(context)
+    if (prefs.getBoolean(Prefs.ENABLE_DROPBOX, false)) sources += DropboxSource(context)
+    if (prefs.getBoolean(Prefs.ENABLE_IMMICH, false)) sources += ImmichSource(context)
+    if (prefs.getBoolean(Prefs.ENABLE_NEXTCLOUD, false)) sources += NextcloudSource(context)
+    if (prefs.getBoolean(Prefs.ENABLE_SYNOLOGY, false)) sources += SynologySource(context)
+    if (prefs.getBoolean(Prefs.ENABLE_LOCAL_STORAGE, false)) sources += LocalStorageSource(context)
+    return sources
+}
+
+private fun copyImageItemToPrivateStorage(
+    context: android.content.Context,
+    image: ImageItem
+): String? {
+    val directory = File(context.filesDir, "static_background")
+    if (!directory.exists() && !directory.mkdirs()) return null
+    val destination = File(directory, "background_image")
+    val temporary = File.createTempFile("background_image_", ".tmp", directory)
+    return try {
+        if (image.url.startsWith("content://")) {
+            context.contentResolver.openInputStream(Uri.parse(image.url))?.use { input ->
+                temporary.outputStream().use { output -> input.copyTo(output) }
+            } ?: return null
+        } else if (image.url.startsWith("file://")) {
+            File(Uri.parse(image.url).path ?: return null).inputStream().use { input ->
+                temporary.outputStream().use { output -> input.copyTo(output) }
+            }
+        } else {
+            val request = Request.Builder().url(image.url).apply {
+                image.headers.forEach { (name, value) -> addHeader(name, value) }
+            }.build()
+            val host = Uri.parse(image.url).host
+            HttpClients.forHost(context, host ?: "").newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val body = response.body ?: return null
+                body.byteStream().use { input ->
+                    temporary.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+        }
+        if (destination.exists() && !destination.delete()) return null
+        if (!temporary.renameTo(destination)) return null
+        destination.absolutePath
+    } catch (_: Exception) {
+        null
+    } finally {
+        if (temporary.exists()) temporary.delete()
+    }
+}
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -197,6 +267,7 @@ class SettingsActivity : AppCompatActivity() {
             super.onResume()
             try {
                 updateSourcesSummary()
+                updateStaticImageSummary()
                 updateWeatherSummary()
                 updateAboutVersion()
                 checkForUpdates()
@@ -219,6 +290,13 @@ class SettingsActivity : AppCompatActivity() {
                 "image_sources" -> {
                     parentFragmentManager.beginTransaction()
                         .replace(R.id.settings_container, SourcesFragment())
+                        .addToBackStack(null)
+                        .commit()
+                    true
+                }
+                "static_image_source_browser" -> {
+                    parentFragmentManager.beginTransaction()
+                        .replace(R.id.settings_container, StaticImageBrowserFragment())
                         .addToBackStack(null)
                         .commit()
                     true
@@ -365,6 +443,118 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun hasAudioPermission() =
             ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    }
+
+    class StaticImageBrowserFragment : Fragment() {
+
+        private lateinit var content: LinearLayout
+
+        override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?
+        ): View {
+            content = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(32, 24, 32, 24)
+            }
+            val scroll = android.widget.ScrollView(requireContext()).apply {
+                addView(content)
+            }
+            return scroll
+        }
+
+        override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+            super.onViewCreated(view, savedInstanceState)
+            loadImages()
+        }
+
+        private fun loadImages() {
+            content.removeAllViews()
+            content.addView(TextView(requireContext()).apply {
+                text = "Browse images from configured sources"
+                textSize = 22f
+                setPadding(0, 0, 0, 20)
+            })
+            content.addView(ProgressBar(requireContext()))
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                val results = try {
+                    withContext(Dispatchers.IO) {
+                        coroutineScope {
+                            configuredImageSources(requireContext()).map { source ->
+                                async {
+                                    source.name to runCatching { source.getImageUrls() }.getOrDefault(emptyList())
+                                }
+                            }.awaitAll()
+                        }
+                    }
+                } catch (t: Throwable) {
+                    if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Static image browser failed", t)
+                    emptyList()
+                }
+                if (!isAdded) return@launch
+                showResults(results)
+            }
+        }
+
+        private fun showResults(results: List<Pair<String, List<ImageItem>>>) {
+            content.removeAllViews()
+            var imageCount = 0
+            results.forEach { (sourceName, images) ->
+                if (images.isEmpty()) return@forEach
+                content.addView(TextView(requireContext()).apply {
+                    text = sourceName
+                    textSize = 19f
+                    setPadding(0, 18, 0, 8)
+                })
+                images.take(MAX_BROWSER_IMAGES_PER_SOURCE).forEach { image ->
+                    imageCount++
+                    content.addView(Button(requireContext()).apply {
+                        text = image.name.ifBlank { image.url.substringAfterLast('/').substringBefore('?') }
+                        isAllCaps = false
+                        setOnClickListener { selectImage(image) }
+                    })
+                }
+            }
+            if (imageCount == 0) {
+                content.addView(TextView(requireContext()).apply {
+                    text = "No images were found. Check that a slideshow source is enabled and configured."
+                    textSize = 18f
+                })
+            } else if (results.any { it.second.size > MAX_BROWSER_IMAGES_PER_SOURCE }) {
+                content.addView(TextView(requireContext()).apply {
+                    text = "Some sources are limited to the first $MAX_BROWSER_IMAGES_PER_SOURCE images."
+                    setPadding(0, 16, 0, 0)
+                })
+            }
+        }
+
+        private fun selectImage(image: ImageItem) {
+            content.isEnabled = false
+            Toast.makeText(requireContext(), "Saving ${image.name.ifBlank { "image" }}…", Toast.LENGTH_SHORT).show()
+            viewLifecycleOwner.lifecycleScope.launch {
+                val path = withContext(Dispatchers.IO) {
+                    copyImageItemToPrivateStorage(requireContext().applicationContext, image)
+                }
+                if (!isAdded) return@launch
+                if (path == null) {
+                    content.isEnabled = true
+                    Toast.makeText(requireContext(), "The image could not be downloaded.", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                Prefs.get(requireContext()).edit()
+                    .putString(Prefs.STATIC_IMAGE_URI, image.url)
+                    .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, path)
+                    .apply()
+                Toast.makeText(requireContext(), "Static image selected.", Toast.LENGTH_SHORT).show()
+                parentFragmentManager.popBackStack()
+            }
+        }
+
+        companion object {
+            private const val MAX_BROWSER_IMAGES_PER_SOURCE = 250
+        }
     }
 
     // ── Image sources sub-screen ──────────────────────────────────────────────
