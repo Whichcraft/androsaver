@@ -3,6 +3,7 @@ package com.androsaver.auth
 import android.content.Context
 import androidx.preference.PreferenceManager
 import com.androsaver.HttpClients
+import com.androsaver.awaitResponse
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -46,7 +47,10 @@ class DropboxAuthManager(private val context: Context) {
                     .url("https://api.dropboxapi.com/oauth2/token")
                     .header("Authorization", Credentials.basic(appKey, appSecret))
                     .post(body).build()
-            ).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            ).awaitResponse().use { response ->
+                if (!response.isSuccessful) return@withContext AuthResult.Error("HTTP ${response.code}")
+                gson.fromJson(response.body?.string(), JsonObject::class.java)
+            }
 
             if (json.has("error")) return@withContext AuthResult.Error(
                 json.get("error_description")?.asString ?: json.get("error").asString
@@ -60,6 +64,7 @@ class DropboxAuthManager(private val context: Context) {
                 .apply()
             AuthResult.Success(accessToken, refreshToken)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AuthResult.Error(e.message ?: "Network error")
         }
     }
@@ -86,13 +91,17 @@ class DropboxAuthManager(private val context: Context) {
                         .url("https://api.dropboxapi.com/oauth2/token")
                         .header("Authorization", Credentials.basic(appKey, appSecret))
                         .post(body).build()
-                ).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+                ).awaitResponse().use { response ->
+                    if (!response.isSuccessful) return@withContext null
+                    gson.fromJson(response.body?.string(), JsonObject::class.java)
+                }
 
                 if (json.has("error")) return@withContext null
                 val newToken = json.get("access_token").asString
                 prefs.edit().putString(Prefs.DROPBOX_ACCESS_TOKEN, newToken).apply()
                 newToken
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 null
             }
         }

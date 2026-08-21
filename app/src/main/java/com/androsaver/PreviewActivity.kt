@@ -23,6 +23,10 @@ class PreviewActivity : AppCompatActivity() {
         binding = DreamLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
         engine = ScreensaverEngine(this, binding, scope, onRequestFinish = { finish() })
+    }
+
+    override fun onStart() {
+        super.onStart()
         engine.start(com.androsaver.Prefs.get(this))
     }
 
@@ -34,6 +38,11 @@ class PreviewActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         engine.resumeVisualizer()
+    }
+
+    override fun onStop() {
+        engine.stop()
+        super.onStop()
     }
 
     override fun onDestroy() {

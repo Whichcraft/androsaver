@@ -121,6 +121,11 @@ class PersistenceMode : BaseMode() {
     private var boost    = 0f
     private var beatPrev = 0f
     private val rotOut   = FloatArray(3)
+    private val projX    = FloatArray(20)
+    private val projY    = FloatArray(20)
+    private val depths   = FloatArray(20)
+    private val glowColor = FloatArray(4)
+    private val coreColor = FloatArray(4)
 
     override fun reset() {
         hue = 0f; boost = 0f; beatPrev = 0f
@@ -189,10 +194,6 @@ class PersistenceMode : BaseMode() {
             val uVerts = model.verts
             val edges = model.edges
 
-            val projX = FloatArray(uVerts.size)
-            val projY = FloatArray(uVerts.size)
-            val depths = FloatArray(uVerts.size)
-
             for (vIdx in uVerts.indices) {
                 val uVert = uVerts[vIdx]
                 val sxVal = uVert[0] * rLocal
@@ -223,12 +224,12 @@ class PersistenceMode : BaseMode() {
                 var dFactor = 0.15f + 0.85f * (1f - (zNorm + 1f) / 2f)
                 dFactor = dFactor.coerceIn(0.15f, 1f)
 
-                val col = GLDraw.hsl(h, l = bright * dFactor)
-                val glow = GLDraw.hsl(h, l = bright * 0.30f * dFactor)
+                GLDraw.hsl(h, 1f, bright * 0.30f * dFactor, 1f, glowColor)
+                GLDraw.hsl(h, 1f, bright * dFactor, 1f, coreColor)
 
                 // Double-pass line drawing for glow effect
-                draw.line(projX[a], projY[a], projX[b], projY[b], glow[0], glow[1], glow[2], glow[3])
-                draw.line(projX[a], projY[a], projX[b], projY[b], col[0], col[1], col[2], col[3])
+                draw.line(projX[a], projY[a], projX[b], projY[b], glowColor[0], glowColor[1], glowColor[2], glowColor[3])
+                draw.line(projX[a], projY[a], projX[b], projY[b], coreColor[0], coreColor[1], coreColor[2], coreColor[3])
             }
         }
 

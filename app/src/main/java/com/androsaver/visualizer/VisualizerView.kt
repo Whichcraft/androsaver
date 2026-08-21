@@ -28,6 +28,8 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
         return renderer.modes.indices.filter { renderer.modes[it].name in names }
     }
 
+    fun firstEnabledMode(): Int = enabledIndices().firstOrNull() ?: 0
+
     fun startVisualizer() {
         if (started) return
         started = true
@@ -68,7 +70,7 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
     /** Switch to a mode by its name. No-op if name not found. */
     fun setMode(name: String) {
         val idx = renderer.modeNames.indexOfFirst { it.equals(name, ignoreCase = true) }
-        if (idx >= 0) renderer.modeIndex = idx
+        if (idx >= 0 && (enabledModeNames.isEmpty() || name in enabledModeNames)) renderer.modeIndex = idx
     }
 
     /** Switch to a mode by its index. */

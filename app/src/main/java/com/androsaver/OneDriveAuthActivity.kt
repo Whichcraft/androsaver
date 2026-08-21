@@ -42,7 +42,7 @@ class OneDriveAuthActivity : AppCompatActivity() {
             binding.statusText.text = getString(R.string.waiting_for_authorization)
 
             val expiresAt = System.currentTimeMillis() + deviceCode.expiresIn * 1000L
-            val pollIntervalMs = (deviceCode.interval * 1000L).coerceAtLeast(5000L)
+            var pollIntervalMs = (deviceCode.interval * 1000L).coerceAtLeast(5000L)
 
             while (System.currentTimeMillis() < expiresAt) {
                 delay(pollIntervalMs)
@@ -55,6 +55,7 @@ class OneDriveAuthActivity : AppCompatActivity() {
                         return@launch
                     }
                     is AuthResult.Pending -> { /* keep polling */ }
+                    is AuthResult.SlowDown -> { pollIntervalMs = (pollIntervalMs + 5000L).coerceAtMost(60_000L) }
                     is AuthResult.Expired -> {
                         binding.statusText.text = getString(R.string.auth_expired)
                         return@launch

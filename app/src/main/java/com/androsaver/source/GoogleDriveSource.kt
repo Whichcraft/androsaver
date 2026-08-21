@@ -4,10 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.awaitResponse
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -29,9 +31,9 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
     }
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
+        if (!isConfigured()) return@withContext emptyList()
         val accessToken = refreshAccessTokenSilently() ?: run {
-            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "No valid access token")
-            return@withContext emptyList()
+            throw ImageSourceAuthenticationException("Google Drive authentication failed")
         }
 
         val prefs = com.androsaver.Prefs.get(context)
@@ -44,19 +46,18 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
         val baseUrl = "https://www.googleapis.com/drive/v3/files" +
                 "?q=$query&fields=files(id,name,mimeType),nextPageToken&pageSize=1000"
 
-        try {
-            val items = mutableListOf<ImageItem>()
+        val items = mutableListOf<ImageItem>()
             var pageToken: String? = null
             val maxFetch = 2000
             do {
                 val url = if (pageToken != null) "$baseUrl&pageToken=${URLEncoder.encode(pageToken, "UTF-8")}" else baseUrl
                 val response = client.newCall(
                     Request.Builder().url(url).addHeader("Authorization", "Bearer $accessToken").build()
-                ).execute()
+                ).awaitResponse()
                 if (!response.isSuccessful) {
-                    if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List files failed: ${response.code}")
+                    val code = response.code
                     response.close()
-                    break
+                    throw java.io.IOException("Google Drive listing failed with HTTP $code")
                 }
                 val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
                 val files = json.getAsJsonArray("files")
@@ -69,18 +70,15 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
                         items.add(ImageItem(
                             url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media",
                             name = name,
-                            headers = mapOf("Authorization" to "Bearer $accessToken")
+                            headers = mapOf("Authorization" to "Bearer $accessToken"),
+                            stableId = "google:$fileId"
                         ))
                     }
                 }
                 if (items.size >= maxFetch) break
                 pageToken = json.get("nextPageToken")?.asString
             } while (pageToken != null)
-            items
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error listing Drive files", e)
-            emptyList()
-        }
+        items
     }
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
@@ -105,13 +103,14 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             .build()
 
         try {
-            val json = client.newCall(request).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            val json = client.newCall(request).awaitResponse().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
             val token = json.get("access_token")?.asString
             if (token != null) {
                 prefs.edit().putString(Prefs.GOOGLE_ACCESS_TOKEN, token).apply()
             }
             token
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Token refresh failed", e)
             null
         }

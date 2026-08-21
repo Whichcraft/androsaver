@@ -4,11 +4,13 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.awaitResponse
 import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.xmlpull.v1.XmlPullParser
 import java.net.URLDecoder
@@ -19,14 +21,40 @@ class NextcloudSource(private val context: Context) : ImageSource {
 
     override val name = "Nextcloud"
 
-    private val client = HttpClients.trustAll
-
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
 
     override fun isConfigured(): Boolean {
         val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.NEXTCLOUD_HOST, null).isNullOrEmpty() &&
-               !prefs.getString(Prefs.NEXTCLOUD_USERNAME, null).isNullOrEmpty()
+               !prefs.getString(Prefs.NEXTCLOUD_USERNAME, null).isNullOrEmpty() &&
+               !prefs.getString(Prefs.NEXTCLOUD_PASSWORD, null).isNullOrEmpty()
+    }
+
+    suspend fun probeConnection(): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val prefs = Prefs.get(context)
+        val host = prefs.getString(Prefs.NEXTCLOUD_HOST, null) ?: return@withContext false
+        val port = prefs.getString(Prefs.NEXTCLOUD_PORT, "443") ?: "443"
+        val user = prefs.getString(Prefs.NEXTCLOUD_USERNAME, null) ?: return@withContext false
+        val password = prefs.getString(Prefs.NEXTCLOUD_PASSWORD, null) ?: return@withContext false
+        val folder = prefs.getString(Prefs.NEXTCLOUD_FOLDER, "/Photos")?.ifEmpty { "/Photos" } ?: "/Photos"
+        val https = prefs.getBoolean(Prefs.NEXTCLOUD_USE_HTTPS, true)
+        val insecure = prefs.getBoolean(Prefs.NEXTCLOUD_ALLOW_INSECURE, false)
+        if (!https && !insecure) throw java.io.IOException("HTTP is disabled")
+        val base = "${if (https) "https" else "http"}://$host:$port".toHttpUrlOrNull()
+            ?.takeIf { it.encodedPath == "/" && it.query == null }?.toString()?.removeSuffix("/")
+            ?: throw java.io.IOException("Invalid Nextcloud host or port")
+        val davFolder = if (folder.startsWith("/")) folder else "/$folder"
+        val davUrl = "$base/remote.php/dav/files/${URLEncoder.encode(user, "UTF-8")}$davFolder"
+        val body = """<?xml version="1.0" encoding="UTF-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>"""
+            .toRequestBody("application/xml".toMediaType())
+        HttpClients.forHost(context, host, insecure).newCall(
+            Request.Builder().url(davUrl).header("Authorization", Credentials.basic(user, password))
+                .header("Depth", "0").method("PROPFIND", body).build()
+        ).awaitResponse().use { response ->
+            if (!response.isSuccessful) throw java.io.IOException("HTTP error code ${response.code}")
+            response.body?.string()?.isNotBlank() ?: throw java.io.IOException("Empty WebDAV response")
+        }
+        true
     }
 
     override suspend fun getImageUrls(): List<ImageItem> =
@@ -35,21 +63,27 @@ class NextcloudSource(private val context: Context) : ImageSource {
             val host     = prefs.getString(Prefs.NEXTCLOUD_HOST, null) ?: return@withContext emptyList()
             val port     = prefs.getString(Prefs.NEXTCLOUD_PORT, "443") ?: "443"
             val useHttps = prefs.getBoolean(Prefs.NEXTCLOUD_USE_HTTPS, true)
+            val allowInsecure = prefs.getBoolean(Prefs.NEXTCLOUD_ALLOW_INSECURE, false)
             val username = prefs.getString(Prefs.NEXTCLOUD_USERNAME, null) ?: return@withContext emptyList()
             val password = prefs.getString(Prefs.NEXTCLOUD_PASSWORD, null) ?: return@withContext emptyList()
             val folder   = prefs.getString(Prefs.NEXTCLOUD_FOLDER, "/Photos")?.ifEmpty { "/Photos" } ?: "/Photos"
 
             val scheme     = if (useHttps) "https" else "http"
-            val baseUrl    = "$scheme://$host:$port"
+            if (!useHttps && !allowInsecure) throw java.io.IOException("HTTP is disabled; enable insecure connections explicitly")
+            val baseUrl    = "$scheme://$host:$port".toHttpUrlOrNull()
+                ?.takeIf { it.encodedPath == "/" && it.query == null }
+                ?.toString()?.removeSuffix("/")
+                ?: throw java.io.IOException("Invalid Nextcloud host or port")
             val encodedUser = URLEncoder.encode(username, "UTF-8")
             val davFolder  = if (folder.startsWith("/")) folder else "/$folder"
             val davUrl     = "$baseUrl/remote.php/dav/files/$encodedUser$davFolder"
             val credential = Credentials.basic(username, password)
+            val client = HttpClients.forHost(context, host, allowInsecure)
 
-            listImages(davUrl, credential, baseUrl)
+            listImages(client, davUrl, credential, baseUrl)
         }
 
-    private fun listImages(davUrl: String, credential: String, baseUrl: String): List<ImageItem> {
+    private suspend fun listImages(client: okhttp3.OkHttpClient, davUrl: String, credential: String, baseUrl: String): List<ImageItem> {
         val body = """<?xml version="1.0" encoding="UTF-8"?>
 <d:propfind xmlns:d="DAV:">
   <d:prop>
@@ -64,7 +98,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
             .header("Depth", "1")
             .method("PROPFIND", body)
             .build()
-        val response = client.newCall(request).execute()
+        val response = client.newCall(request).awaitResponse()
         if (!response.isSuccessful) {
             val code = response.code
             response.close()
@@ -105,7 +139,8 @@ class NextcloudSource(private val context: Context) : ImageSource {
                             if (isImage && name.isNotEmpty()) {
                                 val url = if (href.startsWith("http")) href else "$baseUrl$href"
                                 items.add(ImageItem(url = url, name = name,
-                                    headers = mapOf("Authorization" to credential)))
+                                    headers = mapOf("Authorization" to credential),
+                                    stableId = "nextcloud:$href"))
                             }
                         }
                     }
@@ -114,6 +149,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
             }
         } catch (e: Exception) {
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "WebDAV parse error", e)
+            throw java.io.IOException("Invalid WebDAV response", e)
         }
         return items
     }

@@ -6,6 +6,7 @@ import android.provider.MediaStore
 import android.util.Log
 import com.androsaver.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 class LocalStorageSource(private val context: Context) : ImageSource {
@@ -30,11 +31,12 @@ class LocalStorageSource(private val context: Context) : ImageSource {
                     val id = cursor.getLong(idCol)
                     val name = cursor.getString(nameCol) ?: ""
                     val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                    items.add(ImageItem(url = uri.toString(), name = name))
+                    items.add(ImageItem(url = uri.toString(), name = name, stableId = "media:$id"))
                     count++
                 }
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             if (BuildConfig.DEBUG_LOGGING) Log.w("LocalStorageSource", "MediaStore query failed: ${e.message}")
         }
         items

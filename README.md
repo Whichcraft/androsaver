@@ -2,9 +2,9 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage), a fullscreen **music visualizer**, or a **blank black screen**. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
-## What's New in v2.8
+## What's New in v2.9.3
 
-**Major visualizer overhaul and psysuals v3.13 integration:**
+**Static-image controls and psysuals v3.14 integration:**
 
 - **Mycelium** — Reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
 - **Persistence** — Shifted nested rotating polygons into a true 3D perspective projection space with depth-based thickness, brightness shading (depth cueing), and non-coplanar axis rotation.
@@ -12,6 +12,8 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **FlowField & Lattice** — Optimized rendering and particle limits to maintain a solid 60 FPS on low-end TV stick devices.
 - **Fireworks** — Renamed and aligned with the upstream firework-rocket effect, replacing the old Vortex naming and behavior.
 - **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
+- **Static image mode** — choose a local or configured-source image, with independent portrait and landscape behavior settings.
+- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.14.0 while Android-applicable fixes are backported to Kotlin.
 
 ## What's New in v2.2
 

@@ -26,16 +26,21 @@ class AudioEngine {
 
     private var visualizer: Visualizer? = null
     private val smoothFft = FloatArray(FFT_BINS)
+    private val waveScratch = FloatArray(FFT_BINS)
+    private val fftScratch = FloatArray(FFT_BINS)
     private val genreWeights = FloatArray(FFT_BINS) { 1f }
     private val energyHistory = ArrayDeque<Float>()
     private var energySum = 0.0          // running sum for O(1) average
     private var midAvg    = 0.1f         // warm-start to avoid first-frame spikes
     private var trebleAvg = 0.1f         // warm-start to avoid first-frame spikes
-    private val _data = AtomicReference(AudioData())
+    private val snapshots = arrayOf(AudioData(), AudioData())
+    private val _data = AtomicReference(snapshots[0])
+    private var snapshotIndex = 0
 
     // Long-term accumulator for genre detection
     private val detectAccum = FloatArray(FFT_BINS)
     private var detectFrames = 0
+    @Volatile private var detectionEnabled = false
 
     // Latest waveform/fft bytes — combined when both arrive
     @Volatile private var lastWave: FloatArray? = null
@@ -56,14 +61,18 @@ class AudioEngine {
                 v.captureSize = maxCap
                 v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
                     override fun onWaveFormDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
-                        if (!running) return
-                        lastWave = bytes.toWaveform()
-                        publish()
+                        synchronized(this@AudioEngine) {
+                            if (!running) return
+                            lastWave = bytes.toWaveform(waveScratch)
+                            publish()
+                        }
                     }
                     override fun onFftDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
-                        if (!running) return
-                        lastFft = bytes.toFftMagnitude()
-                        publish()
+                        synchronized(this@AudioEngine) {
+                            if (!running) return
+                            lastFft = bytes.toFftMagnitude(fftScratch)
+                            publish()
+                        }
                     }
                 }, Visualizer.getMaxCaptureRate(), true, true)
                 running = true
@@ -82,6 +91,7 @@ class AudioEngine {
 
     fun applyGenreHint(genre: String) {
         synchronized(this) {
+            val previous = genreWeights.copyOf()
             genreWeights.fill(1f)
             val n = genreWeights.size
             when (genre) {
@@ -99,6 +109,20 @@ class AudioEngine {
                     for (i in (n / 4) until n) genreWeights[i] = 1.4f
                 }
             }
+            if (!genreWeights.contentEquals(previous)) {
+                // A genre change alters the weighted spectrum discontinuously.
+                // Reset the rolling baseline so it cannot become a false beat.
+                energyHistory.clear()
+                energySum = 0.0
+                firstFrame = true
+            }
+        }
+    }
+
+    fun setGenreDetectionEnabled(enabled: Boolean) {
+        synchronized(this) {
+            detectionEnabled = enabled
+            if (!enabled) resetDetection()
         }
     }
 
@@ -152,6 +176,7 @@ class AudioEngine {
     @Synchronized
     fun stop() {
         running = false
+        detectionEnabled = false
         visualizer?.let { active ->
             // Best-effort teardown: a failure disabling capture must not skip
             // release, and repeated stop calls remain harmless.
@@ -162,6 +187,8 @@ class AudioEngine {
         synchronized(this) {
             lastWave = null
             lastFft = null
+            waveScratch.fill(0f)
+            fftScratch.fill(0f)
             smoothFft.fill(0f)
             energyHistory.clear()
             energySum = 0.0
@@ -170,7 +197,14 @@ class AudioEngine {
             firstFrame = true
             fftPrimed = false
             resetDetection()
-            _data.set(AudioData())
+            snapshots.forEach {
+                it.waveform.fill(0f)
+                it.fft.fill(0f)
+                it.beat = 0f
+                it.gain = 1f
+            }
+            snapshotIndex = 0
+            _data.set(snapshots[0])
         }
     }
 
@@ -197,10 +231,12 @@ class AudioEngine {
                 for (i in fftLen until FFT_BINS) smoothFft[i] = 0f
             }
 
-            // Accumulate for genre detection (raw, unweighted)
-            val accLen = minOf(rawFft.size, FFT_BINS)
-            for (i in 0 until accLen) detectAccum[i] += rawFft[i]
-            detectFrames++
+            // Accumulate only while automatic genre detection is requested.
+            if (detectionEnabled) {
+                val accLen = minOf(rawFft.size, FFT_BINS)
+                for (i in 0 until accLen) detectAccum[i] += rawFft[i]
+                if (detectFrames < Int.MAX_VALUE) detectFrames++
+            }
 
             // Beat energy = mean of bass bins 0..19 (≈ 0–860 Hz with 512 bins at 44100 Hz)
             val bassBins = minOf(20, fftLen)
@@ -237,40 +273,50 @@ class AudioEngine {
             trebleAvg = trebleAvg * 0.98f + trebleEnergy * 0.02f
             val treble = maxOf(0f, trebleEnergy / (trebleAvg + 0.001f) - 1f)
 
-            _data.set(AudioData(
-                waveform = wave.copyInto(FloatArray(FFT_BINS)),
-                fft = smoothFft.copyOf(),
-                beat = beat,
-                mid = mid,
-                treble = treble
-            ))
+            val snapshot = snapshots[(snapshotIndex + 1) % snapshots.size]
+            snapshotIndex = (snapshotIndex + 1) % snapshots.size
+            snapshot.waveform.fill(0f)
+            System.arraycopy(wave, 0, snapshot.waveform, 0, minOf(wave.size, FFT_BINS))
+            System.arraycopy(smoothFft, 0, snapshot.fft, 0, FFT_BINS)
+            snapshot.beat = beat
+            snapshot.gain = 1f
+            // mid/treble are immutable in the snapshot type, so publish them
+            // through the constructor-free reusable buffer only after changing
+            // the fields to mutable values.
+            snapshot.mid = mid
+            snapshot.treble = treble
+            _data.set(snapshot)
         }
     }
 
     // ── Byte-array helpers ────────────────────────────────────────────────────
 
     /** Convert unsigned 8-bit waveform bytes to float -1..1. */
-    private fun ByteArray.toWaveform(): FloatArray =
-        FloatArray(minOf(size, FFT_BINS)) { i -> ((this[i].toInt() and 0xFF) - 128) / 128f }
+    private fun ByteArray.toWaveform(out: FloatArray): FloatArray {
+        val count = minOf(size, FFT_BINS)
+        for (i in 0 until count) out[i] = ((this[i].toInt() and 0xFF) - 128) / 128f
+        for (i in count until FFT_BINS) out[i] = 0f
+        return out
+    }
 
     /**
      * Convert Android Visualizer FFT bytes to log-normalised magnitudes.
      * Format: fft[0]=DC real, fft[1]=Nyquist real, fft[2k]/fft[2k+1]=Re/Im for k=1..n/2-1.
      */
-    private fun ByteArray.toFftMagnitude(): FloatArray {
+    private fun ByteArray.toFftMagnitude(out: FloatArray): FloatArray {
         val bins = (size / 2).coerceAtMost(FFT_BINS)
-        if (bins == 0) return FloatArray(0)
-        val mag = FloatArray(bins)
+        out.fill(0f)
+        if (bins == 0) return out
         // DC and Nyquist are real-only
-        mag[0] = abs(this[0].toFloat()) / 128f
-        if (bins > 1) mag[bins - 1] = abs(this[1].toFloat()) / 128f
+        out[0] = abs(this[0].toFloat()) / 128f
+        if (bins > 1) out[bins - 1] = abs(this[1].toFloat()) / 128f
         for (i in 1 until bins - 1) {
             val re = this[2 * i].toFloat()
             val im = if (2 * i + 1 < size) this[2 * i + 1].toFloat() else 0f
             val raw = sqrt(re * re + im * im) / 128f
             // log1p normalisation matching Python: log1p(spectrum) / 10
-            mag[i] = ln(1f + raw * 10f) / 10f
+            out[i] = ln(1f + raw * 10f) / 10f
         }
-        return mag
+        return out
     }
 }

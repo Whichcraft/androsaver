@@ -106,20 +106,30 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
             clearFrameCount = 2
             tick = 0
         }
-        val audio = audio.data
-        val mode  = modes[activeModeIndex]
-
-        val scaledAudio = if (beatGain == 1.0f) audio
-                          else audio.copy(beat = (audio.beat * beatGain).coerceIn(0f, 2f), gain = beatGain)
-        draw.beginFrame()
-        if (clearFrameCount > 0) {
-            clearFrameCount--
-            draw.endFrame()
-            tick++
-            return
+        synchronized(audio) {
+            val snapshot = audio.data
+            val mode  = modes[activeModeIndex]
+            val originalBeat = snapshot.beat
+            val originalGain = snapshot.gain
+            if (beatGain != 1.0f) {
+                snapshot.beat = (originalBeat * beatGain).coerceIn(0f, 2f)
+                snapshot.gain = beatGain
+            }
+            try {
+                val clear = clearFrameCount > 0
+                draw.beginFrame(clear)
+                if (clear) {
+                    clearFrameCount--
+                    draw.endFrame()
+                } else {
+                    mode.draw(draw, snapshot, tick)
+                    draw.endFrame()
+                }
+            } finally {
+                snapshot.beat = originalBeat
+                snapshot.gain = originalGain
+            }
         }
-        mode.draw(draw, scaledAudio, tick)
-        draw.endFrame()
         tick++
     }
 }

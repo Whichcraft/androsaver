@@ -140,7 +140,7 @@ Prismatic raindrop ripples. Expanding waves split red, green, and blue channels 
 
 ## PersistenceMode
 
-Up to 8 nested Platonic-solid wireframes rotate in 3D with perspective projection. Non-coplanar orbital speeds generate holographic wagon-wheel moiré and mandala patterns. The v3.13 focal scale fills most of the viewport; the old treble flash ring was removed so it no longer obscures the geometry. Double-pass edges provide neon glow, with very long fadeBlack(5/255) persistence.
+Up to 8 nested Platonic-solid wireframes rotate in 3D with perspective projection. Non-coplanar orbital speeds generate holographic wagon-wheel moiré and mandala patterns. The v3.14 focal scale fills most of the viewport; the old treble flash ring was removed so it no longer obscures the geometry. Double-pass edges provide neon glow, with very long fadeBlack(5/255) persistence.
 
 ## SynapseMode
 

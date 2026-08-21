@@ -4,10 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.awaitResponse
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -30,9 +32,9 @@ class OneDriveSource(private val context: Context) : ImageSource {
     }
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
+        if (!isConfigured()) return@withContext emptyList()
         val accessToken = refreshAccessTokenSilently() ?: run {
-            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "No valid access token")
-            return@withContext emptyList()
+            throw ImageSourceAuthenticationException("OneDrive authentication failed")
         }
 
         val prefs = com.androsaver.Prefs.get(context)
@@ -46,10 +48,9 @@ class OneDriveSource(private val context: Context) : ImageSource {
                 .joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
             "https://graph.microsoft.com/v1.0/me/drive/root:/$encodedPath:/children"
         }
-        val startUrl = "$childrenBase?\$select=name,file,@microsoft.graph.downloadUrl&\$top=1000"
+        val startUrl = "$childrenBase?\$select=id,name,file,@microsoft.graph.downloadUrl&\$top=1000"
 
-        try {
-            val items = mutableListOf<ImageItem>()
+        val items = mutableListOf<ImageItem>()
             var url: String? = startUrl
             val maxFetch = 2000
 
@@ -57,10 +58,9 @@ class OneDriveSource(private val context: Context) : ImageSource {
                 val json = client.newCall(
                     Request.Builder().url(url)
                         .header("Authorization", "Bearer $accessToken").build()
-                ).execute().use { resp ->
+                ).awaitResponse().use { resp ->
                     if (!resp.isSuccessful) {
-                        if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "List files failed: ${resp.code}")
-                        return@withContext emptyList()
+                        throw java.io.IOException("OneDrive listing failed with HTTP ${resp.code}")
                     }
                     gson.fromJson(resp.body?.string(), JsonObject::class.java)
                 }
@@ -74,19 +74,16 @@ class OneDriveSource(private val context: Context) : ImageSource {
                         val mime     = fileObj.get("mimeType")?.asString ?: continue
                         if (!mime.startsWith("image/")) continue
                         val name     = obj.get("name")?.asString ?: continue
+                        val id       = obj.get("id")?.asString ?: continue
                         // @microsoft.graph.downloadUrl is a pre-authenticated temporary URL — no auth header needed for Glide
                         val dlUrl    = obj.get("@microsoft.graph.downloadUrl")?.asString ?: continue
-                        items.add(ImageItem(url = dlUrl, name = name))
+                        items.add(ImageItem(url = dlUrl, name = name, stableId = "onedrive:$id"))
                     }
                 }
 
                 url = if (items.size >= maxFetch) null else json.get("@odata.nextLink")?.asString
             }
-            items
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Error listing OneDrive files", e)
-            emptyList()
-        }
+        items
     }
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
@@ -108,7 +105,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
                 Request.Builder()
                     .url("https://login.microsoftonline.com/common/oauth2/v2.0/token")
                     .post(body).build()
-            ).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            ).awaitResponse().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
 
             val token = json.get("access_token")?.asString
             if (token != null) {
@@ -118,6 +115,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
             }
             token
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Token refresh failed", e)
             null
         }

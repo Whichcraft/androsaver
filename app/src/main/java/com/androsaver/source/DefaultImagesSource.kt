@@ -22,7 +22,8 @@ class DefaultImagesSource(private val context: Context) : ImageSource {
                 .map { filename ->
                     ImageItem(
                         url  = "file:///android_asset/default_images/$filename",
-                        name = filename
+                        name = filename,
+                        stableId = "asset:$filename"
                     )
                 }
         } catch (e: Exception) {

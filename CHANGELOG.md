@@ -4,6 +4,14 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-08-21 — v2.9.3: psysuals subtree migration and v3.14 backport
+
+- **Repository integration**: Replaced the `psysuals` Git submodule with a squashed Git subtree imported from upstream commit `e539626` (v3.14.0). The source is now present under `psysuals/` without requiring recursive submodule checkout.
+- **Visualizer backports**: Applied the upstream v3.14 small-viewport safeguards to Butterflies, the beat-edge trigger and population caps to Fireworks, the render-diameter cap to Bubbles, and genre-change baseline reset handling to the Android audio engine.
+- **Documentation**: Updated the psysuals port notes and architecture references with the subtree maintenance workflow and current upstream version.
+
+---
+
 ## 2026-08-17 — v2.9.3: configurable static background images
 
 - **Static image mode**: Added a screensaver mode that lets users choose a persistent image from device storage through the settings menu.

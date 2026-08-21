@@ -7,8 +7,14 @@ interface ImageSource {
 }
 ```
 
-`ImageItem` carries: `url: String`, `name: String`, `headers: Map<String, String>`.
+`ImageItem` carries: `url: String`, `name: String`, `headers: Map<String, String>`, and a stable non-secret `stableId` used for cache/slideshow identity. Temporary fetch URLs and headers remain in memory only.
 Glide reads and applies embedded EXIF orientation while decoding.
+
+Enabled providers are constructed by `ImageSourceRegistry`, shared by the
+slideshow, Static Image browser, and prefetch worker. The slideshow may use
+bundled defaults when no provider is enabled; the browser instead shows an
+actionable empty state. Provider enumeration uses the shared cancellable
+OkHttp bridge and a 60-second caller timeout.
 
 Sources are queried concurrently by `ScreensaverEngine`; results are merged and shuffled. All active sources run simultaneously.
 
@@ -55,7 +61,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 
 - **File:** `com.androsaver.source.NextcloudSource`
 - **API:** WebDAV PROPFIND on configured folder path
-- **Auth:** Basic auth with app password. Configured self-hosted hosts may use self-signed TLS certificates; public cloud hosts retain normal certificate validation.
+- **Auth:** Basic auth with app password. HTTPS and certificate/hostname validation are enabled by default; HTTP or self-signed certificates require the provider's explicit unsafe option.
 - **Setup:** Host + Port + HTTPS toggle + Username + App Password + Folder path → `NextcloudSetupActivity`
 - **Prefs keys:** `Prefs.NEXTCLOUD_HOST`, `Prefs.NEXTCLOUD_USERNAME`, `Prefs.NEXTCLOUD_PASSWORD`, `Prefs.NEXTCLOUD_FOLDER`
 
@@ -63,7 +69,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 
 - **File:** `com.androsaver.source.SynologySource`
 - **API:** Synology DSM FileStation REST API
-- **Auth:** Username/password → session SID cookie; **re-login every 25 minutes** (DSM sessions expire)
+- **Auth:** Username/password POST → session SID; the SID is used only in memory for the active listing/download URLs
 - **Setup:** Host + Port + HTTPS + Username + Password + Folder → `SynologySetupActivity`
 - **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_USE_HTTPS`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
 
@@ -93,6 +99,10 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - Used automatically as fallback when all sources fail (network unavailable)
 - Preserves original image bytes, including embedded EXIF metadata
 - Serializes manifest updates and writes the manifest through a temporary file to avoid partial-cache corruption.
+- The manifest stores only the stable item key, local filename, source name,
+  timestamp, and byte size; it never stores remote fetch URLs or auth query
+  parameters. Downloads are bounded, image-validated, cancellation-aware, and
+  published atomically.
 
 ---
 
@@ -101,7 +111,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 1. Create `com.androsaver.source.MySource.kt` implementing `ImageSource`
 2. Add credential/config constants to `Prefs.kt`
 3. Create a setup activity (e.g. `MySourceSetupActivity.kt`) for credential entry
-4. Register the source in `ScreensaverEngine` (add to the sources list)
+4. Register the source in `ImageSourceRegistry` (the shared factory for slideshow, browser, and prefetch)
 5. Add an enable toggle to `res/xml/sources_preferences.xml` (key = `Prefs.ENABLE_MY_SOURCE`)
 6. Add a setup entry Preference that launches `MySourceSetupActivity`
 7. Add all UI strings to `res/values/strings.xml`

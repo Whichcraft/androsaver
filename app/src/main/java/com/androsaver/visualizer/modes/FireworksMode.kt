@@ -8,7 +8,7 @@ import kotlin.math.*
  * Fireworks — firework rockets launch from the bottom, arc under gravity, and
  * explode into 80-120 glowing embers at the apex.  Beat fires extra rockets.
  *
- * Port of psysuals `Fireworks` class (v3.11.0 lineage).
+ * Port of psysuals `Fireworks` class with v3.14 population and beat-edge safeguards.
  * The pygame pixel-feedback zoom wormhole is omitted (requires FBO);
  * replaced with a fadeBlack (≈ 20/255) to match the _FADE_ALPHA trail fade.
 */
@@ -19,6 +19,8 @@ class FireworksMode : BaseMode() {
     private companion object {
         const val GRAV          = 0.13f
         const val DRAG          = 0.991f
+        const val MAX_ROCKETS   = 120
+        const val MAX_EMBERS    = 3000
         // Auto-launch interval at gain=1.0. Scales linearly with gain so that
         // higher intensity → longer interval (fewer bg rockets) and lower → shorter.
         // Formula: interval = BASE_INTERVAL * gain  (clamped 20..200)
@@ -43,13 +45,15 @@ class FireworksMode : BaseMode() {
     private val embers  = ArrayList<Ember>(200)
     private var hue     = 0f
     private var autoT   = 0
+    private var beatPrev = 0f
 
     override fun reset() {
-        hue = 0f; autoT = (Math.random() * 40).toInt()
+        hue = 0f; autoT = (Math.random() * 40).toInt(); beatPrev = 0f
         rockets.clear(); embers.clear()
     }
 
     private fun launch(W: Float, H: Float) {
+        if (rockets.size >= MAX_ROCKETS) return
         val x  = W * (0.10f + Math.random().toFloat() * 0.80f)
         val vy = -15f + Math.random().toFloat() * 5f    // -15 to -10
         val vx = (Math.random().toFloat() * 4f - 2f)
@@ -58,7 +62,9 @@ class FireworksMode : BaseMode() {
     }
 
     private fun explode(x: Float, y: Float, rocketHue: Float, treble: Float = 0f) {
-        val n = ((80 + (Math.random() * 40).toInt()) * (1f + treble * 1.5f)).toInt()
+        val requested = ((80 + (Math.random() * 40).toInt()) * (1f + treble * 1.5f)).toInt()
+        val n = minOf(requested, MAX_EMBERS - embers.size)
+        if (n <= 0) return
         repeat(n) {
             val ang  = Math.random().toFloat() * (2f * PI.toFloat())
             val spd  = (Math.random() * 3.6f + Math.random() * 5.4f).toFloat() * (1f + treble * 1.2f)
@@ -82,10 +88,11 @@ class FireworksMode : BaseMode() {
         hue = (hue + 0.0015f + bass * 0.002f + high * 0.001f) % 1f
 
         // Beat: extra rockets
-        if (beat > 0.7f) {
+        if (beat > 0.7f && beatPrev <= 0.7f) {
             val n = 1 + (beat * 2f).toInt()
             repeat(n) { launch(W, H) }
         }
+        beatPrev = beat
 
         // Auto-launch — interval scales with gain: low gain → more rockets, high gain → fewer
         val interval = (BASE_INTERVAL * audio.gain.coerceAtLeast(0.1f)).toInt().coerceIn(20, 200)

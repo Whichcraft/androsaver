@@ -66,6 +66,13 @@
 
         </LinearLayout>
 
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/allowInsecureSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/allow_insecure_label"
+            android:layout_marginBottom="16dp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -21,11 +21,16 @@ class WaterfallMode : BaseMode() {
     private lateinit var edges: IntArray
     private var cols = 0
     private lateinit var counts: FloatArray   // pre-computed bin widths
-    private val buf = ArrayDeque<FloatArray>()   // newest at front (index 0)
+    private val buf = Array(ROWS) { FloatArray(COLS) }
+    private var bufHead = -1
+    private var bufCount = 0
+    private val color = FloatArray(4)
 
     override fun reset() {
         hue = 0f
-        buf.clear()
+        bufHead = -1
+        bufCount = 0
+        buf.forEach { it.fill(0f) }
         // Log-spaced indices from 2 to 434 (85% of 512), COLS+1 = 81 entries, deduplicated.
         val raw = geomSpaceInt(2.0, 434.0, COLS + 1)
         edges  = raw.map { it.coerceIn(1, 511) }.distinct().sorted().toIntArray()
@@ -43,7 +48,10 @@ class WaterfallMode : BaseMode() {
         val H = draw.H.toFloat()
 
         // Single-pass accumulation into bins (matches np.add.reduceat)
-        val row = FloatArray(cols)
+        bufHead = (bufHead + 1) % ROWS
+        bufCount = minOf(ROWS, bufCount + 1)
+        val row = buf[bufHead]
+        row.fill(0f)
         var bi = 0
         for (k in edges[0] until edges[cols]) {
             while (bi + 1 < cols && k >= edges[bi + 1]) bi++
@@ -53,16 +61,12 @@ class WaterfallMode : BaseMode() {
         val maxVal = row.max().coerceAtLeast(1e-6f)
         for (i in 0 until cols) row[i] /= maxVal
 
-        // Push to front, trim to ROWS
-        buf.addFirst(row)
-        while (buf.size > ROWS) buf.removeLast()
-
         val bw = maxOf(1f, W / cols)
         val bh = maxOf(4f, H / ROWS)
         val flash = beat * 0.35f
 
-        for (ri in buf.indices) {
-            val r = buf[ri]
+        for (ri in 0 until bufCount) {
+            val r = buf[(bufHead - ri + ROWS) % ROWS]
             val y = ri * bh
             if (y > H) break
             val age = ri.toFloat() / maxOf(buf.size, 1)
@@ -72,7 +76,7 @@ class WaterfallMode : BaseMode() {
                 val x = ci * bw
                 val colHue = (hue + ci.toFloat() / cols * 0.75f) % 1f
                 val lit = ((1f - age * 0.7f) * (0.15f + e * 0.85f) + rowBoost).coerceIn(0.04f, 0.95f)
-                val color = GLDraw.hsl(colHue, 1f, lit)
+                GLDraw.hsl(colHue, 1f, lit, 1f, color)
                 draw.rect(x, y, bw - 1f, bh - 1f, color[0], color[1], color[2], 1f)
             }
         }

@@ -10,7 +10,7 @@ import kotlin.math.*
  * 10–30 s and orbits it lovingly. After a random lifetime the pair wanders
  * off-screen and a new pair enters. Wing flapping syncs when partners are
  * close; sparkles fire on strong beats.
- * Port of psysuals Butterflies (v3.11.0).
+ * Port of psysuals Butterflies with v3.14 small-viewport safeguards.
  */
 class ButterfliesMode : BaseMode() {
 
@@ -254,10 +254,10 @@ class ButterfliesMode : BaseMode() {
     }
 
     private fun edgeSpawn(): Pair<Float, Float> {
-        val mX = minOf(60f, screenW.coerceAtLeast(1) / 2f)
-        val mY = minOf(60f, screenH.coerceAtLeast(1) / 2f)
-        val spanX = maxOf(0f, screenW - 2f * mX)
-        val spanY = maxOf(0f, screenH - 2f * mY)
+        val mX = minOf(60f, screenW.coerceAtLeast(1) / 3f)
+        val mY = minOf(60f, screenH.coerceAtLeast(1) / 3f)
+        val spanX = maxOf(1f, screenW - 2f * mX)
+        val spanY = maxOf(1f, screenH - 2f * mY)
         return when ((Math.random() * 4).toInt()) {
             0    -> mX to (mY + Math.random().toFloat() * spanY)
             1    -> (screenW - mX) to (mY + Math.random().toFloat() * spanY)

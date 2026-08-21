@@ -18,6 +18,11 @@ class BarsMode : BaseMode() {
     private lateinit var peaks: FloatArray
     private lateinit var counts: FloatArray   // pre-computed bin widths
     private lateinit var display: FloatArray  // smoothed heights shown on screen
+    private lateinit var heights: FloatArray
+    private var wavePts = FloatArray(0)
+    private val barColor = FloatArray(4)
+    private val peakColor = FloatArray(4)
+    private val waveColor = FloatArray(4)
 
     override fun reset() {
         hue = 0f
@@ -28,6 +33,7 @@ class BarsMode : BaseMode() {
         peaks   = FloatArray(n)
         counts  = FloatArray(n) { i -> (edges[i + 1] - edges[i]).toFloat().coerceAtLeast(1f) }
         display = FloatArray(n)
+        heights = FloatArray(n)
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -41,7 +47,7 @@ class BarsMode : BaseMode() {
         val H = draw.H.toFloat()
 
         // Single-pass accumulation into bars (matches np.add.reduceat)
-        val heights = FloatArray(n)
+        heights.fill(0f)
         var bi = 0
         for (k in edges[0] until edges[n]) {
             while (bi + 1 < n && k >= edges[bi + 1]) bi++
@@ -73,7 +79,7 @@ class BarsMode : BaseMode() {
             val hue = (this.hue + i.toFloat() / n) % 1f
 
             // Bar fill: lightness 0.38 + h*0.42
-            val barColor = GLDraw.hsl(hue, 1f, (0.38f + h * 0.42f).coerceIn(0f, 1f))
+            GLDraw.hsl(hue, 1f, (0.38f + h * 0.42f).coerceIn(0f, 1f), 1f, barColor)
             val width = maxOf(1f, barW - 2f)
             draw.rect(
                 x, H - barH,
@@ -83,7 +89,7 @@ class BarsMode : BaseMode() {
 
             // Peak marker: lightness 0.9
             if (barH > 0f) {
-                val peakColor = GLDraw.hsl(hue, 1f, 0.9f)
+                GLDraw.hsl(hue, 1f, 0.9f, 1f, peakColor)
                 draw.rect(
                     x, H - peak - 3f,
                     width, 3f,
@@ -96,17 +102,17 @@ class BarsMode : BaseMode() {
         val wLen = waveform.size
         val step = maxOf(1, wLen / draw.W)
         val amp  = 120f + high * 120f
-        val pts = mutableListOf<Float>()
         val count = wLen / step
+        if (wavePts.size < count * 2) wavePts = FloatArray(count * 2)
         for (i in 0 until count) {
             val sx = i.toFloat() * W / count
             val sy = H / 2f + waveform[i * step] * amp
-            pts.add(sx)
-            pts.add(sy)
+            wavePts[i * 2] = sx
+            wavePts[i * 2 + 1] = sy
         }
-        if (pts.size >= 4) {
-            val waveColor = GLDraw.hsl(this.hue, 1f, 0.75f)
-            draw.lineStrip(pts.toFloatArray(), waveColor[0], waveColor[1], waveColor[2], 1f)
+        if (count >= 2) {
+            GLDraw.hsl(this.hue, 1f, 0.75f, 1f, waveColor)
+            draw.lineStrip(wavePts, count, waveColor[0], waveColor[1], waveColor[2], 1f)
         }
     }
 

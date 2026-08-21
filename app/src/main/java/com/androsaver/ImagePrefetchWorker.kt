@@ -2,7 +2,6 @@ package com.androsaver
 
 import android.content.Context
 import android.util.Log
-import androidx.preference.PreferenceManager
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.androsaver.source.*
@@ -10,7 +9,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 
 /**
  * Background worker that prefetches and caches images from all configured
@@ -23,47 +23,57 @@ class ImagePrefetchWorker(
 
     override suspend fun doWork(): Result {
         if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Starting background image prefetch...")
-        val prefs = com.androsaver.Prefs.get(applicationContext)
         val imageCache = ImageCache(applicationContext)
 
-        val sources = buildList {
-            if (prefs.getBoolean(Prefs.ENABLE_GOOGLE_DRIVE, false)) add(GoogleDriveSource(applicationContext))
-            if (prefs.getBoolean(Prefs.ENABLE_ONEDRIVE, false)) add(OneDriveSource(applicationContext))
-            if (prefs.getBoolean(Prefs.ENABLE_DROPBOX, false)) add(DropboxSource(applicationContext))
-            if (prefs.getBoolean(Prefs.ENABLE_IMMICH, false)) add(ImmichSource(applicationContext))
-            if (prefs.getBoolean(Prefs.ENABLE_NEXTCLOUD, false)) add(NextcloudSource(applicationContext))
-            if (prefs.getBoolean(Prefs.ENABLE_SYNOLOGY, false)) add(SynologySource(applicationContext))
-            if (prefs.getBoolean(Prefs.ENABLE_LOCAL_STORAGE, false)) add(LocalStorageSource(applicationContext))
-        }
+        val sources = ImageSourceRegistry.configured(applicationContext)
+            .filterNot { it is LocalStorageSource }
 
         if (sources.isEmpty()) {
             if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "No remote sources configured for prefetch")
             return Result.success()
         }
 
-        val items = coroutineScope {
+        data class SourceResult(val source: ImageSource, val result: ImageSourceResult)
+        val results = coroutineScope {
             sources.map { src ->
                 async {
-                    try {
-                        withTimeoutOrNull(60_000L) { src.getImageUrls() } ?: emptyList()
+                    val result = try {
+                        withTimeout(60_000L) { src.enumerate() }
+                    } catch (e: TimeoutCancellationException) {
+                        ImageSourceResult.Failure(ImageSourceResult.FailureKind.TIMEOUT)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        if (e is CancellationException) throw e
                         if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Prefetch error from ${src.name}", e)
-                        emptyList()
+                        ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
                     }
+                    SourceResult(src, result)
                 }
-            }.awaitAll().flatten()
+            }.awaitAll()
         }
 
-        if (items.isNotEmpty()) {
-            try {
-                imageCache.saveImages(items, "mixed")
-                if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Prefetch successfully cached ${items.size} images")
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Failed to cache prefetched images", e)
-                return Result.retry()
+        if (results.none { it.result !is ImageSourceResult.Failure }) return Result.retry()
+
+        val queues = results.map {
+            (it.result as? ImageSourceResult.Success)?.items?.toMutableList() ?: mutableListOf()
+        }
+        val selected = mutableListOf<Pair<ImageSource, ImageItem>>()
+        while (selected.size < 200 && queues.any { it.isNotEmpty() }) {
+            results.forEachIndexed { index, result ->
+                if (selected.size >= 200) return@forEachIndexed
+                queues[index].removeFirstOrNull()?.let { selected += result.source to it }
             }
+        }
+
+        try {
+            selected.groupBy({ it.first }, { it.second }).forEach { (source, sourceItems) ->
+                imageCache.saveImages(sourceItems, source.name)
+            }
+            if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Prefetch successfully cached ${selected.size} images")
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Failed to cache prefetched images", e)
+            return Result.retry()
         }
         return Result.success()
     }

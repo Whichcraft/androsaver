@@ -155,6 +155,10 @@ class GLDraw(var W: Int, var H: Int) {
     private val lineVerts = FloatArray(MAX_VERTS * STRIDE)
     private var triCount  = 0
     private var lineCount = 0
+    // 1 = triangles, 2 = lines. Switching type flushes the preceding run so
+    // submission order is preserved while adjacent calls remain batched.
+    private var batchType = 0
+    private var overflowLogged = false
 
     // Pre-allocated direct FloatBuffers — reused every frame to avoid
     // per-frame ByteBuffer.allocateDirect() calls and GC pressure.
@@ -222,24 +226,30 @@ class GLDraw(var W: Int, var H: Int) {
         H = h.coerceAtLeast(1)
         GLES20.glViewport(0, 0, W, H)
         Matrix.orthoM(projMatrix, 0, 0f, W.toFloat(), H.toFloat(), 0f, -1f, 1f)
-        if (bloomEnabled) setupBloomFbos(W, H)
+        setupBloomFbos(W, H)
     }
 
-    fun beginFrame() {
+    fun beginFrame(clear: Boolean = true) {
         // Render scene into the FBO texture when bloom is active
-        if (bloomEnabled && sceneFboId != 0) {
+        if (sceneFboId != 0) {
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, sceneFboId)
             GLES20.glViewport(0, 0, W, H)
         }
-        GLES20.glClearColor(0f, 0f, 0f, 1f)
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        if (clear || sceneFboId == 0) {
+            GLES20.glClearColor(0f, 0f, 0f, 1f)
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        }
         triCount = 0; lineCount = 0
+        batchType = 0
+        overflowLogged = false
     }
 
     fun endFrame() {
         flushBatches()
         if (bloomEnabled && sceneFboId != 0) {
             runBloom()
+        } else if (!bloomEnabled && sceneFboId != 0 && compProg != 0) {
+            presentSceneWithoutBloom()
         }
     }
 
@@ -247,17 +257,47 @@ class GLDraw(var W: Int, var H: Int) {
 
     private fun setupBloomFbos(w: Int, h: Int) {
         deleteBloomFbos()
+        if (compProg == 0) return
         val (sf, st) = createFboWithTex(w, h)
         sceneFboId = sf; sceneTexId = st
         if (sf == 0) { bloomEnabled = false; return }
 
         val bw = (w / 2).coerceAtLeast(1)
         val bh = (h / 2).coerceAtLeast(1)
-        val (af, at) = createFboWithTex(bw, bh); bloomAFboId = af; bloomATexId = at
-        val (bf, bt) = createFboWithTex(bw, bh); bloomBFboId = bf; bloomBTexId = bt
-
-        if (af == 0 || bf == 0) { deleteBloomFbos(); bloomEnabled = false }
+        if (bloomEnabled) {
+            val (af, at) = createFboWithTex(bw, bh); bloomAFboId = af; bloomATexId = at
+            val (bf, bt) = createFboWithTex(bw, bh); bloomBFboId = bf; bloomBTexId = bt
+            if (af == 0 || bf == 0) {
+                deleteBloomAttachments()
+                bloomEnabled = false
+            }
+        }
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+    }
+
+    private fun deleteBloomAttachments() {
+        fun del(fbo: Int, tex: Int) {
+            if (fbo != 0) GLES20.glDeleteFramebuffers(1, intArrayOf(fbo), 0)
+            if (tex != 0) GLES20.glDeleteTextures(1, intArrayOf(tex), 0)
+        }
+        del(bloomAFboId, bloomATexId); bloomAFboId = 0; bloomATexId = 0
+        del(bloomBFboId, bloomBTexId); bloomBFboId = 0; bloomBTexId = 0
+    }
+
+    private fun presentSceneWithoutBloom() {
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        GLES20.glViewport(0, 0, W, H)
+        GLES20.glUseProgram(compProg)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, sceneTexId)
+        GLES20.glUniform1i(compSceneLoc, 0)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, sceneTexId)
+        GLES20.glUniform1i(compBloomLoc, 1)
+        GLES20.glUniform1f(compStrLoc, 0f)
+        drawFullscreenQuad(compPosLoc)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glEnable(GLES20.GL_BLEND)
     }
 
     private fun deleteBloomFbos() {
@@ -389,14 +429,14 @@ class GLDraw(var W: Int, var H: Int) {
     fun setAdditiveBlend() {
         flushBatches()
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE)
-        triCount = 0; lineCount = 0
+        triCount = 0; lineCount = 0; batchType = 0
     }
 
     /** Restore normal alpha blending. */
     fun setNormalBlend() {
         flushBatches()
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-        triCount = 0; lineCount = 0
+        triCount = 0; lineCount = 0; batchType = 0
     }
 
     // ── Trail / fade ───────────────────────────────────────────────────────────
@@ -465,7 +505,11 @@ class GLDraw(var W: Int, var H: Int) {
 
     /** Open polyline through a flat [pts] array [x0,y0, x1,y1, ...]. */
     fun lineStrip(pts: FloatArray, r: Float, g: Float, b: Float, a: Float = 1f) {
-        val n = pts.size / 2
+        lineStrip(pts, pts.size / 2, r, g, b, a)
+    }
+
+    fun lineStrip(pts: FloatArray, pointCount: Int, r: Float, g: Float, b: Float, a: Float = 1f) {
+        val n = pointCount.coerceAtMost(pts.size / 2)
         for (i in 0 until n - 1) {
             addLine(pts[i * 2], pts[i * 2 + 1],
                     pts[i * 2 + 2], pts[i * 2 + 3],
@@ -518,7 +562,16 @@ class GLDraw(var W: Int, var H: Int) {
     // ── Vertex emitters ────────────────────────────────────────────────────────
 
     private fun addTri(x: Float, y: Float, r: Float, g: Float, b: Float, a: Float) {
-        if (triCount >= MAX_VERTS) return
+        if (batchType == 2) {
+            flushBatches()
+            triCount = 0; lineCount = 0
+        }
+        batchType = 1
+        if (triCount >= MAX_VERTS) {
+            if (!overflowLogged && BuildConfig.DEBUG_LOGGING) Log.w("GLDraw", "Triangle vertex batch overflow; geometry dropped")
+            overflowLogged = true
+            return
+        }
         val i = triCount * STRIDE
         triVerts[i] = x;  triVerts[i+1] = y
         triVerts[i+2] = r; triVerts[i+3] = g; triVerts[i+4] = b; triVerts[i+5] = a
@@ -534,7 +587,16 @@ class GLDraw(var W: Int, var H: Int) {
 
     private fun addLine(x1: Float, y1: Float, x2: Float, y2: Float,
                         r: Float, g: Float, b: Float, a: Float) {
-        if (lineCount + 1 >= MAX_VERTS) return
+        if (batchType == 1) {
+            flushBatches()
+            triCount = 0; lineCount = 0
+        }
+        batchType = 2
+        if (lineCount + 1 >= MAX_VERTS) {
+            if (!overflowLogged && BuildConfig.DEBUG_LOGGING) Log.w("GLDraw", "Line vertex batch overflow; geometry dropped")
+            overflowLogged = true
+            return
+        }
         val i = lineCount * STRIDE
         lineVerts[i]   = x1; lineVerts[i+1] = y1
         lineVerts[i+2] = r;  lineVerts[i+3] = g; lineVerts[i+4] = b; lineVerts[i+5] = a
@@ -548,7 +610,16 @@ class GLDraw(var W: Int, var H: Int) {
     private fun addLine(x1: Float, y1: Float, x2: Float, y2: Float,
                         r1: Float, g1: Float, b1: Float, a1: Float,
                         r2: Float, g2: Float, b2: Float, a2: Float) {
-        if (lineCount + 1 >= MAX_VERTS) return
+        if (batchType == 1) {
+            flushBatches()
+            triCount = 0; lineCount = 0
+        }
+        batchType = 2
+        if (lineCount + 1 >= MAX_VERTS) {
+            if (!overflowLogged && BuildConfig.DEBUG_LOGGING) Log.w("GLDraw", "Line vertex batch overflow; geometry dropped")
+            overflowLogged = true
+            return
+        }
         val i = lineCount * STRIDE
         lineVerts[i]   = x1; lineVerts[i+1] = y1
         lineVerts[i+2] = r1; lineVerts[i+3] = g1; lineVerts[i+4] = b1; lineVerts[i+5] = a1

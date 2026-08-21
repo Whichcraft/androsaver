@@ -12,9 +12,8 @@ import okhttp3.Request
 import java.io.InputStream
 
 /**
- * Registers a custom OkHttpUrlLoader that dynamically chooses between a trust-all OkHttpClient
- * (for self-hosted local NAS servers with self-signed certificates) and a standard validating
- * OkHttpClient (for public cloud storage and API endpoints) to prevent MITM vulnerabilities.
+ * Registers a custom OkHttpUrlLoader that uses the standard validating client unless
+ * the exact configured self-hosted host has an explicit insecure opt-in.
  */
 @GlideModule
 class AndroSaverGlideModule : AppGlideModule() {

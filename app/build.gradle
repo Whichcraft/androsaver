@@ -38,15 +38,25 @@ android {
         }
     }
 
-    flavorDimensions "environment"
+    flavorDimensions "environment", "distribution"
     productFlavors {
         dev {
             dimension "environment"
             buildConfigField "boolean", "DEBUG_LOGGING", "true"
+            buildConfigField "boolean", "IS_DEV", "true"
         }
         prod {
             dimension "environment"
             buildConfigField "boolean", "DEBUG_LOGGING", "false"
+            buildConfigField "boolean", "IS_DEV", "false"
+        }
+        standard {
+            dimension "distribution"
+            buildConfigField "boolean", "PLAY_STORE", "false"
+        }
+        playstore {
+            dimension "distribution"
+            buildConfigField "boolean", "PLAY_STORE", "true"
         }
     }
 
@@ -85,4 +95,5 @@ dependencies {
     implementation 'androidx.security:security-crypto:1.1.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
+    testImplementation 'junit:junit:4.13.2'
 }

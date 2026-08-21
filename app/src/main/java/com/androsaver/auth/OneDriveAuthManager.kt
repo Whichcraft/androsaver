@@ -3,6 +3,7 @@ package com.androsaver.auth
 import android.content.Context
 import androidx.preference.PreferenceManager
 import com.androsaver.HttpClients
+import com.androsaver.awaitResponse
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -30,7 +31,10 @@ class OneDriveAuthManager(private val context: Context) {
                 Request.Builder()
                     .url("https://login.microsoftonline.com/common/oauth2/v2.0/devicecode")
                     .post(body).build()
-            ).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            ).awaitResponse().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                gson.fromJson(response.body?.string(), JsonObject::class.java)
+            }
 
             if (json.has("error")) return@withContext null
             DeviceCodeResponse(
@@ -40,7 +44,10 @@ class OneDriveAuthManager(private val context: Context) {
                 expiresIn       = json.get("expires_in").asInt,
                 interval        = json.get("interval")?.asInt ?: 5
             )
-        } catch (e: Exception) { null }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            null
+        }
     }
 
     suspend fun pollForToken(deviceCode: String): AuthResult = withContext(Dispatchers.IO) {
@@ -59,7 +66,7 @@ class OneDriveAuthManager(private val context: Context) {
                 Request.Builder()
                     .url("https://login.microsoftonline.com/common/oauth2/v2.0/token")
                     .post(body).build()
-            ).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            ).awaitResponse().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
 
             when {
                 json.has("access_token") -> {
@@ -73,13 +80,16 @@ class OneDriveAuthManager(private val context: Context) {
                 }
                 json.has("error") -> when (json.get("error").asString) {
                     "authorization_pending" -> AuthResult.Pending
-                    "slow_down"             -> AuthResult.Pending
+                    "slow_down"             -> AuthResult.SlowDown
                     "expired_token"         -> AuthResult.Expired
                     else -> AuthResult.Error(json.get("error").asString)
                 }
                 else -> AuthResult.Error("Unexpected response")
             }
-        } catch (e: Exception) { AuthResult.Error(e.message ?: "Network error") }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            AuthResult.Error(e.message ?: "Network error")
+        }
     }
 
     fun isAuthorized(): Boolean =

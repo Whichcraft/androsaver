@@ -1,5 +1,11 @@
 # psysuals → AndroSaver Port Notes
 
+The repository vendors upstream psysuals v3.14.0 as a Git subtree under
+`psysuals/` (upstream commit `e539626`). The subtree is the reference source;
+the Android implementation remains a Kotlin/OpenGL ES 2.0 port. Keep the
+subtree update and the Android backport in the same change so the two sources
+remain auditable.
+
 When importing a new psysuals release, always apply these Android-specific
 adaptations after porting each effect.  The differences exist because Android
 uses OpenGL ES 2.0 (no persistent surfaces, no per-surface alpha fade), while
@@ -23,7 +29,7 @@ psysuals uses pygame surfaces.
 | `config.MID_ENERGY` | `audio.mid` (deviation above rolling avg, bins 20–99; 0 at steady state, positive on peaks) |
 | `config.TREBLE_ENERGY` | `audio.treble` (same for bins 100–255; 0 at steady state, positive on peaks) |
 | `np.mean(fft[:6])` (old pre-v3.4.0 pattern) | `audio.beat` (use `audio.mid`/`audio.treble` for frequency bands) |
-| `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → FloatArray(3) |
+| `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → four-channel color array; use the reusable overload in hot loops |
 
 ---
 
@@ -64,7 +70,7 @@ than the corridor frames.
 ### FlowFieldMode
 Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)` — equivalent on a dark background.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.
 
-Seed detection: particles are initialised on the first draw call when W/H are known. v3.13 reallocations preserve existing wrapped positions and use isolated per-effect random state.
+Seed detection: particles are initialised on the first draw call when W/H are known. v3.14 reallocations preserve existing wrapped positions and use isolated per-effect random state.
 
 **Bass gravity + treble scatter** (added v2.8.0): per-particle, apply two extra forces each frame:
 - Bass attract: `(W*0.5 - px) * bass*0.0018` (toward centre)
@@ -124,7 +130,7 @@ N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.cir
 N reduced 10 000 → 2 500; the grid divisor is 8 on smaller displays and 6 at TV size. NumPy vectorised sensing and movement are scalar Kotlin loops. Deposit indices are clamped before writes, diffusion buffers are reused, and the grid rebuilds whenever either dimension changes.
 
 ### CliffordMode
-N is 7 000 with six passes for Android performance and to remain below `GLDraw`'s 262k-vertex batch ceiling. NumPy map iterations are scalar Kotlin loops over preallocated arrays. Dynamic framing approximates the Python density framebuffer; v3.13's faster morphing, high-contrast emission, hot cores, and isolated seeded RNG are ported. `_FADE_ALPHA=18` maps to `draw.fadeBlack(18f/255f)`.
+N is 7 000 with six passes for Android performance and to remain below `GLDraw`'s 262k-vertex batch ceiling. NumPy map iterations are scalar Kotlin loops over preallocated arrays. Dynamic framing approximates the Python density framebuffer; v3.14's faster morphing, high-contrast emission, hot cores, and isolated seeded RNG are ported. `_FADE_ALPHA=18` maps to `draw.fadeBlack(18f/255f)`.
 
 ### MobiusMode
 Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d` array pre-allocated (longitude wires and scratch `pts2dV` removed in v3.9.0).  Treble-driven rotation contribution is aligned with the later upstream implementation.
@@ -133,10 +139,10 @@ Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rota
 Port directly. Wavy raindrop ripples outline. `_FADE_ALPHA=24` → `draw.fadeBlack(24f/255f)` replaces `BLEND_RGB_MULT(232,228,236)`. Closed polygons drawn with RGB-separated offsets and custom sine-wave ripple function.  Rings are removed based on updated post-growth radius to match the later upstream stale-radius fix.
 
 ### PersistenceMode
-Port directly where it fits the GL renderer. `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`. Platonic solids are projected with v3.13's viewport-filling `0.95 * height` focal scale and depth fading; the obsolete treble flash ring is removed. Upstream's offscreen `RES_DIV=2` pygame path does not map 1:1 to direct Android GL batching.
+Port directly where it fits the GL renderer. `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`. Platonic solids are projected with v3.14's viewport-filling `0.95 * height` focal scale and depth fading; the obsolete treble flash ring is removed. Upstream's offscreen `RES_DIV=2` pygame path does not map 1:1 to direct Android GL batching.
 
 ### SynapseMode
-Port directly. `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`. v3.13 living topology ranges from 28–90 nodes; nodes wander around anchors, beats grow the graph, and periodic changes add or shed nodes. Every mutation rewires nearest neighbours and clears stale edge-index signals. Signals remain capped at `MAX_SIGNALS=240`.
+Port directly. `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`. v3.14 living topology ranges from 28–90 nodes; nodes wander around anchors, beats grow the graph, and periodic changes add or shed nodes. Every mutation rewires nearest neighbours and clears stale edge-index signals. Signals remain capped at `MAX_SIGNALS=240`.
 
 ### HeartbeatMode
 Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon drawn with 120-point `FloatArray` passed to `draw.polygon()` twice (glow + col).  Rings are culled after per-frame growth is applied, matching the later upstream state-handling fix.

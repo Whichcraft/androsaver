@@ -139,7 +139,7 @@ No user data is shared with the developer or any third party. The app makes API 
 
 ### Is all data encrypted in transit?
 
-**Public cloud and update traffic use HTTPS.** Self-hosted image sources offer a user-controlled HTTP/HTTPS setting; users should select HTTPS whenever their server supports it. Credentials use AES-256 `EncryptedSharedPreferences` when Android encrypted storage is available.
+**Public cloud traffic uses HTTPS.** Self-hosted image sources default to HTTPS with certificate validation; HTTP or self-signed certificates require an explicit per-provider insecure setting. Credentials use AES-256 `EncryptedSharedPreferences`; sensitive operations fail closed if encrypted storage is unavailable. The Play Store variant does not include `REQUEST_INSTALL_PACKAGES` and receives updates through Google Play.
 
 ### Can users request data deletion?
 

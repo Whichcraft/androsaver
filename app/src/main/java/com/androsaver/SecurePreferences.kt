@@ -59,12 +59,11 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
             try {
                 migrateIfNeeded()
             } catch (e: Throwable) {
-                Log.e(TAG, "Failed to migrate to encrypted prefs, falling back to plaintext storage", e)
-                encryptedPrefs = null
+                Log.e(TAG, "Failed to migrate to encrypted prefs", e)
             }
         } catch (e: Throwable) {
             encryptedPrefs = null
-            Log.e(TAG, "Failed to initialize EncryptedSharedPreferences, falling back to plaintext storage", e)
+            Log.e(TAG, "Failed to initialize EncryptedSharedPreferences", e)
         }
     }
 
@@ -106,7 +105,7 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
 
     private fun getPrefs(key: String): SharedPreferences {
         return if (key in SENSITIVE_KEYS) {
-            encryptedPrefs ?: plainPrefs
+            encryptedPrefs ?: throw IllegalStateException("Encrypted credential storage unavailable")
         } else {
             plainPrefs
         }
@@ -121,8 +120,8 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
             }
             allPlain
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed while loading all prefs, falling back to plaintext", e)
-            plainPrefs.all
+            Log.e(TAG, "Decryption/Read failed while loading preferences", e)
+            throw IllegalStateException("Encrypted credential storage unavailable", e)
         }
     }
 
@@ -130,8 +129,9 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         return try {
             getPrefs(key).getString(key, defValue)
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.getString(key, defValue)
+            if (key in SENSITIVE_KEYS) throw IllegalStateException("Encrypted credential read failed", e)
+            Log.e(TAG, "Preference read failed for key $key", e)
+            defValue
         }
     }
 
@@ -139,8 +139,8 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         return try {
             getPrefs(key).getStringSet(key, defValues) ?: defValues ?: emptySet()
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.getStringSet(key, defValues) ?: defValues ?: emptySet()
+            if (key in SENSITIVE_KEYS) throw IllegalStateException("Encrypted credential read failed", e)
+            defValues ?: emptySet()
         }
     }
 
@@ -148,8 +148,8 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         return try {
             getPrefs(key).getInt(key, defValue)
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.getInt(key, defValue)
+            if (key in SENSITIVE_KEYS) throw IllegalStateException("Encrypted credential read failed", e)
+            defValue
         }
     }
 
@@ -157,8 +157,8 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         return try {
             getPrefs(key).getLong(key, defValue)
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.getLong(key, defValue)
+            if (key in SENSITIVE_KEYS) throw IllegalStateException("Encrypted credential read failed", e)
+            defValue
         }
     }
 
@@ -166,8 +166,8 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         return try {
             getPrefs(key).getFloat(key, defValue)
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.getFloat(key, defValue)
+            if (key in SENSITIVE_KEYS) throw IllegalStateException("Encrypted credential read failed", e)
+            defValue
         }
     }
 
@@ -175,8 +175,8 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         return try {
             getPrefs(key).getBoolean(key, defValue)
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.getBoolean(key, defValue)
+            if (key in SENSITIVE_KEYS) throw IllegalStateException("Encrypted credential read failed", e)
+            defValue
         }
     }
 
@@ -184,18 +184,16 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         return try {
             getPrefs(key).contains(key)
         } catch (e: Throwable) {
-            Log.e(TAG, "Decryption/Read failed for key $key, falling back to plaintext", e)
-            plainPrefs.contains(key)
+            if (key in SENSITIVE_KEYS) throw IllegalStateException("Encrypted credential read failed", e)
+            false
         }
     }
 
     override fun edit(): SharedPreferences.Editor {
         val plainEditor = plainPrefs.edit()
-        val encryptedEditor = try {
-            encryptedPrefs?.edit()
-        } catch (e: Throwable) {
-            Log.e(TAG, "Failed to open encrypted prefs editor, falling back to plaintext storage", e)
-            null
+        val encryptedEditor = try { encryptedPrefs?.edit() } catch (e: Throwable) {
+            Log.e(TAG, "Failed to open encrypted prefs editor", e)
+            throw IllegalStateException("Encrypted credential storage unavailable", e)
         }
         return Editor(plainEditor, encryptedEditor)
     }
@@ -214,10 +212,12 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         private val plainEditor: SharedPreferences.Editor,
         private val encryptedEditor: SharedPreferences.Editor?
     ) : SharedPreferences.Editor {
+        private var sensitiveTouched = false
 
         private fun getEditor(key: String): SharedPreferences.Editor {
             return if (key in SENSITIVE_KEYS) {
-                encryptedEditor ?: plainEditor
+                sensitiveTouched = true
+                encryptedEditor ?: throw IllegalStateException("Encrypted credential storage unavailable")
             } else {
                 plainEditor
             }
@@ -254,34 +254,40 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         }
 
         override fun remove(key: String): SharedPreferences.Editor {
+            if (key in SENSITIVE_KEYS) sensitiveTouched = true
             plainEditor.remove(key)
             encryptedEditor?.remove(key)
             return this
         }
 
         override fun clear(): SharedPreferences.Editor {
+            sensitiveTouched = true
             plainEditor.clear()
             encryptedEditor?.clear()
             return this
         }
 
         override fun commit(): Boolean {
-            val r1 = plainEditor.commit()
-            val r2 = try {
-                encryptedEditor?.commit() ?: true
-            } catch (e: Throwable) {
-                Log.e(TAG, "Encryption/Commit failed", e)
-                false
+            if (sensitiveTouched) {
+                val encryptedCommitted = try {
+                    encryptedEditor?.commit() ?: false
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Encryption/Commit failed", e)
+                    false
+                }
+                if (!encryptedCommitted) return false
             }
-            return r1 && r2
+            return plainEditor.commit()
         }
 
         override fun apply() {
-            plainEditor.apply()
-            try {
-                encryptedEditor?.apply()
-            } catch (e: Throwable) {
-                Log.e(TAG, "Encryption/Apply failed", e)
+            if (sensitiveTouched) {
+                if (!(encryptedEditor?.commit() ?: false)) {
+                    throw IllegalStateException("Encrypted credential write failed")
+                }
+                plainEditor.apply()
+            } else {
+                plainEditor.apply()
             }
         }
     }

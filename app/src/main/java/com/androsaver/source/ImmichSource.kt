@@ -4,9 +4,11 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.awaitResponse
 import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -16,12 +18,26 @@ class ImmichSource(private val context: Context) : ImageSource {
 
     override val name = "Immich"
 
-    private val client = HttpClients.trustAll
-
     override fun isConfigured(): Boolean {
         val prefs = com.androsaver.Prefs.get(context)
         return !prefs.getString(Prefs.IMMICH_HOST, null).isNullOrEmpty() &&
                !prefs.getString(Prefs.IMMICH_API_KEY, null).isNullOrEmpty()
+    }
+
+    suspend fun probeConnection(): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val prefs = Prefs.get(context)
+        val host = prefs.getString(Prefs.IMMICH_HOST, null) ?: return@withContext false
+        val port = prefs.getString(Prefs.IMMICH_PORT, "2283") ?: "2283"
+        val key = prefs.getString(Prefs.IMMICH_API_KEY, null) ?: return@withContext false
+        val https = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, true)
+        val insecure = prefs.getBoolean(Prefs.IMMICH_ALLOW_INSECURE, false)
+        if (!https && !insecure) throw java.io.IOException("HTTP is disabled")
+        val base = "${if (https) "https" else "http"}://$host:$port".toHttpUrlOrNull()
+            ?.takeIf { it.encodedPath == "/" && it.query == null }?.toString()?.removeSuffix("/")
+            ?: throw java.io.IOException("Invalid Immich host or port")
+        HttpClients.forHost(context, host, insecure).newCall(
+            Request.Builder().url("$base/api/server/ping").header("x-api-key", key).build()
+        ).awaitResponse().use { it.isSuccessful }
     }
 
     override suspend fun getImageUrls(): List<ImageItem> =
@@ -29,28 +45,34 @@ class ImmichSource(private val context: Context) : ImageSource {
             val prefs    = com.androsaver.Prefs.get(context)
             val host     = prefs.getString(Prefs.IMMICH_HOST, null) ?: return@withContext emptyList()
             val port     = prefs.getString(Prefs.IMMICH_PORT, "2283") ?: "2283"
-            val useHttps = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, false)
+            val useHttps = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, true)
+            val allowInsecure = prefs.getBoolean(Prefs.IMMICH_ALLOW_INSECURE, false)
             val apiKey   = prefs.getString(Prefs.IMMICH_API_KEY, null) ?: return@withContext emptyList()
             val albumId  = prefs.getString(Prefs.IMMICH_ALBUM_ID, "")?.trim() ?: ""
 
             val scheme  = if (useHttps) "https" else "http"
-            val baseUrl = "$scheme://$host:$port"
+            if (!useHttps && !allowInsecure) throw java.io.IOException("HTTP is disabled; enable insecure connections explicitly")
+            val baseUrl = "$scheme://$host:$port".toHttpUrlOrNull()
+                ?.takeIf { it.encodedPath == "/" && it.query == null }
+                ?.toString()?.removeSuffix("/")
+                ?: throw java.io.IOException("Invalid Immich host or port")
+            val client = HttpClients.forHost(context, host, allowInsecure)
 
             if (albumId.isNotEmpty()) {
-                fetchAlbumAssets(baseUrl, apiKey, albumId)
+                fetchAlbumAssets(client, baseUrl, apiKey, albumId)
             } else {
-                fetchAllAssets(baseUrl, apiKey)
+                fetchAllAssets(client, baseUrl, apiKey)
             }
         }
 
-    private fun fetchAllAssets(baseUrl: String, apiKey: String): List<ImageItem> {
+    private suspend fun fetchAllAssets(client: okhttp3.OkHttpClient, baseUrl: String, apiKey: String): List<ImageItem> {
         val items = mutableListOf<ImageItem>()
         var page = 1
         val pageSize = 500
         val maxFetch = 2000
         while (items.size < maxFetch) {
             val url = "$baseUrl/api/assets?page=$page&size=$pageSize"
-            val json = get(url, apiKey)
+            val json = get(client, url, apiKey)
             val array = JSONArray(json)
             if (array.length() == 0) break
             parseAssets(array, baseUrl, apiKey, items, maxFetch)
@@ -60,10 +82,10 @@ class ImmichSource(private val context: Context) : ImageSource {
         return items
     }
 
-    private fun fetchAlbumAssets(baseUrl: String, apiKey: String, albumId: String): List<ImageItem> {
+    private suspend fun fetchAlbumAssets(client: okhttp3.OkHttpClient, baseUrl: String, apiKey: String, albumId: String): List<ImageItem> {
         val encodedId = URLEncoder.encode(albumId, "UTF-8")
         val url  = "$baseUrl/api/albums/$encodedId"
-        val json = get(url, apiKey)
+        val json = get(client, url, apiKey)
         val obj  = JSONObject(json)
         val array = obj.optJSONArray("assets") ?: return emptyList()
         val items = mutableListOf<ImageItem>()
@@ -81,17 +103,17 @@ class ImmichSource(private val context: Context) : ImageSource {
             val name = asset.optString("originalFileName", id)
             // Use preview thumbnail for faster loading; Glide handles the auth header
             val url  = "$baseUrl/api/assets/$id/thumbnail?size=preview"
-            out.add(ImageItem(url = url, name = name, headers = mapOf("x-api-key" to apiKey)))
+            out.add(ImageItem(url = url, name = name, headers = mapOf("x-api-key" to apiKey), stableId = "immich:$id"))
         }
     }
 
-    private fun get(url: String, apiKey: String): String {
+    private suspend fun get(client: okhttp3.OkHttpClient, url: String, apiKey: String): String {
         val request = Request.Builder()
             .url(url)
             .header("x-api-key", apiKey)
             .get()
             .build()
-        val response = client.newCall(request).execute()
+        val response = client.newCall(request).awaitResponse()
         if (!response.isSuccessful) {
             val code = response.code
             response.close()

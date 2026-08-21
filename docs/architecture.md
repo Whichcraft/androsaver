@@ -12,13 +12,25 @@
 | `ImageCache.kt` | Disk cache (≤200 images / 150 MB); offline fallback; serialized, atomic manifest updates |
 | `UpdateChecker.kt` | Polls GitHub Releases; supports Stable/Dev channels |
 | `UpdateInstaller.kt` | HTTPS-only APK download via temporary file, then FileProvider install |
-| `HttpClients.kt` | Shared OkHttp clients; normal TLS for public hosts and opt-in trust-all only for configured self-hosted hosts |
+| `HttpClients.kt` | Shared OkHttp clients; normal TLS by default and opt-in trust-all only for an explicitly marked self-hosted provider |
 | `WeatherFetcher.kt` | OpenWeatherMap current conditions fetcher |
 | `BootReceiver.kt` | Receives BOOT_COMPLETED and delegates constrained prefetch work to WorkManager |
 | `PrefetchScheduler.kt` | Schedules periodic background prefetching of images using WorkManager |
 | `ImagePrefetchWorker.kt` | Background worker that queries remote image sources concurrently to warm cache |
-| `SecurePreferences.kt` | SharedPreferences wrapper that uses EncryptedSharedPreferences for credentials when available and migrates safely from plaintext |
+| `SecurePreferences.kt` | SharedPreferences wrapper that uses EncryptedSharedPreferences for credentials and fails closed if encrypted storage is unavailable |
 | `SecurePreferenceDataStore.kt` | PreferenceDataStore interface bridge for Settings screen integration |
+
+### Upstream visualizer source
+
+`psysuals/` is a Git subtree imported from the upstream psysuals repository.
+The current Android port tracks upstream v3.14.0 (`e539626`) and applies the
+OpenGL ES 2.0 and Android lifecycle adaptations documented in
+`docs/psysuals-port-notes.md`. To update it, add/fetch the upstream remote with
+`git remote add psysuals-upstream https://github.com/Whichcraft/psysuals.git`
+when it is not already configured, then run
+`git subtree pull --prefix=psysuals psysuals-upstream main --squash`, compare
+the upstream diff with every affected Kotlin mode, backport applicable changes,
+and rely on GitHub CI for Android verification.
 
 ## Package: `com.androsaver.auth`
 
@@ -36,13 +48,13 @@ Setup activities: `GoogleDriveSetupActivity`, `GoogleAuthActivity`, `OneDriveSet
 
 | File | Source | Auth |
 |------|--------|------|
-| `ImageSource.kt` | Interface: `suspend fun getImageUrls(): List<ImageItem>`; also defines `ImageItem` data class (url, name, headers) | — |
+| `ImageSource.kt` | Interface: `suspend fun getImageUrls()`; `ImageItem` also carries a stable non-secret provider identity | — |
 | `GoogleDriveSource.kt` | Google Drive REST API v3 | OAuth token (auto-refresh) |
 | `OneDriveSource.kt` | Microsoft Graph API | OAuth token (auto-refresh) |
 | `DropboxSource.kt` | Dropbox API v2 | OAuth token (auto-refresh) |
 | `ImmichSource.kt` | Immich REST API | API key header |
 | `NextcloudSource.kt` | WebDAV PROPFIND | Basic auth (app password) |
-| `SynologySource.kt` | Synology DSM FileStation REST | Session cookie (re-login every 25 min) |
+| `SynologySource.kt` | Synology DSM FileStation REST | POST login; in-memory session SID |
 | `LocalStorageSource.kt` | Android MediaStore | `READ_MEDIA_IMAGES` permission |
 | `DefaultImagesSource.kt` | Bundled assets (`assets/default_images/`) — auto-used when no source is enabled | None |
 
@@ -109,7 +121,7 @@ See `docs/visualizer-modes.md` for audio reactivity details.
 ```
 DreamService.onAttachedToWindow()
   └─ ScreensaverEngine.start()
-       ├─ [Slideshow] load images from N sources → ImageCache → Glide → 2 alternating ImageView slots
+       ├─ [Slideshow/Static Image] load configured sources through ImageSourceRegistry → ImageCache/Private Store → Glide
        │    ├─ one Glide CustomTarget tracked per slot; old slot target cleared before reuse
        │    ├─ late image callbacks ignored via transition-sequence guard
        │    ├─ slideshow start/refresh/fallback work fenced by slideshow-session token
@@ -136,12 +148,13 @@ Remote control (D-pad events in ScreensaverEngine):
 | `MODIFY_AUDIO_SETTINGS` | Required alongside `RECORD_AUDIO` for Visualizer API |
 | `READ_MEDIA_IMAGES` | Device storage image source (API 33+) |
 | `READ_EXTERNAL_STORAGE` | Device storage image source (API < 33, `maxSdkVersion=32`) |
-| `REQUEST_INSTALL_PACKAGES` | Self-update: install downloaded APK |
+| `REQUEST_INSTALL_PACKAGES` | Self-update in standard dev/prod variants; removed from the Play Store variant |
 | `RECEIVE_BOOT_COMPLETED` | `BootReceiver` restores the WorkManager prefetch schedule after boot |
 
 ## Build Variants
 
 | Variant | DEBUG_LOGGING | Use |
 |---------|-------------|-----|
-| `devRelease` | true | Dev APK (Downloader code 9149021) |
-| `prodRelease` | false | Stable APK (Downloader code 7582483) |
+| `devStandardRelease` | true | Dev APK with GitHub updater |
+| `prodStandardRelease` | false | Stable APK with GitHub updater |
+| `prodPlaystoreRelease` | false | Play Store AAB; updater entry point hidden and install permission removed |

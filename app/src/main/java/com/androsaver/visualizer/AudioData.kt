@@ -7,11 +7,11 @@ data class AudioData(
     /** Smoothed log-magnitude FFT bins (0..~1), 512 elements. */
     val fft: FloatArray = FloatArray(512),
     /** Normalized beat onset energy (0..~1). Bass-weighted spectral flux normalized by running average. */
-    val beat: Float = 0f,
+    var beat: Float = 0f,
     /** Normalized mid-band energy (bins 20–99, ~860–4300 Hz), normalized by running average (~0..~1.5). */
-    val mid: Float = 0f,
+    var mid: Float = 0f,
     /** Normalized treble-band energy (bins 100–255, ~4300–11000 Hz), normalized by running average (~0..~1.5). */
-    val treble: Float = 0f,
+    var treble: Float = 0f,
     /** Effect-gain multiplier applied to beat before this snapshot was created (default 1.0). */
-    val gain: Float = 1f
+    var gain: Float = 1f
 )

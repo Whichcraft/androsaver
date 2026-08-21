@@ -39,6 +39,7 @@ object Prefs {
     const val IMMICH_API_KEY   = "immich_api_key"
     const val IMMICH_ALBUM_ID  = "immich_album_id"
     const val IMMICH_USE_HTTPS = "immich_use_https"
+    const val IMMICH_ALLOW_INSECURE = "immich_allow_insecure"
 
     // Nextcloud
     const val ENABLE_NEXTCLOUD    = "source_nextcloud"
@@ -48,6 +49,7 @@ object Prefs {
     const val NEXTCLOUD_PASSWORD  = "nextcloud_password"
     const val NEXTCLOUD_FOLDER    = "nextcloud_folder"
     const val NEXTCLOUD_USE_HTTPS = "nextcloud_use_https"
+    const val NEXTCLOUD_ALLOW_INSECURE = "nextcloud_allow_insecure"
 
     // Synology NAS
     const val ENABLE_SYNOLOGY = "source_synology"
@@ -57,6 +59,7 @@ object Prefs {
     const val SYNOLOGY_PASSWORD = "synology_password"
     const val SYNOLOGY_FOLDER = "synology_folder"
     const val SYNOLOGY_USE_HTTPS = "synology_use_https"
+    const val SYNOLOGY_ALLOW_INSECURE = "synology_allow_insecure"
 
     // Slideshow
     const val SLIDE_DURATION = "transition_duration"
@@ -73,6 +76,7 @@ object Prefs {
     // Static background image
     const val STATIC_IMAGE_URI   = "static_image_uri"
     const val STATIC_IMAGE_LOCAL_PATH = "static_image_local_path"
+    const val STATIC_IMAGE_DISPLAY_NAME = "static_image_display_name"
     const val STATIC_IMAGE_SCALE = "static_image_scale"
     const val STATIC_IMAGE_SCALE_PORTRAIT = "static_image_scale_portrait"
     const val STATIC_BACKGROUND_COLOR = "static_background_color"
@@ -87,6 +91,7 @@ object Prefs {
     const val VISUALIZER_INTENSITY = "visualizer_intensity"
     const val VIZ_CYCLE_INTERVAL   = "viz_cycle_interval"
     const val VIZ_ENABLED_MODES    = "viz_enabled_modes"
+    const val VIZ_KNOWN_MODES      = "viz_known_modes"
     const val AUDIO_GENRE          = "audio_genre"
 
     // Slideshow extras

@@ -11,6 +11,7 @@ class BubblesMode : BaseMode() {
 
     private companion object {
         const val MAX = 700
+        const val MAX_RENDER_DIAMETER = 512f
         const val TAU = (Math.PI * 2).toFloat()
     }
 
@@ -124,7 +125,10 @@ class BubblesMode : BaseMode() {
             if (b.y + b.r < 0) continue
 
             val life  = (b.y / H).coerceIn(0f, 1f)
-            val r     = maxOf(2f, b.r * (1f + pulse * 0.90f + mid * 0.35f + high * 0.20f + bassFlash * 0.45f))
+            val r     = minOf(
+                MAX_RENDER_DIAMETER * 0.5f - 14f,
+                maxOf(2f, b.r * (1f + pulse * 0.90f + mid * 0.35f + high * 0.20f + bassFlash * 0.45f))
+            )
             val alpha = life * 0.63f  // matches pygame's 160/255
 
             // Multi-layer halos (outermost first)

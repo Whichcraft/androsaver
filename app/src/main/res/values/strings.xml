@@ -100,6 +100,7 @@
     <string name="nas_port_label">Port</string>
     <string name="nas_port_hint">5000 (HTTP) or 5001 (HTTPS)</string>
     <string name="nas_use_https">Use HTTPS</string>
+    <string name="allow_insecure_label">Allow HTTP or self-signed certificate (unsafe)</string>
     <string name="synology_authorized">✓ Configured</string>
     <string name="synology_not_authorized">Not configured — tap to set up</string>
     <string name="nas_username_label">Username</string>
@@ -122,6 +123,17 @@
     <string name="static_image_not_selected">No static image selected. Choose one in AndroSaver Settings.</string>
     <string name="static_image_load_failed">The selected static image could not be loaded.</string>
     <string name="static_image_copy_failed">The selected image could not be copied to local storage.</string>
+    <string name="image_browser_no_images">No images were found. Check that an image source is enabled and configured.</string>
+    <string name="image_browser_limit">Showing %d images from configured sources.</string>
+    <string name="image_browser_loading">Browse images from configured sources…</string>
+    <string name="image_browser_no_sources">No image sources are configured. Enable one in Image Sources.</string>
+    <string name="image_browser_source_timeout">%1$s timed out after 60 seconds.</string>
+    <string name="image_browser_source_failed">%1$s could not be loaded.</string>
+    <string name="image_browser_limit_prefix">Showing </string>
+    <string name="image_browser_saving">Saving %s…</string>
+    <string name="image_browser_download_failed">The image could not be downloaded.</string>
+    <string name="image_browser_selected">Static image selected.</string>
+    <string name="invalid_background_color">Use a color such as #000000 or #AARRGGBB.</string>
 
     <!-- Permissions -->
     <string name="audio_permission_denied">Microphone permission denied — the visualizer will run silently without audio reactivity</string>
@@ -129,6 +141,7 @@
 
     <!-- Common -->
     <string name="settings_saved">Settings saved</string>
+    <string name="credential_storage_failed">Secure credential storage is unavailable. Nothing was saved.</string>
     <string name="save">Save</string>
     <string name="test_connection">Test Connection</string>
 

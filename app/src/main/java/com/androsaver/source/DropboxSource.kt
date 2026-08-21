@@ -4,12 +4,14 @@ import android.content.Context
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.androsaver.BuildConfig
+import com.androsaver.awaitResponse
 import com.androsaver.HttpClients
 import com.androsaver.Prefs
 import com.androsaver.auth.DropboxAuthManager
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -30,11 +32,14 @@ class DropboxSource(private val context: Context) : ImageSource {
     private val authManager = DropboxAuthManager(context)
 
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
+    private val maxFetch = 2000
 
     override fun isConfigured(): Boolean = authManager.isAuthorized()
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
-        val accessToken = authManager.getValidAccessToken() ?: return@withContext emptyList()
+        if (!isConfigured()) return@withContext emptyList()
+        val accessToken = authManager.getValidAccessToken()
+            ?: throw ImageSourceAuthenticationException("Dropbox authentication failed")
         val prefs = com.androsaver.Prefs.get(context)
         val folder = prefs.getString(Prefs.DROPBOX_FOLDER, "")?.trim() ?: ""
         // Dropbox root must be empty string "", not "/"
@@ -44,16 +49,11 @@ class DropboxSource(private val context: Context) : ImageSource {
             else -> "/$folder"
         }
 
-        try {
-            val files = listImageFiles(accessToken, dropboxPath)
-            fetchTempLinks(accessToken, files)
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Dropbox fetch error", e)
-            emptyList()
-        }
+        val files = listImageFiles(accessToken, dropboxPath)
+        fetchTempLinks(accessToken, files)
     }
 
-    private fun listImageFiles(accessToken: String, path: String): List<Pair<String, String>> {
+    private suspend fun listImageFiles(accessToken: String, path: String): List<Pair<String, String>> {
         val files = mutableListOf<Pair<String, String>>() // (pathLower, name)
         var cursor: String? = null
         var hasMore = true
@@ -71,7 +71,7 @@ class DropboxSource(private val context: Context) : ImageSource {
                     .url("https://api.dropboxapi.com/2/files/list_folder")
                     .header("Authorization", "Bearer $accessToken")
                     .post(body).build()
-                parseListResponse(client.newCall(request).execute().use { it.body?.string() } ?: return files)
+                parseListResponse(client.newCall(request).awaitResponse().use { it.body?.string() } ?: return files)
             } else {
                 val payload = JsonObject().apply { addProperty("cursor", cursor) }
                 val body = gson.toJson(payload)
@@ -80,9 +80,10 @@ class DropboxSource(private val context: Context) : ImageSource {
                     .url("https://api.dropboxapi.com/2/files/list_folder/continue")
                     .header("Authorization", "Bearer $accessToken")
                     .post(body).build()
-                parseListResponse(client.newCall(request).execute().use { it.body?.string() } ?: return files)
+                parseListResponse(client.newCall(request).awaitResponse().use { it.body?.string() } ?: return files)
             }
-            files.addAll(entries)
+            files.addAll(entries.take(maxFetch - files.size))
+            if (files.size >= maxFetch) break
             cursor = nextCursor
             hasMore = more
         }
@@ -132,11 +133,14 @@ class DropboxSource(private val context: Context) : ImageSource {
                             .url("https://api.dropboxapi.com/2/files/get_temporary_link")
                             .header("Authorization", "Bearer $accessToken")
                             .post(body).build()
-                        val json = client.newCall(request).execute()
-                            .use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+                        val json = client.newCall(request).awaitResponse().use { response ->
+                            if (!response.isSuccessful) return@withPermit null
+                            gson.fromJson(response.body?.string(), JsonObject::class.java)
+                        }
                         val link = json.get("link")?.asString ?: return@withPermit null
-                        ImageItem(url = link, name = name)
+                        ImageItem(url = link, name = name, stableId = "dropbox:${path.lowercase()}")
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Temp link failed for $path", e)
                         null
                     }

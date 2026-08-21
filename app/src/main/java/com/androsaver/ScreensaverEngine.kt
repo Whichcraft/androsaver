@@ -20,6 +20,8 @@ import com.androsaver.source.DropboxSource
 import com.androsaver.source.GoogleDriveSource
 import com.androsaver.source.ImageItem
 import com.androsaver.source.ImageSource
+import com.androsaver.source.ImageSourceResult
+import com.androsaver.source.ImageSourceRegistry
 import com.androsaver.source.ImmichSource
 import com.androsaver.source.LocalStorageSource
 import com.androsaver.source.NextcloudSource
@@ -41,8 +43,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import java.io.File
+import android.text.format.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -88,6 +92,7 @@ class ScreensaverEngine(
     private var imageRefreshRunnable: Runnable? = null
     private var retryRunnable: Runnable? = null
     private var finishRunnable: Runnable? = null
+    private var scheduleFinishRunnable: Runnable? = null
     private var consecutiveLoadFailures = 0
     private var displayedIndex = -1
     private var transitionSequence = 0L
@@ -110,7 +115,7 @@ class ScreensaverEngine(
     private val imageTargets = mutableMapOf<ImageView, Target<Drawable>>()
     private val imageCache by lazy { ImageCache(context) }
     private val weatherFetcher by lazy { WeatherFetcher(context) }
-    private val timeFmt  = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val timeFmt  = DateFormat.getTimeFormat(context)
     private val dateFmt  = SimpleDateFormat("EEE, d MMM", Locale.getDefault())
 
     fun start(prefs: SharedPreferences) {
@@ -141,6 +146,11 @@ class ScreensaverEngine(
             if (prefs.getBoolean(Prefs.SHOW_CLOCK, false)) startClock()
             if (prefs.getBoolean(Prefs.WEATHER_ENABLED, false)) startWeather(prefs)
         }
+        scheduleFinishRunnable?.let { handler.removeCallbacks(it) }
+        ScheduleWindow.millisUntilEnd(Calendar.getInstance(), scheduleStart(prefs), scheduleEnd(prefs))?.let { delay ->
+            scheduleFinishRunnable = Runnable { onRequestFinish() }
+            handler.postDelayed(scheduleFinishRunnable!!, delay)
+        }
     }
 
     /** Pause the visualizer audio + GL when the host goes to background (e.g. Home press). */
@@ -155,6 +165,7 @@ class ScreensaverEngine(
         // that are intentionally not stored in dedicated fields.
         handler.removeCallbacksAndMessages(null)
         finishRunnable = null
+        scheduleFinishRunnable = null
         stopSlideshow()
         stopImageRefresh()
         stopVisualizerMode()
@@ -248,12 +259,17 @@ class ScreensaverEngine(
 
     private fun checkSchedule(prefs: SharedPreferences): Boolean {
         if (!prefs.getBoolean(Prefs.SCHEDULE_ENABLED, false)) return true
-        val start = prefs.getString(Prefs.SCHEDULE_START_HR, "8")?.toIntOrNull() ?: 8
-        val end   = prefs.getString(Prefs.SCHEDULE_END_HR, "22")?.toIntOrNull() ?: 22
+        val start = scheduleStart(prefs)
+        val end = scheduleEnd(prefs)
         val hour  = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        return if (start <= end) hour in start until end
-        else hour >= start || hour < end
+        return ScheduleWindow.isActive(hour, start, end)
     }
+
+    private fun scheduleStart(prefs: SharedPreferences) =
+        prefs.getString(Prefs.SCHEDULE_START_HR, "8")?.toIntOrNull()?.coerceIn(0, 23) ?: 8
+
+    private fun scheduleEnd(prefs: SharedPreferences) =
+        prefs.getString(Prefs.SCHEDULE_END_HR, "22")?.toIntOrNull()?.coerceIn(0, 23) ?: 22
 
     // ── Clock ─────────────────────────────────────────────────────────────────
 
@@ -327,22 +343,21 @@ class ScreensaverEngine(
         val vv = VisualizerView(context)
         visualizerView = vv
 
+        val allNames = vv.renderer.modeNames.toSet()
         val storedModes = prefs.getStringSet(Prefs.VIZ_ENABLED_MODES, null)
-        if (!storedModes.isNullOrEmpty()) {
-            // Auto-add any modes not present in the stored set (new effects added in a later version).
-            // This ensures that after an update, freshly-added effects are navigable without requiring
-            // the user to manually visit the Active Effects setting.
-            val allNames = vv.renderer.modeNames.toSet()
-            val newModes = allNames - storedModes
-            val enabledModes: Set<String> = if (newModes.isEmpty()) storedModes
-            else (storedModes + newModes).also {
-                prefs.edit().putStringSet(Prefs.VIZ_ENABLED_MODES, it).apply()
-            }
-            vv.enabledModeNames = enabledModes
+        val knownModes = prefs.getStringSet(Prefs.VIZ_KNOWN_MODES, null)
+        val enabledModes = when {
+            storedModes == null || storedModes.isEmpty() -> allNames
+            else -> (storedModes + (allNames - (knownModes ?: allNames))).intersect(allNames)
         }
+        vv.enabledModeNames = enabledModes
+        prefs.edit()
+            .putStringSet(Prefs.VIZ_KNOWN_MODES, allNames)
+            .putStringSet(Prefs.VIZ_ENABLED_MODES, enabledModes)
+            .apply()
 
         when (modePref) {
-            "auto"   -> { /* start at index 0; nextMode() cycles enabled modes */ }
+            "auto"   -> vv.setModeIndex(vv.firstEnabledMode())
             "random" -> vv.randomMode()
             else     -> { /* off: stay on first enabled mode */ }
         }
@@ -350,6 +365,7 @@ class ScreensaverEngine(
         vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
         val genre = prefs.getString(Prefs.AUDIO_GENRE, "any") ?: "any"
         if (genre == "auto") {
+            vv.audio.setGenreDetectionEnabled(true)
             vv.audio.applyGenreHint("any")
             lastDetectedGenre = ""
             genreDetectRunnable = object : Runnable {
@@ -365,8 +381,8 @@ class ScreensaverEngine(
                                     vv.renderer.modeNames.toSet()
                                 }
                                 val target = candidates.firstOrNull { it in enabledNames }
-                                    ?: candidates.random()
-                                vv.setMode(target)
+                                    ?: enabledNames.firstOrNull()
+                                target?.let { vv.setMode(it) }
                                 resetVizCycleTimer()
                             }
                         }
@@ -376,6 +392,7 @@ class ScreensaverEngine(
             }
             handler.postDelayed(genreDetectRunnable!!, 30_000L)
         } else {
+            vv.audio.setGenreDetectionEnabled(false)
             vv.audio.applyGenreHint(genre)
         }
 
@@ -438,19 +455,23 @@ class ScreensaverEngine(
         binding.devErrorOverlay.visibility = View.GONE
         resetSlideshowViews()
 
-        val uriString = prefs.getString(Prefs.STATIC_IMAGE_URI, null)
         val localPath = prefs.getString(Prefs.STATIC_IMAGE_LOCAL_PATH, null)
             ?.takeIf { File(it).isFile }
         val imageSource: Any? = localPath?.let { File(it) }
-            ?: uriString?.takeIf { it.isNotBlank() }?.let { android.net.Uri.parse(it) }
         if (imageSource == null) {
             binding.statusText.text = context.getString(R.string.static_image_not_selected)
             binding.statusText.visibility = View.VISIBLE
             return
         }
 
-        binding.imageView1.scaleType = imageScaleType(prefs.getString(Prefs.STATIC_IMAGE_SCALE, "crop"))
+        binding.imageView1.scaleType = imageScaleType(
+            ImageBehavior.resolve(Prefs.MODE_STATIC, false,
+                prefs.getString(Prefs.STATIC_IMAGE_SCALE, null),
+                prefs.getString(Prefs.STATIC_IMAGE_SCALE_PORTRAIT, null))
+        )
         val imageView = binding.imageView1
+        val staticCenterRequested = prefs.getString(Prefs.STATIC_IMAGE_SCALE, null) == ImageBehavior.CENTER ||
+            prefs.getString(Prefs.STATIC_IMAGE_SCALE_PORTRAIT, null) == ImageBehavior.CENTER
         val target = object : CustomTarget<Drawable>(
             imageView.width.takeIf { it > 0 } ?: context.resources.displayMetrics.widthPixels,
             imageView.height.takeIf { it > 0 } ?: context.resources.displayMetrics.heightPixels
@@ -481,7 +502,9 @@ class ScreensaverEngine(
             }
         }
         imageTargets[imageView] = target
-        Glide.with(context).load(imageSource).into(target)
+        val staticRequest = Glide.with(context).load(imageSource)
+        if (staticCenterRequested) staticRequest.downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.CENTER_INSIDE)
+        staticRequest.into(target)
     }
 
     private fun startSlideshowMode(prefs: SharedPreferences) {
@@ -489,14 +512,44 @@ class ScreensaverEngine(
         binding.visualizerContainer.visibility = View.GONE
         binding.imageView1.visibility = View.VISIBLE
         binding.imageView2.visibility = View.VISIBLE
-        binding.imageView1.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, "fit"))
-        binding.imageView2.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, "fit"))
+        val defaultScale = ImageBehavior.defaultFor(Prefs.MODE_SLIDESHOW, false)
+        binding.imageView1.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, defaultScale))
+        binding.imageView2.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, defaultScale))
         devTransitionErrorVisible = false
         binding.devErrorOverlay.text = ""
         binding.devErrorOverlay.visibility = View.GONE
         slideshowSession++
         resetSlideshowViews()
         loadImages(prefs, slideshowSession)
+    }
+
+    private suspend fun fetchSourceItems(source: ImageSource, phase: String): List<ImageItem>? {
+        return try {
+            when (val result = withTimeout(60_000L) { source.enumerate() }) {
+                is ImageSourceResult.Success -> result.items
+                ImageSourceResult.Empty -> emptyList()
+                is ImageSourceResult.Failure -> {
+                    reportTransitionFailure(
+                        "$phase (${result.kind.name.lowercase(Locale.ROOT)})",
+                        IllegalStateException("Image source did not complete successfully"),
+                        sourceName = source.name
+                    )
+                    null
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            reportTransitionFailure(
+                "$phase timeout",
+                TimeoutException("${source.name} did not respond within 60 seconds"),
+                sourceName = source.name
+            )
+            null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            reportTransitionFailure("$phase failed", e, sourceName = source.name)
+            null
+        }
     }
 
     private fun loadImages(prefs: SharedPreferences, session: Long) {
@@ -516,21 +569,7 @@ class ScreensaverEngine(
                 val items = mutableListOf<ImageItem>()
                 val deferreds = sources.map { src ->
                     async {
-                        val urls = try {
-                            val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
-                            if (urls == null) {
-                                reportTransitionFailure(
-                                    "image source timeout",
-                                    TimeoutException("${src.name} did not respond within 60 seconds"),
-                                    sourceName = src.name
-                                )
-                            }
-                            urls
-                        } catch (t: Throwable) {
-                            if (t is CancellationException) throw t
-                            reportTransitionFailure("image source load", t, sourceName = src.name)
-                            null
-                        }
+                        val urls = fetchSourceItems(src, "image source load")
                         src.name to urls
                     }
                 }
@@ -601,40 +640,12 @@ class ScreensaverEngine(
     }
 
     private fun getConfiguredSources(prefs: SharedPreferences): List<ImageSource> {
-        val sources = mutableListOf<ImageSource>()
-        fun addSource(name: String, enabled: Boolean, factory: () -> ImageSource) {
-            if (!enabled) return
-            try {
-                sources.add(factory())
-            } catch (t: Throwable) {
-                reportTransitionFailure("image source initialization", t, sourceName = name)
-            }
+        return try {
+            ImageSourceRegistry.configured(context, includeBundledFallback = true)
+        } catch (t: Throwable) {
+            reportTransitionFailure("image source initialization", t)
+            emptyList()
         }
-        addSource("Google Drive", prefs.getBoolean(Prefs.ENABLE_GOOGLE_DRIVE, false)) {
-            GoogleDriveSource(context)
-        }
-        addSource("OneDrive", prefs.getBoolean(Prefs.ENABLE_ONEDRIVE, false)) {
-            OneDriveSource(context)
-        }
-        addSource("Dropbox", prefs.getBoolean(Prefs.ENABLE_DROPBOX, false)) {
-            DropboxSource(context)
-        }
-        addSource("Immich", prefs.getBoolean(Prefs.ENABLE_IMMICH, false)) {
-            ImmichSource(context)
-        }
-        addSource("Nextcloud", prefs.getBoolean(Prefs.ENABLE_NEXTCLOUD, false)) {
-            NextcloudSource(context)
-        }
-        addSource("Synology", prefs.getBoolean(Prefs.ENABLE_SYNOLOGY, false)) {
-            SynologySource(context)
-        }
-        addSource("Local storage", prefs.getBoolean(Prefs.ENABLE_LOCAL_STORAGE, false)) {
-            LocalStorageSource(context)
-        }
-        if (sources.isEmpty()) {
-            addSource("Bundled default images", enabled = true) { DefaultImagesSource(context) }
-        }
-        return sources
     }
 
     private fun startSlideshow(prefs: SharedPreferences, session: Long) {
@@ -680,25 +691,7 @@ class ScreensaverEngine(
                         val fresh = mutableListOf<ImageItem>()
                         val deferreds = sources.map { src ->
                             async {
-                                val urls = try {
-                                    val urls = withTimeoutOrNull(60_000L) { src.getImageUrls() }
-                                    if (urls == null) {
-                                        reportTransitionFailure(
-                                            "image source refresh timeout",
-                                            TimeoutException("${src.name} did not respond within 60 seconds"),
-                                            sourceName = src.name
-                                        )
-                                    }
-                                    urls
-                                } catch (t: Throwable) {
-                                    if (t is CancellationException) throw t
-                                    reportTransitionFailure(
-                                        "image source refresh",
-                                        t,
-                                        sourceName = src.name
-                                    )
-                                    null
-                                }
+                                val urls = fetchSourceItems(src, "image source refresh")
                                 src.name to urls
                             }
                         }
@@ -720,7 +713,7 @@ class ScreensaverEngine(
                             imageSourceNames.clear()
                             imageSourceNames.putAll(freshSources)
                             displayedIndex = currentDisplayed?.let { current ->
-                                imageItems.indexOfFirst { it.url == current.url }
+                            imageItems.indexOfFirst { it.stableId == current.stableId }
                             } ?: -1
                             displayedItem = displayedIndex.takeIf { it >= 0 }?.let { imageItems[it] }
                             currentIndex = when {
@@ -791,8 +784,13 @@ class ScreensaverEngine(
             GlideUrl(item.url)
         }
 
+        val prefs = Prefs.get(context)
+        val centerRequested = prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, null) == ImageBehavior.CENTER ||
+            prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE_PORTRAIT, null) == ImageBehavior.CENTER
         val request = Glide.with(context).load(glideUrl)
-            .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
+            .downsample(if (centerRequested)
+                com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.CENTER_INSIDE
+            else com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
 
         var glideFailureReported = false
         val target = object : CustomTarget<Drawable>(
@@ -936,8 +934,13 @@ class ScreensaverEngine(
     ): ImageView.ScaleType {
         val isPortrait = drawable.intrinsicHeight > drawable.intrinsicWidth
         val key = if (isPortrait) portraitKey else landscapeKey
-        val default = if (isPortrait) "fit" else "crop"
-        return imageScaleType(prefs.getString(key, default))
+        val mode = if (landscapeKey == Prefs.STATIC_IMAGE_SCALE) Prefs.MODE_STATIC else Prefs.MODE_SLIDESHOW
+        return imageScaleType(ImageBehavior.resolve(
+            mode,
+            isPortrait,
+            prefs.getString(landscapeKey, null),
+            prefs.getString(portraitKey, null)
+        ))
     }
 
     private fun parseBackgroundColor(prefs: SharedPreferences, key: String): Int {
@@ -952,9 +955,9 @@ class ScreensaverEngine(
     }
 
     private fun findImageItemIndex(item: ImageItem): Int =
-        imageItems.indexOfFirst { it.url == item.url }
+        imageItems.indexOfFirst { it.stableId == item.stableId }
 
-    private fun imageKey(item: ImageItem): String = item.url
+    private fun imageKey(item: ImageItem): String = item.stableId
 
     private fun scheduleNextSlide(prefs: SharedPreferences, effect: String) {
         val durationMs = prefs.getString(Prefs.SLIDE_DURATION, "10000")
@@ -1015,8 +1018,16 @@ class ScreensaverEngine(
     // ── Ken Burns ─────────────────────────────────────────────────────────────
 
     private fun startKenBurns(view: ImageView, prefs: SharedPreferences) {
-        // Keep portrait photos fully visible; scaling them would bring back edge cropping.
-        if (isPortraitImage(view)) {
+        val behavior = if (view === binding.imageView1 || view === binding.imageView2) {
+            val drawable = view.drawable
+            val portrait = drawable != null && drawable.intrinsicHeight > drawable.intrinsicWidth
+            val p = com.androsaver.Prefs.get(context)
+            ImageBehavior.resolve(Prefs.MODE_SLIDESHOW, portrait,
+                p.getString(Prefs.SLIDESHOW_IMAGE_SCALE, null),
+                p.getString(Prefs.SLIDESHOW_IMAGE_SCALE_PORTRAIT, null))
+        } else ImageBehavior.CROP
+        // Motion is only safe for cropped images; Fit/Center must remain complete.
+        if (behavior != ImageBehavior.CROP || isPortraitImage(view)) {
             view.scaleX = 1f
             view.scaleY = 1f
             view.translationX = 0f

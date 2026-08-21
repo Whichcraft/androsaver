@@ -3,6 +3,7 @@ package com.androsaver.auth
 import android.content.Context
 import androidx.preference.PreferenceManager
 import com.androsaver.HttpClients
+import com.androsaver.awaitResponse
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -22,6 +23,7 @@ data class DeviceCodeResponse(
 sealed class AuthResult {
     data class Success(val accessToken: String, val refreshToken: String) : AuthResult()
     object Pending : AuthResult()
+    object SlowDown : AuthResult()
     object Expired : AuthResult()
     data class Error(val message: String) : AuthResult()
 }
@@ -46,7 +48,10 @@ class GoogleAuthManager(private val context: Context) {
             .build()
 
         try {
-            val json = client.newCall(request).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            val json = client.newCall(request).awaitResponse().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                gson.fromJson(response.body?.string(), JsonObject::class.java)
+            }
             if (json.has("error")) return@withContext null
             DeviceCodeResponse(
                 deviceCode = json.get("device_code").asString,
@@ -56,6 +61,7 @@ class GoogleAuthManager(private val context: Context) {
                 interval = json.get("interval")?.asInt ?: 5
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             null
         }
     }
@@ -80,7 +86,9 @@ class GoogleAuthManager(private val context: Context) {
             .build()
 
         try {
-            val json = client.newCall(request).execute().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            val json = client.newCall(request).awaitResponse().use { response ->
+                gson.fromJson(response.body?.string(), JsonObject::class.java)
+            }
 
             when {
                 json.has("access_token") -> {
@@ -94,13 +102,14 @@ class GoogleAuthManager(private val context: Context) {
                 }
                 json.has("error") -> when (json.get("error").asString) {
                     "authorization_pending" -> AuthResult.Pending
-                    "slow_down" -> AuthResult.Pending
+                    "slow_down" -> AuthResult.SlowDown
                     "expired_token" -> AuthResult.Expired
                     else -> AuthResult.Error(json.get("error").asString)
                 }
                 else -> AuthResult.Error("Unexpected response")
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AuthResult.Error(e.message ?: "Network error")
         }
     }

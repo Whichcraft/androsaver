@@ -1,6 +1,6 @@
 # Privacy Policy — AndroSaver
 
-_Last updated: 2026-07-29_
+_Last updated: 2026-08-21_
 
 ## 1. Overview
 
@@ -14,7 +14,7 @@ AndroSaver is an Android screensaver app that displays photo slideshows and musi
 
 ### 2.1 Cloud Storage Credentials (Google Drive, OneDrive, Dropbox)
 
-When Android encrypted storage is available, AndroSaver stores OAuth 2.0 access and refresh tokens locally using Android's `EncryptedSharedPreferences` (AES-256 encryption). If Android's encrypted storage cannot be initialized, the app falls back to its local preferences so configured sources remain usable. These tokens are:
+AndroSaver stores OAuth 2.0 access and refresh tokens locally using Android's `EncryptedSharedPreferences` (AES-256 encryption). If encrypted storage cannot be initialized or a credential read/write fails, the app refuses the sensitive operation rather than falling back to plaintext. These tokens are:
 
 - Used solely to fetch image files from your own account via the respective provider's API.
 - Never transmitted to the app developer or any third party.
@@ -22,11 +22,11 @@ When Android encrypted storage is available, AndroSaver stores OAuth 2.0 access 
 
 ### 2.2 Self-Hosted Server Credentials (Immich, Nextcloud, Synology NAS)
 
-Host address, port, username, password or API key are stored locally and, when Android encrypted storage is available, protected with `EncryptedSharedPreferences`. They are used solely to authenticate with the server you have configured and are never sent anywhere else.
+Host address, port, username, password or API key are stored locally; passwords and API keys are protected with `EncryptedSharedPreferences`. They are used solely to authenticate with the server you have configured and are never sent anywhere else.
 
 ### 2.3 Photos and Images
 
-Photos are fetched from your configured sources, displayed on screen, and cached locally on the device (up to 200 images / 150 MB) as an offline fallback. Public cloud and update traffic use HTTPS. Self-hosted sources offer a user-controlled HTTP/HTTPS setting; choose HTTPS whenever your server supports it. The app developer never receives copies of your photos. Photos are never uploaded, analysed, or shared.
+Photos are fetched from your configured sources, displayed on screen, and cached locally on the device (up to 200 images / 150 MB) as an offline fallback. Public cloud and update traffic use HTTPS. Self-hosted sources default to HTTPS with certificate validation; HTTP or self-signed certificates require an explicit per-provider insecure setting. The app developer never receives copies of your photos. Photos are never uploaded, analysed, or shared.
 
 ### 2.4 Microphone / Audio (RECORD_AUDIO Permission)
 

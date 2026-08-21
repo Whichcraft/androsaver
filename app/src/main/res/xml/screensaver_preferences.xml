@@ -33,7 +33,7 @@
             android:summary="Choose an image from this device" />
         <Preference
             android:key="static_image_source_browser"
-            android:title="Browse Slideshow Sources"
+            android:title="Browse Image Sources"
             android:summary="Choose an image from a configured cloud, NAS, or device source" />
         <ListPreference
             android:key="static_image_scale"

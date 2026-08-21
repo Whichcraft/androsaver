@@ -45,59 +45,17 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
+import kotlinx.coroutines.Job
 
 private fun configuredImageSources(context: android.content.Context): List<ImageSource> {
-    val prefs = Prefs.get(context)
-    val sources = mutableListOf<ImageSource>()
-    if (prefs.getBoolean(Prefs.ENABLE_GOOGLE_DRIVE, false)) sources += GoogleDriveSource(context)
-    if (prefs.getBoolean(Prefs.ENABLE_ONEDRIVE, false)) sources += OneDriveSource(context)
-    if (prefs.getBoolean(Prefs.ENABLE_DROPBOX, false)) sources += DropboxSource(context)
-    if (prefs.getBoolean(Prefs.ENABLE_IMMICH, false)) sources += ImmichSource(context)
-    if (prefs.getBoolean(Prefs.ENABLE_NEXTCLOUD, false)) sources += NextcloudSource(context)
-    if (prefs.getBoolean(Prefs.ENABLE_SYNOLOGY, false)) sources += SynologySource(context)
-    if (prefs.getBoolean(Prefs.ENABLE_LOCAL_STORAGE, false)) sources += LocalStorageSource(context)
-    return sources
+    return com.androsaver.source.ImageSourceRegistry.configured(context)
 }
 
-private fun copyImageItemToPrivateStorage(
+private suspend fun copyImageItemToPrivateStorage(
     context: android.content.Context,
     image: ImageItem
 ): String? {
-    val directory = File(context.filesDir, "static_background")
-    if (!directory.exists() && !directory.mkdirs()) return null
-    val destination = File(directory, "background_image")
-    val temporary = File.createTempFile("background_image_", ".tmp", directory)
-    return try {
-        if (image.url.startsWith("content://")) {
-            context.contentResolver.openInputStream(Uri.parse(image.url))?.use { input ->
-                temporary.outputStream().use { output -> input.copyTo(output) }
-            } ?: return null
-        } else if (image.url.startsWith("file://")) {
-            File(Uri.parse(image.url).path ?: return null).inputStream().use { input ->
-                temporary.outputStream().use { output -> input.copyTo(output) }
-            }
-        } else {
-            val request = Request.Builder().url(image.url).apply {
-                image.headers.forEach { (name, value) -> addHeader(name, value) }
-            }.build()
-            val host = Uri.parse(image.url).host
-            HttpClients.forHost(context, host ?: "").newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
-                val body = response.body ?: return null
-                body.byteStream().use { input ->
-                    temporary.outputStream().use { output -> input.copyTo(output) }
-                }
-            }
-        }
-        if (destination.exists() && !destination.delete()) return null
-        if (!temporary.renameTo(destination)) return null
-        destination.absolutePath
-    } catch (_: Exception) {
-        null
-    } finally {
-        if (temporary.exists()) temporary.delete()
-    }
+    return StaticImageStore.copyItem(context, image)
 }
 
 class SettingsActivity : AppCompatActivity() {
@@ -172,11 +130,14 @@ class SettingsActivity : AppCompatActivity() {
 
     class SettingsFragment : PreferenceFragmentCompat() {
 
-        private var pendingUpdateUrl: String? = null
+        private var pendingUpdate: UpdateInfo? = null
+        private var updateJob: kotlinx.coroutines.Job? = null
+        private var staticPickerOpen = false
 
         private val staticImagePicker = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
+            staticPickerOpen = false
             if (result.resultCode != android.app.Activity.RESULT_OK) return@registerForActivityResult
             val uri = result.data?.data ?: return@registerForActivityResult
             try {
@@ -191,7 +152,7 @@ class SettingsActivity : AppCompatActivity() {
             val appContext = requireContext().applicationContext
             viewLifecycleOwner.lifecycleScope.launch {
                 val localPath = withContext(Dispatchers.IO) {
-                    copyStaticImageToPrivateStorage(appContext, uri)
+                    StaticImageStore.copyUri(appContext, uri)
                 }
                 if (localPath == null) {
                     android.widget.Toast.makeText(
@@ -200,10 +161,11 @@ class SettingsActivity : AppCompatActivity() {
                     return@launch
                 }
                 Prefs.get(appContext).edit()
-                    .putString(Prefs.STATIC_IMAGE_URI, uri.toString())
+                    .remove(Prefs.STATIC_IMAGE_URI)
                     .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, localPath)
+                    .putString(Prefs.STATIC_IMAGE_DISPLAY_NAME, uri.lastPathSegment ?: "Selected image")
                     .apply()
-                updateStaticImageSummary(uri)
+                updateStaticImageSummary()
             }
         }
 
@@ -223,9 +185,12 @@ class SettingsActivity : AppCompatActivity() {
                 val prefs = Prefs.get(requireContext())
                 val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) ?: Prefs.MODE_SLIDESHOW
                 updateModeVisibility(currentMode)
+                cleanupLegacyStaticImageUrl()
                 updateStaticImageSummary()
 
                 findPreference<Preference>(Prefs.STATIC_IMAGE_URI)?.setOnPreferenceClickListener {
+                    if (staticPickerOpen) return@setOnPreferenceClickListener true
+                    staticPickerOpen = true
                     staticImagePicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = "image/*"
@@ -242,14 +207,25 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
 
+                findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.setOnPreferenceChangeListener { _, newValue ->
+                    val selected = newValue as? Set<*> ?: emptySet<Any>()
+                    if (selected.isEmpty()) {
+                        Toast.makeText(requireContext(), "Select at least one visual effect.", Toast.LENGTH_SHORT).show()
+                        false
+                    } else true
+                }
+
                 configureWeatherPreference(Prefs.WEATHER_CITY)
                 configureWeatherPreference(Prefs.WEATHER_API_KEY)
+                configureColorPreference(Prefs.STATIC_BACKGROUND_COLOR)
+                configureColorPreference(Prefs.SLIDESHOW_BACKGROUND_COLOR)
                 findPreference<SwitchPreferenceCompat>(Prefs.WEATHER_ENABLED)
                     ?.setOnPreferenceChangeListener { _, newValue ->
                         updateWeatherSummary(enabled = newValue as Boolean)
                         true
                     }
                 updateWeatherSummary()
+                if (BuildConfig.PLAY_STORE) findPreference<Preference>("about_app")?.isVisible = false
 
             } catch (e: Throwable) {
                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Settings fragment failed to load", e)
@@ -302,28 +278,31 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
                 "about_app" -> {
-                    val url = pendingUpdateUrl
-                    if (url != null) {
+                    val update = pendingUpdate
+                    if (update != null) {
                         findPreference<Preference>("about_app")?.summary = getString(R.string.update_downloading)
                         val appContext = requireContext().applicationContext
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        updateJob?.cancel()
+                        updateJob = viewLifecycleOwner.lifecycleScope.launch {
                             try {
-                                UpdateInstaller.downloadAndInstall(appContext, url)
+                                UpdateInstaller.downloadAndInstall(appContext, update)
                             } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
                                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Update failed", e)
                                 if (isAdded) {
                                     findPreference<Preference>("about_app")?.summary = getString(R.string.update_failed)
                                     android.widget.Toast.makeText(appContext, R.string.update_failed_toast, android.widget.Toast.LENGTH_LONG).show()
                                 }
-                                pendingUpdateUrl = null
+                                pendingUpdate = null
                             }
                         }
                     } else {
                         findPreference<Preference>("about_app")?.summary = getString(R.string.update_checking)
-                        viewLifecycleOwner.lifecycleScope.launch {
+                        updateJob?.cancel()
+                        updateJob = viewLifecycleOwner.lifecycleScope.launch {
                             val update = UpdateChecker.checkForUpdate()
                             if (update != null) {
-                                pendingUpdateUrl = update.apkUrl
+                                pendingUpdate = update
                                 findPreference<Preference>("about_app")?.summary =
                                     getString(R.string.update_available, update.versionName)
                             } else {
@@ -348,6 +327,24 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        private fun configureColorPreference(key: String) {
+            findPreference<EditTextPreference>(key)?.setOnPreferenceChangeListener { preference, newValue ->
+                val normalized = (newValue as? String)?.trim()?.let {
+                    if (it.matches(Regex("#?[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"))) {
+                        "#" + it.removePrefix("#").uppercase()
+                    } else null
+                }
+                if (normalized == null) {
+                    Toast.makeText(requireContext(), R.string.invalid_background_color, Toast.LENGTH_SHORT).show()
+                    false
+                } else {
+                    Prefs.get(requireContext()).edit().putString(key, normalized).apply()
+                    preference.summary = normalized
+                    false
+                }
+            }
+        }
+
         private fun updateWeatherSummary(enabled: Boolean? = null) {
             val prefs = Prefs.get(requireContext())
             val isOn  = enabled ?: prefs.getBoolean(Prefs.WEATHER_ENABLED, false)
@@ -366,7 +363,7 @@ class SettingsActivity : AppCompatActivity() {
             val isSlideshow = mode == Prefs.MODE_SLIDESHOW
             val isStatic = mode == Prefs.MODE_STATIC
             val isVisualizer = mode == Prefs.MODE_VISUALIZER
-            findPreference<Preference>("image_sources")?.isVisible = isSlideshow
+            findPreference<Preference>("image_sources")?.isVisible = isSlideshow || isStatic
             findPreference<androidx.preference.PreferenceCategory>("cat_slideshow")?.isVisible = isSlideshow
             findPreference<androidx.preference.PreferenceCategory>("cat_static")?.isVisible = isStatic
             findPreference<androidx.preference.PreferenceCategory>("cat_visualizer")?.isVisible = isVisualizer
@@ -374,30 +371,16 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun updateStaticImageSummary(uri: Uri? = null) {
             val preference = findPreference<Preference>(Prefs.STATIC_IMAGE_URI) ?: return
-            val selected = uri?.toString()
-                ?: Prefs.get(requireContext()).getString(Prefs.STATIC_IMAGE_URI, null)
-            preference.summary = selected?.let {
-                Uri.parse(it).lastPathSegment?.substringAfterLast('/') ?: "Selected image"
-            } ?: getString(R.string.static_image_not_selected)
+            val prefs = Prefs.get(requireContext())
+            val selected = uri?.lastPathSegment ?: prefs.getString(Prefs.STATIC_IMAGE_DISPLAY_NAME, null)
+            preference.summary = selected ?: getString(R.string.static_image_not_selected)
         }
 
-        private fun copyStaticImageToPrivateStorage(context: android.content.Context, uri: Uri): String? {
-            val directory = File(context.filesDir, "static_background")
-            if (!directory.exists() && !directory.mkdirs()) return null
-            val destination = File(directory, "background_image")
-            val temporary = File.createTempFile("background_image_", ".tmp", directory)
-            return try {
-                val input = context.contentResolver.openInputStream(uri) ?: return null
-                input.use { source ->
-                    temporary.outputStream().use { target -> source.copyTo(target) }
-                }
-                if (destination.exists() && !destination.delete()) return null
-                if (!temporary.renameTo(destination)) return null
-                destination.absolutePath
-            } catch (_: Exception) {
-                null
-            } finally {
-                if (temporary.exists()) temporary.delete()
+        private fun cleanupLegacyStaticImageUrl() {
+            val prefs = Prefs.get(requireContext())
+            val legacy = prefs.getString(Prefs.STATIC_IMAGE_URI, null)
+            if (legacy?.startsWith("http://") == true || legacy?.startsWith("https://") == true) {
+                prefs.edit().remove(Prefs.STATIC_IMAGE_URI).apply()
             }
         }
 
@@ -424,17 +407,18 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateAboutVersion() {
-            val channel = if (BuildConfig.FLAVOR == "dev") Prefs.UPDATE_CHANNEL_DEV
+            val channel = if (BuildConfig.IS_DEV) Prefs.UPDATE_CHANNEL_DEV
                           else Prefs.UPDATE_CHANNEL_STABLE
             findPreference<Preference>("about_app")?.summary =
                 getString(R.string.about_version_summary, BuildConfig.VERSION_NAME, channel)
         }
 
         private fun checkForUpdates() {
+            if (BuildConfig.PLAY_STORE) return
             viewLifecycleOwner.lifecycleScope.launch {
                 val update = UpdateChecker.checkForUpdate()
                 if (update != null) {
-                    pendingUpdateUrl = update.apkUrl
+                    pendingUpdate = update
                     findPreference<Preference>("about_app")?.summary =
                         getString(R.string.update_available, update.versionName)
                 }
@@ -447,21 +431,62 @@ class SettingsActivity : AppCompatActivity() {
 
     class StaticImageBrowserFragment : Fragment() {
 
-        private lateinit var content: LinearLayout
+        private lateinit var list: android.widget.ListView
+        private val rows = mutableListOf<BrowserRow>()
+        private lateinit var adapter: android.widget.BaseAdapter
+        private var saveJob: Job? = null
+        private var remainingSources = 0
+
+        private data class BrowserRow(
+            val source: String? = null,
+            val image: ImageItem? = null,
+            val message: String? = null
+        )
+
+        private data class SourceLoadResult(
+            val source: ImageSource,
+            val images: List<ImageItem>?,
+            val timedOut: Boolean = false
+        )
 
         override fun onCreateView(
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
         ): View {
-            content = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL
+            list = android.widget.ListView(requireContext()).apply {
                 setPadding(32, 24, 32, 24)
+                dividerHeight = 12
+                isFocusable = true
             }
-            val scroll = android.widget.ScrollView(requireContext()).apply {
-                addView(content)
+            adapter = object : android.widget.BaseAdapter() {
+                override fun getCount() = rows.size
+                override fun getItem(position: Int) = rows[position]
+                override fun getItemId(position: Int) = position.toLong()
+                override fun getViewTypeCount() = 2
+                override fun getItemViewType(position: Int) = if (rows[position].image == null) 0 else 1
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val row = rows[position]
+                    if (row.image == null) {
+                        return (convertView as? TextView ?: TextView(requireContext())).apply {
+                            text = row.message ?: row.source
+                            textSize = 19f
+                            setPadding(0, 18, 0, 8)
+                            isFocusable = false
+                        }
+                    }
+                    return (convertView as? Button ?: Button(requireContext())).apply {
+                        val image = row.image
+                        text = image.name.ifBlank { image.url.substringAfterLast('/').substringBefore('?') }
+                        contentDescription = "${row.source}: $text"
+                        isAllCaps = false
+                        isFocusable = true
+                        setOnClickListener { selectImage(image) }
+                    }
+                }
             }
-            return scroll
+            list.adapter = adapter
+            return list
         }
 
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -470,91 +495,98 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun loadImages() {
-            content.removeAllViews()
-            content.addView(TextView(requireContext()).apply {
-                text = "Browse images from configured sources"
-                textSize = 22f
-                setPadding(0, 0, 0, 20)
-            })
-            content.addView(ProgressBar(requireContext()))
+            rows.clear()
+            rows.add(BrowserRow(source = getString(R.string.image_browser_loading)))
+            adapter.notifyDataSetChanged()
 
-            viewLifecycleOwner.lifecycleScope.launch {
-                val results = try {
-                    withContext(Dispatchers.IO) {
-                        coroutineScope {
-                            configuredImageSources(requireContext()).map { source ->
-                                async {
-                                    source.name to runCatching { source.getImageUrls() }.getOrDefault(emptyList())
-                                }
-                            }.awaitAll()
+            val appContext = requireContext().applicationContext
+            val sources = configuredImageSources(appContext)
+            remainingSources = sources.size
+            if (sources.isEmpty()) {
+                rows.clear()
+                rows.add(BrowserRow(message = getString(R.string.image_browser_no_sources)))
+                adapter.notifyDataSetChanged()
+                return
+            }
+            sources.forEach { source ->
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val result = try {
+                        SourceLoadResult(source, withContext(Dispatchers.IO) {
+                            when (val outcome = kotlinx.coroutines.withTimeout(60_000L) { source.enumerate() }) {
+                                is com.androsaver.source.ImageSourceResult.Success -> outcome.items
+                                com.androsaver.source.ImageSourceResult.Empty -> emptyList()
+                                is com.androsaver.source.ImageSourceResult.Failure -> null
+                            }
+                        })
+                    } catch (t: Throwable) {
+                        if (t is kotlinx.coroutines.TimeoutCancellationException) {
+                            SourceLoadResult(source, null, timedOut = true)
+                        } else if (t is kotlinx.coroutines.CancellationException) {
+                            throw t
+                        } else {
+                            if (BuildConfig.DEBUG_LOGGING) android.util.Log.w("SettingsActivity", "Image source failed: ${source.name}", t)
+                            SourceLoadResult(source, null)
                         }
                     }
-                } catch (t: Throwable) {
-                    if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Static image browser failed", t)
-                    emptyList()
+                    appendSourceResult(result)
                 }
-                if (!isAdded) return@launch
-                showResults(results)
             }
         }
 
-        private fun showResults(results: List<Pair<String, List<ImageItem>>>) {
-            content.removeAllViews()
-            var imageCount = 0
-            results.forEach { (sourceName, images) ->
-                if (images.isEmpty()) return@forEach
-                content.addView(TextView(requireContext()).apply {
-                    text = sourceName
-                    textSize = 19f
-                    setPadding(0, 18, 0, 8)
-                })
-                images.take(MAX_BROWSER_IMAGES_PER_SOURCE).forEach { image ->
-                    imageCount++
-                    content.addView(Button(requireContext()).apply {
-                        text = image.name.ifBlank { image.url.substringAfterLast('/').substringBefore('?') }
-                        isAllCaps = false
-                        setOnClickListener { selectImage(image) }
-                    })
-                }
+        private fun appendSourceResult(result: SourceLoadResult) {
+            if (!isAdded) return
+            rows.removeAll { it.message == getString(R.string.image_browser_loading) }
+            remainingSources = (remainingSources - 1).coerceAtLeast(0)
+            val message = when {
+                result.timedOut -> getString(R.string.image_browser_source_timeout, result.source.name)
+                result.images == null -> getString(R.string.image_browser_source_failed, result.source.name)
+                result.images.isEmpty() -> null
+                else -> null
             }
-            if (imageCount == 0) {
-                content.addView(TextView(requireContext()).apply {
-                    text = "No images were found. Check that a slideshow source is enabled and configured."
-                    textSize = 18f
-                })
-            } else if (results.any { it.second.size > MAX_BROWSER_IMAGES_PER_SOURCE }) {
-                content.addView(TextView(requireContext()).apply {
-                    text = "Some sources are limited to the first $MAX_BROWSER_IMAGES_PER_SOURCE images."
-                    setPadding(0, 16, 0, 0)
-                })
+            if (message != null) {
+                rows.add(BrowserRow(message = message))
+            } else if (!result.images.isNullOrEmpty()) {
+                rows.add(BrowserRow(source = result.source.name))
+                result.images.orEmpty().forEach { rows.add(BrowserRow(source = result.source.name, image = it)) }
             }
+            val imageCount = rows.count { it.image != null }
+            if (imageCount > 0) {
+                while (rows.lastOrNull()?.message?.startsWith(getString(R.string.image_browser_limit_prefix)) == true) rows.removeAt(rows.lastIndex)
+                rows.add(BrowserRow(message = getString(R.string.image_browser_limit, imageCount)))
+            }
+            if (remainingSources == 0 && imageCount == 0 && rows.none { it.message == getString(R.string.image_browser_no_images) }) {
+                rows.add(BrowserRow(message = getString(R.string.image_browser_no_images)))
+            }
+            adapter.notifyDataSetChanged()
+            list.post { if (rows.size > 1) list.requestFocus() }
         }
 
         private fun selectImage(image: ImageItem) {
-            content.isEnabled = false
-            Toast.makeText(requireContext(), "Saving ${image.name.ifBlank { "image" }}…", Toast.LENGTH_SHORT).show()
-            viewLifecycleOwner.lifecycleScope.launch {
-                val path = withContext(Dispatchers.IO) {
-                    copyImageItemToPrivateStorage(requireContext().applicationContext, image)
+            if (saveJob?.isActive == true) return
+            list.isEnabled = false
+            Toast.makeText(requireContext(), getString(R.string.image_browser_saving, image.name.ifBlank { "image" }), Toast.LENGTH_SHORT).show()
+            val appContext = requireContext().applicationContext
+            saveJob = viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val path = withContext(Dispatchers.IO) { copyImageItemToPrivateStorage(appContext, image) }
+                    if (!isAdded) return@launch
+                    if (path == null) {
+                        Toast.makeText(requireContext(), R.string.image_browser_download_failed, Toast.LENGTH_LONG).show()
+                        return@launch
+                    }
+                    Prefs.get(appContext).edit()
+                        .remove(Prefs.STATIC_IMAGE_URI)
+                        .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, path)
+                        .putString(Prefs.STATIC_IMAGE_DISPLAY_NAME, image.name.ifBlank { "Selected image" })
+                        .apply()
+                    Toast.makeText(requireContext(), R.string.image_browser_selected, Toast.LENGTH_SHORT).show()
+                    parentFragmentManager.popBackStack()
+                } finally {
+                    if (isAdded) list.isEnabled = true
                 }
-                if (!isAdded) return@launch
-                if (path == null) {
-                    content.isEnabled = true
-                    Toast.makeText(requireContext(), "The image could not be downloaded.", Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                Prefs.get(requireContext()).edit()
-                    .putString(Prefs.STATIC_IMAGE_URI, image.url)
-                    .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, path)
-                    .apply()
-                Toast.makeText(requireContext(), "Static image selected.", Toast.LENGTH_SHORT).show()
-                parentFragmentManager.popBackStack()
             }
         }
 
-        companion object {
-            private const val MAX_BROWSER_IMAGES_PER_SOURCE = 250
-        }
     }
 
     // ── Image sources sub-screen ──────────────────────────────────────────────
@@ -670,14 +702,17 @@ class SettingsActivity : AppCompatActivity() {
         private fun updateNextcloudStatus() {
             val prefs = Prefs.get(requireContext())
             val configured = !prefs.getString(Prefs.NEXTCLOUD_HOST, null).isNullOrEmpty() &&
-                             !prefs.getString(Prefs.NEXTCLOUD_USERNAME, null).isNullOrEmpty()
+                             !prefs.getString(Prefs.NEXTCLOUD_USERNAME, null).isNullOrEmpty() &&
+                             !prefs.getString(Prefs.NEXTCLOUD_PASSWORD, null).isNullOrEmpty()
             findPreference<Preference>("nextcloud_setup")?.summary = if (configured)
                 getString(R.string.nextcloud_authorized) else getString(R.string.nextcloud_not_authorized)
         }
 
         private fun updateSynologyStatus() {
             val prefs = Prefs.get(requireContext())
-            val configured = !prefs.getString(Prefs.SYNOLOGY_HOST, null).isNullOrEmpty()
+            val configured = !prefs.getString(Prefs.SYNOLOGY_HOST, null).isNullOrEmpty() &&
+                             !prefs.getString(Prefs.SYNOLOGY_USERNAME, null).isNullOrEmpty() &&
+                             !prefs.getString(Prefs.SYNOLOGY_PASSWORD, null).isNullOrEmpty()
             findPreference<Preference>("synology_setup")?.summary = if (configured)
                 getString(R.string.synology_authorized) else getString(R.string.synology_not_authorized)
         }
