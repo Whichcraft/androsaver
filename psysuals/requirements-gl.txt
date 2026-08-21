@@ -1,0 +1,2 @@
+-r requirements.txt
+moderngl>=5.12.0
