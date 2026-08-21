@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+screenshot.png
+
+# AI Agent files
+CLAUDE.md
+AGENTS.md
+AI.md
+.agents/
+.ai/
+
+# QMD search index
+qmd.sqlite
+qmd.yml
+qmd-setup.mjs
+
+# Local model-answer artifacts
+answers/
