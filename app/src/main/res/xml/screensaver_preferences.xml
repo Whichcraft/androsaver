@@ -41,7 +41,7 @@
             android:summary="%s"
             android:entries="@array/static_image_scale_entries"
             android:entryValues="@array/static_image_scale_values"
-            android:defaultValue="crop" />
+            android:defaultValue="fit" />
         <ListPreference
             android:key="static_image_scale_portrait"
             android:title="Portrait Image Behavior"

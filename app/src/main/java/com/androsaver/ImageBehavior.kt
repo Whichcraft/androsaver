@@ -11,11 +11,7 @@ object ImageBehavior {
     fun normalize(value: String?, fallback: String): String =
         value?.lowercase()?.takeIf { it in allowed } ?: fallback
 
-    fun defaultFor(mode: String, portrait: Boolean): String = when {
-        mode == Prefs.MODE_STATIC && portrait -> FIT
-        mode == Prefs.MODE_STATIC -> CROP
-        else -> FIT
-    }
+    fun defaultFor(mode: String, portrait: Boolean): String = FIT
 
     fun resolve(mode: String, portrait: Boolean, landscape: String?, portraitValue: String?): String {
         val fallback = defaultFor(mode, portrait)

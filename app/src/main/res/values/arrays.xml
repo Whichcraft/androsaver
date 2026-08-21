@@ -152,8 +152,8 @@
     </string-array>
 
     <string-array name="static_image_scale_entries">
-        <item>Fill / Crop (recommended)</item>
-        <item>Fit / Letterbox</item>
+        <item>Fill / Crop</item>
+        <item>Fit / Letterbox (recommended)</item>
         <item>Original Size / Center</item>
         <item>Stretch (may distort)</item>
     </string-array>

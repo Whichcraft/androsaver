@@ -31,9 +31,9 @@ images in both Static Image and Slideshow modes. Slideshow also has its own
 unused-space/background color setting.
 
 Image behavior values are `crop` (Fill/Crop), `fit` (Fit/Letterbox), `center`
-(Original Size/Center), and `stretch` (advanced; may distort). Static defaults
-are crop for landscape or square images and fit for portrait images. Slideshow
-defaults to fit for every orientation. Unused-space backgrounds default to `auto`, which derives a
+(Original Size/Center), and `stretch` (advanced; may distort). Static and
+slideshow defaults are fit for every
+orientation. Unused-space backgrounds default to `auto`, which derives a
 subdued three-stop gradient from the decoded image. Manual mode exposes an RGB
 color picker and uses the selected color behind fitted or centered images.
 
@@ -47,7 +47,7 @@ session IDs, and temporary bearer links are not used as the restart fallback.
 | `STATIC_IMAGE_URI` | `static_image_uri` | Internal legacy/document key | no remote URL retained |
 | `STATIC_IMAGE_LOCAL_PATH` | `static_image_local_path` | Internal path | — |
 | `STATIC_IMAGE_DISPLAY_NAME` | `static_image_display_name` | Internal label | — |
-| `STATIC_IMAGE_SCALE` | `static_image_scale` | ListPreference | `crop` (landscape/square) |
+| `STATIC_IMAGE_SCALE` | `static_image_scale` | ListPreference | `fit` (landscape/square) |
 | `STATIC_IMAGE_SCALE_PORTRAIT` | `static_image_scale_portrait` | ListPreference | `fit` |
 | `STATIC_BACKGROUND_MODE` | `static_background_mode` | ListPreference | `auto` |
 | `STATIC_BACKGROUND_COLOR` | `static_background_color` | Color picker fallback | `#000000` |
