@@ -38,7 +38,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
                !prefs.getString(Prefs.NEXTCLOUD_PASSWORD, null).isNullOrEmpty()
     }
 
-    suspend fun probeConnection(config: ConnectionConfig): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    internal suspend fun probeConnection(config: ConnectionConfig): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val host = config.host
         val port = config.port
         val user = config.username

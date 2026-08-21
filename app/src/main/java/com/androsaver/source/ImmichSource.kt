@@ -33,7 +33,7 @@ class ImmichSource(private val context: Context) : ImageSource {
                !prefs.getString(Prefs.IMMICH_API_KEY, null).isNullOrEmpty()
     }
 
-    suspend fun probeConnection(config: ConnectionConfig): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    internal suspend fun probeConnection(config: ConnectionConfig): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val host = config.host
         val port = config.port
         val key = config.apiKey

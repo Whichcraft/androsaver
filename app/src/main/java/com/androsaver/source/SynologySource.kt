@@ -41,7 +41,7 @@ class SynologySource(private val context: Context) : ImageSource {
                !prefs.getString(Prefs.SYNOLOGY_PASSWORD, null).isNullOrEmpty()
     }
 
-    suspend fun probeConnection(config: ConnectionConfig): Boolean = withContext(Dispatchers.IO) {
+    internal suspend fun probeConnection(config: ConnectionConfig): Boolean = withContext(Dispatchers.IO) {
         val host = config.host
         val port = config.port
         val user = config.username
