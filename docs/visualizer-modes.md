@@ -36,14 +36,21 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 17 | `MyceliumMode` | Mycelium | Multi-colony fungal network with spores and rotating satellite rings |
 | 18 | `MagnetarMode` | Magnetar | Rotating magnetic dipole field with 4 000 particles |
 | 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with adaptive-grid trail diffusion |
-| 20 | `CliffordMode` | Clifford | Six-pass strange attractor with dynamic framing and hot cores |
-| 21 | `MobiusMode` | Mobius | 3-D wireframe Mobius strip |
-| 22 | `ChromaticMode` | Chromatic | RGB-split ripple rings |
-| 23 | `PersistenceMode` | Persistence | Nested rotating 3D Platonic-solid wireframes |
-| 24 | `SynapseMode` | Synapse | Living 28–90-node graph with safe rewiring and traveling signals |
-| 25 | `HeartbeatMode` | Heartbeat | Expanding morphing neon rings |
-| 26 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 27 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 20 | `MobiusMode` | Mobius | 3-D wireframe Mobius strip |
+| 21 | `ChromaticMode` | Chromatic | RGB-split ripple rings |
+| 22 | `PersistenceMode` | Persistence | Nested rotating 3D Platonic-solid wireframes |
+| 23 | `SynapseMode` | Synapse | Living 28–90-node graph with safe rewiring and traveling signals |
+| 24 | `HeartbeatMode` | Heartbeat | Expanding morphing neon rings |
+| 25 | `MorphogenesisMode` | Morphogenesis | Audio-driven Gray–Scott reaction-diffusion field |
+| 26 | `HyperbolicMode` | Hyperbolic | Bounded radial disk tiling and geodesic lines |
+| 27 | `LiquidLightMode` | LiquidLight | Fluorescent semi-Lagrangian-like dye waves |
+| 28 | `CymaticaMode` | Cymatica | Chladni-like nodal plate with drifting particles |
+| 29 | `PhasonMode` | Phason | Quasiperiodic wave interference field |
+| 30 | `TesseractMode` | Tesseract | Projected rotating 4-D hypercube |
+| 31 | `FerrofluidMode` | Ferrofluid | Animated magnetic contour rings |
+| 32 | `MandelboxMode` | Mandelbox | Bounded Mandelbox-inspired escape field |
+| 33 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 34 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
@@ -96,7 +103,7 @@ Psychedelic fractal lightning tree. Nine neon arms radiate from screen centre at
 
 ## ButterfliesMode
 
-Up to 3 pairs of neon butterflies. Solo enters from a screen edge; partner joins after a delay. Each butterfly steers toward the other's offset point (mutual pursuit spiral). Orbit radius starts at 240 px and tightens to 40 px over the pair's lifetime. Periodically the pair breaks from orbit — both butterflies wander freely for 200–500 frames (no mutual chase) while the orbit radius expands +80 px (cap 200 px), then they resume pursuit. Size reduced to 5.04 (solo) / 4.79 (partner). Wings flap with bass; pairs synchronise wing phase when close. Beat fires sparkles. After a random lifetime the pair wanders off-screen and a new pair enters.
+Up to 6 pairs of neon butterflies. Solo enters from a screen edge; partner joins after a delay. Each butterfly steers toward the other's offset point (mutual pursuit spiral). Orbit radius starts at 240 px and tightens to 40 px over the pair's lifetime. Periodically the pair breaks from orbit — both butterflies wander freely for 200–500 frames (no mutual chase) while the orbit radius expands +80 px (cap 200 px), then they resume pursuit. Wings flap with bass; pairs synchronise wing phase when close. Beat fires sparkles. After a random lifetime the pair wanders off-screen and a new pair enters.
 
 ## FlowFieldMode
 

@@ -4,6 +4,15 @@ All notable changes to AndroSaver are documented here.
 
 ---
 
+## 2026-08-21 — v2.9.3: psysuals v3.15 subtree sync and Android backport
+
+- **Repository integration**: Updated the `psysuals/` Git subtree from upstream `e539626` to `84c332e` (v3.15.0).
+- **Visualizer registry**: Added Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, and Mandelbox in upstream order; retired Clifford from the active registry after its upstream removal.
+- **Android adaptations**: Added bounded GLES 2.0 field/geometry implementations for the eight new effects, expanded Butterflies capacity, and applied the v3.15 bounded hyperbolic warp to Lattice.
+- **Port boundary**: Upstream pygame surface feedback, numpy post-processing, quality tiers, and motion-field plumbing remain documented Android-specific differences in `docs/psysuals-port-notes.md`.
+
+---
+
 ## 2026-08-21 — v2.9.3: psysuals subtree migration and v3.14 backport
 
 - **Repository integration**: Replaced the `psysuals` Git submodule with a squashed Git subtree imported from upstream commit `e539626` (v3.14.0). The source is now present under `psysuals/` without requiring recursive submodule checkout.

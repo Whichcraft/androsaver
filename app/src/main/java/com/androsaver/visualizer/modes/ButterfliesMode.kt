@@ -19,7 +19,7 @@ class ButterfliesMode : BaseMode() {
     private companion object {
         const val TAU        = (Math.PI * 2).toFloat()
         const val PI_F       = Math.PI.toFloat()
-        const val MAX_PAIRS  = 3
+        const val MAX_PAIRS  = 6
         const val SOLO_SCALE = 5.04f  // 7.2 * 0.70
         const val LOVE_SCALE = 4.79f  // 6.84 * 0.70
     }

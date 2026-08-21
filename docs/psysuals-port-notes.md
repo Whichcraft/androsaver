@@ -1,7 +1,7 @@
 # psysuals → AndroSaver Port Notes
 
-The repository vendors upstream psysuals v3.14.0 as a Git subtree under
-`psysuals/` (upstream commit `e539626`). The subtree is the reference source;
+The repository vendors upstream psysuals v3.15.0 as a Git subtree under
+`psysuals/` (upstream commit `84c332e`). The subtree is the reference source;
 the Android implementation remains a Kotlin/OpenGL ES 2.0 port. Keep the
 subtree update and the Android backport in the same change so the two sources
 remain auditable.
@@ -30,6 +30,22 @@ psysuals uses pygame surfaces.
 | `config.TREBLE_ENERGY` | `audio.treble` (same for bins 100–255; 0 at steady state, positive on peaks) |
 | `np.mean(fft[:6])` (old pre-v3.4.0 pattern) | `audio.beat` (use `audio.mid`/`audio.treble` for frequency bands) |
 | `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → four-channel color array; use the reusable overload in hot loops |
+
+### v3.15 shared runtime changes
+
+The subtree also adds desktop-only post-processing (`core/postprocess.py`),
+quality-tier selection (`core/quality.py`), audio envelopes, and cross-effect
+motion-field publication. Android keeps the existing GLDraw bloom pipeline and
+scalar `AudioData` bands; no full-resolution CPU surface or numpy array is
+introduced on the render thread. Effects that only use those services for
+feedback/halo compositing retain their Android geometry/trail implementation.
+This is an intentional platform boundary, not an unreviewed subtree omission.
+
+The v3.15 changes to Fireworks, Heartbeat, Magnetar, and Mycelium add pygame
+surface feedback or numpy contour/halo layers. Android preserves their existing
+bounded particle/ring/network behaviour and documents the surface replacement
+below. Mobius and Plasma receive the portable fourth-dimensional/domain-warp
+updates directly; Lattice receives the bounded hyperbolic warp.
 
 ---
 
@@ -85,8 +101,25 @@ Port directly for the fireworks mechanics (rockets + embers with gravity/drag). 
 
 Note: `GLDraw` now has FBO bloom support, but the fireworks zoom feedback is still not ported — bloom is a post-processing effect applied to all modes, not a per-mode FBO blit.
 
+### v3.15 new effects
+
+The active Android registry follows upstream v3.15 order and includes
+Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract,
+Ferrofluid, and Mandelbox. Their upstream numpy/surfarray fields are adapted
+to bounded 24×16 scalar fields or reusable GL line geometry. This preserves
+audio response, palette motion, bounded iteration counts, and resize safety
+without allocating a full-resolution bitmap on the render thread.
+
+Clifford was removed from the active registry because upstream removed it in
+v3.15. `CliffordMode.kt` remains as dormant source for history and is not
+reachable through settings or automatic rotation.
+
 ### ButterfliesMode
-**Mutual pursuit spiral** (reverted to stable version in v3.10.0): Solo butterfly steers toward Love's offset point (at `orbitAng + PI` on orbit radius), Love steers toward Solo's offset point (at `orbitAng` on orbit radius). Orbit radius starts at **240 px** and decrements 0.06 px/frame toward 40 px. **No size variations or swarm forces**: all pairs use the standard sizes (solo 5.04, love 4.79) for stable, clean movement without the clutter of swarm separation/cohesion dynamics. **Unidirectional wing sync**: partner `lv.wingPhase` adjusts toward solo `sl.wingPhase` (`diff * sync * 0.12f`), with `syncRange = 130f * maxOf(sl.scale, lv.scale)` to match the later upstream per-pair size scaling fix.
+The Android port keeps the bounded mutual-pursuit implementation and now allows
+six pairs (within the upstream twelve-butterfly population ceiling). The
+upstream cocoon emergence and persistent trail are represented by the existing
+delayed edge spawns and `fadeBlack`; exact pygame surface compositing is not
+portable to the GLES 2.0 batch renderer.
 
 **Wander breaks**: `ButterflyPair` has two fields — `breakCd` (initial 800–1600) and `breakTimer` (initial 0). Each orbit frame: if `breakTimer > 0`, decrement it (free-wander phase); else decrement `breakCd`, and when it reaches 0 set `breakTimer = 200–500`, `breakCd = 900–1800`, `orbitR = min(orbitR + 80, 200)`. While `breakTimer > 0`, both butterflies call `update(bass, beat)` with no `chasePos` instead of the orbit code.
 
@@ -109,6 +142,9 @@ Port of `effects/lattice.py`.  Key differences:
 - **Per-frame scratch arrays** — `sxArr`, `syArr`, `bright` are allocated per-frame (size matches `nodes.size`).
 - **Double-stroke beams** — Python draws width-3 (dark) then width-1 (bright) `pygame.draw.line`.  Android calls `draw.line(...)` twice at the same coordinates with different lightness values.  The visual result is equivalent on a dark background.
 - **colPeaks guard** — A size mismatch check (`if colPeaks.size != nCols`) ensures peaks are reset after a grid resolution change without requiring a full mode reset.
+- **v3.15 hyperbolic warp** — Applies the upstream bounded radial warp with a
+  fixed Android morph contribution and a denominator clamp for portrait and
+  narrow surfaces.
 
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers

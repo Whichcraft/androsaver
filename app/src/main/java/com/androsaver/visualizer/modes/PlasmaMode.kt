@@ -10,7 +10,7 @@ import kotlin.math.sin
 /**
  * Full-screen sine-interference plasma implemented entirely in a GLSL fragment shader.
  * No CPU pixel work — the GPU computes every pixel per frame.
- * Matches the Python Plasma class math exactly.
+ * Matches the v3.15 Python PlasmaGL domain-warp and seven-wave field math.
  */
 class PlasmaMode : BaseMode() {
 
@@ -36,6 +36,7 @@ class PlasmaMode : BaseMode() {
         uniform float uHigh;
         uniform float uBeat;
         uniform float uHue;
+        uniform float uWarp;
 
         vec3 hsl2rgb(float h, float s, float l) {
             float c  = (1.0 - abs(2.0 * l - 1.0)) * s;
@@ -60,11 +61,15 @@ class PlasmaMode : BaseMode() {
             float fm = 1.0 + uMid * 0.7;
             float t  = uTime;
 
-            float v = sin(uv.x * fm          + t        )
-                    + sin(uv.y * fm * 0.8    + t * 1.4  )
-                    + sin((uv.x * 0.6 + uv.y * 0.8) * fm + t * 0.9)
-                    + sin(R * fm * 0.5        - t * 1.2  );
-            v *= 0.25;
+            vec2 q = uv + uWarp * vec2(sin(uv.y * 0.72 + t * 0.71),
+                                       cos(uv.x * 0.61 - t * 0.53));
+            float v = 0.0;
+            for (int i = 0; i < 7; ++i) {
+                float a = 6.2831853 * float(i) / 7.0;
+                vec2 k = vec2(cos(a), sin(a));
+                v += sin(dot(q * fm, k) + t * (0.72 + float(i) * 0.07));
+            }
+            v = v / 7.0 + sin(length(q) * fm * 0.46 - t * 1.2) * 0.16;
 
             float h = mod(v * 0.55 + 0.5 + uHue + uBass * 0.35, 1.0);
             float l = clamp(0.28 + v * 0.22 + uBeat * 0.22 + uHigh * 0.08, 0.0, 0.95);
@@ -78,7 +83,7 @@ class PlasmaMode : BaseMode() {
     private var program  = 0
     private var vbo      = 0
     private var uTime    = 0; private var uBass = 0; private var uMid  = 0
-    private var uHigh    = 0; private var uBeat = 0; private var uHue  = 0
+    private var uHigh    = 0; private var uBeat = 0; private var uHue  = 0; private var uWarp = 0
     private var aPos     = 0
 
     private var time = 0f
@@ -132,6 +137,7 @@ class PlasmaMode : BaseMode() {
         uHigh = GLES20.glGetUniformLocation(program, "uHigh")
         uBeat = GLES20.glGetUniformLocation(program, "uBeat")
         uHue  = GLES20.glGetUniformLocation(program, "uHue")
+        uWarp = GLES20.glGetUniformLocation(program, "uWarp")
 
         // Full-screen quad: two triangles covering NDC [-1,1]
         val quad = floatArrayOf(-1f, -1f,  1f, -1f,  1f,  1f,
@@ -163,6 +169,7 @@ class PlasmaMode : BaseMode() {
         val high = audio.treble
         hue  += 0.002f
         time += 0.018f + bass * 0.05f + mid * 0.03f + high * 0.02f
+        val warp = (0.08f + bass * 0.12f + mid * 0.025f + high * 0.015f).coerceAtMost(0.42f)
 
         GLES20.glUseProgram(program)
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo)
@@ -175,6 +182,7 @@ class PlasmaMode : BaseMode() {
         GLES20.glUniform1f(uHigh, high)
         GLES20.glUniform1f(uBeat, beat)
         GLES20.glUniform1f(uHue,  hue)
+        GLES20.glUniform1f(uWarp, warp)
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
         // GLDraw.endFrame() called by VisualizerRenderer restores program + flushes empty batches.

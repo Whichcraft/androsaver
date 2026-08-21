@@ -30,6 +30,7 @@ class MobiusMode : BaseMode() {
 
     private var ry      = 0f
     private var rx      = 0f
+    private var rw      = 0f
     private var hue     = 0.55f
     private var shiver  = 0f
     private var beatPrev = 0f
@@ -42,14 +43,18 @@ class MobiusMode : BaseMode() {
     private val pts2d  = FloatArray((N_U + 1) * 2)
 
     override fun reset() {
-        ry = 0f; rx = 0f; hue = 0.55f; shiver = 0f; beatPrev = 0f
+        ry = 0f; rx = 0f; rw = 0f; hue = 0.55f; shiver = 0f; beatPrev = 0f
     }
 
     /** Perspective-project a world point (wx, wy, wz) → screen (px, py). */
-    private fun project(wx: Float, wy: Float, wz: Float, W: Float, H: Float,
+    private fun project(wx: Float, wy: Float, wz: Float, ww: Float, W: Float, H: Float,
                         cosy: Float, siny: Float, cosx: Float, sinx: Float): FloatArray {
-        val xr =  wx * cosy + wz * siny
-        val zr = -wx * siny + wz * cosy
+        val cw = cos(rw); val sw = sin(rw)
+        val xr4 = wx * cw - ww * sw
+        val wr4 = wx * sw + ww * cw
+        val depth4 = maxOf(0.35f, 3.35f - wr4)
+        val xr =  (xr4 / depth4) * cosy + wz * siny
+        val zr = -(xr4 / depth4) * siny + wz * cosy
         val yr  =  wy * cosx - zr * sinx
         val zr2 =  wy * sinx + zr * cosx
         val z2  = maxOf(zr2, -3f + 0.2f)
@@ -68,7 +73,7 @@ class MobiusMode : BaseMode() {
             val x = (1f + v * cohu) * cos(u)
             val y = (1f + v * cohu) * sin(u)
             val z = v * sin(hu) * twist
-            val p = project(x, y, z, W, H, cosy, siny, cosx, sinx)
+            val p = project(x, y, z, v * sin(hu) * 0.35f, W, H, cosy, siny, cosx, sinx)
             pts2d[i * 2]     = p[0]
             pts2d[i * 2 + 1] = p[1]
         }
@@ -83,6 +88,7 @@ class MobiusMode : BaseMode() {
         hue    = (hue  + 0.0012f + mid  * 0.002f) % 1f
         ry    += 0.008f + bass * 0.025f + mid * 0.012f + high * 0.015f
         rx    += 0.003f + bass * 0.008f
+        rw    += 0.004f + mid * 0.008f + high * 0.012f
 
         if (bass > 0.75f && beatPrev <= 0.75f) shiver = 1f
         beatPrev = bass

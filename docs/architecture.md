@@ -23,7 +23,7 @@
 ### Upstream visualizer source
 
 `psysuals/` is a Git subtree imported from the upstream psysuals repository.
-The current Android port tracks upstream v3.14.0 (`e539626`) and applies the
+The current Android port tracks upstream v3.15.0 (`84c332e`) and applies the
 OpenGL ES 2.0 and Android lifecycle adaptations documented in
 `docs/psysuals-port-notes.md`. To update it, add/fetch the upstream remote with
 `git remote add psysuals-upstream https://github.com/Whichcraft/psysuals.git`
@@ -94,12 +94,12 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `MyceliumMode.kt` | Mycelium | Swirling fungal network with multi-colony cores |
 | `MagnetarMode.kt` | Magnetar | 4 000 particles riding a rotating magnetic dipole field |
 | `SlimeMoldMode.kt` | SlimeMold | Physarum 2 500-agent trail simulation with adaptive-grid diffusion |
-| `CliffordMode.kt` | Clifford | Strange attractor: 7 000 walkers × 6 passes, dynamic framing, presets |
 | `MobiusMode.kt` | Mobius | 3-D wireframe Möbius strip (latitude lines only) |
 | `ChromaticMode.kt` | Chromatic | Prismatic raindrop ripples with RGB-separated outlines |
 | `PersistenceMode.kt` | Persistence | Nested rotating 3D Platonic solids wireframes with perspective and depth-fading |
 | `SynapseMode.kt` | Synapse | Living 28–90-node neural graph with safe nearest-neighbour rewiring |
 | `HeartbeatMode.kt` | Heartbeat | Expanding polygon rings with beat-driven morphing |
+| `PsysualsV315Modes.kt` | Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, Mandelbox | Bounded GLES 2.0 adaptations of the v3.15 field and geometry effects |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |
 

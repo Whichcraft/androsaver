@@ -63,9 +63,11 @@
         <item>Butterflies</item><item>FlowField</item><item>Fireworks</item>
         <item>Aurora</item><item>Lattice</item>
         <item>Mycelium</item><item>Magnetar</item><item>SlimeMold</item>
-        <item>Clifford</item><item>Mobius</item><item>Chromatic</item><item>Persistence</item>
-        <item>Synapse</item><item>Heartbeat</item>
-        <item>Spectrum</item><item>Waterfall</item>
+        <item>Mobius</item><item>Chromatic</item><item>Persistence</item>
+        <item>Synapse</item><item>Heartbeat</item><item>Morphogenesis</item>
+        <item>Hyperbolic</item><item>LiquidLight</item><item>Cymatica</item>
+        <item>Phason</item><item>Tesseract</item><item>Ferrofluid</item>
+        <item>Mandelbox</item><item>Spectrum</item><item>Waterfall</item>
     </string-array>
     <string-array name="viz_effect_values">
         <item>Yantra</item><item>Cube</item><item>TriFlux</item><item>Lissajous</item>
@@ -74,9 +76,11 @@
         <item>Butterflies</item><item>FlowField</item><item>Fireworks</item>
         <item>Aurora</item><item>Lattice</item>
         <item>Mycelium</item><item>Magnetar</item><item>SlimeMold</item>
-        <item>Clifford</item><item>Mobius</item><item>Chromatic</item><item>Persistence</item>
-        <item>Synapse</item><item>Heartbeat</item>
-        <item>Spectrum</item><item>Waterfall</item>
+        <item>Mobius</item><item>Chromatic</item><item>Persistence</item>
+        <item>Synapse</item><item>Heartbeat</item><item>Morphogenesis</item>
+        <item>Hyperbolic</item><item>LiquidLight</item><item>Cymatica</item>
+        <item>Phason</item><item>Tesseract</item><item>Ferrofluid</item>
+        <item>Mandelbox</item><item>Spectrum</item><item>Waterfall</item>
     </string-array>
 
     <string-array name="transition_entries">
