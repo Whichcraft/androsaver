@@ -51,7 +51,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeoutException
 
 class ScreensaverEngine(
     private val context: Context,
@@ -528,26 +527,33 @@ class ScreensaverEngine(
                 is ImageSourceResult.Success -> result.items
                 ImageSourceResult.Empty -> emptyList()
                 is ImageSourceResult.Failure -> {
-                    reportTransitionFailure(
-                        "$phase (${result.kind.name.lowercase(Locale.ROOT)})",
-                        IllegalStateException("Image source did not complete successfully"),
-                        sourceName = source.name
-                    )
+                    reportImageSourceFailure(phase, source, result.kind.name.lowercase(Locale.ROOT), null)
                     null
                 }
             }
         } catch (e: TimeoutCancellationException) {
-            reportTransitionFailure(
-                "$phase timeout",
-                TimeoutException("${source.name} did not respond within 60 seconds"),
-                sourceName = source.name
-            )
+            reportImageSourceFailure(phase, source, "timeout", e)
             null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            reportTransitionFailure("$phase failed", e, sourceName = source.name)
+            reportImageSourceFailure(phase, source, "exception", e)
             null
+        }
+    }
+
+    /** A configured source being offline is recoverable; it must not block fallback images. */
+    private fun reportImageSourceFailure(
+        phase: String,
+        source: ImageSource,
+        kind: String,
+        throwable: Throwable?
+    ) {
+        if (!BuildConfig.DEBUG_LOGGING) return
+        if (throwable == null) {
+            Log.w(TAG, "$phase: ${source.name} reported $kind")
+        } else {
+            Log.w(TAG, "$phase: ${source.name} failed ($kind)", throwable)
         }
     }
 
