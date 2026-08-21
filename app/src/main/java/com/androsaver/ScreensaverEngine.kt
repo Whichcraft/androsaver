@@ -341,6 +341,9 @@ class ScreensaverEngine(
         val modePref = prefs.getString(Prefs.VISUALIZER_MODE, "auto") ?: "auto"
         val vv = VisualizerView(context)
         visualizerView = vv
+        vv.onRenderError = { error ->
+            reportTransitionFailure("visualizer render", error, sourceName = "visualizer", forceShow = true)
+        }
 
         val allNames = vv.renderer.modeNames.toSet()
         val storedModes = prefs.getStringSet(Prefs.VIZ_ENABLED_MODES, null)
@@ -1192,9 +1195,10 @@ class ScreensaverEngine(
         effect: String,
         throwable: Throwable,
         attemptedItem: ImageItem? = null,
-        sourceName: String? = null
+        sourceName: String? = null,
+        forceShow: Boolean = false
     ) {
-        if (!BuildConfig.DEBUG_LOGGING) return
+        if (!BuildConfig.DEBUG_LOGGING && !forceShow) return
         devTransitionErrorVisible = true
         try {
             Log.e(TAG, "Slideshow failure: $effect", throwable)

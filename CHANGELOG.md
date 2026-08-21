@@ -2,6 +2,11 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-08-21 — Synology transport and visualizer diagnostics
+
+- **Synology**: Accept HTTP-only NAS endpoints and automatically retry self-signed, expired, or otherwise invalid HTTPS certificates on the configured self-hosted endpoint; HTTPS-to-HTTP fallback handles NAS installations without TLS.
+- **Visualizer**: Render exceptions are captured once per mode, logged, shown through the persistent on-screen error overlay with cause/stack details, and replaced by a visible red fallback frame instead of silently killing rendering.
+
 ---
 
 ## 2026-08-21 — v2.9.3: psysuals v3.15 subtree sync and Android backport

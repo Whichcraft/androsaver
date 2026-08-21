@@ -72,7 +72,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **File:** `com.androsaver.source.SynologySource`
 - **API:** Synology DSM FileStation REST API
 - **Auth:** Username/password POST → session SID; the SID is used only in memory for the active listing/download URLs
-- **Setup:** Host + Port + HTTPS + Username + Password + Folder → `SynologySetupActivity`
+- **Setup:** Host + Port + HTTPS + Username + Password + Folder → `SynologySetupActivity`; HTTP and invalid/self-signed HTTPS certificates are supported for self-hosted NAS endpoints
 - **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_USE_HTTPS`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
 - **Pagination Limit:** Maximum 2,000 files returned, 100 pages, or 20,000 entries scanned; response bodies are bounded.
 

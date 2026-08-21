@@ -139,7 +139,7 @@ No user data is shared with the developer or any third party. The app makes API 
 
 ### Is all data encrypted in transit?
 
-**Public cloud traffic uses HTTPS.** Self-hosted image sources default to HTTPS with certificate validation; HTTP or self-signed certificates require an explicit per-provider insecure setting. Credentials use AES-256 `EncryptedSharedPreferences`; sensitive operations fail closed if encrypted storage is unavailable. The Play Store variant does not include `REQUEST_INSTALL_PACKAGES` and receives updates through Google Play.
+**Public cloud traffic uses HTTPS.** Self-hosted image sources default to HTTPS with certificate validation. Synology also supports HTTP-only NAS installations and self-signed/expired certificates on the configured endpoint. Credentials use AES-256 `EncryptedSharedPreferences`; sensitive operations fail closed if encrypted storage is unavailable. The Play Store variant does not include `REQUEST_INSTALL_PACKAGES` and receives updates through Google Play.
 
 ### Can users request data deletion?
 

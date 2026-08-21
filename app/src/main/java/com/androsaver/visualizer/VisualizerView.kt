@@ -13,6 +13,11 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
     val renderer         = VisualizerRenderer(audio)
     private var started = false
 
+    /** Called on the GL thread when a mode cannot render a frame. */
+    var onRenderError: ((Throwable) -> Unit)?
+        get() = renderer.onRenderError
+        set(value) { renderer.onRenderError = value }
+
     init {
         setEGLContextClientVersion(2)
         setRenderer(renderer)

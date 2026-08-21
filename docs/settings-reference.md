@@ -114,9 +114,9 @@ source, and virtualized for large result sets.
 Sensitive user keys, tokens, and passwords listed below are routed to `EncryptedSharedPreferences` via `SecurePreferences`. If encrypted storage is unavailable, sensitive writes fail closed rather than falling back to plaintext. Non-sensitive settings remain in default SharedPreferences. Migration writes the encrypted copy before plaintext cleanup.
 
 Self-hosted providers default to HTTPS with normal certificate and hostname
-validation. HTTP or self-signed certificates require that provider's explicit
-“Allow insecure” option; this choice is independent for Immich, Nextcloud, and
-Synology.
+validation. Synology can fall back to its configured self-hosted endpoint when
+certificates are self-signed or expired, and supports HTTP-only NAS
+installations.
 
 ### Google Drive
 | Prefs Constant | Key |

@@ -48,11 +48,10 @@ class SynologySource(private val context: Context) : ImageSource {
         val password = config.password
         val https = config.useHttps
         val insecure = config.allowInsecure
-        if (!https && !insecure) throw java.io.IOException("HTTP is disabled")
         val base = "${if (https) "https" else "http"}://$host:$port".toHttpUrlOrNull()
             ?.takeIf { it.encodedPath == "/" && it.query == null }?.toString()?.removeSuffix("/")
             ?: throw java.io.IOException("Invalid Synology host or port")
-        login(HttpClients.forHost(context, host, insecure), base, user, password).isNotBlank()
+        loginWithFallback(host, port, base, user, password, insecure).sid.isNotBlank()
     }
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
@@ -66,17 +65,84 @@ class SynologySource(private val context: Context) : ImageSource {
         val folder = prefs.getString(Prefs.SYNOLOGY_FOLDER, "/photos")?.ifEmpty { "/photos" } ?: "/photos"
 
         val scheme = if (useHttps) "https" else "http"
-        if (!useHttps && !allowInsecure) throw java.io.IOException("HTTP is disabled; enable insecure connections explicitly")
         val baseUrl = "$scheme://$host:$port".toHttpUrlOrNull()
             ?.takeIf { it.encodedPath == "/" && it.query == null }
             ?.toString()?.removeSuffix("/")
             ?: throw java.io.IOException("Invalid Synology host or port")
-        val client = HttpClients.forHost(context, host, allowInsecure)
-
-        val sid = login(client, baseUrl, username, password)
+        val session = loginWithFallback(host, port, baseUrl, username, password, allowInsecure)
+        val client = session.client
+        val sid = session.sid
         // Don't logout here — the SID is embedded in image URLs, and Glide loads images
         // after getImageUrls() returns.  Let the Synology session expire naturally (~30 min).
-        listImages(client, baseUrl, folder, sid, if (allowInsecure) baseUrl else null)
+        listImages(client, session.baseUrl, folder, sid, if (session.insecure) session.baseUrl else null)
+    }
+
+    private data class LoginSession(
+        val client: okhttp3.OkHttpClient,
+        val baseUrl: String,
+        val sid: String,
+        val insecure: Boolean
+    )
+
+    /**
+     * Synology installations commonly expose HTTP on 5000 and HTTPS on 5001,
+     * with certificates that are self-signed, expired, or absent. Try the
+     * configured endpoint first, then use the explicitly self-hosted trust-all
+     * transport for TLS certificate failures, and finally try the conventional
+     * HTTP port when HTTPS was selected against a NAS without TLS.
+     */
+    private suspend fun loginWithFallback(
+        host: String,
+        port: String,
+        configuredBase: String,
+        username: String,
+        password: String,
+        explicitlyInsecure: Boolean
+    ): LoginSession {
+        val configuredClient = HttpClients.forHost(context, host, explicitlyInsecure)
+        try {
+            return LoginSession(
+                configuredClient,
+                configuredBase,
+                login(configuredClient, configuredBase, username, password),
+                explicitlyInsecure
+            )
+        } catch (first: Throwable) {
+            if (first is kotlinx.coroutines.CancellationException) throw first
+            if (!isTlsFailure(first) || configuredBase.startsWith("http://")) throw first
+
+            val trustClient = HttpClients.trustAll
+            try {
+                return LoginSession(
+                    trustClient,
+                    configuredBase,
+                    login(trustClient, configuredBase, username, password),
+                    true
+                )
+            } catch (tlsFailure: Throwable) {
+                if (tlsFailure is kotlinx.coroutines.CancellationException) throw tlsFailure
+                if (!isTlsFailure(tlsFailure)) throw tlsFailure
+                val httpPort = if (port == "5001") "5000" else port
+                val httpBase = "http://$host:$httpPort"
+                val httpClient = HttpClients.standard
+                return LoginSession(
+                    httpClient,
+                    httpBase,
+                    login(httpClient, httpBase, username, password),
+                    false
+                )
+            }
+        }
+    }
+
+    private fun isTlsFailure(throwable: Throwable): Boolean {
+        var current: Throwable? = throwable
+        repeat(8) {
+            if (current is javax.net.ssl.SSLException || current is java.security.cert.CertificateException) return true
+            current = current?.cause
+        }
+        val message = throwable.message?.lowercase().orEmpty()
+        return listOf("ssl", "tls", "certificate", "handshake", "hostname").any(message::contains)
     }
 
     private suspend fun login(client: okhttp3.OkHttpClient, baseUrl: String, username: String, password: String): String {

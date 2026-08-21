@@ -16,6 +16,12 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     private var tick = 0
     private var lastFrameNs = 0L
     private var clearFrameCount = 0
+    private var renderError: Throwable? = null
+    private var renderErrorMode = "unknown"
+    private var renderErrorReported = false
+
+    /** Set by the host so render failures are visible outside Logcat. */
+    var onRenderError: ((Throwable) -> Unit)? = null
 
     /** Exponential moving average of frame render time in milliseconds (EMA α=0.1). */
     var frameTimeMs = 0f
@@ -92,6 +98,9 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         tick = 0
         lastFrameNs = 0L
         clearFrameCount = 2
+        renderError = null
+        renderErrorMode = "unknown"
+        renderErrorReported = false
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -108,7 +117,13 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
         val requested = pendingModeIndex.getAndSet(-1)
         if (requested >= 0) {
-            modes[requested].reset()
+            try {
+                modes[requested].reset()
+                renderError = null
+                renderErrorReported = false
+            } catch (t: Throwable) {
+                failRender(modes[requested].name, t)
+            }
             activeModeIndex = requested
             clearFrameCount = 2
             tick = 0
@@ -128,9 +143,21 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
                 if (clear) {
                     clearFrameCount--
                     draw.endFrame()
+                } else if (renderError != null) {
+                    draw.rect(0f, 0f, draw.W.toFloat(), draw.H.toFloat(), 0.18f, 0f, 0f, 1f)
+                    draw.endFrame()
                 } else {
                     mode.draw(draw, snapshot, tick)
                     draw.endFrame()
+                }
+            } catch (t: Throwable) {
+                failRender(mode.name, t)
+                try {
+                    draw.beginFrame(true)
+                    draw.rect(0f, 0f, draw.W.toFloat(), draw.H.toFloat(), 0.18f, 0f, 0f, 1f)
+                    draw.endFrame()
+                } catch (fallbackFailure: Throwable) {
+                    failRender("GL fallback after ${mode.name}", fallbackFailure)
                 }
             } finally {
                 snapshot.beat = originalBeat
@@ -138,5 +165,15 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
             }
         }
         tick++
+    }
+
+    private fun failRender(modeName: String, throwable: Throwable) {
+        renderError = throwable
+        renderErrorMode = modeName
+        if (renderErrorReported) return
+        renderErrorReported = true
+        val wrapped = IllegalStateException("Visualizer mode '$renderErrorMode' failed", throwable)
+        android.util.Log.e("VisualizerRenderer", wrapped.message, wrapped)
+        onRenderError?.invoke(wrapped)
     }
 }

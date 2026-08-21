@@ -26,7 +26,7 @@ Host address, port, username, password or API key are stored locally; passwords 
 
 ### 2.3 Photos and Images
 
-Photos are fetched from your configured sources, displayed on screen, and cached locally on the device (up to 200 images / 150 MB) as an offline fallback. Public cloud and update traffic use HTTPS. Self-hosted sources default to HTTPS with certificate validation; HTTP or self-signed certificates require an explicit per-provider insecure setting. The app developer never receives copies of your photos. Photos are never uploaded, analysed, or shared.
+Photos are fetched from your configured sources, displayed on screen, and cached locally on the device (up to 200 images / 150 MB) as an offline fallback. Public cloud and update traffic use HTTPS. Self-hosted sources default to HTTPS with certificate validation; Synology also supports HTTP-only NAS installations and self-signed/expired certificates on the configured endpoint. The app developer never receives copies of your photos. Photos are never uploaded, analysed, or shared.
 
 ### 2.4 Microphone / Audio (RECORD_AUDIO Permission)
 

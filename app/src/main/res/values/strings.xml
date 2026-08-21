@@ -100,7 +100,7 @@
     <string name="nas_port_label">Port</string>
     <string name="nas_port_hint">5000 (HTTP) or 5001 (HTTPS)</string>
     <string name="nas_use_https">Use HTTPS</string>
-    <string name="allow_insecure_label">Allow HTTP or self-signed certificate (unsafe)</string>
+    <string name="allow_insecure_label">Allow HTTP or invalid certificate</string>
     <string name="synology_authorized">✓ Configured</string>
     <string name="synology_not_authorized">Not configured — tap to set up</string>
     <string name="nas_username_label">Username</string>
