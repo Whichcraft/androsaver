@@ -19,7 +19,7 @@ from .utils import hsl
 
 
 class Mobius(Effect):
-    TRAIL_ALPHA = 15
+    TRAIL_ALPHA = 42
 
     _N_LAT  = 60    # latitude lines (parallel to the long axis)
     _N_U    = 120   # segments along u (around the strip)

@@ -22,7 +22,7 @@ _STEP_FRAC = 0.004   # fraction of width between polygon vertices
 
 
 class Aurora(Effect):
-    TRAIL_ALPHA = 14
+    TRAIL_ALPHA = 42
 
     # (y_fraction, hue_offset, [(k_multiplier, speed_rad_per_frame, amp_weight)])
     # k_mult is relative to tau/W (one full wave = k_mult 1.0)

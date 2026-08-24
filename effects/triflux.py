@@ -19,7 +19,7 @@ class Attractor(Effect):
     nothing shows through from behind.
     """
 
-    TRAIL_ALPHA  = 28
+    TRAIL_ALPHA  = 48
     N_COLS       = 14
     GAP          = 0.88
     N_FILLED     = 5

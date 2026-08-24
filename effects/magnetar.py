@@ -23,7 +23,7 @@ from .utils import _hsl_batch
 class Magnetar(Effect):
     TRAIL_ALPHA = 0
     RES_DIV     = 2
-    _FADE_ALPHA = 24
+    _FADE_ALPHA = 48
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

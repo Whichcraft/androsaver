@@ -9,7 +9,7 @@ class Effect:
     """Base class for all visualization effects."""
     
     # Optional — controls trail fade speed (lower = longer trails, default 28)
-    TRAIL_ALPHA = 28
+    TRAIL_ALPHA = 48
     
     # Resolution divisor for performance-heavy effects
     RES_DIV = 1

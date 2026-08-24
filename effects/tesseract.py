@@ -12,7 +12,7 @@ from .utils import hsl
 
 class Tesseract(Effect):
     MORPH_SCHEMA = {"_morph_projection": (0.0, 1.0)}
-    TRAIL_ALPHA = 20
+    TRAIL_ALPHA = 42
     MAX_EDGES = 220
     MAX_VERTICES = 140
     PROJECTION_DISTANCE = 4.2
@@ -29,6 +29,10 @@ class Tesseract(Effect):
         self._beat_prev = 0.0
         self._morph_projection = 0.5
         self._hue = float(self._rng.random())
+        self._scale = 1.0
+        self._scale_velocity = 0.0
+        self._bounce_y = 0.0
+        self._bounce_velocity = 0.0
 
     @staticmethod
     def _tesseract():
@@ -96,15 +100,26 @@ class Tesseract(Effect):
             self._preset = (self._preset + 1) % 3
             self._build_preset(self._preset)
         self._beat_prev = bass
+        # Match Cube's restrained beat-driven breathing/bounce instead of a
+        # static projection that becomes a solid colour mass on large TVs.
+        self._scale_velocity += bass * 0.28 + (1.0 - self._scale) * 0.14
+        self._scale_velocity *= 0.70
+        self._scale = max(0.62, min(1.28, self._scale + self._scale_velocity))
+        self._bounce_velocity += bass * 0.035 - self._bounce_y * 0.08
+        self._bounce_velocity *= 0.88
+        self._bounce_y = max(-0.22, min(0.22, self._bounce_y + self._bounce_velocity))
         self._hue = (self._hue + 0.001 + high * 0.001) % 1.0
         self._rotate(tick * (0.006 + mid * 0.001), tick * (0.009 + high * 0.001))
         w = self._rotated[:, 3]
         denom4 = np.maximum(0.45, self.PROJECTION_DISTANCE - w * (0.8 + self._morph_projection * 0.4))
-        self._projected[:, 0] = self._rotated[:, 0] / denom4
-        self._projected[:, 1] = self._rotated[:, 1] / denom4
+        self._projected[:, 0] = self._rotated[:, 0] * self._scale / denom4
+        self._projected[:, 1] = (self._rotated[:, 1] * self._scale + self._bounce_y) / denom4
         self._projected[:, 2] = self._rotated[:, 2] / denom4
         denom3 = np.maximum(0.25, 3.2 - self._projected[:, 2])
-        scale = min(surf.get_width(), surf.get_height()) * 1.6
+        # Use a TV-friendly focal scale.  The 4-D projection occupies a small
+        # fraction of the viewport at 16:9 sizes, so the old value read as a
+        # tiny coloured speck instead of a legible geometric object.
+        scale = min(surf.get_width(), surf.get_height()) * 2.05
         points = np.column_stack((
             surf.get_width() * 0.5 + self._projected[:, 0] / denom3 * scale,
             surf.get_height() * 0.5 + self._projected[:, 1] / denom3 * scale,

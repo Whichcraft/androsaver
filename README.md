@@ -2,7 +2,7 @@
 
 **Welcome to the super-duper greatest music visualizer ever made.** psysuals delivers uncompromising visual intensity and rock-solid performance. Whether you're blasting psytrance in a dark room or driving a multi-monitor stage setup, it is built to melt your mind with precision and style.
 
-![Version](https://img.shields.io/badge/version-3.15.0-orange)
+![Version](https://img.shields.io/badge/version-3.17.0-orange)
  ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---

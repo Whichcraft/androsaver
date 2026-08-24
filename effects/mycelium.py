@@ -15,7 +15,7 @@ _CORE_COUNT = 5
 
 
 class Mycelium(Effect):
-    TRAIL_ALPHA = 8
+    TRAIL_ALPHA = 38
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

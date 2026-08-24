@@ -48,7 +48,7 @@ class Chromatic(Effect):
             self._spawn(mid * 0.5, W, H)
             self._auto_cd = 55
 
-        self._trail.fill((232, 228, 236), special_flags=pygame.BLEND_RGB_MULT)
+        self._trail.fill((210, 206, 214), special_flags=pygame.BLEND_RGB_MULT)
         split = 2.0 + high * 12.0
 
         self._rings = [

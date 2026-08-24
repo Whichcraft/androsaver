@@ -26,7 +26,7 @@ _MAX_NODES     = 90
 
 
 class Synapse(Effect):
-    TRAIL_ALPHA = 18
+    TRAIL_ALPHA = 42
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

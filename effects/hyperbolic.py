@@ -11,7 +11,7 @@ from .utils import hsl
 
 class Hyperbolic(Effect):
     MORPH_SCHEMA = {"_morph_warp": (0.0, 1.0)}
-    TRAIL_ALPHA = 18
+    TRAIL_ALPHA = 42
     MAX_GENERATIONS = 5
     MAX_TILES = 160
     ARC_SEGMENTS = 4
