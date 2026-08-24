@@ -13,7 +13,7 @@ class LissajousMode : BaseMode() {
     override val name = "Lissajous"
 
     private companion object {
-        const val TRAIL = 1400
+        const val TRAIL = 900
         const val N_SYM = 3
         const val TAU   = (Math.PI * 2).toFloat()
     }
@@ -50,20 +50,21 @@ class LissajousMode : BaseMode() {
         draw.fadeBlack(0.18f)
 
         val beat = audio.beat
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
+        // Keep the stable FFT-driven shape; beat-only distortion collapses the
+        // knot into a bright blob on large TV surfaces.
+        val bass = audio.fft.meanSlice(0, 6)
+        val mid  = audio.fft.meanSlice(6, 30)
+        val high = audio.fft.meanSlice(30, audio.fft.size)
         hue += 0.006f
 
-        // Creative shape distortion mapping (calmer motion — v3.7.0)
-        val ax = 3.0f + bass * 0.20f
-        val ay = 2.0f + mid  * 0.18f
-        val az = 5.0f + high * 0.22f
+        val ax = 3.0f + bass * 1.3f
+        val ay = 2.0f + mid  * 1.3f
+        val az = 5.0f + high * 1.3f
 
         val clampedBeat = minOf(1.5f, beat)
-        dx += 0.0003f + bass * 0.0002f
-        dz += 0.0002f + high * 0.0002f
-        t  += 0.010f  + clampedBeat * 0.006f + mid * 0.004f
+        dx += 0.0006f + bass * 0.002f
+        dz += 0.0005f + high * 0.0013f
+        t  += 0.016f + clampedBeat * 0.04f
 
         histX[histHead] = sin(ax * t + dx)
         histY[histHead] = sin(ay * t + dy)
@@ -72,17 +73,16 @@ class LissajousMode : BaseMode() {
         histSize = minOf(TRAIL, histSize + 1)
 
         // Spring scale burst
-        svel  += clampedBeat * 0.06f
-        svel  += (1f - scale) * 0.26f
-        svel  *= 0.60f
+        svel  += clampedBeat * 0.30f
+        svel  += (1f - scale) * 0.16f
+        svel  *= 0.72f
         scale += svel
         scale  = maxOf(0.35f, scale)
 
-        hue += clampedBeat * 0.006f
+        hue += clampedBeat * 0.06f
 
-        // Rotation inertia — tightened damping (0.97→0.94 per v3.7.0)
-        rvx += clampedBeat * 0.0022f + mid * 0.0007f + 0.00005f; rvx *= 0.94f; rx += rvx
-        rvy += clampedBeat * 0.0032f + mid * 0.0010f + 0.00007f; rvy *= 0.94f; ry += rvy
+        rvx += clampedBeat * 0.008f + 0.0001f; rvx *= 0.985f; rx += rvx
+        rvy += clampedBeat * 0.010f + 0.00015f; rvy *= 0.985f; ry += rvy
 
         val n = histSize
         if (n < 2) return
@@ -91,7 +91,7 @@ class LissajousMode : BaseMode() {
         val s    = scale
         val cxR  = cos(rx);  val sxR = sin(rx)
         val cyR  = cos(ry);  val syR = sin(ry)
-        val fovL = minOf(draw.W, draw.H) * 0.52f
+        val fovL = minOf(draw.W, draw.H) * 0.34f
         if (rawBuf.size < n * 2) rawBuf = FloatArray(n * 2)
         val raw = rawBuf
         for (i in 0 until n) {
@@ -104,7 +104,7 @@ class LissajousMode : BaseMode() {
             val z2  = y * sxR  + z  * cxR
             val x3  = x * cyR  + z2 * syR
             val z3  = -x * syR + z2 * cyR
-            val zcam = maxOf(z3 + 2.8f, 0.05f)
+            val zcam = maxOf(z3 + 3.4f, 0.75f)
             raw[i * 2]     = x3 * fovL / zcam
             raw[i * 2 + 1] = y2 * fovL / zcam
         }

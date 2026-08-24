@@ -4,7 +4,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 
 ## What's New in v2.9.3
 
-**Static-image controls and psysuals v3.15 integration:**
+**Static-image controls and psysuals v3.17 integration:**
 
 - **Mycelium** — Reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
 - **Persistence** — Shifted nested rotating polygons into a true 3D perspective projection space with depth-based thickness, brightness shading (depth cueing), and non-coplanar axis rotation.
@@ -12,10 +12,11 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **FlowField & Lattice** — Optimized rendering and particle limits to maintain a solid 60 FPS on low-end TV stick devices.
 - **Fireworks** — Renamed and aligned with the upstream firework-rocket effect, replacing the old Vortex naming and behavior.
 - **New v3.15 effects** — Added Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, and Mandelbox; Clifford is no longer in the active upstream registry.
+- **Visualizer tuning** — Restored stable FFT-driven Lissajous projection, added Cube-like Tesseract scale/bounce motion, removed Lattice’s over-expanding outer-node warp, and strengthened the shared black trail fade for TV screens.
 - **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
 - **Static image mode** — choose a local or configured-source image, with independent portrait and landscape behavior settings.
 - **Adaptive unused-space background** — fitted and centered images can use an automatically derived subdued color gradient, with a manual RGB color picker fallback.
-- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.15.0 while Android-applicable fixes are backported to Kotlin.
+- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.17.0 while Android-applicable fixes are backported to Kotlin.
 
 ## What's New in v2.2
 

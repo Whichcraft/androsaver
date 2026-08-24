@@ -443,10 +443,14 @@ class GLDraw(var W: Int, var H: Int) {
 
     /**
      * Draw a semi-transparent black overlay to create motion-trail persistence.
-     * alpha ≈ 0.11 matches the Python `fade.set_alpha(28)` (28/255 ≈ 0.11).
+     * The default 48/255 decay matches the current psysuals global trail
+     * policy and clears stale pixels quickly on TV displays.
+     * The shared floor keeps old pixels from accumulating as grey residue;
+     * effect-specific fades may still request a faster decay.
      */
-    fun fadeBlack(alpha: Float = 0.11f) {
-        rect(0f, 0f, W.toFloat(), H.toFloat(), 0f, 0f, 0f, alpha)
+    fun fadeBlack(alpha: Float = 48f / 255f) {
+        val decay = alpha.coerceAtLeast(48f / 255f)
+        rect(0f, 0f, W.toFloat(), H.toFloat(), 0f, 0f, 0f, decay)
     }
 
     // ── High-level draw calls ──────────────────────────────────────────────────

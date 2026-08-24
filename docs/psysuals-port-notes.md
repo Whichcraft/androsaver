@@ -1,7 +1,7 @@
 # psysuals → AndroSaver Port Notes
 
-The repository vendors upstream psysuals v3.15.0 as a Git subtree under
-`psysuals/` (upstream commit `84c332e`). The subtree is the reference source;
+The repository vendors upstream psysuals v3.17.0 as a Git subtree under
+`psysuals/` (upstream commit `68530bd`). The subtree is the reference source;
 the Android implementation remains a Kotlin/OpenGL ES 2.0 port. Keep the
 subtree update and the Android backport in the same change so the two sources
 remain auditable.
@@ -17,7 +17,7 @@ psysuals uses pygame surfaces.
 
 | psysuals pattern | Android equivalent |
 |------------------|--------------------|
-| Per-surface alpha fade (`surf.blit(fade, ...)`) | `draw.fadeBlack(alpha/255f)` once at top of `draw()` |
+| Per-surface alpha fade (`surf.blit(fade, ...)`) | `draw.fadeBlack(alpha/255f)` once at top of `draw()`; GLDraw enforces a 48/255 minimum |
 | Separate persistent surface (e.g. `sat_surf`, `spark_surf`) | Ring-buffer replay or `draw.setAdditiveBlend()` pass |
 | `pygame.BLEND_ADD` blit | `draw.setAdditiveBlend()` / `draw.setNormalBlend()` |
 | `pygame.draw.polygon(pts, color, width=0)` | `draw.polygon(pts, r, g, b, alpha, filled=true)` |
@@ -31,7 +31,7 @@ psysuals uses pygame surfaces.
 | `np.mean(fft[:6])` (old pre-v3.4.0 pattern) | `audio.beat` (use `audio.mid`/`audio.treble` for frequency bands) |
 | `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → four-channel color array; use the reusable overload in hot loops |
 
-### v3.15 shared runtime changes
+### v3.15–v3.17 shared runtime changes
 
 The subtree also adds desktop-only post-processing (`core/postprocess.py`),
 quality-tier selection (`core/quality.py`), audio envelopes, and cross-effect
@@ -142,9 +142,11 @@ Port of `effects/lattice.py`.  Key differences:
 - **Per-frame scratch arrays** — `sxArr`, `syArr`, `bright` are allocated per-frame (size matches `nodes.size`).
 - **Double-stroke beams** — Python draws width-3 (dark) then width-1 (bright) `pygame.draw.line`.  Android calls `draw.line(...)` twice at the same coordinates with different lightness values.  The visual result is equivalent on a dark background.
 - **colPeaks guard** — A size mismatch check (`if colPeaks.size != nCols`) ensures peaks are reset after a grid resolution change without requiring a full mode reset.
-- **v3.15 hyperbolic warp** — Applies the upstream bounded radial warp with a
-  fixed Android morph contribution and a denominator clamp for portrait and
-  narrow surfaces.
+- **v3.17 Lattice geometry** — Tracks upstream removal of the hyperbolic outer
+  node warp; Android keeps the grid within the viewport on large and portrait
+  displays.
+- **v3.17 trail policy** — `GLDraw.fadeBlack` enforces a minimum 48/255 black
+  overlay so old pixels fade to black instead of accumulating as grey residue.
 
 ### TriFluxMode
 No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers

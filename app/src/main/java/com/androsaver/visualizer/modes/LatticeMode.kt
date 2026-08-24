@@ -133,7 +133,7 @@ class LatticeMode : BaseMode() {
         svel *= 0.70f
         scale = (scale + svel).coerceIn(0.90f, 1.12f)
         // Trail decay approximates the pygame feedback fade.
-        draw.fadeBlack(25f / 255f)
+        draw.fadeBlack(48f / 255f)
 
         // Guard against size mismatch after a grid resize
         if (colPeaks.size != nCols) colPeaks = FloatArray(nCols) { 0.2f }
@@ -153,15 +153,10 @@ class LatticeMode : BaseMode() {
 
         for (ni in nodes.indices) {
             val nd = nodes[ni]
-            // v3.15's bounded hyperbolic morph warp. Keep the denominator
-            // clamped so portrait surfaces cannot explode near the disk edge.
-            val hyper = minOf(0.35f, mid * 0.06f + bass * 0.04f + high * 0.02f + 0.35f * 0.03f)
-            val nx = (nd.ox - cx) / maxOf(1f, cx)
-            val ny = (nd.oy - cy) / maxOf(1f, cy)
-            val r2 = minOf(nx * nx + ny * ny, 0.92f)
-            val warp = 1f + hyper * r2 / maxOf(0.08f, 1f - r2)
-            val sx = cx + (nd.ox - cx) * scale * warp
-            val sy = cy + (nd.oy - cy) * scale * warp
+            // Keep the TV grid geometry stable; the upstream hyperbolic
+            // morph was removed because it over-expanded outer nodes.
+            val sx = cx + (nd.ox - cx) * scale
+            val sy = cy + (nd.oy - cy) * scale
             sxArr[ni] = sx
             syArr[ni] = sy
             val energy = scaledEnergies[nd.col] + IDLE

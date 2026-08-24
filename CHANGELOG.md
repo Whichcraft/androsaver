@@ -7,6 +7,13 @@ All notable changes to AndroSaver are documented here.
 - **Synology**: Accept HTTP-only NAS endpoints and automatically retry self-signed, expired, or otherwise invalid HTTPS certificates on the configured self-hosted endpoint; HTTPS-to-HTTP fallback handles NAS installations without TLS.
 - **Visualizer**: Render exceptions are captured once per mode, logged, shown through the persistent on-screen error overlay with cause/stack details, and replaced by a visible red fallback frame instead of silently killing rendering.
 
+## 2026-08-24 — psysuals v3.17 subtree sync and visualizer backport
+
+- **Repository integration**: Updated the `psysuals/` Git subtree to upstream v3.17.0 (`68530bd`).
+- **Lissajous**: Restored the stable FFT-driven shape and bounded projection so the knot remains legible on large TV surfaces; shortened its history trail.
+- **Tesseract**: Added restrained Cube-like scale breathing and vertical beat bounce, with TV-scaled node sizing.
+- **Lattice and trails**: Removed the over-expanding hyperbolic outer-node warp and enforced a minimum black trail decay so faded pixels do not remain grey.
+
 ---
 
 ## 2026-08-21 — v2.9.3: psysuals v3.15 subtree sync and Android backport
