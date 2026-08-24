@@ -19,7 +19,7 @@ import kotlin.math.*
  * Port of psysuals `effects/magnetar.py` (v3.11.0).
  * surfarray replaced: each particle drawn as a tiny circle with additive blend.
  * Particle count reduced from 6 000 to 4 000 for Android performance.
- * Trail: fadeBlack(24f/255f) approximates BLEND_RGB_MULT alpha overlay.
+ * The upstream 24/255 trail value is clamped by GLDraw to 48/255 on Android.
  */
 class MagnetarMode : BaseMode() {
 

@@ -10,7 +10,8 @@ import kotlin.math.*
  *
  * Port of psysuals `Fireworks` class with v3.14 population and beat-edge safeguards.
  * The pygame pixel-feedback zoom wormhole is omitted (requires FBO);
- * replaced with a fadeBlack (≈ 20/255) to match the _FADE_ALPHA trail fade.
+ * replaced with a source-equivalent fadeBlack (≈20/255); GLDraw clamps it to
+ * the shared 48/255 minimum on Android.
 */
 class FireworksMode : BaseMode() {
 

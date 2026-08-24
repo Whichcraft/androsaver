@@ -17,7 +17,8 @@ import kotlin.math.*
  *   Beat   → speed spike + hue jump
  *
  * Port of psysuals `effects/persistence.py` (v3.13.0 lineage).
- * TRAIL_ALPHA=5 → fadeBlack(5f/255f) — very long persistence for moiré build-up.
+ * Upstream TRAIL_ALPHA=5 is retained as source documentation; GLDraw clamps
+ * the effective Android fade to 48/255 to prevent grey residue.
 */
 private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>>)
 

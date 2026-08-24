@@ -13,7 +13,8 @@ import kotlin.math.*
  * fires a phase jump that instantly reshapes all flow lines.
  *
  * Port of psysuals `FlowField` class (v3.13.0).
- * pygame BLEND_RGB_MULT(247/255) ≈ fadeBlack(8/255) on a dark background.
+ * The upstream 8/255 source fade is clamped by GLDraw to the shared 48/255
+ * minimum on Android so stale pixels return to black on TV displays.
  */
 class FlowFieldMode : BaseMode() {
 
@@ -108,7 +109,8 @@ class FlowFieldMode : BaseMode() {
         }
         boost = maxOf(0f, boost - 0.12f)
 
-        // Slow fade — pygame BLEND_RGB_MULT(247/255) ≈ fadeBlack(8/255)
+        // The source fade is retained for parity; GLDraw applies the shared
+        // minimum decay so stale pixels do not accumulate on Android TVs.
         draw.fadeBlack(8f / 255f)
 
         val spd    = 1.8f + bass * 1.6f + mid * 1.2f + boost

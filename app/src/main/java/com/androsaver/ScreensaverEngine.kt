@@ -344,6 +344,26 @@ class ScreensaverEngine(
         vv.onRenderError = { error ->
             reportTransitionFailure("visualizer render", error, sourceName = "visualizer", forceShow = true)
         }
+        vv.onPerformanceUpdate = { sample ->
+            if (BuildConfig.DEBUG_LOGGING) {
+                binding.root.post {
+                    if (visualizerView === vv && !devTransitionErrorVisible) {
+                        binding.devErrorOverlay.text = String.format(
+                            Locale.US,
+                            "VIS DEBUG  %s\\n%d×%d  %.1f ms  %d vertices  bloom=%s",
+                            sample.mode,
+                            sample.width,
+                            sample.height,
+                            sample.frameTimeMs,
+                            sample.submittedVertices,
+                            sample.bloomEnabled
+                        )
+                        binding.devErrorOverlay.visibility = View.VISIBLE
+                        binding.devErrorOverlay.bringToFront()
+                    }
+                }
+            }
+        }
 
         val allNames = vv.renderer.modeNames.toSet()
         val storedModes = prefs.getStringSet(Prefs.VIZ_ENABLED_MODES, null)

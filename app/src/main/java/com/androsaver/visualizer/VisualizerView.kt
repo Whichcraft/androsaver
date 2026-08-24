@@ -18,6 +18,11 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
         get() = renderer.onRenderError
         set(value) { renderer.onRenderError = value }
 
+    /** Debug-only performance samples from the GL renderer. */
+    var onPerformanceUpdate: ((VisualizerPerformance) -> Unit)?
+        get() = renderer.onPerformanceUpdate
+        set(value) { renderer.onPerformanceUpdate = value }
+
     init {
         setEGLContextClientVersion(2)
         setRenderer(renderer)

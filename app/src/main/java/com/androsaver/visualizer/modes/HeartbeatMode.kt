@@ -18,7 +18,7 @@ import kotlin.math.*
  *   Beat   → spawn new ring(s)
  *
  * Port of psysuals `effects/heartbeat.py` (v3.11.0).
- * TRAIL_ALPHA=20 → fadeBlack(20f/255f).
+ * Upstream TRAIL_ALPHA=20 is clamped by GLDraw to the shared 48/255 minimum.
  */
 class HeartbeatMode : BaseMode() {
 

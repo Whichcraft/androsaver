@@ -2,6 +2,7 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.VisualizerRenderTuning
 import kotlin.math.*
 
 class FerrofluidMode : BaseMode() {
@@ -11,7 +12,7 @@ class FerrofluidMode : BaseMode() {
     private val ring = FloatArray(34)
     override fun reset() { phase = 0f; hue = 0f }
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        fadePsysualsTrail(draw)
+        VisualizerRenderTuning.fadeTrail(draw)
         phase += 0.012f + audio.beat * 0.02f
         hue = (hue + 0.001f) % 1f
         val cx = draw.W * 0.5f; val cy = draw.H * 0.5f

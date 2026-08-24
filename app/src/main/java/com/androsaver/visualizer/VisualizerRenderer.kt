@@ -6,6 +6,15 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
+data class VisualizerPerformance(
+    val mode: String,
+    val width: Int,
+    val height: Int,
+    val frameTimeMs: Float,
+    val submittedVertices: Int,
+    val bloomEnabled: Boolean
+)
+
 /**
  * OpenGL ES 2.0 renderer for the music visualizer.
  * Manages the mode list, audio data, and the per-frame draw loop.
@@ -23,6 +32,9 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
     /** Set by the host so render failures are visible outside Logcat. */
     var onRenderError: ((Throwable) -> Unit)? = null
+
+    /** Debug-only performance samples delivered from the GL thread. */
+    var onPerformanceUpdate: ((VisualizerPerformance) -> Unit)? = null
 
     /** Exponential moving average of frame render time in milliseconds (EMA α=0.1). */
     var frameTimeMs = 0f
@@ -184,6 +196,18 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
                     failRender("GL fallback after ${mode.name}", fallbackFailure)
                 }
             } finally {
+                if (BuildConfig.DEBUG_LOGGING && tick % 30 == 0) {
+                    onPerformanceUpdate?.invoke(
+                        VisualizerPerformance(
+                            mode = mode.name,
+                            width = draw.W,
+                            height = draw.H,
+                            frameTimeMs = frameTimeMs,
+                            submittedVertices = draw.lastSubmittedVertices,
+                            bloomEnabled = draw.bloomEnabled
+                        )
+                    )
+                }
                 snapshot.beat = originalBeat
                 snapshot.gain = originalGain
             }

@@ -2,6 +2,7 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.VisualizerRenderTuning
 import kotlin.math.*
 
 class HyperbolicMode : BaseMode() {
@@ -11,7 +12,7 @@ class HyperbolicMode : BaseMode() {
     private val arc = FloatArray(18)
     override fun reset() { phase = 0f; hue = 0f }
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        fadePsysualsTrail(draw)
+        VisualizerRenderTuning.fadeTrail(draw)
         phase += 0.01f + audio.mid * 0.018f; hue = (hue + 0.001f) % 1f
         val cx = draw.W / 2f; val cy = draw.H / 2f; val scale = minOf(draw.W, draw.H) * 0.46f
         for (ringIdx in 1..6) {

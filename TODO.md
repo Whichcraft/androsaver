@@ -31,14 +31,14 @@ These goals are intentionally self-contained. Do not build the Android project
 locally; use GitHub Actions for Android verification. Preserve the existing
 OpenGL ES 2.0 renderer and keep each goal in a separate commit.
 
-- [ ] **Add multi-viewport JVM coverage for visualizer modes.**
+- [x] **Add multi-viewport JVM coverage for visualizer modes.**
   - Test every newly split psysuals mode at 1920×1080, 3840×2160, portrait, and
     tiny surfaces.
   - Include empty and short audio/FFT inputs where the mode reads audio data.
   - Assert that drawing does not throw and that reset/surface recreation is safe.
   - Do not require an Android emulator or local Android build.
 
-- [ ] **Make scalar-field effects sharper on large TVs.**
+- [x] **Make scalar-field effects sharper on large TVs.**
   - Replace the fixed 24×16 field resolution with a bounded adaptive grid based
     on the viewport short edge and aspect ratio.
   - Keep a safe lower bound for small devices and a strict upper bound for 4K
@@ -47,7 +47,7 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
   - Verify that Morphogenesis, Phason, Cymatica, LiquidLight, and Mandelbox no
     longer appear as undifferentiated color blocks at 1920×1080 and 3840×2160.
 
-- [ ] **Improve Android Tesseract detail and upstream parity.**
+- [x] **Improve Android Tesseract detail and upstream parity.**
   - Keep the current scale breathing and beat bounce.
   - Add bounded higher-detail geometry or presets without exceeding the GLDraw
     vertex budget.
@@ -56,27 +56,27 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
   - Compare the result with upstream `psysuals/effects/tesseract.py` and record
     intentional GLES differences in `docs/psysuals-port-notes.md`.
 
-- [ ] **Reconcile trail documentation with the shared fade policy.**
+- [x] **Reconcile trail documentation with the shared fade policy.**
   - Update stale per-effect comments and port notes that still describe lower
     effective fade values such as 5/255 or 8/255.
   - Document that `GLDraw.fadeBlack()` applies a minimum 48/255 black overlay.
   - Confirm that no effect relies on a deliberately longer trail before
     changing its visual behavior.
 
-- [ ] **Audit all visualizer modes for large-TV bounds and performance.**
+- [x] **Audit all visualizer modes for large-TV bounds and performance.**
   - Review every mode for off-screen geometry, oversized radii, unbounded
     particle counts, and GLDraw batch overflow at 1920×1080 and 3840×2160.
   - Prefer viewport-relative geometry and bounded allocations.
   - Add targeted fixes only where the audit finds a concrete issue; do not
     rewrite stable effects unnecessarily.
 
-- [ ] **Add a developer-only visualizer performance overlay.**
+- [x] **Add a developer-only visualizer performance overlay.**
   - Show active mode, viewport size, frame-time/FPS estimate, submitted vertex
     counts, and bloom enabled/disabled state.
   - Keep it disabled in release builds and avoid allocations in the render loop.
   - Use it to identify effects that overload low-end Android TV hardware.
 
-- [ ] **Separate shared visualizer utilities from psysuals-specific helpers.**
+- [x] **Separate shared visualizer utilities from psysuals-specific helpers.**
   - Move generic trail and viewport helpers out of `PsysualsFieldMode.kt` into
     an appropriately named visualizer utility/base class.
   - Keep psysuals effect files focused on effect behavior.

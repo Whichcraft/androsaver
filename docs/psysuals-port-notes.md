@@ -76,15 +76,18 @@ psysuals uses `bass * 1.2`; raise to `bass * 5f` in Android because beat
 signal tends to be lower and sparks were invisible at low intensity.
 
 **Spark trail ring buffer** — psysuals uses a dedicated `spark_surf` faded at
-`_SPARK_FADE=10` (≈0.039f), giving ~25 frames of persistence vs. the 9 frames
-from the main `fadeBlack(0.11f)`.  Android replaces this with a 25-frame ring
+`_SPARK_FADE=10` (≈0.039f), giving ~25 frames of persistence. Android replaces
+this with a 25-frame ring
 buffer of per-frame spark screen snapshots (sx, sy, r, h, bright) replayed with
 `setAdditiveBlend()` at linearly decreasing alpha.  Do not remove this ring
 buffer or merge it into the main fade — sparks must trail significantly longer
 than the corridor frames.
 
 ### FlowFieldMode
-Port directly.  `draw.fadeBlack(8f/255f)` replaces `BLEND_RGB_MULT(247/255)` — equivalent on a dark background.  Particles drawn with `setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4).  No numpy; particle positions held in plain `FloatArray(N)`.
+Port directly. The source `draw.fadeBlack(8f/255f)` is clamped by Android
+`GLDraw` to the shared 48/255 minimum. Particles are drawn with
+`setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4). No numpy;
+particle positions are held in plain `FloatArray(N)`.
 
 Seed detection: particles are initialised on the first draw call when W/H are known. v3.14 reallocations preserve existing wrapped positions and use isolated per-effect random state.
 
@@ -147,19 +150,32 @@ Port of `effects/lattice.py`.  Key differences:
   displays.
 - **v3.17 trail policy** — `GLDraw.fadeBlack` enforces a minimum 48/255 black
   overlay so old pixels fade to black instead of accumulating as grey residue.
+- **Android field quality** — The bounded 24×16 simulation state is rendered
+  through a viewport-adaptive interpolated grid (24–40 columns, aspect-aware
+  rows), avoiding blocky colour blobs on large TVs without allocating a full
+  resolution field.
+- **Android diagnostics** — Debug builds expose mode, viewport, frame time,
+  submitted vertex count, and bloom state through the developer overlay. The
+  callback is disabled in release builds.
 
 ### TriFluxMode
-No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` covers
+No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` is
+clamped by Android to the shared 48/255 minimum and covers
 it.  Two-pass draw (non-active tiles first, then active on top) replaces the
 psysuals z-order that comes for free from direct surface drawing.  Current
 Android parity fixes also rebuild viewport-sensitive cached geometry correctly
 on render-size changes.
 
 ### BranchesMode
-Port directly.  `draw.fadeBlack(10f/255f)` for trail persistence (matches `TRAIL_ALPHA=10`).
+Port directly. `draw.fadeBlack(10f/255f)` records the source value; Android
+clamps the effective trail fade to 48/255.
 
 ### MyceliumMode
-Port directly.  `draw.fadeBlack(8f/255f)` from `TRAIL_ALPHA=8`. Swirling growth pattern around 5 cores (colony centers). Segments use double `draw.line()` (dark + bright). Pre-allocated arrays and cores structure.  Current parity notes: Android now follows the larger later-upstream growth budgets and clears stale resize state when the viewport changes.
+Port directly. The source `TRAIL_ALPHA=8` is clamped by Android to 48/255.
+Swirling growth pattern around 5 cores (colony centers). Segments use double
+`draw.line()` (dark + bright). Pre-allocated arrays and cores structure.
+Current parity notes: Android now follows the larger later-upstream growth
+budgets and clears stale resize state when the viewport changes.
 
 ### MagnetarMode
 N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.circle(radius=1.5f, segments=4)` with `setAdditiveBlend()`.  `_FADE_ALPHA=24` trail decay mapped to `draw.fadeBlack(24f/255f)`.  The current Android port also rebuilds particles on resize and uses the later upstream dipole `r3` term.

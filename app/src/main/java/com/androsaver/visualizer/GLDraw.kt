@@ -26,7 +26,11 @@ import kotlin.math.*
  *   3. Composite — add the blurred bloom layer over the scene on the display.
  * Disable with [bloomEnabled] = false.  Tune with [bloomStrength] / [bloomThreshold].
  */
-class GLDraw(var W: Int, var H: Int) {
+open class GLDraw(var W: Int, var H: Int) {
+
+    /** Number of vertices submitted during the most recently completed frame. */
+    var lastSubmittedVertices: Int = 0
+        private set
 
     // ── Main draw shader ───────────────────────────────────────────────────────
 
@@ -230,6 +234,7 @@ class GLDraw(var W: Int, var H: Int) {
     }
 
     fun beginFrame(clear: Boolean = true) {
+        lastSubmittedVertices = 0
         // Render scene into the FBO texture when bloom is active
         if (sceneFboId != 0) {
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, sceneFboId)
@@ -408,6 +413,7 @@ class GLDraw(var W: Int, var H: Int) {
     }
 
     private fun flushBatch(verts: FloatArray, buf: FloatBuffer, count: Int, mode: Int) {
+        lastSubmittedVertices += count
         val floatCount = count * STRIDE
         buf.position(0)
         buf.put(verts, 0, floatCount)
@@ -426,14 +432,14 @@ class GLDraw(var W: Int, var H: Int) {
     // ── Blending ───────────────────────────────────────────────────────────────
 
     /** Switch to additive blending — overlapping glows accumulate to white (neon look). */
-    fun setAdditiveBlend() {
+    open fun setAdditiveBlend() {
         flushBatches()
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE)
         triCount = 0; lineCount = 0; batchType = 0
     }
 
     /** Restore normal alpha blending. */
-    fun setNormalBlend() {
+    open fun setNormalBlend() {
         flushBatches()
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         triCount = 0; lineCount = 0; batchType = 0
@@ -448,14 +454,14 @@ class GLDraw(var W: Int, var H: Int) {
      * The shared floor keeps old pixels from accumulating as grey residue;
      * effect-specific fades may still request a faster decay.
      */
-    fun fadeBlack(alpha: Float = 48f / 255f) {
-        val decay = alpha.coerceAtLeast(48f / 255f)
+    open fun fadeBlack(alpha: Float = 48f / 255f) {
+        val decay = alpha.coerceAtLeast(VisualizerRenderTuning.MIN_TRAIL_FADE)
         rect(0f, 0f, W.toFloat(), H.toFloat(), 0f, 0f, 0f, decay)
     }
 
     // ── High-level draw calls ──────────────────────────────────────────────────
 
-    fun rect(x: Float, y: Float, w: Float, h: Float,
+    open fun rect(x: Float, y: Float, w: Float, h: Float,
              r: Float, g: Float, b: Float, a: Float = 1f) {
         val x2 = x + w; val y2 = y + h
         addTri(x, y,  r, g, b, a)
@@ -467,7 +473,7 @@ class GLDraw(var W: Int, var H: Int) {
     }
 
     /** Filled or wireframe circle approximated with [segments] vertices. */
-    fun circle(cx: Float, cy: Float, radius: Float,
+    open fun circle(cx: Float, cy: Float, radius: Float,
                r: Float, g: Float, b: Float, a: Float = 1f,
                filled: Boolean = true, segments: Int = 20) {
         val step = (2.0 * PI / segments).toFloat()
@@ -502,7 +508,7 @@ class GLDraw(var W: Int, var H: Int) {
         addTri(x1, y2, r, g, b, a)
     }
 
-    fun line(x1: Float, y1: Float, x2: Float, y2: Float,
+    open fun line(x1: Float, y1: Float, x2: Float, y2: Float,
              r: Float, g: Float, b: Float, a: Float = 1f) {
         addLine(x1, y1, x2, y2, r, g, b, a)
     }
@@ -512,7 +518,7 @@ class GLDraw(var W: Int, var H: Int) {
         lineStrip(pts, pts.size / 2, r, g, b, a)
     }
 
-    fun lineStrip(pts: FloatArray, pointCount: Int, r: Float, g: Float, b: Float, a: Float = 1f) {
+    open fun lineStrip(pts: FloatArray, pointCount: Int, r: Float, g: Float, b: Float, a: Float = 1f) {
         val n = pointCount.coerceAtMost(pts.size / 2)
         for (i in 0 until n - 1) {
             addLine(pts[i * 2], pts[i * 2 + 1],

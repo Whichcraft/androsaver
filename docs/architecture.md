@@ -100,6 +100,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `SynapseMode.kt` | Synapse | Living 28–90-node neural graph with safe nearest-neighbour rewiring |
 | `HeartbeatMode.kt` | Heartbeat | Expanding polygon rings with beat-driven morphing |
 | `PsysualsFieldMode.kt` and individual `*Mode.kt` files | Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, Mandelbox | Bounded GLES 2.0 adaptations of the v3.15 field and geometry effects with shared field helpers |
+| `VisualizerRenderTuning.kt` | Shared viewport, field-grid, and trail tuning | Keeps TV scaling and trail policy consistent across Android effect ports |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |
 

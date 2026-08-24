@@ -15,7 +15,7 @@ import kotlin.math.*
  *   Beat   → shiver: twist amplitude spike
  *
  * Port of psysuals `effects/mobius.py` (v3.11.0).
- * TRAIL_ALPHA=15 → fadeBlack(15f/255f).
+ * Upstream TRAIL_ALPHA=15 is clamped by GLDraw to the shared 48/255 minimum.
  * 3-D rotation and perspective projection ported from numpy to Kotlin FloatArrays.
  */
 class MobiusMode : BaseMode() {
