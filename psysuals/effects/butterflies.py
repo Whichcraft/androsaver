@@ -71,7 +71,7 @@ class Butterflies(Effect):
         if self._scaled is None or self._scaled.get_size()!=(dw,dh): self._scaled=pygame.Surface((dw,dh))
     def draw(self,surf,waveform,fft,beat,tick):
         dw,dh=surf.get_size(); w,h=self._render_size()[:2]; self._surfaces(w,h,dw,dh); self._tick+=1; self._hue=(self._hue+.0012+getattr(config,'TREBLE_ENERGY',0)*.0005)%1
-        bass=float(np.mean(fft[:min(6,len(fft))])) if len(fft) else 0.; mids=float(getattr(config,'MID_ENERGY',0)); treble=float(getattr(config,'TREBLE_ENERGY',0)); self._trail.fill((239,239,239),special_flags=pygame.BLEND_RGB_MULT)
+        bass=float(np.mean(fft[:min(6,len(fft))])) if len(fft) else 0.; mids=float(getattr(config,'MID_ENERGY',0)); treble=float(getattr(config,'TREBLE_ENERGY',0)); self._trail.fill((212,212,212),special_flags=pygame.BLEND_RGB_MULT)
         if len(self._butterflies)<self.MAX_POPULATION and (self._tick<20 or self._tick%24==0):
             x,y=self._spawn(w,h,self._rng); self._butterflies.append(_Butterfly(x,y,self._hue+self._rng.random()*.25,self._rng,state='cocoon'))
         for b in self._butterflies:

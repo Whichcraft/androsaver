@@ -19,7 +19,7 @@ class Branches(Effect):
     bass drives trunk length; beat fires extra arms with a brightness burst.
     """
 
-    TRAIL_ALPHA = 10
+    TRAIL_ALPHA = 40
     MAX_DEPTH   = 7
     BASE_ARMS   = 9
 

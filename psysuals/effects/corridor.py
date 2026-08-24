@@ -32,7 +32,7 @@ class Corridor(Effect):
     TRAIL_ALPHA    = 255   # psysualizer clears surf to black; we manage trails
     RES_DIV        = 2
     _CORRIDOR_FADE = 28
-    _SPARK_FADE    = 10    # slower fade → longer spark trails
+    _SPARK_FADE    = 34
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -10,7 +10,7 @@ from .base import Effect
 
 
 class Ferrofluid(Effect):
-    TRAIL_ALPHA = 10
+    TRAIL_ALPHA = 40
     RES_DIV = 4
     MAX_POLES = 5
     MAX_CONTOURS = 6

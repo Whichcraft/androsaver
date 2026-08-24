@@ -40,40 +40,43 @@ class Lissajous(Effect):
     def draw(self, surf, waveform, fft, beat, tick):
         self.hue += 0.006
         W, H = surf.get_size()
-        bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        # Keep Lissajous on its original stable FFT-driven shape.  The newer
+        # cross-effect band distortion made this knot collapse into a bright
+        # blob on large displays.
+        bass = float(np.mean(fft[:6])) if len(fft) else 0.0
+        mid  = float(np.mean(fft[6:30])) if len(fft) > 6 else 0.0
+        high = float(np.mean(fft[30:])) if len(fft) > 30 else 0.0
 
         # Creative shape distortion mapping
-        ax = 3.0 + bass * 0.20
-        ay = 2.0 + mid  * 0.18
-        az = 5.0 + high * 0.22
+        ax = 3.0 + bass * 1.3
+        ay = 2.0 + mid  * 1.3
+        az = 5.0 + high * 1.3
 
-        self.dx += 0.0003 + bass * 0.0002
-        self.dz += 0.0002 + high * 0.0002
+        self.dx += 0.0006 + bass * 0.002
+        self.dz += 0.0005 + high * 0.0013
 
         # BPM scaling: faster knot at higher tempo (guard against BPM=0 before detection)
         bpm_scale = max(0.7, config.BPM / 138.0) if config.BPM > 60 else 1.0
         
         # Dampened beat response to prevent "wild" behavior
         clamped_beat = min(1.5, beat)
-        self.t += (0.010 + clamped_beat * 0.006 + mid * 0.004) * bpm_scale
+        self.t += (0.016 + clamped_beat * 0.04) * bpm_scale
         self.hist.append((math.sin(ax * self.t + self.dx),
                           math.sin(ay * self.t + self.dy),
                           math.sin(az * self.t + self.dz)))
 
-        self.svel  += clamped_beat * 0.06
-        self.svel  += (1.0 - self.scale) * 0.26
-        self.svel  *= 0.60
+        self.svel  += clamped_beat * 0.30
+        self.svel  += (1.0 - self.scale) * 0.16
+        self.svel  *= 0.72
         self.scale += self.svel
         self.scale  = max(0.35, self.scale)
 
         self.hue += clamped_beat * 0.06
 
-        self.rvx += clamped_beat * 0.0022 + mid * 0.0007 + 0.00005
-        self.rvy += clamped_beat * 0.0032 + mid * 0.0010 + 0.00007
-        self.rvx *= 0.94
-        self.rvy *= 0.94
+        self.rvx += clamped_beat * 0.008 + 0.0001
+        self.rvy += clamped_beat * 0.010 + 0.00015
+        self.rvx *= 0.985
+        self.rvy *= 0.985
         self.rx  += self.rvx
         self.ry  += self.rvy
 
@@ -90,8 +93,11 @@ class Lissajous(Effect):
         z2   = py_a * sx_r + pz_a * cx_r
         x3   = px_a * cy_r + z2 * sy_r
         z3   = -px_a * sy_r + z2 * cy_r
-        fov_l  = min(W, H) * 0.52
-        zcam   = np.maximum(z3 + 2.8, 0.05)
+        # Keep the perspective bounded on 4K/TV canvases; the old near-zero
+        # denominator sent most vertices off-screen and left only a colour
+        # smear (or a black first frame).
+        fov_l  = min(W, H) * 0.34
+        zcam   = np.maximum(z3 + 3.4, 0.75)
         raw_x  = x3 * fov_l / zcam
         raw_y  = y2 * fov_l / zcam
 

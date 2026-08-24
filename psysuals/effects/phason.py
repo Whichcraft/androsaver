@@ -10,7 +10,7 @@ from .base import Effect
 
 
 class Phason(Effect):
-    TRAIL_ALPHA = 8
+    TRAIL_ALPHA = 38
     RES_DIV = 4
     MAX_WAVES = 11
     MAX_FIELD = 1.0

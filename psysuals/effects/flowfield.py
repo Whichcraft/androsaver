@@ -117,7 +117,7 @@ class FlowField(Effect):
             self._py = (self._py + (dy / dist) * push) % H
 
         # Decay trail (RGB mult is fast on 24-bit)
-        self._trail.fill((240, 240, 240), special_flags=pygame.BLEND_RGB_MULT)
+        self._trail.fill((214, 214, 214), special_flags=pygame.BLEND_RGB_MULT)
 
         # Fast color calc
         hx = (self._hue + self._px / W * 0.30) % 1.0

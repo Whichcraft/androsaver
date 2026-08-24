@@ -18,7 +18,6 @@ _IDLE = 0.08
 _FFT_START_BIN = 3  # skip DC component and sub-bass rumble
 
 class Lattice(Effect):
-    MORPH_SCHEMA = {"_morph_warp": (0.0, 1.0)}
     TRAIL_ALPHA = 0 # Managed by internal surface
 
     @property
@@ -59,8 +58,6 @@ class Lattice(Effect):
         self._cx = 0.0
         self._cy = 0.0
         self._max_r = 1.0
-        self._hyperbolic_strength = 0.0
-        self._morph_warp = 0.35
         self._nodes = []
         self._col_peaks = np.ones(self._grid_cols, dtype=np.float32) * 0.2
 
@@ -159,11 +156,9 @@ class Lattice(Effect):
         rotated = pygame.transform.scale(self._surf, (rw, rh))
         self._surf.fill((0, 0, 0))
         self._surf.blit(rotated, (-((rw - W) // 2), -((rh - H) // 2)))
-        self._surf.fill((230, 230, 230), special_flags=pygame.BLEND_RGB_MULT)
+        self._surf.fill((210, 210, 210), special_flags=pygame.BLEND_RGB_MULT)
 
         sc = self._scale
-        self._hyperbolic_strength = min(0.35, mid * 0.06 + bass * 0.04 + high * 0.02 + self._morph_warp * 0.03)
-        hyper = self._hyperbolic_strength
         sx_arr = np.empty(len(self._nodes), dtype=np.float32)
         sy_arr = np.empty(len(self._nodes), dtype=np.float32)
         bright = np.empty(len(self._nodes), dtype=np.float32)
@@ -189,12 +184,8 @@ class Lattice(Effect):
         scaled_energies = norm_energies * (0.50 + mid * 0.30)
 
         for ni, nd in enumerate(self._nodes):
-            nx = (nd['ox'] - cx) / max(self._max_r, 1.0)
-            ny = (nd['oy'] - cy) / max(self._max_r, 1.0)
-            radius2 = min(0.98, nx * nx + ny * ny)
-            metric = (1.0 + hyper * 0.45) / (1.0 + hyper * radius2)
-            sx = cx + nx * self._max_r * metric * sc
-            sy = cy + ny * self._max_r * metric * sc
+            sx = cx + (nd['ox'] - cx) * sc
+            sy = cy + (nd['oy'] - cy) * sc
             sx_arr[ni], sy_arr[ni] = sx, sy
             energy = float(scaled_energies[nd['col']]) + _IDLE
             dist = math.hypot(sx - cx, sy - cy)

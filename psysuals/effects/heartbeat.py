@@ -31,7 +31,7 @@ _Ring = NamedTuple("_Ring", [
 
 
 class Heartbeat(Effect):
-    TRAIL_ALPHA = 20
+    TRAIL_ALPHA = 42
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

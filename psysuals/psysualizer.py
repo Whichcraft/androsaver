@@ -24,7 +24,7 @@ Controls:
 
 from __future__ import annotations
 
-__version__ = "3.15.0"
+__version__ = "3.17.0"
 
 import argparse
 import atexit
@@ -67,7 +67,9 @@ class VisualizerApp:
         if config.LOW_SPEC:
             config.FPS = 30
         self.settings = sett.load()
-        self.fade_alpha = 28
+        # Faster global decay prevents stale grey trails accumulating between
+        # frames; effect-owned trails use the same shorter-persistence policy.
+        self.fade_alpha = 48
         
         self.display = DisplayManager(self.args)
         self.audio = AudioEngine()
@@ -780,7 +782,7 @@ class VisualizerApp:
         target = self.display.target
         
         genre_alpha = palette.trail_alpha if self.current_genre != "detecting..." else None
-        new_alpha = genre_alpha if genre_alpha is not None else getattr(self.vis, "TRAIL_ALPHA", 28)
+        new_alpha = genre_alpha if genre_alpha is not None else getattr(self.vis, "TRAIL_ALPHA", 48)
         new_alpha = int(round(new_alpha))
         if new_alpha != self.fade_alpha:
             self.fade_alpha = new_alpha

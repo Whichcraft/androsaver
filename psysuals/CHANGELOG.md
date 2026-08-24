@@ -5,7 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [3.15.0] — 2026-08-21
+## [3.17.0] — 2026-08-24
 
 ### Changed
 - **Butterflies courtship simulation** — Replaced the fixed three-pair chase

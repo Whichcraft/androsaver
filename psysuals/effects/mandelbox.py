@@ -10,7 +10,7 @@ from .base import Effect
 
 
 class Mandelbox(Effect):
-    TRAIL_ALPHA = 14
+    TRAIL_ALPHA = 42
     RES_DIV = 5
     MAX_ITERATIONS = 18
     MAX_FIELD = 1.0

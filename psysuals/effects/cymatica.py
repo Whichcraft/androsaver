@@ -10,7 +10,7 @@ from .base import Effect
 
 
 class Cymatica(Effect):
-    TRAIL_ALPHA = 12
+    TRAIL_ALPHA = 40
     RES_DIV = 4
     MAX_PARTICLES = 700
     MAX_MODES = 6

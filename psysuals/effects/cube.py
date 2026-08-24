@@ -13,8 +13,8 @@ class Cube(Effect):
     are always composited above the main cubes.
     """
 
-    TRAIL_ALPHA  = 18
-    _SAT_FADE    = 16
+    TRAIL_ALPHA  = 42
+    _SAT_FADE    = 42
 
     VERTS = np.array([
         [-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],

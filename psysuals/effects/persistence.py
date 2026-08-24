@@ -23,7 +23,7 @@ _MAX_SHAPES = 8
 
 class Persistence(Effect):
     MORPH_SCHEMA = {"_morph_projection": (0.0, 1.0)}
-    TRAIL_ALPHA = 5   # very long persistence for 3D moiré build-up
+    TRAIL_ALPHA = 38
     RES_DIV     = 2
 
     @staticmethod
