@@ -1,6 +1,7 @@
 package com.androsaver.visualizer
 
 import android.opengl.GLSurfaceView
+import com.androsaver.BuildConfig
 import com.androsaver.visualizer.modes.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.microedition.khronos.egl.EGLConfig
