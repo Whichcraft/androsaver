@@ -114,4 +114,7 @@ object Prefs {
     // Updates
     const val UPDATE_CHANNEL_STABLE = "stable"
     const val UPDATE_CHANNEL_DEV    = "dev"
+    // Keep the release tag distinct from the dev branch name. GitHub refs must
+    // not contain both a branch and a tag named "dev".
+    const val UPDATE_RELEASE_TAG_DEV = "dev-channel"
 }

@@ -17,9 +17,9 @@ data class UpdateInfo(
 object UpdateChecker {
 
     private fun manifestUrl(): String {
-        val channel = if (BuildConfig.IS_DEV) Prefs.UPDATE_CHANNEL_DEV
-                      else Prefs.UPDATE_CHANNEL_STABLE
-        return "https://github.com/Whichcraft/androsaver/releases/download/$channel/version.json"
+        val releaseTag = if (BuildConfig.IS_DEV) Prefs.UPDATE_RELEASE_TAG_DEV
+                         else Prefs.UPDATE_CHANNEL_STABLE
+        return "https://github.com/Whichcraft/androsaver/releases/download/$releaseTag/version.json"
     }
 
     suspend fun checkForUpdate(): UpdateInfo? = withContext(Dispatchers.IO) {
@@ -38,9 +38,10 @@ object UpdateChecker {
                 ?.takeIf { it.matches(Regex("[0-9a-f]{64}")) } ?: return@withContext null
             val sizeBytes = json.get("sizeBytes")?.takeIf { it.isJsonPrimitive }?.asLong
                 ?.takeIf { it in 1..100_000_000 } ?: return@withContext null
-            val expectedChannel = if (BuildConfig.IS_DEV) Prefs.UPDATE_CHANNEL_DEV else Prefs.UPDATE_CHANNEL_STABLE
+            val expectedReleaseTag = if (BuildConfig.IS_DEV) Prefs.UPDATE_RELEASE_TAG_DEV
+                                     else Prefs.UPDATE_CHANNEL_STABLE
             val parsed = apkUrl.toHttpUrlOrNull() ?: return@withContext null
-            val expectedPath = "/Whichcraft/androsaver/releases/download/$expectedChannel/androsaver.apk"
+            val expectedPath = "/Whichcraft/androsaver/releases/download/$expectedReleaseTag/androsaver.apk"
             if (parsed.scheme != "https" || parsed.host != "github.com" || parsed.encodedPath != expectedPath) return@withContext null
             if (versionCode > BuildConfig.VERSION_CODE) UpdateInfo(versionCode, versionName, apkUrl, sha256, sizeBytes) else null
         } catch (e: Exception) {

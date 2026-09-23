@@ -108,7 +108,7 @@ jobs:
           VERSION_PATCH=$((VERSION_CODE - VERSION_PATCH_BASE))
           VERSION_NAME="${VERSION_PREFIX}.${VERSION_PATCH}"
           if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
-            TAG="dev"
+            TAG="dev-channel"
             APK_DIR="dev"
           else
             TAG="stable"
@@ -123,20 +123,25 @@ jobs:
 
       - name: Publish to dev release
         if: github.ref == 'refs/heads/dev'
-        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
-        with:
-          tag_name: dev
-          target_commitish: ${{ github.sha }}
-          name: Dev
-          prerelease: true
-          overwrite_files: true
-          files: |
-            app/build/outputs/apk/devStandard/release/androsaver.apk
-            version.json
-
-      - name: Move dev tag to published commit
-        if: github.ref == 'refs/heads/dev'
-        run: git push origin HEAD:refs/tags/dev --force
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git push origin HEAD:refs/tags/dev-channel --force
+          if gh release view dev-channel >/dev/null 2>&1; then
+            gh release upload dev-channel \
+              app/build/outputs/apk/devStandard/release/androsaver.apk \
+              version.json --clobber
+            gh release edit dev-channel --title Dev --prerelease
+          else
+            gh release create dev-channel \
+              --repo "${{ github.repository }}" \
+              --target "${{ github.sha }}" \
+              --title Dev \
+              --prerelease \
+              app/build/outputs/apk/devStandard/release/androsaver.apk \
+              version.json
+          fi
 
       - name: Verify dev release assets and tag
         if: github.ref == 'refs/heads/dev'
@@ -144,7 +149,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          assets=$(gh release view dev --json assets --jq '[.assets[].name] | sort | join(" ")')
+          assets=$(gh release view dev-channel --json assets --jq '[.assets[].name] | sort | join(" ")')
           case " $assets " in
             *" androsaver.apk "*) : ;;
             *) echo "Dev release assets are incomplete: $assets"; exit 1 ;;
@@ -155,7 +160,7 @@ jobs:
           esac
           test "$(jq -r .sha256 version.json)" = "$(sha256sum app/build/outputs/apk/devStandard/release/androsaver.apk | cut -d' ' -f1)"
           test "$(jq -r .sizeBytes version.json)" = "$(stat -c '%s' app/build/outputs/apk/devStandard/release/androsaver.apk)"
-          test "$(gh api repos/${{ github.repository }}/git/ref/tags/dev --jq .object.sha)" = "${{ github.sha }}"
+          test "$(gh api repos/${{ github.repository }}/git/ref/tags/dev-channel --jq .object.sha)" = "${{ github.sha }}"
 
       - name: Publish to stable release
         if: github.ref == 'refs/heads/master'
