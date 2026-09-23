@@ -17,11 +17,11 @@ import org.junit.Test
 
 class VisualizerRenderTuningTest {
     @Test fun fieldGridScalesWithinSafeBounds() {
-        assertEquals(24, VisualizerRenderTuning.fieldColumns(640, 360))
-        assertEquals(32, VisualizerRenderTuning.fieldColumns(1920, 1080))
-        assertEquals(40, VisualizerRenderTuning.fieldColumns(3840, 2160))
-        assertTrue(VisualizerRenderTuning.fieldRows(3840, 2160) in 12..28)
-        assertTrue(VisualizerRenderTuning.fieldRows(1080, 1920) in 12..28)
+        assertEquals(64, VisualizerRenderTuning.fieldColumns(640, 360))
+        assertEquals(128, VisualizerRenderTuning.fieldColumns(1920, 1080))
+        assertEquals(224, VisualizerRenderTuning.fieldColumns(3840, 2160))
+        assertEquals(126, VisualizerRenderTuning.fieldRows(3840, 2160))
+        assertEquals(228, VisualizerRenderTuning.fieldRows(1080, 1920))
     }
 
     @Test fun viewportScaleIsBoundedForAllTargetOrientations() {
