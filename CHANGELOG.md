@@ -2,6 +2,13 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-09-23 — v2.10.0: Android TV quality and documentation cleanup
+
+- Reset the generated app version to the 2.10 minor line; patch versions
+  continue from the Git commit count after this bump.
+- Consolidated the Android port notes, module reference, settings reference,
+  and visualizer documentation around the current psysuals v3.18 integration.
+
 ## 2026-09-23 — psysuals v3.18 subtree sync and Android TV quality backport
 
 - **Repository integration**: Updated the `psysuals/` Git subtree to upstream
