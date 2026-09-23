@@ -18,7 +18,6 @@ class QualityGovernor:
         self.tier = max(0, min(2, int(getattr(config, "QUALITY_TIER", 2))))
         self.samples = deque(maxlen=self._WINDOW)
         self.cooldown = 0
-        self.enabled = True
         self._publish()
 
     def _publish(self):
@@ -27,9 +26,7 @@ class QualityGovernor:
 
     def observe(self, frame_ms, enabled=True):
         if not enabled:
-            self.enabled = False
             return self.tier
-        self.enabled = True
         try:
             value = float(frame_ms)
         except (TypeError, ValueError):

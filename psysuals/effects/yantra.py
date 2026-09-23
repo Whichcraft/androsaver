@@ -1,6 +1,5 @@
 import math
 
-import numpy as np
 import pygame
 
 import config
@@ -12,7 +11,7 @@ from .base import Effect
 class Yantra(Effect):
     """Psychedelic sacred-geometry mandala for psytrance.
 
-    Six concentric polygon rings (triangle → octagon) alternate rotation
+    Seven concentric polygon rings (triangle → nonagon) alternate rotation
     direction, each driven by its own frequency band.  Web lines connect
     adjacent ring vertices. Neon spokes radiate from the centre. Beat
     triggers spring-physics pulses that push every ring outward then snap

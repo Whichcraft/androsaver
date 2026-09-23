@@ -135,12 +135,14 @@ class EffectRenderRegressionTests(unittest.TestCase):
         self.assertTrue(np.isfinite(np.asarray(persistence._rot_w)).all())
         self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
 
-    def test_lattice_hyperbolic_metric_stays_bounded(self):
+    def test_lattice_euclidean_scale_and_shockwave_stay_bounded(self):
         effect = Lattice()
+        self.assertFalse(effect.MORPH_SCHEMA)
         for tick, beat in enumerate((0.0, 3.0, 6.0) * 6):
             effect.draw(self.surface, self.waveform, self.fft, beat, tick)
-            self.assertGreaterEqual(effect._hyperbolic_strength, 0.0)
-            self.assertLessEqual(effect._hyperbolic_strength, 0.35)
+            self.assertTrue(np.isfinite(effect._shock_r))
+            self.assertGreaterEqual(effect._scale, 0.90)
+            self.assertLessEqual(effect._scale, 1.12)
         self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
 
     def test_magnetar_contours_stay_finite_with_particles(self):
@@ -207,8 +209,8 @@ class EffectRenderRegressionTests(unittest.TestCase):
             self.assertLessEqual(len(fireworks._embers), fireworks._MAX_EMBERS)
             self.assertLessEqual(len(mycelium._tips), mycelium.max_tips)
 
-    def test_compatible_effect_schemas_clamp_and_expose_values(self):
-        for effect in (Lattice(), Hyperbolic(), Tesseract(), Persistence()):
+    def test_declared_effect_schemas_clamp_and_expose_values(self):
+        for effect in (Hyperbolic(), Tesseract(), Persistence()):
             self.assertTrue(effect.MORPH_SCHEMA)
             values = effect.get_morph_values()
             self.assertEqual(set(values), set(effect.MORPH_SCHEMA))

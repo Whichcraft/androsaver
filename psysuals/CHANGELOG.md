@@ -5,14 +5,52 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.18.0] — 2026-09-23
+
+### Changed
+- **Chromatic ripple density** — Reduced the simultaneous ripple cap from 14
+  to five while preserving the three RGB-separated outlines per ripple.
+- **Spiral audio layers** — Removed the later mid/treble geometry additions
+  and restored the original FFT-depth radius response with beat-driven travel,
+  spring expansion, and foreground flares.
+- **Android/headless framebuffer adapter** — Added a shared CPU
+  `Effect.draw_frame()` contract that uses the requested physical framebuffer
+  dimensions and returns RGBA arrays for the external GitHub Android builder;
+  `PlasmaGL` retains its GPU offscreen override.
+- **Live GL viewport sizing** — Use the active framebuffer dimensions when
+  presenting, avoiding stale logical-size viewports on EGL or resized surfaces.
+
+### Documentation
+- Corrected the effect and architecture references after Lattice's hyperbolic
+  warp and morph schema were removed. Lattice now documents its Euclidean grid
+  and standard surface crossfade with Hyperbolic.
+- Clarified Butterflies' off-screen cocoon startup delay and the current audio
+  mappings for Butterflies, Spiral, Lattice, and Chromatic.
+- Documented the CPU/GL headless framebuffer initialization contract, including
+  the returned `numpy.uint8` shape and the required external renderer for
+  `PlasmaGL`.
+- Documented that external hosts must reuse effect instances across frames and
+  release them when switching or shutting down.
+- Corrected effect audio mappings, low-spec particle limits, registry naming,
+  and stale TODO guidance.
+
+### Tests
+- Replaced obsolete Lattice hyperbolic/schema assertions with bounds checks for
+  its current Euclidean scale and shockwave state.
+- Added an explicit Butterflies lifecycle warm-up before collecting compact
+  visual metrics, so the fixture observes free flight instead of off-screen
+  cocoons.
+
 ## [3.17.0] — 2026-08-24
 
 ### Changed
 - **Butterflies courtship simulation** — Replaced the fixed three-pair chase
   with bounded cocoon emergence, nearest-neighbour pairing, mirrored orbiting
-  dance, beat-synchronised wings, sparkle-ready audio response, and deliberate
-  pair breakup/re-pairing. The effect remains deterministic, resize-safe, and
-  compatible with the CPU/Pygame rendering contract.
+  dance, beat-responsive wings, and deliberate pair breakup/re-pairing. The
+  effect remains deterministic, resize-safe, and compatible with the
+  CPU/Pygame rendering contract.
+- **Lattice geometry simplification** — Removed the hyperbolic coordinate warp
+  and its shared morph parameter, returning Lattice to Euclidean grid spacing.
 
 ### Documentation and verification
 - Updated the Butterflies effect reference, architecture resource-safety notes,
@@ -181,151 +219,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Beat onset threshold 0.22s** — Reduced minimum inter-onset interval from 0.28s (~214 BPM) to 0.22s (~273 BPM) for breakcore/psytrance compatibility. (review I24)
 - **qmd.yml glob scope** — Scoped `source` glob pattern to `[!.]*.py` with `__pycache__`/`.venv` exclusions. (review I25)
 - **Beat tracker shutdown** — Call `self.audio.beat_tracker.release()` in `_quit()` to shut down `ThreadPoolExecutor` gracefully. (review I26)
-- **Slime mold axis swap** — Corrected trail array shape `(W, H)` → `(H, W)` and all indexing to numpy row-major `[y, x]`. (B1)
-- **Corridor infinite surface leak on resize** — `_init_surfs()` now receives `(W, H)` from `draw()`; split semicolon-chained statements. (B2, I13)
-- **Aurora division by zero** — Added `max(tot_w, 1e-6)` guard in harmonic weight normalization. (B3)
-- **Chromatic stale radius fade** — Re-read `r = ring[2]` after mutation; safe filter-then-iterate ring removal. (B4)
-- **Fireworks ember destructure** — All 7 mutable positional fields (x, y, vx, vy, hue, radius, life) explicitly written per frame. (B5)
-- **Fireworks sub-pixel zoom drift** — `int(W * zoom)` → `round(W * zoom)` to prevent centering error accumulation. (B6)
-- **Lattice aspect-agnostic scaling** — `min(W, H) / 640.0` for glow thickness and shockwave width. (B8)
-- **Butterflies trail surface on resize** — Fresh `pygame.Surface(surf.get_size())` on size mismatch instead of stale scaled surface. (B9)
-- **IS_GL compositing inversion** — Guard in `_render()` skips fade/background/crossfade blits for IS_GL effects; backbuffer shows correctly behind SRCALPHA overlays. (B16)
-- **Aurora phases on resize** — `_phases` now rebuilt alongside `_ks` on resize to stay in sync with harmonic structure. (B7)
-- **Duplicate SIGINT handling** — Removed outer `try/except KeyboardInterrupt` in `__main__`; signal handler now owns all cleanup. (B11)
-- **Preset bg_vis RES_DIV** — `_update_target_res()` re-called after creating new `bg_vis` from preset to account for background render divisor. (B12)
-- **Persistence RES_DIV** — Changed `W, H = surf.get_size()` to `self._render_size()[:2]`; draw to private `_scaled` surface at reduced resolution then scale up. (B13)
-- **BeatTracking `__import__("sys")`** — Replaced runtime import with top-level `import sys`. (B14)
-- **DisplayManager `__import__("sys")`** — Replaced runtime import with top-level `import sys`. (B15)
-- **Magnetar np.full → scalar** — Replaced per-frame `np.full(n, val)` allocation with scalar passed directly to `_hsl_batch`. (O5)
-- **Aurora wave pre-allocation** — Pre-allocate `self._wave` on init/resize instead of per-ribbon `np.zeros` in the hot draw loop. (O8)
-- **Lattice scaled surface cache** — Cache `self._scaled` and reuse via `pygame.transform.scale(dest=...)` to avoid per-frame surface allocation. (O9)
-- **AudioEngine _band_bounds guard** — Added `if size else 0` to prevent negative start index on zero-size arrays. (I4)
-- **Tunnel unused import** — Removed unused `import numpy` from tunnel.py. (I10)
-- **Butterflies dead code** — Removed commented-out antenna drawing code. (I11)
-- **Corridor semicolons** — Split `pygame.Surface(…) ; fill(…)` onto separate lines. (I13)
-- **Fireworks docstring** — Corrected stale "tunnel with fireworks" description to "fireworks display". (I14)
-- **Chromatic shadowed ring** — Renamed loop variable `ring` → `entry` to avoid shadowing the outer loop variable. (I15)
-- **Magnetar r3 pre-compute** — Pre-computed `r3 = r2 * r + 0.1` once instead of repeating it in both dipole field components. (I19)
-- **Lattice FFT_START_BIN constant** — Extracted magic number `3` into module-level `_FFT_START_BIN`. (M4)
-- **Tunnel MAX_TRIS constant** — Extracted magic number `30` into class constant `MAX_TRIS`. (M5)
-- **Yantra backward loop comment** — Added comment explaining the reverse ring iteration. (M7)
-- **Lissajous symmetry rotation reuse** — Pre-computed `sym_ca_sa` list to avoid redundant `cos`/`sin` calls in the second loop. (M8)
-- **Butterflies short FFT guard** — Guarded `fft[:6]` with `min(6, len(fft))` to prevent silent partial-array mean on small FFTs. (M9)
-- **_hsl_batch scalar default** — Changed `s=1.0` to `s=np.float32(1.0)` so the default matches the dtype used by array inputs. (I1)
-- **_cached_info ClassVar** — Added `from typing import ClassVar` and annotated `_cached_info` as `ClassVar[...]` to accurately reflect its class-level scope. (I2)
-- **GLRenderer FBO cache cap** — `offscreen()` now evicts the oldest entry when the cache exceeds 8 FBOs, preventing unbounded growth during resize. (I3)
-- **Butterflies pair offset constants** — Extracted magic numbers `0`, `(300,700)`, `(800,1400)` into named class constants `_PAIR_OFFSET_1` etc. (I12)
-- **Palette tuple docs** — Added index comment documenting `(target_hue, drift_speed, sat_boost, trail_alpha)` layout. (I20)
-- **Genre detection throttle** — `detect_genre()` now called every 60 frames during silence instead of every frame, reducing lock contention during prolonged idle. (I21)
-- **PlasmaGL FBO cache** — Handled by the same `gl_renderer.py` cap; `_fbo_cache` delegates to the already-capped `r.offscreen()`. (M10)
-- **Seeded RNG in 4 effects** — Added `self._rng` to tunnel, corridor, bubbles, and butterflies; replaced `random.*` calls with `self._rng.*` for full seed reproducibility. (I8)
-- **Heartbeat namedtuple** — Replaced positional list-of-7 ring state with a typed `_Ring` NamedTuple. (I16)
-- **Mycelium _hsl_batch** — Batched two per-segment `hsl()` calls into one `_hsl_batch` call, reducing Python-level `colorsys.hls_to_rgb` invocations. (M2)
-- **SlimeMold _reset_sim → _reset_or_resize_sim** — Renamed to reflect dual purpose (constructor + resize handler). (M3)
-- **Lissajous list(zip) → direct array indexing** — Replaced `list(zip(sx_arr.tolist(), sy_arr.tolist()))` with direct array access; hoisted `h_arr` outside the passes loop to avoid redundant hue recomputation. (O3, O4)
-- **HUD background to UIManager** — Moved `_hud_bg` surface from `VisualizerApp` to `UIManager.draw_hud_background()` for better encapsulation. (I7)
-- **Aurora fade pre-computation** — Pre-computed fade factors per vertex with numpy outside the per-quad inner loop, replacing per-polygon int divisions with vectorized operations. (M6)
-- **Chromatic _wave_points numpy vectorization** — Replaced Python per-point for loop with numpy vectorized operations for all 72 points × 3 channels × 14 rings. (O10)
-- **Butterflies _Pair.draw() seeded RNG** — Pass `self._rng` through to `_Pair` and `_Butterfly` classes, replacing `random.*` with `self._rng.*` in the hot draw loop and all helper methods. (O11)
-- **Nova list(zip) → np.column_stack** — Replaced `list(zip(xs.tolist(), ys.tolist()))` with `np.column_stack([xs, ys])` in per-layer per-sym loop. (O13)
-- **Effects __init__ import guard** — Noted that all effects already defer to `__init__`, mitigating the fragility concern. (I5)
-- **FlowField pre-allocated arrays** — Pre-allocated `_angles`, `_ir`/`_ig`/`_ib`, and `_colors_arr` to avoid per-frame `np.zeros` and uint32 array allocation in the hot loop. (O6)
-- **Lattice beam drawing dedup** — Factored duplicated horizontal/vertical beam drawing into `_draw_beam()` helper, reducing ~40 lines to 8. (I17)
-- **Lattice _resize split** — Split `_resize` into `_init_surfaces()` (surface/geometry) and `_build_grid()` (grid nodes/column peaks) for cleaner separation. (I18)
-- **Corridor spark struct-of-arrays** — Replaced per-spark dicts with fixed-size numpy arrays (`_sz`, `_shue`, `_sox`, `_soy`) and in-place compaction, eliminating dict allocation overhead for up to 100 sparks. (O12)
-- **Tunnel triangle struct-of-arrays** — Replaced per-triangle dicts with fixed-size numpy arrays (`_tz`, `_tpt`, `_trot`, `_trvel`, `_tsize`, `_thue`) and in-place compaction, eliminating dict allocation overhead for up to 30 triangles. (O14)
-- **UIManager use target.get_size()** — Replaced `config.WIDTH/HEIGHT` with `target.get_size()` / `target.get_width()` / `target.get_height()` in all cached surface checks and positioning, removing stale-config risk. (I22)
-- **GL renderer pre-allocated upload buffer** — Replaced `pygame.image.tostring` (8 MB per-frame bytes allocation) with a pre-allocated numpy buffer filled via `pixels3d`/`pixels_alpha` views, eliminating per-frame 8 MB allocation in the GL blit path. (O15)
-
-<!-- Duplicate 3.11.0 entries merged into the release section above. -->
-
-### Fixed
-- **Screen cleared on effect change** — `_switch_mode()` now calls `self.display.target.fill((0, 0, 0))` unconditionally after capturing the previous frame, so the new effect always starts on a clean black surface regardless of GL/non-GL mode.
-- **Slime mold broadcast error** — Fixed `pix[:] = colors` → `pix[:] = colors.T` in `slimemold.py:150` where `pixels2d` returns `(W, H)` but the trail/color array is `(H, W)`.
-- **HUD trail spacing missing variable** — Added `spacing = 3` in `_render_hud()` to fix `NameError` when drawing multiband bars.
-- **FlowField index swap** — Corrected `pix[ix, iy]` → `pix[iy, ix]` in `flowfield.py` to align with `pixels2d` returning `(W, H)` layout.
-- **Magnetar index swap** — Corrected `pix[ix, iy]` → `pix[iy, ix]` in `magnetar.py` to align with `pixels2d` `(W, H)` layout.
-- **Genre weight flux glitch** — Stored weighted spectrum in `_prev_spectrum` instead of raw spectrum, so `apply_genre_weights()` between frames no longer causes a one-frame spectral flux spike. (M27)
-- **Waveform double-copy** — Replaced `self._waveform = mono.copy()` with in-place `self._waveform[:] = mono` to avoid an unnecessary allocation on every audio callback. (M28)
-- **False first-frame beat** — Added `_first_frame` flag to skip beat detection on the very first audio frame, preventing a phantom beat from zero-initialized `_prev_spectrum`. (M29)
-- **Smooth-FFT half-value first frame** — Changed `_smooth_fft` init from `np.zeros(...)` to `None`; first frame copies spectrum directly instead of averaging with zeros. (M30)
-- **Band-energy warmup** — Raised `_flux_avg`/`_mid_avg`/`_treble_avg` initial values from `1e-6` to `0.01`/`0.1`/`0.1` so band-energy ratios are reasonable on the first few frames. (M29 follow-up)
-- **UI rect negative width** — Clamped `config.WIDTH - 60` with `max(1, ...)` in device picker to prevent `pygame.Rect` from receiving a negative width on tiny windows. (M33)
-- **Preset duplicate "name" key** — Removed `"name"` from the preset entry dict before passing to `settings.save_preset()`, which already inserts `{"name": name, **data}`. (I34)
-- **Private method called externally** — Renamed `DisplayManager._spawn_child()` → `spawn_child()` and updated the call in `psysualizer.py` to use the public name. (I35)
-- **GL surface upload duplication** — Extracted `_upload_surface()` helper shared by `blit()` and `surface_texture()`, reducing code duplication in texture upload logic. (I36, I37)
-- **Redundant X11 round-trips** — Reduced `reposition_window_fix()` calls from 60 frames down to a single call at `tick == 0`. (I41)
-- **AudioEngine.release()** — Added a public `release()` method that cleans up the stream and beat tracker; `_quit()` now calls `self.audio.release()` instead of manually accessing `beat_tracker`. (I46)
-- **Aurora NameError** — Fixed `k_unit = math.tau / W` → `k_unit = math.tau / config.WIDTH` in `__init__()` where `W` was never defined. (C1)
-- **Init ordering / orphan children** — Moved `_setup_signals()` and `atexit.register()` before `_init_audio()` and `spawn_span_children()` to close the gap where an exception could leak child processes and zombie audio threads. (C2, M24)
-- **GL FBO viewport** — `render()` now sets `ctx.viewport` to the FBO dimensions when rendering offscreen, fixing clipped rendering on non-default-sized framebuffers. (C3)
-- **GL double-release** — `release()` nullifies all released GL objects (`_blit_tex`, `_feedback_tex`, `_vbo`, VAOs, programs) to prevent undefined behavior on accidental double-release. (C4)
-- **Triflux resize handling** — Replaced stale `config.WIDTH/HEIGHT` references with `self._W/self._H` from `surf.get_size()`, triggering grid rebuild on resize. (M21)
-- **Mycelium resize handling** — Same migration from `config.WIDTH/HEIGHT` to `self._W/self._H` with auto-rebuild of core positions. (M22)
-- **Bubbles resize handling** — Same migration; `_make()` converted from `@staticmethod` to instance method using `self._W/self._H`. (M23)
-- **Child wait timeout** — `child.wait()` in span-mode respawn loop now uses `timeout=1` to prevent indefinite blocking. (M25)
-- **Beat tracking bare except** — Bare `except Exception: return` now prints a diagnostic before returning. (M26)
-- **AudioEngine `__import__("sys")`** — Replaced runtime `__import__("sys")` with top-level `import sys` across all modules. (I38, I39, I40)
-- **Regression tester init flag** — `run_all_tests()` now sets `config._INITIALIZED = True` after pygame setup. (M31)
-- **UI device picker negative visible** — Clamped `visible` with `max(0, ...)` to prevent negative range on tiny screens. (M32)
-- **Settings PermissionError** — `save()` and `_write_presets()` catch `(PermissionError, OSError)` to handle write-protected config dirs gracefully. (M34)
-- **Silence beat floor scope** — `silence_beat_floor` is now defined in both `if self.is_silent:` and `else:` branches, preventing a potential `NameError` during silence transitions. (I32)
-- **settings.py: PermissionError handling** — Added try/except to `save()` and `_write_presets()` to handle write-protected directories gracefully.
-- **config.py: RNG_SEED=0 seeding** — `RNG_SEED` now seeds the RNGs when `PSYSUALS_SEED=0` is explicitly set; previously `0` was treated as falsy and ignored. (I42)
-- **Benchmarks config restore** — Wrapped benchmark body in `try/finally` to always restore `config.WIDTH/HEIGHT`. (I43)
-- **Smoke test env var placement** — Moved `os.environ['SDL_VIDEODRIVER'] = 'dummy'` from module level into `run_smoke_tests()`. (I44)
-- **Corridor unused import** — Removed `import numpy` from corridor.py. (I45)
-- **Presets in-memory append** — New presets are appended to `self.presets` directly instead of reloading from disk after every save. (FINDINGS.md: I8)
-- **Waterfall grid ROWS/COLS** — Removed leftover `classmethod` keyword and unused `ROWS`/`COLS` class attributes after resolution-aware grid migration. (FINDINGS.md: C1, I32)
-- **Cube projection args** — `_project()` / `_project_sat()` now accept `W, H` explicitly via `_target_size()` instead of relying on stale config globals. (FINDINGS.md: C2, I42)
-- **Effect init order / seed plumbing** — Reordered `super().__init__()` before `_rng` in `fireworks`/`butterflies`/`mycelium`; migrated `triflux`, `synapse`, `fireworks`, and `mycelium` from `random.*` to `self._rng.*` for full seed reproducibility. (FINDINGS.md: M21, I10)
-- **Config initialized guard** — Added `config._INITIALIZED` flag and `assert_initialized()`; called at start of every `Effect.__init__()` via the base class. (FINDINGS.md: M23, M25, I40)
-- **Spectrum bar width guard** — Clamped `bar_w - 2` with `max(1, ...)` to prevent negative-width `pygame.Rect`. (FINDINGS.md: I41)
-- **Butterflies scaled surface pre-allocation** — Pre-allocate `_scaled` surface and reuse `pygame.transform.scale(dest=...)` to avoid per-frame surface allocation on resize. (FINDINGS.md: I39)
-- **GL context attributes guard** — `gl_set_attribute` calls are now only made when `_gl_attrs_set` is `False`, preventing silent ignores on display re-open. (FINDINGS.md: I5)
-- **Smoke test window size** — Changed headless test window from `1×1` to `320×240` for compatibility with stricter SDL compositors. (FINDINGS.md: I6)
-- **Benchmarks config restore** — Benchmark restore `config.WIDTH`/`HEIGHT` after run. (FINDINGS.md: I7)
-- **Presets append-only** — `save_preset()` is now append-only with a separate `_write_presets()` for disk writes, never mutates existing entries. (FINDINGS.md: I8)
-- **Span mode xrandr re-query** — `requery_xmonitors()` is called before respawning dead child processes to detect hotplug changes. (FINDINGS.md: I9)
-- **Dead import removal** — Removed unused `math`/`random` imports from corridor, bubbles, triflux, cube, waterfall, spectrum, and synaes. (FINDINGS.md: I33–I38)
-- **Span child zombie leak** — Call `.wait()` before respawning dead span children to prevent zombie process accumulation. (FINDINGS.md: I28)
-- **Negative mode index from settings** — Clamp `mode_idx` with `max(0, ...)` to prevent out-of-bounds access on corrupt settings.
-- **`_hsl_batch` parameter order** — Reordered signature to `(h, s, l)` matching `hsl()` convention and updated all callers to use keyword arguments. (FINDINGS.md: I29)
-- **Slime mold axis swap** — Corrected NumPy row-major indexing (`[y, x]`) in trail sensing and deposit to fix diffusion direction on non-square screens. (FINDINGS.md: M18)
-- **Beat tracker flag race** — Removed premature `_analysis_running = False` from early-return and exception paths; `finally` block now handles all exits exclusively. (FINDINGS.md: M20)
-- **Font fallback chain** — Replaced single `SysFont("monospace")` with a fallback chain (`monospace`, `Courier New`, `DejaVu Sans Mono`, etc.) for HUD, settings pane, device picker, and tap-tempo display. (FINDINGS.md: I27)
-- **Missing settings default** — Added `effect_gain: 0.7` to `settings._DEFAULTS` for consistent first-run behavior.
-- **Narrow genre weights** — Expanded genre frequency weights from 20 bins to the full 512-bin FFT spectrum with proportional band slicing per genre. (FINDINGS.md: M19)
-- **Thread-per-analysis overhead** — Replaced `threading.Thread` with `ThreadPoolExecutor(max_workers=1)` in beat tracking to reduce thread creation churn and ensure orderly shutdown.
-- **Dead code removal** — Removed unused `pygame.image.to_string` conditional branches in `GLRenderer` and unused `silence_beat_floor` assignment in `psysualizer.py`.
-- **Genre detection accumulator bound** — Reset unconditionally every 300 frames regardless of genre match, preventing unbounded growth during prolonged silence or near-silence. (FINDINGS.md: I30)
-- **Genre detection reset race** — Moved accum/frame reset inside the lock (`core/audio_engine.py:74-76`) so the callback cannot interleave and lose a frame's contribution. (FINDINGS.md: I31)
-- **Magnetar scaled surface** — Lazy-init `_scaled` from `surf.get_size()` in `draw()` to handle render target size changes (`effects/magnetar.py:60-61`).
-- **Audio callback exception logging** — Changed bare `pass` to `traceback.print_exc()` in the audio callback exception handler so FFT/buffer errors are visible. (FINDINGS.md: M2)
-- **Fade surface pre-allocation** — Pre-allocate a single fade surface and re-fill with `fill()` on alpha change instead of allocating a new `pygame.Surface` every ~5 seconds. (FINDINGS.md: M7)
-- **Möbius treble dead code removed** — Removed unused `_u_off` attribute and dead treble-driven longitude code; treble now contributes to rotation speed instead. (FINDINGS.md: M9)
-- **Waterfall resolution-aware grid** — Derived grid dimensions from `config.HEIGHT`/`WIDTH` via `_grid_dims()` instead of hardcoded 100×80. (FINDINGS.md: M10)
-- **Spectrum peak marker clamp** — Peak markers in `Bars` only draw when `bar_h > 0`, preventing orphan peaks above zero-height bars. (FINDINGS.md: M11)
-- **Config initialization guard** — Added `config.assert_initialized()` and `_INITIALIZED` flag to catch effects accessing WIDTH/HEIGHT before display init. (FINDINGS.md: M12)
-- **Spectrum uses surf.get_size()** — `Bars` derives all drawing dimensions from `surf.get_size()` instead of `config.WIDTH`/`HEIGHT` globals. (FINDINGS.md: M13)
-- **Flatten open_input_stream candidates** — Pre-flatten candidate list before iteration to eliminate redundant `preferred_input_candidates(None)` double expansion. (FINDINGS.md: M14)
-- **PlasmaGL lazy fallback init** — CPU fallback surface and meshgrid arrays are now rebuilt on resolution change via `_ensure_fallback(w, h)`. (FINDINGS.md: M15)
-- **Remove list() in audio callback** — Removed unnecessary `list()` conversion in `np.diff(list(self._beat_times))` in the real-time audio callback to reduce allocation pressure. (FINDINGS.md: M16)
-- **10+ effects surf.get_size() migration** — Migrated branches, yantra, nova, spiral, tunnel, heartbeat, synapse, chromatic, lissajous, mobius, aurora, and corridor from `config.WIDTH`/`HEIGHT` to `surf.get_size()` for all drawing coordinates. (FINDINGS.md: M17)
-- **Display index validation warning** — Added warning message when `display_idx` falls back to 0 due to out-of-range value. (FINDINGS.md: I1)
-- **Pygame display info cache** — Cached `pygame.display.Info()` result in `_auto_res_div()` with invalidation on dimension change to avoid per-frame video driver queries. (FINDINGS.md: I4)
-- **Rebuild effects dimension guard** — `_rebuild_effects` skips the full release-and-recreate cycle when `(WIDTH, HEIGHT)` hasn't changed. (FINDINGS.md: I14)
-- **Remove list() in tap tempo** — Removed unnecessary `list()` conversion in `np.diff(list(self.tap_times))`. (FINDINGS.md: I15)
-- **Butterflies BLEND_RGB_MAX** — Changed `BLEND_RGBA_MAX` to `BLEND_RGB_MAX` on 24-bit RGB trail surface for correctness. (FINDINGS.md: I16)
-- **Corridor/Persistence RES_DIV** — Set `RES_DIV = 2` on both effects to reduce fill-rate cost at high resolutions. (FINDINGS.md: I17)
-- **Waterfall np.random in hot loop** — Replaced `random.random()` calls in the hot draw loop with a single `np.random.uniform()` per row. (FINDINGS.md: I18)
-- **Settings save on quit** — Moved `_save_settings()` into `_quit()` so settings persist on SIGINT/SIGTERM/KeyboardInterrupt, not just Q/window-close. (FINDINGS.md: I20)
-- **Benchmark GL resource leak** — Call `vis_gl.release()` between benchmark iterations to free GPU resources. (FINDINGS.md: I21)
-- **Aurora quad soft-fade** — Reduced glow/core color opacity on aurora quads near clip boundaries to prevent hard horizontal clip lines. (FINDINGS.md: I22)
-- **PlasmaGL fallback _render_div** — CPU fallback now uses `_render_div()` instead of hardcoded `// 4` for resolution-adaptive sizing. (FINDINGS.md: I23)
-- **Beat onset threshold 0.22s** — Reduced minimum inter-onset interval from 0.28s (~214 BPM) to 0.22s (~273 BPM) for breakcore/psytrance compatibility. (FINDINGS.md: I24)
-- **qmd.yml glob scope** — Scoped `source` glob pattern to `[!.]*.py` with `__pycache__`/`.venv` exclusions. (FINDINGS.md: I25)
-- **Beat tracker shutdown** — Call `self.audio.beat_tracker.release()` in `_quit()` to shut down `ThreadPoolExecutor` gracefully. (FINDINGS.md: I26)
 - **Slime mold axis swap** — Corrected trail array shape `(W, H)` → `(H, W)` and all indexing to numpy row-major `[y, x]`. (B1)
 - **Corridor infinite surface leak on resize** — `_init_surfs()` now receives `(W, H)` from `draw()`; split semicolon-chained statements. (B2, I13)
 - **Aurora division by zero** — Added `max(tot_w, 1e-6)` guard in harmonic weight normalization. (B3)

@@ -9,7 +9,7 @@ Controls:
   Up/Down         Adjust intensity (or navigate pane sliders when pane is open)
   Tab             Toggle real-time settings pane
   P               Save current state as a preset
-  Shift+P         Cycle through saved presets
+  Shift+P         Morph to the next saved preset
   A               Toggle auto-gain (or cycle child mode backward in span mode)
   B               Toggle background layer
   Shift+B         Cycle background effect
@@ -24,15 +24,15 @@ Controls:
 
 from __future__ import annotations
 
-__version__ = "3.17.0"
+__version__ = "3.18.0"
 
 import argparse
 import atexit
 import math
 import os
-import sys
 import time as _time
 import signal
+import threading
 from collections import deque
 
 import numpy as np
@@ -139,12 +139,12 @@ class VisualizerApp:
         self._phase_anchor_tick = 0
         self._phase_last_onset = 0.0
         self._phase_anchor_time = 0.0
-        self._phase_was_silent = True
         
         self.span_vis2_idx = (self.mode_idx + 1) % len(MODES)
-        self.span_mode = len(self.display.xmonitors) >= 2 and not self.args.span_child
-        if self.span_mode:
-            self.display.spawn_span_children(self.span_vis2_idx, os.path.abspath(__file__))
+        # Multi-monitor span mode is opt-in. Start the primary app on one
+        # screen so an extra monitor is never claimed unexpectedly; Shift+M
+        # can still enable synchronized child windows explicitly.
+        self.span_mode = False
             
         self.presets = sett.load_presets()
         self.active_preset = -1
@@ -156,10 +156,27 @@ class VisualizerApp:
         self.fade = self._make_fade(self.fade_alpha)
 
     def _setup_signals(self):
+        self._interrupt_count = 0
+        self._interrupt_watchdog = None
+
         def _sig_handler(sig, frame):
-            # Do not tear down pygame from inside a draw callback. Request
-            # shutdown and let the main loop clean up after the frame returns.
+            # The first interrupt is graceful and never tears down pygame from
+            # inside a draw callback. If another Ctrl-C arrives while cleanup
+            # or audio shutdown is stuck, restore the OS default so the
+            # process exits immediately instead of accumulating ``^C`` text.
+            self._interrupt_count += 1
+            if self._interrupt_count >= 2:
+                # Do not depend on Python returning from a blocked PortAudio
+                # or SDL call; hard-exit on the second interrupt.
+                os._exit(128 + int(sig))
+                return
             self._quit_requested = True
+            # A first Ctrl-C should normally reach the loop's finally block,
+            # but a backend call can hold the main thread. Guarantee escape
+            # after a short grace period even if that call never returns.
+            self._interrupt_watchdog = threading.Timer(1.5, lambda: os._exit(128 + int(sig)))
+            self._interrupt_watchdog.daemon = True
+            self._interrupt_watchdog.start()
         signal.signal(signal.SIGINT, _sig_handler)
         signal.signal(signal.SIGTERM, _sig_handler)
 
@@ -183,7 +200,7 @@ class VisualizerApp:
             formatter_class=argparse.RawDescriptionHelpFormatter
         )
         parser.add_argument("-d", "--display", type=int, default=None, help="Target display index (e.g. 0, 1)")
-        parser.add_argument("-m", "--mode", type=int, default=None, help="Starting mode index (0-26)")
+        parser.add_argument("-m", "--mode", type=int, default=None, help="Starting mode index (0-based)")
         parser.add_argument("-g", "--gl", action="store_true", help="Enable ModernGL hardware acceleration")
         parser.add_argument("--low-spec", action="store_true", help="Optimize performance for low-end systems (lowers FPS and particle counts)")
         parser.add_argument("--span-child", action="store_true", help=argparse.SUPPRESS)

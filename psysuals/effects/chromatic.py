@@ -7,7 +7,7 @@ import pygame
 import config
 from .base import Effect
 
-_MAX_RINGS = 14
+_MAX_RINGS = 5
 
 
 class Chromatic(Effect):

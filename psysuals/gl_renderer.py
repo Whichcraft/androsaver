@@ -12,8 +12,6 @@ Android / headless path:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pygame
 
@@ -32,8 +30,6 @@ class GLRenderer:
 
     # Two triangles as a strip covering clip space [-1,1]²
     _QUAD = np.array([-1, -1,  1, -1,  -1, 1,  1, 1], dtype="f4")
-    _SHADER_DIR = Path(__file__).resolve().parent / "effects" / "shaders"
-
     def __init__(self, width: int, height: int, ctx: "moderngl.Context | None" = None):
         if not HAS_MODERNGL:
             raise RuntimeError("moderngl not installed — pip install moderngl")
@@ -41,7 +37,6 @@ class GLRenderer:
         self.height = height
         self.ctx    = ctx if ctx is not None else moderngl.create_context()
         self._vbo   = self.ctx.buffer(self._QUAD.tobytes())
-        self._program_cache: dict[tuple[str, str], tuple] = {}
         self._blit_tex: moderngl.Texture | None = None
         self._blit_prog: moderngl.Program | None = None
         self._blit_vao: moderngl.VertexArray | None = None
@@ -49,7 +44,6 @@ class GLRenderer:
         self._feedback_prog: moderngl.Program | None = None
         self._feedback_vao: moderngl.VertexArray | None = None
         self._offscreen_cache: dict[tuple[int, int], tuple[moderngl.Texture, moderngl.Framebuffer]] = {}
-        self._upload_buf: np.ndarray | None = None
         self._blit_upload_buf: np.ndarray | None = None
         self._feedback_upload_buf: np.ndarray | None = None
 
@@ -68,29 +62,6 @@ class GLRenderer:
             prog.release()
             raise
         return prog, vao
-
-    def shader_asset(self, name: str) -> str:
-        """Load a tracked GLSL asset from effects/shaders/."""
-        path = self._SHADER_DIR / name
-        return path.read_text(encoding="utf-8")
-
-    def asset_program(self, vert_name: str, frag_name: str) -> tuple:
-        """Compile and cache a shader program from tracked asset files."""
-        key = (vert_name, frag_name)
-        if key not in self._program_cache:
-            self._program_cache[key] = self.program(
-                self.shader_asset(vert_name),
-                self.shader_asset(frag_name),
-            )
-        return self._program_cache[key]
-
-    def line_program(self) -> tuple:
-        """Return the shared line shader pair from effects/shaders/."""
-        return self.asset_program("line.vert", "line.frag")
-
-    def rect_program(self) -> tuple:
-        """Return the shared rect shader pair from effects/shaders/."""
-        return self.asset_program("rect.vert", "rect.frag")
 
     def blit_program(self) -> tuple:
         """Return a simple texture-blitting shader program."""
@@ -162,7 +133,10 @@ class GLRenderer:
         if fbo is not None:
             self.ctx.viewport = (0, 0, fbo.width, fbo.height)
         else:
-            self.ctx.viewport = (0, 0, self.width, self.height)
+            # Use the live framebuffer dimensions. Android/EGL surfaces can
+            # differ from the logical dimensions supplied at construction.
+            screen_w, screen_h = self.ctx.screen.size
+            self.ctx.viewport = (0, 0, screen_w, screen_h)
         # self.ctx.clear(0.0, 0.0, 0.0, 1.0) # Removed clear to allow layering
         vao.render(moderngl.TRIANGLE_STRIP)
 
@@ -170,7 +144,7 @@ class GLRenderer:
         self,
         surface: "pygame.Surface",
         tex: "moderngl.Texture | None",
-        buffer_attr: str = "_upload_buf",
+        buffer_attr: str,
     ) -> "moderngl.Texture":
         size = surface.get_size()
         upload_buf = getattr(self, buffer_attr, None)
@@ -260,16 +234,11 @@ class GLRenderer:
         if self._feedback_tex:
             self._feedback_tex.release()
             self._feedback_tex = None
-        self._upload_buf = None
         self._blit_upload_buf = None
         self._feedback_upload_buf = None
         if self._vbo is not None:
             self._vbo.release()
             self._vbo = None
-        for prog, vao in list(self._program_cache.values()):
-            vao.release()
-            prog.release()
-        self._program_cache.clear()
         if self._blit_vao:
             self._blit_vao.release()
             self._blit_vao = None

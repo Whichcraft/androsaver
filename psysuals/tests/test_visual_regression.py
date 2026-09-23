@@ -33,6 +33,7 @@ BASELINE = {
 _WAVEFORM = np.sin(np.linspace(0, np.pi * 8, config.BLOCK_SIZE)).astype(np.float32)
 _FFT = np.linspace(0.0, 1.0, config.BLOCK_SIZE // 2, dtype=np.float32)
 _BEATS = (0.0, 1.2, 0.0, 2.0, 0.0, 1.2, 0.0, 0.0)
+_WARMUP_FRAMES = {"Butterflies": 24}
 
 
 class VisualRegressionTests(unittest.TestCase):
@@ -57,7 +58,11 @@ class VisualRegressionTests(unittest.TestCase):
                 surface = pygame.Surface((160, 120))
                 effect = effect_cls()
                 try:
-                    for tick, beat in enumerate(_BEATS):
+                    warmup = _WARMUP_FRAMES.get(name, 0)
+                    for tick in range(warmup):
+                        surface.fill((0, 0, 0))
+                        effect.draw(surface, _WAVEFORM, _FFT, 0.0, tick)
+                    for tick, beat in enumerate(_BEATS, start=warmup):
                         surface.fill((0, 0, 0))
                         effect.draw(surface, _WAVEFORM, _FFT, beat, tick)
                     pixels = pygame.surfarray.array3d(surface).astype(np.float32)

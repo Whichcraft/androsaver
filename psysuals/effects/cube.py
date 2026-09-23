@@ -36,7 +36,6 @@ class Cube(Effect):
         self.sat_rx = 0.0
         self.sat_ry = 0.0
         self.sat_surf   = None
-        self._sat_fade  = None
 
     def _target_size(self):
         return self._render_size()[:2]

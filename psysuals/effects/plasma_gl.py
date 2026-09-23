@@ -15,7 +15,8 @@ CPU fallback:
 Android / draw_frame() path:
     effect.draw_frame(w, h, waveform, fft, beat, tick, renderer)
     renders to an offscreen FBO and returns an (H, W, 4) RGBA uint8 array —
-    no pygame required.
+    no Pygame surface or display is required for the render itself.  The
+    project still imports its Pygame-based Effect base class.
 """
 
 from __future__ import annotations
@@ -155,7 +156,6 @@ class PlasmaGL(Effect):
         self._fallback_surf = None
         self._X = None
         self._Y = None
-        self._R = None
         self._fb_w = 0
         self._fb_h = 0
 
@@ -220,7 +220,6 @@ class PlasmaGL(Effect):
         ys = np.linspace(-math.pi * 2.5, math.pi * 2.5, rh)
         X, Y = np.meshgrid(xs, ys)
         self._X = X; self._Y = Y
-        self._R = np.sqrt(X ** 2 + Y ** 2)
 
     def _draw_numpy(self, surf, bass: float, mid: float,
                     high: float, beat: float) -> None:
@@ -252,8 +251,8 @@ class PlasmaGL(Effect):
         """
         Render one frame offscreen → (H, W, 4) RGBA uint8 numpy array.
 
-        No pygame required.  On Android, the host creates the moderngl context
-        (via EGL) and passes it in as renderer.
+        No Pygame surface or display is required.  On Android, the host
+        creates the moderngl context (via EGL) and passes it in as renderer.
 
         The returned array is a fresh copy safe to hand to Kotlin/Chaquopy.
         """

@@ -1,8 +1,4 @@
-"""
-Shared color palette — qwen2.5:14b concept, fixed by Claude.
-
-qwen's get() referenced beat/treble which weren't in scope; fixed by
-storing them in update() and reading instance vars in get().
+"""Shared audio-reactive colour palette.
 
 Usage:
     from effects.palette import palette
