@@ -2,14 +2,14 @@
 
 **Welcome to the super-duper greatest music visualizer ever made.** psysuals delivers uncompromising visual intensity and rock-solid performance. Whether you're blasting psytrance in a dark room or driving a multi-monitor stage setup, it is built to melt your mind with precision and style.
 
-![Version](https://img.shields.io/badge/version-3.17.0-orange)
+![Version](https://img.shields.io/badge/version-3.18.0-orange)
  ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
 ## 🚀 Highlights
 
-- **✨ Unified ModernGL Engine** — Harness the power of your GPU with experimental hardware acceleration. Run with `--gl` for blistering frame rates and per-pixel shader fluid motion.
+- **✨ Unified ModernGL Engine** — Harness the power of your GPU with optional hardware acceleration. Run with `--gl` for per-pixel shader fluid motion.
 - **🏗️ Modular Object-Oriented Architecture** — Re-written from a monolithic script into a sleek, professional engine. Specialized `AudioEngine`, `DisplayManager`, and `UIManager` classes ensure a clean, maintainable, and high-performance foundation.
 - **🖥️ Ultimate Multi-Monitor "Span Mode"** — Gone are the days of fixed dual-screen limits. The app scales dynamically, spawning child processes for every monitor you own, with synchronized mode switching across the entire span.
 - **🔊 Resilient Audio Pipeline** — Tolerant audio capture with a no-input fallback, silence-aware idle motion, live device switching, and spectral-flux beat detection.
@@ -66,6 +66,23 @@ To enable the high-performance ModernGL path:
 .venv/bin/python -m pip install -r requirements-gl.txt
 ```
 
+### Android and headless hosts
+
+The Android application is built by the external GitHub builder. This
+repository provides the Python rendering API consumed by that builder. CPU
+effects inherit `Effect.draw_frame(width, height, waveform, fft, beat, tick,
+renderer=None)`, which returns an RGBA array sized to the requested physical
+framebuffer. The result is a fresh `numpy.uint8` array with shape
+`(height, width, 4)`. `PlasmaGL` supplies its own ModernGL offscreen
+implementation and requires the host's `GLRenderer` as `renderer`.
+
+For CPU effects, the builder must initialize Pygame, set `config.WIDTH`,
+`config.HEIGHT`, and `config._INITIALIZED = True` before constructing an
+effect, then call `draw_frame()` once per output frame. CPU effects may omit
+`renderer`; the GL effect must pass the active renderer. Reuse the same effect
+instance for successive frames so trails and simulations persist, and call its
+`release()` method when the effect is discarded.
+
 ---
 
 ## Usage
@@ -84,7 +101,9 @@ Run on low-spec/low-power systems (caps framerate to 30 FPS and scales down simu
 .venv/bin/python psysualizer.py --low-spec
 ```
 
-The app restores the last saved display index on startup. Use `--display N` to override that for a single launch.
+The app restores the last saved display index on startup. Use `--display N` to
+override that for a single launch. Use `--mode N` to select the starting effect
+by its zero-based index from the 34-effect registry (`0`–`33`).
 
 ### Controls
 
@@ -172,9 +191,10 @@ kaleidoscope mirroring, feedback rotation, and diffraction-style bloom. The
 default is off; each pass reuses its working surfaces and remains bounded on
 the CPU path.
 
-Compatible visual modes also interpolate their declared projection or warp
-parameters during a transition, so related geometries can flow into one
-another instead of only crossfading their surfaces.
+Modes with a shared declared morph parameter interpolate it during a
+transition. Tesseract and Persistence currently share their projection
+parameter. Other transitions—including Lattice↔Hyperbolic—use the normal
+surface crossfade.
 GL results include the display-present step (and context synchronization when available), so compare them on the same display and VSync settings.
 
 Use `--display N` for monitor selection. When `xrandr` geometry is unavailable, the app falls back to SDL's detected display count and asks SDL to target the selected display.

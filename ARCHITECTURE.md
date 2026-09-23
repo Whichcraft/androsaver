@@ -12,7 +12,13 @@ effects/         ← effect modules and shared helpers, registered in MODES
 requirements-gl.txt ← optional dependency set for the GL path
 ```
 
-`psysualizer.py` owns the runtime: audio capture, beat/BPM extraction, device selection, saved display restoration, span mode, HUD, and render orchestration. It supports both a CPU/Pygame surface path and a GPU/ModernGL path.
+`psysualizer.py` owns the desktop runtime: audio capture, beat/BPM extraction,
+device selection, saved display restoration, span mode, HUD, and render
+orchestration. It supports both a CPU/Pygame surface path and a GPU/ModernGL
+path. The repository does not include an Android application or build system;
+its Android/headless integration is provided through the external GitHub
+builder, which consumes the Python `Effect.draw_frame()` contract described
+below.
 
 ---
 
@@ -65,8 +71,9 @@ transient response and decay do not depend on render FPS.
 The app also publishes `config.BEAT_PHASE`, a normalized `0.0 .. 1.0` position
 within the current beat cycle. When fallback BPM and onset timestamps are
 available, phase `0.0` is anchored to the latest onset; tap tempo uses the tap
-frame as its anchor. With no reliable timing, a slow deterministic idle phase
-is used and no beat impulse is created.
+frame as its anchor. With no reliable timing, the phase uses a slow
+deterministic idle fallback; spectral-flux beat impulses are still computed
+independently when audio is not gated as silent.
 
 Saved-preset changes blend numeric intensity, background alpha, and crossfade
 length over eight beats when BPM is known, or a short time-based fallback when
@@ -74,9 +81,11 @@ it is not. The discrete foreground/background mode switch occurs at the
 midpoint; a new preset safely replaces an active morph.
 
 Effects may declare a bounded `MORPH_SCHEMA` for compatible mode transitions.
-The current Lattice↔Hyperbolic and Tesseract↔Persistence pairs interpolate
-their shared projection/warp parameter during the existing crossfade; effects
-without a schema retain the unchanged transition behavior.
+Tesseract and Persistence currently share `_morph_projection`, so that value
+interpolates during their existing crossfade. Hyperbolic still exposes a
+bounded warp parameter, but Lattice no longer exposes a matching schema;
+Lattice↔Hyperbolic therefore uses the normal surface crossfade only. Effects
+without a shared schema retain the unchanged transition behavior.
 
 ### Silence handling
 
@@ -128,7 +137,11 @@ Fullscreen/display changes release foreground effects, background effects, and t
 
 ## Shared config
 
-`config.py` is mutable at runtime. After opening the display, the app writes the real monitor dimensions back into `config.WIDTH` and `config.HEIGHT`, so effects can treat `config` as the live source of truth.
+`config.py` is mutable at runtime. After opening the desktop display, the app
+writes the real monitor dimensions back into `config.WIDTH` and `config.HEIGHT`,
+so effects can treat `config` as the live source of truth. For headless or
+Android rendering, `Effect.draw_frame()` temporarily replaces those dimensions
+with the requested physical framebuffer size for the duration of one frame.
 
 | Variable | Default | Notes |
 |----------|---------|-------|
@@ -144,7 +157,7 @@ Fullscreen/display changes release foreground effects, background effects, and t
 | `BPM` | `0.0` | Live BPM estimate or tap-tempo override |
 | `IS_SILENT` | `True` | Exported silence-gate state for effects and HUD logic |
 | `DEFAULT_EFFECT_GAIN` | `0.7` | Reset value used on startup and mode changes |
-| `EFFECT_GAIN` | `0.7` | Current foreground intensity |
+| `EFFECT_GAIN` | `0.7` | Current beat gain applied to active rendered effects |
 | `SILENCE_*` | various | Silence gate thresholds and idle motion floors |
 
 ### Resource safety
@@ -159,7 +172,7 @@ Effects are simple classes that can draw to a `pygame.Surface` or use a `GLRende
 
 ```python
 class MyEffect(Effect):
-    TRAIL_ALPHA = 28
+    TRAIL_ALPHA = 48
 
     def __init__(self, renderer=None, **kwargs):
         super().__init__(renderer=renderer, **kwargs)
@@ -174,6 +187,19 @@ class MyEffect(Effect):
             ...
 ```
 
+CPU effects also inherit
+`Effect.draw_frame(width, height, waveform, fft, beat, tick, renderer=None)` for
+Android or headless hosts. The external GitHub builder must initialize Pygame
+and set `config.WIDTH`, `config.HEIGHT`, and `config._INITIALIZED` before
+constructing an effect, then call this method once per output frame. The
+adapter sets the requested physical framebuffer size for the duration of the
+render, draws into a matching Pygame surface, and returns a fresh
+`(height, width, 4)` `numpy.uint8` RGBA array. Direct-GL effects may override it
+with a GPU/offscreen implementation; `PlasmaGL` requires the active
+`GLRenderer` argument. The host should reuse one effect instance across output
+frames so stateful trails and simulations persist, then call `release()` when
+that instance is discarded.
+
 Inputs passed to `draw()`:
 
 | Parameter | Type | Meaning |
@@ -186,9 +212,11 @@ Inputs passed to `draw()`:
 
 Butterflies use the standard CPU effect contract. Their persistent trail is
 rendered at the effect's reduced internal resolution and scaled into `surf`.
-Agents progress from cocoon emergence to free flight, pairing, orbiting wing
-synchronisation, and eventual breakup; `release()` clears all owned surfaces
-and simulation state and is safe to call more than once.
+New agents begin just beyond a screen edge as cocoon motes and remain in that
+state for their first 19 updates before free flight becomes visible. They then
+pair, orbit with wing synchronisation, and eventually break up; `release()`
+clears all owned surfaces and simulation state and is safe to call more than
+once.
 
 Effects may also read:
 
@@ -237,8 +265,7 @@ Rules that matter in this repo:
 | `effects/utils.py` | `hsl()` and `_hsl_batch()` colour helpers |
 | `effects/palette.py` | shared hue/saturation/lightness palette driven by audio |
 | `settings.py` | persistent settings and preset storage under `~/.config/psysuals/` |
-| `gl_renderer.py` | moderngl helper for the experimental GL path, including fullscreen blits and feedback transforms, loaded lazily by the display manager |
-| `effects/shaders/` | tracked GLSL assets loaded by `gl_renderer.py` |
+| `gl_renderer.py` | moderngl helper for the optional GL path, including fullscreen blits and feedback transforms, loaded lazily by the display manager |
 | `requirements-gl.txt` | optional dependency set for the GL path |
 
 ---

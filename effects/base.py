@@ -8,7 +8,7 @@ import config
 class Effect:
     """Base class for all visualization effects."""
     
-    # Optional — controls trail fade speed (lower = longer trails, default 28)
+    # Optional — controls trail fade speed (lower = longer trails, default 48)
     TRAIL_ALPHA = 48
     
     # Resolution divisor for performance-heavy effects
@@ -77,6 +77,40 @@ class Effect:
              fft: np.ndarray, beat: float, tick: int) -> None:
         """Called once per frame. Draw directly onto surf."""
         raise NotImplementedError("Each effect must implement the draw method.")
+
+    def draw_frame(self, width: int, height: int,
+                   waveform: np.ndarray, fft: np.ndarray,
+                   beat: float, tick: int,
+                   renderer=None) -> np.ndarray:
+        """Render a CPU effect to an RGBA framebuffer-sized array.
+
+        This is the Android/headless adapter for normal Pygame effects.
+        The requested output dimensions become the effect's runtime display
+        dimensions for this frame, so reduced-resolution effects do not use
+        stale desktop or logical-display dimensions.
+
+        Direct-GL effects may override this method with a GPU implementation.
+        """
+        width = int(width)
+        height = int(height)
+        if width <= 0 or height <= 0:
+            raise ValueError("draw_frame() requires positive dimensions")
+
+        old_width, old_height = config.WIDTH, config.HEIGHT
+        old_initialized = config._INITIALIZED
+        config.WIDTH, config.HEIGHT = width, height
+        config._INITIALIZED = True
+        try:
+            surface = pygame.Surface((width, height), pygame.SRCALPHA)
+            surface.fill((0, 0, 0, 0))
+            self.draw(surface, waveform, fft, beat, tick)
+
+            rgb = pygame.surfarray.array3d(surface).transpose(1, 0, 2)
+            alpha = pygame.surfarray.array_alpha(surface).transpose(1, 0)
+            return np.dstack((rgb, alpha)).copy()
+        finally:
+            config.WIDTH, config.HEIGHT = old_width, old_height
+            config._INITIALIZED = old_initialized
 
     def get_motion_field(self):
         """Return an optional read-only ``(vx, vy)`` field for a consumer."""

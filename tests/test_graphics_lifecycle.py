@@ -262,7 +262,6 @@ class GraphicsLifecycleTests(unittest.TestCase):
         renderer.ctx = Context()
         renderer._blit_upload_buf = None
         renderer._feedback_upload_buf = None
-        renderer._upload_buf = None
         large = pygame.Surface((64, 48), pygame.SRCALPHA)
         small = pygame.Surface((16, 12), pygame.SRCALPHA)
 

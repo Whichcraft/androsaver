@@ -7,7 +7,7 @@ holographic mandala.
 
   Bass   → rotation speed burst
   Mid    → number of shapes / model complexity
-  Treble → strobe flash
+  Treble → fourth-coordinate rotation + foremost-shape brightness
   Beat   → speed spike + hue jump
 """
 import math

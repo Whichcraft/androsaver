@@ -317,8 +317,12 @@ class AudioEngine:
             if idx not in candidates:
                 candidates.append(idx)
 
-        # Only fall back to the library default if every explicit device fails.
-        candidates.append(None)
+        # Do not open PortAudio's implicit ``None`` device here.  On Linux
+        # that asks ALSA to construct its ``default`` PCM, which can emit a
+        # burst of low-level errors when no capture device exists.  Every
+        # usable default route is already represented by an input-capable
+        # device returned from ``query_devices()``; if none are available,
+        # remain in the app's normal silent mode without probing ALSA again.
         return candidates
 
     def start_input_stream(self, device_idx: int | None):

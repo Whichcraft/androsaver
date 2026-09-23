@@ -127,10 +127,6 @@ class Attractor(Effect):
         return [i for i, t in enumerate(self.tiles)
                 if margin <= t["cx"] < W - margin and margin <= t["cy"] < H - margin]
 
-    def _any_on_screen(self, tile):
-        W, H = self._W, self._H
-        return any(0 <= vx < W and 0 <= vy < H for vx, vy in tile["verts"])
-
     def _screen_verts(self, tile):
         cx, cy  = tile["cx"], tile["cy"]
         s       = self.GAP * tile["scale"]

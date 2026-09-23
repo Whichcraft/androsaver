@@ -7,7 +7,6 @@ apex.  Beat fires extra rockets and cranks the zoom speed.
 The feedback loop swallows all trails.
 """
 import math
-import random
 
 import numpy as np
 import pygame
