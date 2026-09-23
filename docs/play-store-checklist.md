@@ -20,7 +20,7 @@ or, if GitHub Pages is set up:
 https://whichcraft.github.io/androsaver/privacy-policy
 ```
 
-The privacy policy covers: local-only credential storage, RECORD_AUDIO (on-device FFT only), photo caching, OpenWeatherMap weather call, GitHub update check, no ads, no analytics.
+The privacy policy covers: local-only credential storage, RECORD_AUDIO (on-device FFT only), photo caching, OpenWeatherMap weather calls, standard-build GitHub update checks, no ads, and no analytics. The Play Store build receives updates through Google Play.
 
 ---
 

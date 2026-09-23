@@ -1,7 +1,7 @@
 # psysuals → AndroSaver Port Notes
 
-The repository vendors upstream psysuals v3.17.0 as a Git subtree under
-`psysuals/` (upstream commit `68530bd`). The subtree is the reference source;
+The repository vendors upstream psysuals v3.18.0 as a Git subtree under
+`psysuals/` (upstream commit `a543912`). The subtree is the reference source;
 the Android implementation remains a Kotlin/OpenGL ES 2.0 port. Keep the
 subtree update and the Android backport in the same change so the two sources
 remain auditable.
@@ -28,7 +28,7 @@ psysuals uses pygame surfaces.
 | `beat` (bass signal) | `audio.beat` |
 | `config.MID_ENERGY` | `audio.mid` (deviation above rolling avg, bins 20–99; 0 at steady state, positive on peaks) |
 | `config.TREBLE_ENERGY` | `audio.treble` (same for bins 100–255; 0 at steady state, positive on peaks) |
-| `np.mean(fft[:6])` (old pre-v3.4.0 pattern) | `audio.beat` (use `audio.mid`/`audio.treble` for frequency bands) |
+| low FFT energy such as `np.mean(fft[:6])` | average of the corresponding `audio.fft` bins; use `audio.beat` only for onset response |
 | `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → four-channel color array; use the reusable overload in hot loops |
 
 ### v3.15–v3.17 shared runtime changes
@@ -46,6 +46,32 @@ surface feedback or numpy contour/halo layers. Android preserves their existing
 bounded particle/ring/network behaviour and documents the surface replacement
 below. Mobius and Plasma receive the portable fourth-dimensional/domain-warp
 updates directly; Lattice receives the bounded hyperbolic warp.
+
+### v3.18 import and Android TV quality backport
+
+The v3.18 subtree adds `Effect.draw_frame(width, height, waveform, fft, beat,
+tick, renderer=None)` for Python/headless hosts. It is retained in the subtree
+for the external builder contract, but the Android TV application does not call
+Python effects: its native equivalent remains `BaseMode.draw(GLDraw, AudioData,
+tick)`. Adding an unused Kotlin wrapper would not affect the TV renderer.
+
+The Android-applicable visual changes are backported as follows:
+
+- **Chromatic** uses the upstream five-ring cap rather than the older fourteen-
+  ring Android budget.
+- **Spiral** now uses low FFT energy for depth-dependent radius, beat impulses
+  for travel/scale, and beat-only near-camera flashes, matching upstream v3.18.
+- **Persistence** adds the upstream treble-driven fourth-coordinate rotation
+  before perspective projection.
+- **Field effects** retain the native bounded simulation, but increase the
+  state from 24×16 to 64×36 and render through an adaptive interpolated grid
+  capped below the shared GL vertex budget. This is the GLES equivalent of the
+  upstream reduced-surface plus smoothscale path and prevents blocky pixels on
+  high-resolution Android TVs.
+
+Desktop-only v3.18 changes—PortAudio implicit-device removal, signal watchdogs,
+opt-in multi-monitor span startup, Python ModernGL shader cleanup, and quality
+governor bookkeeping—are intentionally not copied into the Android runtime.
 
 ---
 
@@ -109,7 +135,7 @@ Note: `GLDraw` now has FBO bloom support, but the fireworks zoom feedback is sti
 The active Android registry follows upstream v3.15 order and includes
 Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract,
 Ferrofluid, and Mandelbox. Their upstream numpy/surfarray fields are adapted
-to bounded 24×16 scalar fields or reusable GL line geometry. This preserves
+to bounded 64×36 scalar fields or reusable GL line geometry. This preserves
 audio response, palette motion, bounded iteration counts, and resize safety
 without allocating a full-resolution bitmap on the render thread.
 
@@ -150,10 +176,11 @@ Port of `effects/lattice.py`.  Key differences:
   displays.
 - **v3.17 trail policy** — `GLDraw.fadeBlack` enforces a minimum 48/255 black
   overlay so old pixels fade to black instead of accumulating as grey residue.
-- **Android field quality** — The bounded 24×16 simulation state is rendered
-  through a viewport-adaptive interpolated grid (24–40 columns, aspect-aware
-  rows), avoiding blocky colour blobs on large TVs without allocating a full
-  resolution field.
+- **Android field quality** — The bounded 64×36 simulation state is rendered
+  through a viewport-adaptive interpolated grid (64–224 columns, aspect-aware
+  rows), matching the upstream reduced-surface/smoothscale intent without
+  allocating a full-resolution field. The render grid is capped below the
+  shared 262K-vertex batch ceiling on portrait and unusually large displays.
 - **Android diagnostics** — Debug builds expose mode, viewport, frame time,
   submitted vertex count, and bloom state through the developer overlay. The
   callback is disabled in release builds.
@@ -210,7 +237,7 @@ Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon d
 2. For each changed / new effect file, diff against the current Kotlin port and
    apply parameter changes using the table above.
 3. Apply per-effect standing adaptations from this document.
-4. Build (validated via GitHub CI/CD pipeline on push, or locally with appropriate SDK configuration) and fix any compile errors.
+4. Push the change and use the GitHub CI/CD pipeline to validate the Android build, then fix any compile errors reported there.
 5. Update `CHANGELOG.md`, `docs/visualizer-modes.md`, and `docs/architecture.md`.
 6. Run `qmd update && qmd embed`.
 7. Commit on `dev`.

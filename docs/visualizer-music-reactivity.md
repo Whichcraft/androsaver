@@ -1,21 +1,35 @@
 # Visualizer Music Reactivity
 
-How each effect responds to audio. All effects receive three frequency bands and a beat signal derived from the system audio:
+How each effect responds to audio. All effects receive low-frequency onset,
+mid, treble, and beat-derived signals from the system audio:
 
 | Signal | Source | Typical range |
 |--------|--------|---------------|
-| **Bass** | FFT bins 0–6 (~20–250 Hz) | 0.0 – 1.0 |
-| **Mid** | FFT bins 6–30 (~250 Hz – 2 kHz) | 0.0 – 1.0 |
-| **High** | FFT bins 30–512 (~2 kHz – 20 kHz) | 0.0 – 1.0 |
-| **Beat** | Onset strength (scaled by the Effect Intensity setting) | 0.0 – 2.0 |
+| **Beat** | Weighted FFT bins 0–19 (~0–860 Hz at 44.1 kHz) compared with a 15-frame rolling average | 0.0 – 1.0 before intensity |
+| **Mid** | FFT bins 20–99 (~860 Hz–4.3 kHz), expressed as positive deviation above a rolling average | 0.0+ |
+| **Treble** | FFT bins 100–255 (~4.3–11 kHz), expressed as positive deviation above a rolling average | 0.0+ |
+| **FFT** | Smoothed 512-bin spectrum supplied directly to spectrum-oriented effects | normalized magnitudes |
+| **Waveform** | Time-domain capture, 512 samples | -1.0 – 1.0 |
 
 The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multiplier applied only to the beat signal before it reaches the effect. FFT values are always unscaled. At **Low** (default) the beat multiplier is 0.5×; at **Max** it is 2.0×.
+
+The first beat after startup or a genre change is suppressed while the rolling
+baseline is initialized. Mid and treble are deviation signals, not raw
+volume meters: steady energy trends toward zero, while transients rise above
+zero. If `RECORD_AUDIO` is denied or the Android `Visualizer` API is
+unavailable, rendering continues with zeroed audio data.
+
+In the effect sections below, **bass** is historical psysuals terminology for
+the low-frequency beat/onset signal. In the Android implementation that value
+is `audio.beat` after the selected intensity multiplier; it is not a separate
+raw `AudioData.bass` field. **High** in older descriptions means Android's
+`audio.treble` signal.
 
 ---
 
 ## Yantra
 
-**What it looks like:** Six concentric rotating polygons (triangle → octagon), connected by web lines and radial spokes.
+**What it looks like:** Seven concentric rotating polygons (triangle → nonagon), connected by web lines and radial spokes.
 
 **Music reactivity:**
 
@@ -76,16 +90,16 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 
 | Visual element | Reacts to |
 |----------------|-----------|
-| Triangle spawn | Bass rising-edge trigger at threshold 0.20; one burst per crossing |
-| Burst size | Scales with bass intensity: 2 triangles at threshold, up to 15 at 3.5× threshold |
-| Triangle spin speed | Scales with bass intensity: faster and wilder at higher bass |
-| Triangle size | Scales with bass intensity: larger at higher bass |
-| Triangle brightness | Beat makes triangles brighter as they approach the camera |
+| Triangle spawn | A per-frame count of `floor(bassM × 1.2)` plus `floor(midM × 1.5)` when `midM > 0.5`; `bassM`, `midM`, and `highM` include the viewport motion scale |
+| Spawn position | New triangles appear in the far third of the tube (`z = 0.80–0.98`) |
+| Triangle spin speed | Base random spin is multiplied by mid energy; higher mid produces faster rotation |
+| Triangle size | Spawn size grows with bass and treble energy, then grows in perspective toward the camera |
+| Triangle brightness | Triangles brighten toward the camera; beat/low energy affects their spawn size and tunnel motion |
 | Triangle trail | All triangles fade with the global fadeBlack (α 0.11) |
 
 **Tunnel walls:** Constant speed, no music reactivity. The smoothness of the ride is always the same regardless of what is playing.
 
-**Triangle tracking:** Each triangle records the tunnel path position at the moment of spawn. As it approaches the camera it stays locked to the tunnel's curving center line, so it always appears inside the tube.
+**Triangle tracking:** Each triangle records the tunnel path position at the moment of spawn. As it approaches the camera it stays locked to the tunnel's curving center line, so it always appears inside the tube. Cleanup removes triangles at the near plane and trims the live list to 30.
 
 **Silence behaviour:** No new triangles spawn. Existing ones continue flying toward the camera and eventually disappear. The tunnel ride itself never stops.
 
@@ -161,7 +175,7 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 
 | Visual element | Reacts to |
 |----------------|-----------|
-| Spawn rate | Beat and bass spawn additional bubbles each frame (1–6+ per frame depending on intensity) |
+| Spawn rate | A baseline of two bubbles per frame continues; beat, bass, and treble add extra spawns depending on intensity |
 | Rising speed | Beat makes newly spawned bubbles rise faster |
 | Bubble size at spawn | Bass makes new bubbles larger |
 | Colour spread | Higher beat = wider hue spread across newly spawned bubbles (more colour variety) |
@@ -170,7 +184,7 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 | Extra neon rings | Only visible when beat > 1.0 (requires Effect Intensity above Low); up to two extra expanding rings per bubble |
 | Mid-frequency size modulation | Mid energy adds a small per-frame size boost to all visible bubbles |
 
-**Silence behaviour:** No new bubbles spawn. Existing bubbles continue rising with their individual velocities and drift with wobble. The global pulse spring decays to zero. Bubbles gradually float off the top of the screen until the pool empties.
+**Silence behaviour:** The baseline spawn rate continues, but no audio-driven extra bubbles or mega-bubbles appear. Existing bubbles continue rising with their individual velocities and drift with wobble, while the global pulse spring decays to zero.
 
 ---
 
@@ -208,3 +222,98 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 **This effect shows audio history, not just the current moment.** Silence appears as dark rows. Loud transients leave bright horizontal bands. The scrolling speed is constant — one row per frame regardless of tempo.
 
 **Silence behaviour:** Dark rows scroll downward. Any previously bright rows fade as they age (brightness decays by 70% as rows reach the bottom). The screen gradually darkens over ~100 frames of silence.
+
+## Remaining registered effects: signal matrix
+
+The compact matrix below covers the registered effects whose detailed visual
+descriptions live in [`visualizer-modes.md`](visualizer-modes.md). “Low” means
+the historical psysuals bass/Android beat signal; “beat” means the same signal
+after the intensity multiplier when the effect uses an onset trigger. A dash
+means the signal is not used for the primary behavior. Every mode still
+receives the complete `AudioData` snapshot, so this table describes meaningful
+inputs rather than an API restriction.
+
+| Effect | Low / beat response | Mid response | Treble response | Other input | Silence behavior |
+|---|---|---|---|---|---|
+| TriFlux | Rising low onset pops up to three tiles; beat/low scales the pop target | Sweep speed and pop target gain | Rainbow edge/detail modulation | — | Sweeps and hue drift continue; no tile pops |
+| Corridor | Low drives frame travel speed; beat flares near frames | Adds frame/spark brightness and spawn energy | Spark radius and near-frame detail | — | Slow corridor motion and sparse/dim sparks |
+| Branches | Low changes trunk length; beat adds arms and a brightness burst | Three sine fields twist branch angles | Segment/core line weight | — | Arms contract with minimal jitter |
+| Butterflies | Low controls wing flap and pair motion; beat emits sparkles | — | — | Pair state controls pursuit/wander phases | Pairs continue bounded motion; no new beat sparkles |
+| FlowField | Low attracts particles toward the center | — | Per-particle scatter force | Beat jumps the field phase | Particles drift in the base field without gravity/scatter |
+| Fireworks | Beat launches extra rockets; `audio.gain` changes background launch interval | — | Ember count/brightness and explosion variation | Gravity/drag are constant | Rockets continue auto-launching at the gain-scaled interval |
+| Aurora | Low billows curtain amplitude; beat flashes bloom and nudges hue | Ribbon height/thickness | Shimmer speed | — | Curtains drift at base shimmer speed |
+| Lattice | Low drives whole-grid scale breath; beat fires center shockwave | Peak-normalized grid activity | Edge/column activity and beam brightness | Smoothed FFT maps frequency to nodes | Dim base grid and hue rotation; no shockwave |
+| Mycelium | Beat blooms a colony, seeds tips, and releases spores | — | Spore/filament color and motion detail | Colony growth state | Tips and spores continue slow bounded growth/decay |
+| Magnetar | Beat creates an equatorial shockwave and vertical scatter | — | Particle color/glow detail | Dipole rotation state | Particles orbit slowly along field lines |
+| SlimeMold | Low controls agent speed; beat returns a fraction toward center | — | — | Diffusing trail buffer | Agents continue slow motion while trails decay |
+| Mobius | Beat widens the twist temporarily (“shiver”) | — | Treble contributes to rotation speed | 3-D projection and hue drift | Strip rotates at its base speed |
+| Chromatic | Low/beat drives ripple warp and ring spawning | — | RGB split radius and halo separation | Ring age controls expansion/fade | Existing rings expand and expire; no new rings |
+| Persistence | Beat raises the nested-solid boost and edge brightness | — | — | Independent 3-D orbital speeds | Solids continue slow rotation with long persistence |
+| Synapse | Strong beat adds nodes and launches signal cascades | Signal/arrival variation | — | Periodic mutation adds or sheds nodes | Graph wanders and existing signals decay |
+| Heartbeat | Beat spawns rings; low level morphs circle ↔ polygon | — | — | Ring age controls expansion and fade | Rings continue; periodic low-energy auto-spawn keeps motion alive |
+
+The eight field/geometry effects added with the current upstream integration
+are documented individually below because their bounded scalar-field or
+projection parameters are more informative than a single matrix cell.
+
+## Morphogenesis
+
+**What it looks like:** A bounded Gray–Scott reaction-diffusion field rendered
+as a colored scalar grid. Treble nudges the feed rate, mid nudges the kill
+rate, and mid also advances the field phase. The Android port uses a reusable
+64×36 field and interpolated viewport geometry rather than a full-resolution
+CPU bitmap. The adaptive render grid is capped to the shared GL batch budget,
+so the field stays smooth on TV-sized displays without creating pixel blocks.
+Silence leaves the reaction evolving at its base rate.
+
+## Hyperbolic
+
+**What it looks like:** Six alternating-direction radial rings with twelve
+rotating spokes. Mid increases angular phase speed; hue drifts continuously.
+It has no beat-triggered explosion, so silence produces a calm, persistent
+geometric animation.
+
+## LiquidLight
+
+**What it looks like:** A fluorescent interference field made from crossed
+swirl and wave functions. Mid increases phase speed and treble accelerates
+hue drift. The bounded shared field renderer keeps memory and work constant
+across display sizes; audio changes the pattern's motion rather than its
+resolution.
+
+## Cymatica
+
+**What it looks like:** A Chladni-like nodal plate with a rotating mode pair
+and 80 additive particles. Beat advances phase and enlarges the particles;
+treble softens the nodal falloff. The spatial mode changes every 180 frames,
+so the pattern evolves even without a beat.
+
+## Phason
+
+**What it looks like:** A quasiperiodic three-wave interference field. Beat
+drives phase speed, mid offsets one interference component, and treble speeds
+the hue cycle. Silence leaves the field moving at its base phase rate.
+
+## Tesseract
+
+**What it looks like:** A projected 4-D hypercube wireframe with up to three
+overlaid depth layers. Beat rising through 0.7 advances the preset; beat also
+drives scale and vertical bounce. Mid and treble contribute small phase and
+hue changes. Scale is bounded to 0.62–1.28× so strong audio cannot push the
+geometry off-screen.
+
+## Ferrofluid
+
+**What it looks like:** Five moving magnetic poles, each surrounded by five
+elliptical contour rings. Beat advances pole phase and expands every contour;
+hue drifts independently. The contour geometry is viewport-scaled and remains
+visible during silence.
+
+## Mandelbox
+
+**What it looks like:** A bounded Mandelbox-inspired escape-time field. Beat
+advances the domain warp, while hue drifts continuously. Each field point is
+limited to 14 iterations and the shared 64×36 field keeps the render cost
+predictable on TV sticks. The interpolated render grid avoids large native
+rectangle pixels on high-resolution displays. Silence still animates the
+domain slowly.

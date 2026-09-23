@@ -1,10 +1,10 @@
 # AndroSaver
 
-An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage), a fullscreen **music visualizer**, or a **blank black screen**. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
+An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage), a **static image**, a fullscreen **music visualizer**, or a **blank black screen**. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
 ## What's New in v2.9.3
 
-**Static-image controls and psysuals v3.17 integration:**
+**Static-image controls and psysuals v3.18 integration:**
 
 - **Mycelium** — Reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
 - **Persistence** — Shifted nested rotating polygons into a true 3D perspective projection space with depth-based thickness, brightness shading (depth cueing), and non-coplanar axis rotation.
@@ -16,7 +16,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
 - **Static image mode** — choose a local or configured-source image, with independent portrait and landscape behavior settings.
 - **Adaptive unused-space background** — fitted and centered images can use an automatically derived subdued color gradient, with a manual RGB color picker fallback.
-- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.17.0 while Android-applicable fixes are backported to Kotlin.
+- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.18.0 while Android-applicable fixes are backported to Kotlin. The Android port follows the upstream Chromatic ring cap, Spiral FFT/beat response, and Persistence fourth-coordinate rotation; desktop-only Python adapters remain in the subtree.
 
 ## What's New in v2.2
 
@@ -24,12 +24,28 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 **Two brand-new visualizer effects and a full visual overhaul:**
 
 - **Aurora** — Northern Lights curtains sweep across the screen. Five sinusoidal ribbons with three overlapping harmonics each produce genuinely organic, ever-shifting curtain motion. Bass billows the ribbons; treble drives shimmer speed; beats fire a bloom flash. Drawn with additive blend so overlapping curtains glow brighter together.
-- **Lattice** — A 14×9 crystal grid of glowing nodes wired together by double-stroke beam lines. Each column maps to a different FFT frequency bin, so the grid lights up from left (bass) to right (treble) as the music plays. On every strong beat a shockwave ring expands from the centre and flares every node it touches white-hot.
-- **Bloom post-processing** — every frame is composited through a 2-pass Gaussian blur at half resolution and added back onto the screen, giving neon glow to all 18 effects without per-mode changes.
+- **Lattice** — A dynamic crystal grid (14×9 by default, 18×12 on wide displays, 22×14 on very wide displays) of glowing nodes wired together by double-stroke beam lines. Each column maps to a different FFT frequency bin, so the grid lights up from left (bass) to right (treble) as the music plays. On every strong beat a shockwave ring expands from the centre and flares every node it touches white-hot.
+- **Bloom post-processing** — every frame is composited through a 2-pass Gaussian blur at half resolution and added back onto the visualizer, giving the effects a neon glow without per-mode changes.
 - **Butterflies wander breaks** — paired butterflies now periodically break from their mutual orbit and wander freely before resuming the chase, making long sessions much more varied.
 - **Genre-driven auto-switching** — when Genre is set to Auto-detect, the app switches visualizer style every 30 seconds to match the detected music genre (electronic, rock, classical).
 
 ## Features
+
+### Static Image
+
+Static Image displays one selected photo instead of rotating through a
+slideshow. Select a local image with **Background Image**, or use **Browse
+Image Sources** to choose one from a configured cloud, NAS, or device source.
+The selected remote image is copied into app-private storage, so the static
+screen continues to work if the provider is later offline or the temporary
+download URL expires. Landscape and portrait behavior can be configured
+independently as Fill/Crop, Fit/Letterbox, Original Size/Center, or Stretch.
+Fitted and centered images use an automatically derived subdued gradient by
+default; **Manual color** exposes a fallback RGB color picker.
+
+Static Image uses the same enabled image providers and credentials as the
+slideshow, but selecting an image is explicit. It does not automatically
+choose a random provider image.
 
 ### Photo Slideshow
 - **Google Drive source** — streams photos from a Drive folder using OAuth 2.0 device flow (no Google Play Services required)
@@ -40,7 +56,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **Synology NAS source** — streams photos from any FileStation folder via the Synology DSM REST API; session re-authenticated automatically every 25 minutes
 - **Device storage source** — uses photos from the TV's local storage via MediaStore
 - All sources can be active simultaneously; images are merged and shuffled
-- **Offline cache** — up to 200 images / 150 MB stored locally; used automatically as a fallback when sources are unreachable
+- **Offline cache** — up to 200 images / 150 MiB stored locally; used automatically as a fallback when sources are unreachable
 - Six transition effects: **Crossfade**, **Fade to Black**, **Slide Left**, **Slide Right**, **Zoom In**, **Zoom Out**, plus a **Random** mode
 - Configurable time per image (5 s – 30 min) and transition speed (1 – 5 seconds)
 - Transition timing is deterministic: the configured image time is always honored, and when **Random** is selected only the effect choice changes
@@ -54,9 +70,9 @@ Designed for listening sessions: start playing music in any app, let the screen 
 - Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
-  - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Subtle → Normal → High → Intense)
+  - **↑** / **↓** — increase / decrease beat-response intensity (5 steps: Off → Low → Medium → High → Max)
   - Any other key — dismiss the screensaver
-- **Music Genre hint** — tunes the beat-detection frequency weighting to the music style (Any / Electronic / Rock / Classical); see [genre hint details](#music-genre-hint) below
+- **Music Genre hint** — tunes beat detection to the music style (Auto-detect / Any / Electronic / Rock / Classical); Auto-detect also switches visualizer family when Visual Effect Cycle is set to On. See [genre hint details](#music-genre-hint) below
 - Auto-cycle mode rotates through effects on a configurable interval
 - Configurable effect and intensity via Settings
 
@@ -67,11 +83,11 @@ Designed for listening sessions: start playing music in any app, let the screen 
   - Any other key — dismiss the screensaver
 
 ### General
-- **Clock overlay** — date and time shown in the corner (available in both Slideshow and Visualizer mode)
-- **Weather widget** — current temperature and conditions from OpenWeatherMap (available in both modes)
+- **Clock overlay** — date and time shown in the corner (available in Static Image, Slideshow, and Visualizer modes)
+- **Weather widget** — current temperature and conditions from OpenWeatherMap (available in all non-blank modes)
 - **Schedule** — restrict the screensaver to a configurable active time window (e.g. 08:00–22:00)
 - **Preview mode** — test the screensaver from the Settings app without activating the system screensaver
-- **In-app updater** — checks GitHub Releases on each Settings open; prompts to install if a newer build is available; update channel (Stable / Dev) selectable in Settings
+- **In-app updater** — checks the build-selected GitHub Release channel on each Settings open; prompts to install if a newer build is available. Standard dev builds use Dev releases and prod builds use Stable releases; the Play Store build uses Google Play updates.
 - Registered as a system Dream Service — appears in Android TV's screensaver settings
 
 ## Installation
@@ -168,7 +184,8 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
    |-------|-------------|
    | **Host / IP** | e.g. `192.168.1.50` or `photos.example.com` |
    | **Port** | `2283` (default) or `443` (HTTPS) |
-   | **Use HTTPS** | Enable if your Immich instance uses HTTPS (self-signed certs are accepted) |
+   | **Use HTTPS** | Enable if your Immich instance uses HTTPS |
+   | **Allow HTTP or invalid certificate** | Enable only for a deliberately insecure HTTP or self-signed/expired HTTPS endpoint |
    | **API Key** | The key generated in Immich Account Settings |
    | **Album ID** | Optional — paste an album UUID to show only that album; leave blank for all photos |
 
@@ -185,7 +202,8 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
    |-------|-------------|
    | **Host / IP** | e.g. `cloud.example.com` or `192.168.1.50` |
    | **Port** | `443` (HTTPS) or `80` (HTTP) |
-   | **Use HTTPS** | Enable for HTTPS (self-signed certs are accepted) |
+   | **Use HTTPS** | Enable for HTTPS |
+   | **Allow HTTP or invalid certificate** | Enable only for a deliberately insecure HTTP or self-signed/expired HTTPS endpoint |
    | **Username** | Your Nextcloud username |
    | **Password / App Password** | Your Nextcloud password, or an app password from Nextcloud's Security settings |
    | **Image Folder Path** | e.g. `/Photos` or `/family/Pictures` |
@@ -204,7 +222,8 @@ Microsoft's device auth flow works without a browser redirect, making it ideal f
    |-------|-------------|
    | **Host / IP** | e.g. `192.168.1.100` or `nas.local` |
    | **Port** | `5000` (HTTP) or `5001` (HTTPS) |
-   | **Use HTTPS** | Enable if your DSM uses HTTPS (self-signed certs are accepted for local use) |
+   | **Use HTTPS** | Enable if your DSM uses HTTPS |
+   | **Allow HTTP or invalid certificate** | Enable only for a deliberately insecure HTTP or self-signed/expired HTTPS endpoint |
    | **Username** | A DSM account with FileStation access |
    | **Password** | DSM account password |
    | **Image Folder Path** | e.g. `/photos` or `/homes/alice/Pictures` |
@@ -261,7 +280,20 @@ A few differences compared to TV:
 
 ## Settings Reference
 
-All options are configured in the **AndroSaver Settings** app. The top-level **Screensaver Mode** picker switches between Photo Slideshow, Music Visualizer, and Blank (Black) — only the relevant settings are shown.
+All options are configured in the **AndroSaver Settings** app. The top-level **Screensaver Mode** picker switches between Photo Slideshow, Static Image, Music Visualizer, and Blank (Black) — only the relevant settings are shown.
+
+### Static Image
+
+| Setting | Options | Default | Description |
+|---------|---------|---------|-------------|
+| **Background Image** | Local image picker | — | Select the image to display |
+| **Browse Image Sources** | Configured providers | — | Download and retain one selected provider image privately |
+| **Landscape Image Behavior** | Fill/Crop, Fit/Letterbox, Original Size/Center, Stretch | Fit | Rendering for landscape and square images |
+| **Portrait Image Behavior** | Fill/Crop, Fit/Letterbox, Original Size/Center, Stretch | Fit | Rendering for portrait images |
+| **Unused Space Background** | Auto image gradient, Manual color | Auto image gradient | Background behind fitted or centered images |
+
+Static Image has no transition timer or Ken Burns animation. The selected
+image remains in place until it is replaced or the screensaver mode changes.
 
 ### Photo Slideshow
 
@@ -292,7 +324,7 @@ All sources can be enabled at the same time — images from all sources are merg
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
 | **Time per Image** | 5 s, 10 s, 15 s, 30 s, 1 min, 2 min, 5 min, 10 min, 15 min, 20 min, 30 min | 10 s | How long each image is displayed |
-| **Transition Speed** | 1 s, 2 s, 3 s, 4 s, 5 s | 1.5 s | Duration of the animation between images |
+| **Transition Speed** | 1 s, 2 s, 3 s, 4 s, 5 s | 2 s | Duration of the animation between images |
 | **Transition Effect** | Crossfade, Fade to Black, Slide Left, Slide Right, Zoom In, Zoom Out, Random | Crossfade | Animation style used between images |
 | **Ken Burns Effect** | On / Off | On | Slow pan and zoom applied to each photo |
 
@@ -313,10 +345,11 @@ The configured "Time per Image" is the dwell time for each displayed photo. Tran
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Visual Effect** | Auto, Yantra, Cube, TriFlux, Lissajous, Tunnel, Corridor, Nova, Spiral, Bubbles, Plasma, Branches, Butterflies, FlowField, Fireworks, Aurora, Lattice, Mycelium, Magnetar, SlimeMold, Mobius, Chromatic, Persistence, Synapse, Heartbeat, Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, Mandelbox, Spectrum, Waterfall | Auto | Which visualizer to show; Auto cycles through all effects |
+| **Visual Effect Cycle** | Off, On, Random | On | Off leaves the current effect until changed with the remote; On cycles through the enabled effects in registry order; Random chooses randomly |
+| **Active Effects** | Any combination of the 34 effects | All | Selects which effects are included when cycling is On or Random; at least one must remain selected |
 | **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
 | **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
-| **Music Genre** | Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting to the music style |
+| **Music Genre** | Auto-detect, Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting; Auto-detect analyzes the spectrum every 30 seconds and can switch visualizer family when Visual Effect Cycle is On |
 
 #### Remote Control (while visualizer is running)
 
@@ -332,16 +365,17 @@ Intensity changes made with the remote are saved and reflected in Settings. Swit
 
 #### Music Genre Hint
 
-The genre setting adjusts how the beat-detection algorithm weights bass frequency bins. It does not change the visual style directly — it changes what the algorithm considers a *beat*, making visuals more or less reactive to different frequency ranges.
+The genre setting adjusts how the beat-detection algorithm weights the low-frequency bins used for beat detection, making visuals more or less reactive to different frequency ranges. **Auto-detect** analyzes the spectrum every 30 seconds, applies the detected genre hint, and—when Visual Effect Cycle is set to On—switches to a matching visualizer family.
 
-Beat detection works on the lowest 20 FFT bins (roughly 0–860 Hz at 44100 Hz / 512-bin FFT). Each bin gets a weight multiplier; the weighted average of those 20 bins is compared against a short-term running average to detect transients. Genre changes only the per-bin weights:
+Beat detection works on the lowest 20 FFT bins (roughly 0–860 Hz at 44100 Hz / 512-bin FFT). Each bin gets a weight multiplier; the weighted average of those 20 bins is compared against a short-term running average to detect transients. The genre presets affect those bins as follows:
 
 | Genre | Bins boosted | Bins reduced | Net effect |
 |-------|-------------|--------------|------------|
 | **Any** | — (all ×1.0) | — | Flat — treats all bass frequencies equally |
-| **Electronic** | 0–4 (~0–172 Hz) ×1.5 | 10–19 (~430–860 Hz) ×0.7 | Sub-bass boost + upper-bass cut — highly sensitive to 4-on-the-floor kick and synth bass; ignores mid-bass mud |
-| **Rock** | 2–8 (~86–344 Hz) ×1.3 | — | Punchy mid-bass boost — better response to kick/snare hits and overdriven bass guitar; leaves sub-bass untouched |
-| **Classical** | 10–19 (~430–860 Hz) ×1.4 | 0–9 (~0–387 Hz) ×0.6 | Strong sub-bass cut + upper-bass/low-mid boost — avoids false beats from bass-heavy mastering; responds to orchestral transients in the 400–800 Hz range |
+| **Auto-detect** | Applies the detected Electronic, Rock, Classical, or Any preset | — | Re-evaluates from the FFT spectrum every 30 seconds after the detection window; may also select a matching visualizer family when cycling is On |
+| **Electronic** | Bins 0–19 (~0–860 Hz) ×1.5 | — | Stronger response to low-frequency transients |
+| **Rock** | — | — | Neutral weighting on the beat-detection bins; the genre label is still available for automatic classification and mode selection |
+| **Classical** | — | Bins 0–19 (~0–860 Hz) ×0.6 | Reduced response to low-frequency transients |
 
 If the visuals feel sluggish or fire on every bass rumble, try switching genre to match what is playing.
 
@@ -357,7 +391,7 @@ Manually skipping resets the auto-advance timer so the new image gets a full dis
 
 ### Display Overlays
 
-These settings apply in **both** Slideshow and Visualizer mode.
+These settings apply in **Static Image, Slideshow, and Visualizer modes**.
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
@@ -377,12 +411,11 @@ These settings apply in **both** Slideshow and Visualizer mode.
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| **Update Channel** | Stable, Dev | Stable (prod) / Dev (dev build) | Which GitHub Release to check for updates against |
-| **AndroSaver** (version row) | — | — | Shows installed version; tapping installs a newer build when one is available (checked automatically each time Settings opens) |
+| **AndroSaver** (version row) | — | — | Shows installed version and automatic channel; tapping installs a newer build when one is available (checked automatically each time Settings opens) |
 
 #### Visual Effects
 
-See [visualizer-music-reactivity.md](visualizer-music-reactivity.md) for a detailed breakdown of how each effect reacts to bass, mid, high, and beat signals.
+See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) for the maintained, implementation-oriented breakdown of how each effect reacts to bass, mid, treble, and beat signals. The root-level file is retained only as a compatibility pointer.
 
 | Effect | Description |
 |--------|-------------|
@@ -434,7 +467,7 @@ ScreensaverService (DreamService)
         │   ├── NextcloudSource      ← WebDAV PROPFIND + Basic Auth
         │   ├── SynologySource       ← Synology DSM FileStation API; re-login every 25 min
         │   ├── LocalStorageSource   ← MediaStore device photos
-        │   ├── ImageCache           ← offline fallback (200 images / 150 MB)
+        │   ├── ImageCache           ← offline fallback (200 images / 150 MiB)
         │   ├── Ken Burns animator   ← pan/zoom per photo; always ends centered
         │   ├── transition pipeline  ← per-slot Glide targets + transition/session guards
         ├── Music Visualizer mode
@@ -472,7 +505,7 @@ Images are loaded with [Glide](https://github.com/bumptech/glide) (OkHttp3 backe
 
 ## Privacy
 
-Credentials (OAuth tokens, API keys, passwords) are stored in Android SharedPreferences (on-device only). No data is sent to any third party except:
+Credentials (OAuth tokens, API keys, passwords) are stored on-device through Android EncryptedSharedPreferences; the app fails closed rather than writing sensitive values in plaintext if encrypted storage is unavailable. No data is sent to any third party except:
 - The cloud service you configure (Google, Microsoft, Dropbox, your Immich/Nextcloud/Synology server)
 - OpenWeatherMap (if the weather widget is enabled)
 - GitHub Releases (to check for updates — only a version manifest is fetched; no identifying information is sent)

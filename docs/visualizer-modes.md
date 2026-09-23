@@ -2,7 +2,7 @@
 
 All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
 ```kotlin
-abstract fun draw(gl: GLDraw, audio: AudioData, tick: Long)
+abstract fun draw(draw: GLDraw, audio: AudioData, tick: Int)
 ```
 
 `AudioData` provides: `beat` (0–2, onset strength × beatGain), `mid` (deviation above rolling avg for bins 20–99, ~860–4300 Hz; 0 at steady state, positive on peaks), `treble` (same for bins 100–255, ~4300–11000 Hz), `gain` (beatGain multiplier, 0–2), `waveform[]`, `fft[]`.
@@ -32,7 +32,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 13 | `FlowFieldMode` | FlowField | 8 000–40 000 particles riding a sine/cosine noise field with bass gravity + treble scatter |
 | 14 | `FireworksMode` | Fireworks | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
-| 16 | `LatticeMode` | Lattice | 14×9 FFT-mapped crystal grid with shockwave ring on beat |
+| 16 | `LatticeMode` | Lattice | Dynamic 14×9 / 18×12 / 22×14 FFT-mapped crystal grid with shockwave ring on beat |
 | 17 | `MyceliumMode` | Mycelium | Multi-colony fungal network with spores and rotating satellite rings |
 | 18 | `MagnetarMode` | Magnetar | Rotating magnetic dipole field with 4 000 particles |
 | 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with adaptive-grid trail diffusion |
@@ -53,7 +53,11 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 34 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
-Auto-cycle: configurable interval (Off / 1–15 min), rotates through all modes.
+Auto-cycle: configurable interval (Off / 1 / 2 / 5 / 10 / 15 min). It rotates
+through the enabled subset in registry order; Random mode chooses randomly
+from that same subset. The current registry contains 34 active modes. The
+source file `CliffordMode.kt` is intentionally dormant and is not in the
+registry.
 
 ---
 
@@ -75,7 +79,13 @@ Shader-based full-screen plasma (sine interference). Always animating — never 
 
 ## TunnelMode
 
-First-person tunnel perspective. Rings scroll toward viewer. Bass triggers triangle bursts that spawn only in the far third of the tube (z 0.80–0.98); spawn rate `bass*2 + beat*3` (beat threshold 0.5); live cap 50 triangles. Beat flashes ring brightness. Path follows a centre curve. Silence: rings scroll slowly, no triangles.
+First-person tunnel perspective. Rings scroll toward the viewer. The Android
+port uses the intensity-scaled beat signal as its low-frequency/bass input:
+triangle bursts spawn only in the far third of the tube (z 0.80–0.98), with
+`floor(bass * 1.2)` spawns plus a mid-energy contribution when mid exceeds
+0.5; live triangles are capped at 30 after cleanup. Beat flashes ring
+brightness, and the path follows a centre curve. Silence: rings scroll slowly,
+with no triangle spawns.
 
 ## LissajousMode
 
@@ -95,7 +105,14 @@ Waveform rendered with 7-fold rotational symmetry. Each spoke mirrors waveform a
 
 ## BubblesMode
 
-Translucent circles rise from bottom. Count and size driven by bass. Beat triggers synchronized pulse (all bubbles flash + expand). High frequency adds smaller bubbles. `bassFlash` variable: spikes when bass > 0.65 and inflates all rendered radii ×0.45 for ~10 frames. On beat > 0.7: 1–3 mega-bubbles erupt (2.2–4.2× base radius, 1.4× rise speed). Bubbles wrap at top. Silence: a few large slow bubbles drift upward.
+Translucent circles rise from bottom. Count and size are driven by bass, beat,
+and treble. Beat triggers a synchronized pulse (all bubbles flash + expand).
+Treble adds path wobble and extra spawns. `bassFlash` spikes above 0.65 and
+adds a temporary 0.45× bass-flash contribution to rendered radii. On beat >
+0.7, 1–3 mega-bubbles erupt (2.2–4.2× base radius, 1.4× rise speed).
+Bubbles float off the top and are removed while the baseline spawn rate keeps the
+pool populated. During silence, no audio-driven extras or mega-bubbles appear;
+bubbles continue drifting upward and the global pulse returns to zero.
 
 ## BranchesMode
 
@@ -123,7 +140,7 @@ A crystal grid of glowing nodes and connection beams (leftmost column cutout). I
 
 ## MyceliumMode
 
-Swirling growth pattern around multiple colonies (cores). Up to 180 active tips grow swirling around 5 cores, each tip leaving a decaying filament segment trail (max 600 segments). Cores are decorated with a rotating ring of satellite nodes. Beat fires a colony bloom burst that seeds new tips and releases swirling spores from the cores. Tips also release spores. Spores orbit the nearest core under gravitational pull and decay. Bioluminescent double-draw segments (soft color glow + bright core line) for neon look. Trail: fadeBlack(8/255).
+Swirling growth pattern around multiple colonies (cores). Up to 240 active tips grow swirling around 5 cores, each tip leaving a decaying filament segment trail (max 900 segments). Cores are decorated with a rotating ring of satellite nodes. Beat fires a colony bloom burst that seeds new tips and releases swirling spores from the cores. Tips also release spores. Spores orbit the nearest core under gravitational pull and decay. Bioluminescent double-draw segments (soft color glow + bright core line) for neon look. Trail: fadeBlack(8/255).
 
 ## MagnetarMode
 
@@ -133,7 +150,7 @@ Swirling growth pattern around multiple colonies (cores). Up to 180 active tips 
 
 Physarum-style 2 500-agent slime simulation. Agents sense three directions and steer toward the strongest trail signal. Trails diffuse and decay in reusable buffers. Grid resolution uses divisor 8 on smaller displays and 6 on TV-sized displays. Deposit coordinates are clamped against the actual trail shape before every indexed write. Beat teleports 5% of agents back toward centre. The grid is rebuilt whenever either render dimension changes.
 
-## CliffordMode
+## CliffordMode (dormant, not registered)
 
 Strange attractor (Clifford map). 7 000 walkers iterate `x' = sin(a·y) - cos(b·x)`, `y' = sin(c·x) - cos(d·y)` six times per frame—the largest density that remains below the Android GL batch ceiling. Features curated presets, dynamic framing, collapse recovery, faster parameter morphing, high-contrast hot cores, and isolated seeded random state. Trail: fadeBlack(18/255).
 
@@ -157,6 +174,56 @@ A living 28–90-node neural graph. Strong beats add nodes; periodic mutations a
 
 Expanding polygon rings that morph between circle (high bass) and polygon (low bass) as they grow. Up to 16 rings simultaneously; each ring drawn as a smooth 120-point polyline with polygon-modulated radius. Rings glow (dark wide + bright narrow). Beat spawns new rings; strong beat spawns two offset-hue rings. Recent parity cleanup now culls rings after per-frame growth is applied, matching the later upstream state handling. Trail: fadeBlack(20/255). Silence: auto-spawns at 50-frame intervals.
 
+## MorphogenesisMode
+
+Bounded Gray–Scott reaction-diffusion field. The reusable 64×36 scalar state
+is interpolated to the viewport. Treble nudges the feed rate, mid nudges the
+kill rate and phase, and the field continues evolving in silence. This is an
+Android field adaptation rather than a full-resolution CPU surface.
+
+## HyperbolicMode
+
+Six alternating-direction radial rings and twelve spokes form a rotating disk
+tiling. Mid increases phase speed and hue drifts continuously. There is no
+beat explosion; silence leaves the baseline geometry moving.
+
+## LiquidLightMode
+
+Crossed swirl and wave functions create a fluorescent dye-like field. Mid
+increases phase speed and treble accelerates hue drift. Work is bounded by the
+shared field grid, independent of display resolution.
+
+## CymaticaMode
+
+A Chladni-like nodal plate with a changing spatial mode and 80 additive
+particles. Beat advances phase and enlarges particles; treble broadens nodal
+regions. The mode pair changes every 180 frames even without audio.
+
+## PhasonMode
+
+Three quasiperiodic wave components form an interference field. Beat drives
+phase speed, mid offsets one component, and treble accelerates hue drift.
+
+## TesseractMode
+
+A projected 4-D hypercube wireframe with up to three overlaid layers. A beat
+rising above 0.7 advances its preset; beat also drives bounded scale and
+vertical bounce. Mid and treble contribute small phase and hue changes.
+
+## FerrofluidMode
+
+Five moving magnetic poles each carry five elliptical contour rings. Beat
+advances pole phase and expands the contours; hue drifts independently. The
+geometry is viewport-scaled and remains visible in silence.
+
+## MandelboxMode
+
+A bounded Mandelbox-inspired escape-time field. Beat advances the domain warp
+and hue drifts continuously. Each field point is limited to 14 iterations in
+the shared 64×36 field, keeping render cost predictable on TV sticks. The
+interpolated render grid avoids large native rectangle pixels on high-resolution
+displays.
+
 ## BarsMode (Spectrum)
 
 Vertical bars on log-frequency scale. Bar height = FFT magnitude. Peak markers decay slowly. Waveform overlay across bar tops. Beat flashes bar color from accent to white. Silence: flat bars at minimum height.
@@ -169,12 +236,24 @@ Vertical bars on log-frequency scale. Bar height = FFT magnitude. Peak markers d
 
 ## Adding a New Mode
 
-1. Create `com.androsaver.visualizer.modes.MyMode.kt` extending `BaseMode`
-2. Implement `draw(gl: GLDraw, audio: AudioData, tick: Long)`
-3. Register in `VisualizerRenderer` mode list
-4. Add display name string to `res/values/strings.xml`
-5. Add entry to `res/values/arrays.xml` (visualizer_modes array)
-6. Add corresponding Prefs constant in `Prefs.kt`
+1. Compare the intended effect with the corresponding vendored upstream
+   effect under `psysuals/effects/`; if the finding exists upstream, fix and
+   test upstream first and then backport it.
+2. Create `com.androsaver.visualizer.modes.MyMode.kt` extending `BaseMode`,
+   using reusable arrays and bounded work in `draw()`.
+3. Implement `draw(draw: GLDraw, audio: AudioData, tick: Int)` and reset all
+   persistent state in `reset()`; rebuild viewport-dependent state when the
+   surface size changes.
+4. Register the mode in `VisualizerRenderer.modes` in the intended rotation
+   order.
+5. Add the same display name to both `viz_effect_entries` and
+   `viz_effect_values` in `res/values/arrays.xml`.
+6. Update `docs/visualizer-modes.md`,
+   `docs/visualizer-music-reactivity.md`, and, for an upstream delta,
+   `docs/psysuals-port-notes.md`.
+7. Add or update focused tests where the mode has deterministic state or
+   resize/lifecycle behavior. Do not build Android locally; rely on GitHub CI
+   for Android compilation and device verification.
 
 ## Audio Reactivity Details
 

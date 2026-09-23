@@ -14,7 +14,7 @@ Photo slideshow & music visualizer screensaver for Android TV.
 ```
 Turn your Android TV into a beautiful photo frame or a live music visualizer.
 
-AndroSaver is a screensaver with two modes — photo slideshow and music visualizer — that activates automatically whenever your TV goes idle.
+AndroSaver is a screensaver with four modes — photo slideshow, static image, music visualizer, and blank screen — that activates automatically whenever your TV goes idle.
 
 PHOTO SLIDESHOW
 Stream your personal photos from any combination of cloud services and local storage, displayed as a fullscreen slideshow with cinematic transitions.
@@ -33,7 +33,7 @@ Stream your personal photos from any combination of cloud services and local sto
 • Remote control: press ← / → to jump to the previous or next photo.
 
 MUSIC VISUALIZER
-Ten real-time OpenGL ES 2.0 effects that react to whatever is playing on the TV — music, games, movies.
+Thirty-four real-time OpenGL ES 2.0 effects react to whatever is playing on the TV — music, games, or movies.
 
 • Yantra — sacred-geometry mandala with beat-driven ring pulses
 • Cube — dual wireframe cubes with spectrum colour cycling
@@ -45,14 +45,15 @@ Ten real-time OpenGL ES 2.0 effects that react to whatever is playing on the TV 
 • Bubbles — translucent rising bubbles driven by bass energy
 • Spectrum — log-spaced equalizer bars with peak markers
 • Waterfall — scrolling time-frequency spectrogram
+• Aurora, Lattice, Mycelium, Magnetar, SlimeMold, Mobius, Chromatic, Persistence, Synapse, Heartbeat, Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, Mandelbox, and more
 
 Remote control while visualizer is running:
 • ← / → — switch between effects
 • ↑ / ↓ — adjust how strongly visuals react to the beat (5 levels)
 
-Music Genre hint — tune beat detection to Electronic, Rock, Classical, or Any for the best reaction to what you're listening to.
+Music Genre hint — tune beat detection to Auto-detect, Electronic, Rock, Classical, or Any. Auto-detect analyzes the spectrum every 30 seconds and can choose a matching visualizer family when effect cycling is On.
 
-DISPLAY OVERLAYS (both modes)
+DISPLAY OVERLAYS (all non-blank modes)
 • Clock — time and date shown in the corner
 • Weather — current temperature from OpenWeatherMap
 
@@ -61,7 +62,7 @@ OTHER FEATURES
 • Preview mode — test the screensaver instantly from Settings
 
 PRIVACY FIRST
-All credentials are stored on-device only. No data is sent anywhere except directly to whichever cloud services you configure (Google, Microsoft, Dropbox, your own Immich/Nextcloud/Synology server) and OpenWeatherMap if weather is enabled.
+Credentials are stored on-device with Android encrypted preferences. Photos may be cached locally for offline fallback; nothing is uploaded to the developer. Network traffic goes only to configured providers and OpenWeatherMap if enabled. Standard APK builds also use GitHub Releases for update checks; the Play Store build receives updates through Google Play.
 
 SETUP
 AndroSaver registers as a system Dream Service and appears directly in your Android TV screensaver settings (Settings → Device Preferences → Screen saver).
@@ -82,7 +83,7 @@ Supports Android 5.0+ and any Android TV device.
 | Immich API key             | Yes       | No     | Stored on-device, sent only to your Immich server          |
 | Nextcloud credentials      | Yes       | No     | Stored on-device, sent only to your Nextcloud server       |
 | Synology NAS credentials   | Yes       | No     | Stored on-device, sent only to your Synology NAS           |
-| Photos/images              | No        | No     | Streamed and displayed, never uploaded or stored off-device |
+| Photos/images              | No        | No     | Displayed and optionally cached locally; never uploaded or stored off-device |
 
 ## Category
 - Primary: **Personalization**

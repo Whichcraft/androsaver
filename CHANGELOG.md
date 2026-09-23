@@ -2,6 +2,19 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-09-23 — psysuals v3.18 subtree sync and Android TV quality backport
+
+- **Repository integration**: Updated the `psysuals/` Git subtree to upstream
+  v3.18.0 (`a543912`); desktop-only Python runtime changes remain in the
+  subtree and are not copied into the Android renderer.
+- **Visualizer parity**: Backported the upstream Chromatic five-ring cap,
+  Spiral FFT/beat response, and Persistence fourth-coordinate rotation.
+- **Android TV rendering**: Increased the shared field simulation to 64×36 and
+  added an adaptive interpolated render grid capped below the GLES batch budget
+  to prevent pixelated field effects on high-resolution TVs.
+- **Image fallback**: Fixed cached local-image loading by passing filesystem
+  cache paths to Glide as `File` models instead of `file:` URL strings.
+
 ## 2026-08-21 — Synology transport and visualizer diagnostics
 
 - **Synology**: Accept HTTP-only NAS endpoints and automatically retry self-signed, expired, or otherwise invalid HTTPS certificates on the configured self-hosted endpoint; HTTPS-to-HTTP fallback handles NAS installations without TLS.
@@ -162,7 +175,7 @@ All notable changes to AndroSaver are documented here.
 - **Visualizer**: Imported `psysuals` submodule updates (bumped to `v3.10.0`).
 - **Visualizer**: Backported the reverted stable version of the Butterflies effect, restoring classic chase/orbit motion behavior and removing size variations and swarm forces for smoother, glitch-free flight patterns.
 - **Visualizer**: Verified and aligned other modes (Yantra, Mycelium, Persistence, TriFlux, and Plasma) with their latest corresponding Python versions.
-- **AI Instructions**: Documented local Java build constraints in `AGENTS.md` and `.ai/decisions.md`.
+- **AI Instructions**: Documented local Java build constraints in `AGENTS.md`.
 
 ---
 

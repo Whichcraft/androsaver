@@ -112,7 +112,6 @@ object Prefs {
     const val WEATHER_API_KEY = "weather_api_key"
 
     // Updates
-    const val UPDATE_CHANNEL        = "update_channel"
     const val UPDATE_CHANNEL_STABLE = "stable"
     const val UPDATE_CHANNEL_DEV    = "dev"
 }

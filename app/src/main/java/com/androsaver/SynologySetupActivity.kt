@@ -5,7 +5,6 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.preference.PreferenceManager
 import com.androsaver.databinding.ActivitySynologySetupBinding
 import com.androsaver.source.SynologySource
 import kotlinx.coroutines.CancellationException

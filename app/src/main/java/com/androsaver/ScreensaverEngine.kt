@@ -13,20 +13,11 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.ImageView
-import androidx.preference.PreferenceManager
 import com.androsaver.databinding.DreamLayoutBinding
-import com.androsaver.source.DefaultImagesSource
-import com.androsaver.source.DropboxSource
-import com.androsaver.source.GoogleDriveSource
 import com.androsaver.source.ImageItem
 import com.androsaver.source.ImageSource
 import com.androsaver.source.ImageSourceResult
 import com.androsaver.source.ImageSourceRegistry
-import com.androsaver.source.ImmichSource
-import com.androsaver.source.LocalStorageSource
-import com.androsaver.source.NextcloudSource
-import com.androsaver.source.OneDriveSource
-import com.androsaver.source.SynologySource
 import com.androsaver.visualizer.VisualizerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -782,25 +773,34 @@ class ScreensaverEngine(
         val requestSequence = ++transitionSequence
         clearImageTarget(incoming)
 
-        val glideUrl: Any = if (item.url.startsWith("content://") || item.url.startsWith("file://")) {
-            android.net.Uri.parse(item.url)
-        } else if (item.headers.isNotEmpty()) {
-            val b = LazyHeaders.Builder()
-            item.headers.forEach { (k, v) -> b.addHeader(k, v) }
-            item.insecureEndpoint?.let {
-                b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
+        val glideModel: Any = when {
+            item.url.startsWith("content://") -> android.net.Uri.parse(item.url)
+            item.url.startsWith("file://") -> {
+                val uri = android.net.Uri.parse(item.url)
+                // Cached files must use Glide's local File loader. Passing a file URI
+                // through the String/GlideUrl path invokes the HTTP-only OkHttp loader.
+                if (uri.path?.startsWith("/android_asset/") == true) uri
+                else uri.path?.let(::File) ?: uri
             }
-            GlideUrl(item.url, b.build())
-        } else {
-            val b = LazyHeaders.Builder()
-            item.insecureEndpoint?.let {
-                b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
+            item.headers.isNotEmpty() -> {
+                val b = LazyHeaders.Builder()
+                item.headers.forEach { (k, v) -> b.addHeader(k, v) }
+                item.insecureEndpoint?.let {
+                    b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
+                }
+                GlideUrl(item.url, b.build())
             }
-            GlideUrl(item.url, b.build())
+            else -> {
+                val b = LazyHeaders.Builder()
+                item.insecureEndpoint?.let {
+                    b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
+                }
+                GlideUrl(item.url, b.build())
+            }
         }
 
         val prefs = Prefs.get(context)
-        val request = Glide.with(context).load(glideUrl)
+        val request = Glide.with(context).load(glideModel)
             .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
 
         var glideFailureReported = false

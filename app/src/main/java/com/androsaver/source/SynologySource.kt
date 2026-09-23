@@ -1,9 +1,6 @@
 package com.androsaver.source
 
 import android.content.Context
-import android.util.Log
-import androidx.preference.PreferenceManager
-import com.androsaver.BuildConfig
 import com.androsaver.awaitResponse
 import com.androsaver.stringLimited
 import com.androsaver.HttpClients

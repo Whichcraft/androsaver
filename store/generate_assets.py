@@ -237,7 +237,7 @@ def make_tablet_screenshot_settings():
 
     y += draw_section_header(draw, W, y, "Slideshow")
     y += draw_row(draw, W, y, "Time per Image", "10 seconds")
-    y += draw_row(draw, W, y, "Transition Speed", "1.5 seconds")
+    y += draw_row(draw, W, y, "Transition Speed", "2 seconds")
     y += draw_row(draw, W, y, "Transition Effect", "Crossfade")
 
     img.save(os.path.join(OUT, "screenshot_tablet_settings.png"))

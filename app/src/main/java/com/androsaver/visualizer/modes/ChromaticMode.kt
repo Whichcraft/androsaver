@@ -7,7 +7,7 @@ import kotlin.math.*
 /**
  * Chromatic — prismatic raindrop ripples with RGB-separated outlines.
  *
- * Port of psysuals `effects/chromatic.py` (v3.13.0).
+ * Port of psysuals `effects/chromatic.py` (v3.18.0).
  */
 class ChromaticMode : BaseMode() {
 
@@ -15,7 +15,7 @@ class ChromaticMode : BaseMode() {
     private val rng = kotlin.random.Random(0xC4A0)
 
     private companion object {
-        const val MAX_RINGS = 14
+        const val MAX_RINGS = 5
         val PI_F = Math.PI.toFloat()
         val TAU = (2.0 * Math.PI).toFloat()
     }

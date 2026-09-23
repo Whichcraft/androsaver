@@ -13,10 +13,10 @@ import kotlin.math.*
  *
  *   Bass   → rotation speed burst
  *   Mid    → number of shapes / polygon complexity
- *   Treble → strobe flash
+ *   Treble → fourth-coordinate rotation + foremost-shape brightness
  *   Beat   → speed spike + hue jump
  *
- * Port of psysuals `effects/persistence.py` (v3.13.0 lineage).
+ * Port of psysuals `effects/persistence.py` (v3.18.0).
  * Upstream TRAIL_ALPHA=5 is retained as source documentation; GLDraw clamps
  * the effective Android fade to 48/255 to prevent grey residue.
 */
@@ -113,6 +113,7 @@ class PersistenceMode : BaseMode() {
     private val rotX = FloatArray(MAX_SHAPES) { rng.nextFloat() * TAU }
     private val rotY = FloatArray(MAX_SHAPES) { rng.nextFloat() * TAU }
     private val rotZ = FloatArray(MAX_SHAPES) { rng.nextFloat() * TAU }
+    private val rotW = FloatArray(MAX_SHAPES) { rng.nextFloat() * TAU }
 
     private val speedsX = FloatArray(MAX_SHAPES) { 0.008f * (1f + it * 0.12f) }
     private val speedsY = FloatArray(MAX_SHAPES) { 0.012f * (1f + it * 0.08f) }
@@ -134,6 +135,7 @@ class PersistenceMode : BaseMode() {
             rotX[i] = rng.nextFloat() * TAU
             rotY[i] = rng.nextFloat() * TAU
             rotZ[i] = rng.nextFloat() * TAU
+            rotW[i] = rng.nextFloat() * TAU
         }
     }
 
@@ -181,6 +183,7 @@ class PersistenceMode : BaseMode() {
             rotX[i] += speedsX[i] * spdMul
             rotY[i] += speedsY[i] * spdMul
             rotZ[i] += speedsZ[i] * spdMul
+            rotW[i] += (0.006f + high * 0.004f) * spdMul
 
             val ax = rotX[i]
             val ay = rotY[i]
@@ -202,9 +205,15 @@ class PersistenceMode : BaseMode() {
                 val szVal = uVert[2] * rLocal
 
                 rotate(sxVal, syVal, szVal, ax, ay, az, rotOut)
-                val rx = rotOut[0]
-                val ry = rotOut[1]
-                val rz = rotOut[2]
+                // Lightweight fourth-coordinate rotation adds an inside-out
+                // projection accent while retaining the existing 3-D solids.
+                val rw = rotW[i]
+                val w4 = rotOut[0] * sin(rw) + rotOut[2] * cos(rw)
+                val x4 = rotOut[0] * cos(rw) - rotOut[2] * sin(rw)
+                val depth4 = maxOf(0.35f, 2.8f - w4)
+                val rx = x4 / depth4
+                val ry = rotOut[1] / depth4
+                val rz = rotOut[2] / depth4
 
                 val camZ = 2.2f
                 var depth = camZ + rz

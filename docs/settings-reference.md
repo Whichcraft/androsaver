@@ -1,7 +1,8 @@
 # Settings Reference
 
-All SharedPreferences keys, their `Prefs.kt` constants, UI type, and defaults.
-Use `Prefs.<CONSTANT>` everywhere — never raw strings.
+All documented user-facing and internal persisted preference keys, their
+`Prefs.kt` constants, UI type, and defaults. Use `Prefs.<CONSTANT>` everywhere
+— never raw strings.
 
 ---
 
@@ -52,7 +53,7 @@ session IDs, and temporary bearer links are not used as the restart fallback.
 | `STATIC_BACKGROUND_MODE` | `static_background_mode` | ListPreference | `auto` |
 | `STATIC_BACKGROUND_COLOR` | `static_background_color` | Color picker fallback | `#000000` |
 
-Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoom_in`, `zoom_out`, `random`
+Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoom_in`, `zoom_out`, `random`. Dwell time is measured separately from the transition animation, so a 10-second image duration plus a 2-second transition occupies about 12 seconds of wall-clock time per slide.
 
 ---
 
@@ -64,6 +65,7 @@ Transition effects: `crossfade`, `fade_black`, `slide_left`, `slide_right`, `zoo
 | `VISUALIZER_INTENSITY` | `visualizer_intensity` | ListPreference | `0.5` | beat multiplier: Off=0×, Low=0.5×, Med=1×, High=1.5×, Max=2× |
 | `VIZ_CYCLE_INTERVAL` | `viz_cycle_interval` | ListPreference | `120000` (ms) | `0` = off; applies to both `auto` and `random` modes |
 | `VIZ_ENABLED_MODES` | `viz_enabled_modes` | MultiSelectListPreference | _(all)_ | Set of mode names included in the cycle; at least one must remain selected |
+| `VIZ_KNOWN_MODES` | `viz_known_modes` | Internal registry bookkeeping | — | Tracks mode names seen by the installed build; not shown in the UI |
 | `AUDIO_GENRE` | `audio_genre` | ListPreference | `any` | `auto` (detect from FFT spectrum every 30 s), `any`, `electronic`, `rock`, `classical` |
 
 ---
@@ -180,7 +182,33 @@ installations.
 
 ## App / Update
 
-`UPDATE_CHANNEL` / `update_channel` is set automatically by build flavor (`dev` builds → dev channel, `prod` builds → stable channel). It is **not a user-facing preference** — there is no UI for it. The Prefs constant still exists for internal use by `UpdateChecker`.
+The update channel is selected automatically by build flavor (`dev` builds → dev channel, `prod` builds → stable channel). It is **not a user-facing preference** — there is no `update_channel` preference or UI for it.
 Standard dev/prod APKs use the GitHub release updater. The Play Store variant
 does not expose the updater and removes `REQUEST_INSTALL_PACKAGES`; Play users
 receive updates through Google Play.
+
+## Preference and migration rules
+
+`Prefs.kt` is the single source of truth for keys. Sensitive provider values
+are encrypted; ordinary display and mode choices remain regular preferences.
+When encrypted storage is introduced or repaired, migration writes the
+encrypted copy before removing the old plaintext value. A missing or invalid
+credential is treated as “not configured” and does not enable a provider.
+
+The multi-select **Active Effects** preference is reconciled against the
+current registry when new effects are added. Unknown historical names are
+ignored, and the app keeps at least one selectable active effect. `auto`
+visualizer mode starts with and follows the enabled subset in registry order;
+`random` starts with and chooses from that same subset. The cycle interval
+applies to either cycling mode. `off` leaves the current effect in place after
+startup and disables automatic cycling; the remote can still change effects.
+
+## Schedule semantics
+
+Active hours use the device's local clock and hour boundaries. A range with a
+start earlier than the end is a same-day interval; a range that crosses
+midnight is treated as an overnight interval. If start and end are equal, the
+window is considered always active. Outside the interval the Dream Service
+exits or remains inactive, depending on the host's platform callback.
+Changing the setting affects the next schedule check; it does not alter
+Android's own screensaver timeout.

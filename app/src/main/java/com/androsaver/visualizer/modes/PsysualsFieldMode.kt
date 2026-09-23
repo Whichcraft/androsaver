@@ -10,8 +10,12 @@ internal fun psysualsViewportScale(draw: GLDraw): Float =
 
 /** Shared bounded scalar-field implementation for the psysuals field effects. */
 abstract class PsysualsFieldMode : BaseMode() {
-    protected val cols = 24
-    protected val rows = 16
+    // The upstream effects render a reduced-resolution surface and smoothscale
+    // it. A 64x36 native rectangle grid is still cheap enough for Android TVs,
+    // keep a denser simulation state and interpolate it into an adaptive GL
+    // grid instead.
+    protected val cols = 64
+    protected val rows = 36
     protected val values = FloatArray(cols * rows)
     protected var phase = 0f
     protected var hue = 0f

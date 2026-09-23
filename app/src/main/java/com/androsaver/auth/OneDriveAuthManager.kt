@@ -1,7 +1,6 @@
 package com.androsaver.auth
 
 import android.content.Context
-import androidx.preference.PreferenceManager
 import com.androsaver.HttpClients
 import com.androsaver.awaitResponse
 import com.androsaver.Prefs

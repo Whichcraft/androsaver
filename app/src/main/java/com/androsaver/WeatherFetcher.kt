@@ -9,7 +9,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 class WeatherFetcher(context: Context) {

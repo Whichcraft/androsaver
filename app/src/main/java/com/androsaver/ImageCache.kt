@@ -34,10 +34,6 @@ class ImageCache(private val context: Context) {
 
     data class Entry(val key: String?, val file: String, val source: String, val ts: Long, val size: Long)
 
-    suspend fun hasCache(): Boolean = withContext(Dispatchers.IO) {
-        mutex.withLock { reconcileManifest().isNotEmpty() }
-    }
-
     suspend fun getCachedItems(): List<ImageItem> = withContext(Dispatchers.IO) {
         mutex.withLock {
             reconcileManifest().mapNotNull { e ->

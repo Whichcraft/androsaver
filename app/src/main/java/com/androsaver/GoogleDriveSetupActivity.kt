@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.PreferenceManager
 import com.androsaver.databinding.ActivityGoogleDriveSetupBinding
 
 class GoogleDriveSetupActivity : AppCompatActivity() {

@@ -54,8 +54,8 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **File:** `com.androsaver.source.ImmichSource`
 - **API:** Immich REST API (`/api/assets` with optional album filter)
 - **Auth:** API key in `x-api-key` header (no OAuth)
-- **Setup:** Host + Port + HTTPS toggle + API key + optional Album ID → `ImmichSetupActivity`
-- **Prefs keys:** `Prefs.IMMICH_HOST`, `Prefs.IMMICH_PORT`, `Prefs.IMMICH_USE_HTTPS`, `Prefs.IMMICH_API_KEY`, `Prefs.IMMICH_ALBUM_ID`
+- **Setup:** Host + Port + HTTPS toggle + optional **Allow HTTP or invalid certificate** toggle + API key + optional Album ID → `ImmichSetupActivity`
+- **Prefs keys:** `Prefs.IMMICH_HOST`, `Prefs.IMMICH_PORT`, `Prefs.IMMICH_USE_HTTPS`, `Prefs.IMMICH_ALLOW_INSECURE`, `Prefs.IMMICH_API_KEY`, `Prefs.IMMICH_ALBUM_ID`
 - **Pagination Limit:** Maximum 2,000 files returned, 40 pages, or 20,000 entries scanned; response bodies are bounded.
 
 ## NextcloudSource
@@ -63,8 +63,8 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **File:** `com.androsaver.source.NextcloudSource`
 - **API:** WebDAV PROPFIND on configured folder path
 - **Auth:** Basic auth with app password. HTTPS and certificate/hostname validation are enabled by default; HTTP or self-signed certificates require the provider's explicit unsafe option.
-- **Setup:** Host + Port + HTTPS toggle + Username + App Password + Folder path → `NextcloudSetupActivity`
-- **Prefs keys:** `Prefs.NEXTCLOUD_HOST`, `Prefs.NEXTCLOUD_USERNAME`, `Prefs.NEXTCLOUD_PASSWORD`, `Prefs.NEXTCLOUD_FOLDER`
+- **Setup:** Host + Port + HTTPS toggle + optional **Allow HTTP or invalid certificate** toggle + Username + App Password + Folder path → `NextcloudSetupActivity`
+- **Prefs keys:** `Prefs.NEXTCLOUD_HOST`, `Prefs.NEXTCLOUD_PORT`, `Prefs.NEXTCLOUD_USE_HTTPS`, `Prefs.NEXTCLOUD_ALLOW_INSECURE`, `Prefs.NEXTCLOUD_USERNAME`, `Prefs.NEXTCLOUD_PASSWORD`, `Prefs.NEXTCLOUD_FOLDER`
 - **Safety:** WebDAV response URLs must resolve to the configured origin before credentials are attached; folder and username components are encoded as path segments. The response body is bounded to prevent oversized XML exhaustion.
 
 ## SynologySource
@@ -72,8 +72,8 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 - **File:** `com.androsaver.source.SynologySource`
 - **API:** Synology DSM FileStation REST API
 - **Auth:** Username/password POST → session SID; the SID is used only in memory for the active listing/download URLs
-- **Setup:** Host + Port + HTTPS + Username + Password + Folder → `SynologySetupActivity`; HTTP and invalid/self-signed HTTPS certificates are supported for self-hosted NAS endpoints
-- **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_USE_HTTPS`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
+- **Setup:** Host + Port + HTTPS toggle + optional **Allow HTTP or invalid certificate** toggle + Username + Password + Folder → `SynologySetupActivity`; HTTP and invalid/self-signed HTTPS certificates are supported only when explicitly enabled
+- **Prefs keys:** `Prefs.SYNOLOGY_HOST`, `Prefs.SYNOLOGY_PORT`, `Prefs.SYNOLOGY_USE_HTTPS`, `Prefs.SYNOLOGY_ALLOW_INSECURE`, `Prefs.SYNOLOGY_USERNAME`, `Prefs.SYNOLOGY_PASSWORD`, `Prefs.SYNOLOGY_FOLDER`
 - **Pagination Limit:** Maximum 2,000 files returned, 100 pages, or 20,000 entries scanned; response bodies are bounded.
 
 ## DefaultImagesSource
@@ -98,7 +98,7 @@ Sources are queried concurrently by `ScreensaverEngine`; results are merged and 
 ## ImageCache
 
 - **File:** `com.androsaver.ImageCache`
-- Stores downloaded images on-disk: ≤ 200 images / ≤ 150 MB
+- Stores downloaded images on-disk: ≤ 200 images / ≤ 150 MiB
 - Used automatically as fallback when all sources fail (network unavailable)
 - Preserves original image bytes, including embedded EXIF metadata
 - Serializes manifest updates and writes the manifest through a temporary file to avoid partial-cache corruption.

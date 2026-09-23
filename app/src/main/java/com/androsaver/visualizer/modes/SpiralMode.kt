@@ -46,11 +46,9 @@ class SpiralMode : BaseMode() {
         }
     }
 
-    /** Gentle Lissajous path offset for the spiral center. Mids increase wobble amplitude. */
-    private fun pathXY(t: Float, mid: Float = 0f): Pair<Float, Float> {
-        val s = 1f + mid * 0.50f
-        return sin(t * 0.18f) * 0.25f * s to cos(t * 0.13f) * 0.20f * s
-    }
+    /** Gentle Lissajous path offset for the spiral center. */
+    private fun pathXY(t: Float): Pair<Float, Float> =
+        sin(t * 0.18f) * 0.25f to cos(t * 0.13f) * 0.20f
 
     /** Perspective projection → (screenX, screenY, scale). */
     private fun proj(wx: Float, wy: Float, wz: Float, W: Int, H: Int): Triple<Float, Float, Float> {
@@ -66,15 +64,17 @@ class SpiralMode : BaseMode() {
         val W    = draw.W
         val H    = draw.H
 
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
+        val fft = audio.fft
+        var bass = 0f
+        val bassBins = minOf(6, fft.size)
+        for (i in 0 until bassBins) bass += fft[i]
+        if (bassBins > 0) bass /= bassBins
 
         hue = (hue + 0.007f + beat * 0.04f) % 1f
-        val dt   = 0.038f + bass * 0.10f + mid * 0.08f + high * 0.04f
+        val dt   = 0.038f + bass * 0.10f + beat * 0.18f
         time += dt
 
-        svel += bass * 0.48f
+        svel += beat * 0.48f
         svel += (1f - scale) * 0.25f
         svel *= 0.81f
         scale = maxOf(0.4f, scale + svel)
@@ -97,16 +97,13 @@ class SpiralMode : BaseMode() {
         data class ProjPoint(val sx: Float, val sy: Float, val h: Float,
                              val bright: Float, val sc: Float, val nearT: Float)
 
-        // Treble dynamically twists the spiral arms
-        val spinVal = SPIN * (1f + high * 0.40f)
-
         val armSegs: List<List<ProjPoint>> = byArm.mapIndexed { armIdx, armPts ->
             armPts.map { p ->
                 val nearT = maxOf(0f, 1f - p.z / Z_FAR)
-                // Helix radius reacts to mids and treble
-                val rMod = mid * 0.70f + high * 0.40f
-                val angle = p.pt * spinVal + armIdx.toFloat() / N_ARMS * TAU
-                val (pcx, pcy) = pathXY(p.pt, mid = mid)
+                val band = minOf((nearT * fft.size * 0.55f).toInt(), fft.size - 1)
+                val rMod = if (fft.isNotEmpty()) fft[band] * 1.5f else 0f
+                val angle = p.pt * SPIN + armIdx.toFloat() / N_ARMS * TAU
+                val (pcx, pcy) = pathXY(p.pt)
                 val r = (RADIUS + rMod) * scale
                 val wx = pcx + r * cos(angle)
                 val wy = pcy + r * sin(angle)
@@ -135,21 +132,21 @@ class SpiralMode : BaseMode() {
             for (segs in armSegs) {
                 for (pp in segs) {
                     val (rx, ry) = rot(pp.sx, pp.sy)
-                    val rDot = maxOf(1f, minOf(pp.sc * (0.028f + high * 0.015f), 12f))
+                    val rDot = maxOf(1f, minOf(pp.sc * 0.028f, 9f))
 
                     // Halo pass (large, low alpha)
-                    val cHalo = GLDraw.hsl(pp.h, 1f, pp.bright * 0.20f + mid * 0.08f)
+                    val cHalo = GLDraw.hsl(pp.h, 1f, pp.bright * 0.20f)
                     draw.circle(rx, ry, rDot * 3f + 1f,
                         cHalo[0], cHalo[1], cHalo[2], cHalo[3], filled = true)
 
                     // Core pass (small, full brightness)
-                    val cCore = GLDraw.hsl(pp.h, 1f, minOf(pp.bright * 0.90f + 0.08f + high * 0.05f, 0.95f))
+                    val cCore = GLDraw.hsl(pp.h, 1f, minOf(pp.bright * 0.90f + 0.08f, 0.95f))
                     draw.circle(rx, ry, rDot,
                         cCore[0], cCore[1], cCore[2], cCore[3], filled = true)
 
-                    // Beat/treble flash for nearby particles
-                    if (pp.nearT > 0.80f && (bass > 0.35f || high > 0.45f)) {
-                        val fr = maxOf(3f, rDot * (2.2f + bass * 0.9f + high * 1.2f))
+                    // Beat flash for nearby particles
+                    if (pp.nearT > 0.80f && beat > 0.35f) {
+                        val fr = maxOf(3f, rDot * (2.2f + beat * 0.9f))
                         val cFlash = GLDraw.hsl(pp.h, 1f, 0.96f)
                         draw.circle(rx, ry, fr,
                             cFlash[0], cFlash[1], cFlash[2], cFlash[3], filled = true)
@@ -165,7 +162,7 @@ class SpiralMode : BaseMode() {
                     if (j < aSegs.size) {
                         val pp = aSegs[j]
                         val (rx, ry) = rot(pp.sx, pp.sy)
-                        val rDot = maxOf(1f, minOf(pp.sc * (0.022f + high * 0.012f), 10f))
+                        val rDot = maxOf(1f, minOf(pp.sc * 0.022f, 7f))
 
                         val cHalo = GLDraw.hsl(pp.h, 1f, pp.bright * 0.35f)
                         draw.circle(rx, ry, rDot * 3f,

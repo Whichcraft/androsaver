@@ -4,9 +4,7 @@ import android.service.dreams.DreamService
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.WindowManager
-import androidx.preference.PreferenceManager
 import com.androsaver.databinding.DreamLayoutBinding
-import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

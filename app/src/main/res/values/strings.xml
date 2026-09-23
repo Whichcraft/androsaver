@@ -5,7 +5,6 @@
 
     <!-- Screensaver status -->
     <string name="loading_images">Loading images…</string>
-    <string name="no_sources_configured">No image sources configured.\nOpen the Settings app to configure AndroSaver.</string>
     <string name="no_images_found">No images found in configured sources.</string>
 
     <!-- Activity titles -->
@@ -112,7 +111,6 @@
 
     <!-- Connection test -->
     <string name="testing_connection">Testing connection…</string>
-    <string name="connection_success">Connected! Found %d images.</string>
     <string name="connection_success_no_images">Connected, but no images found in the specified folder.</string>
     <string name="connection_failed">Connection failed: %s</string>
 
@@ -134,8 +132,6 @@
     <string name="image_browser_saving">Saving %s…</string>
     <string name="image_browser_download_failed">The image could not be downloaded.</string>
     <string name="image_browser_selected">Static image selected.</string>
-    <string name="invalid_background_color">Use a color such as #000000 or #AARRGGBB.</string>
-
     <!-- Permissions -->
     <string name="audio_permission_denied">Microphone permission denied — the visualizer will run silently without audio reactivity</string>
     <string name="invalid_port">Port must be a number between 1 and 65535</string>
@@ -154,9 +150,6 @@
     <string name="update_available">Update available: v%s — press to install</string>
     <string name="update_checking">Checking for updates…</string>
     <string name="update_downloading">Downloading update…</string>
-    <string name="up_to_date">Up to date</string>
-    <string name="update_channel_label">Update Channel</string>
-    <string name="update_channel_auto">%s (automatic)</string>
     <string name="update_failed">Update failed — press to check again</string>
     <string name="update_failed_toast">Failed to download update</string>
 </resources>
