@@ -94,13 +94,13 @@ Designed for listening sessions: start playing music in any app, let the screen 
 
 The easiest way to install on an Amazon Fire TV or Android TV device is via the [Downloader app](https://www.aftvnews.com/downloader/):
 
-| Release | Download | Notes |
-|---------|----------|-------|
-| Stable  | [Download APK](https://github.com/Whichcraft/androsaver/releases/download/stable/androsaver.apk) | No debug logging |
-| Dev     | [Download APK](https://github.com/Whichcraft/androsaver/releases/download/dev-channel/androsaver.apk) | Debug logging enabled |
+| Release | Downloader code | Short URL | Notes |
+|---------|----------------|-----------|-------|
+| Stable  | `7582483` | [aftv.news/7582483](https://aftv.news/7582483) | No debug logging |
+| Dev     | `8561102` | [aftv.news/8561102](https://aftv.news/8561102) | Debug logging enabled |
 
 1. Install **Downloader** from the Amazon Appstore or Google Play.
-2. Open Downloader and enter the direct APK URL above for the version you want.
+2. Open Downloader and enter the code (or short URL) for the version you want.
 3. Follow the on-screen prompts to install the APK.
 
 ## Requirements
