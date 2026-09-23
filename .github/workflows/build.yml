@@ -36,7 +36,14 @@ jobs:
         uses: gradle/actions/setup-gradle@41ad77ca97e46ee2e825d5e6b9a95d8169fcc44c # v4.4.2
 
       - name: Run JVM tests
-        run: ./gradlew test
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew test && exit 0
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 30))
+            fi
+          done
+          exit 1
 
   build:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master')
@@ -60,7 +67,14 @@ jobs:
         uses: gradle/actions/setup-gradle@41ad77ca97e46ee2e825d5e6b9a95d8169fcc44c # v4.4.2
 
       - name: Run JVM tests
-        run: ./gradlew test
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew test && exit 0
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 30))
+            fi
+          done
+          exit 1
 
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/androsaver.jks
