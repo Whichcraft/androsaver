@@ -96,7 +96,7 @@ class CubeMode : BaseMode() {
         rx += rvx; ry += rvy; rz += rvz
 
         svel += beat * 0.32f
-        svel += (1f - scale) * 0.18f * motion
+        svel += (1f - scale) * 0.18f
         svel *= 0.68f
         scale = (scale + svel).coerceIn(0.5f, 1.25f)
 
