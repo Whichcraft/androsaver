@@ -11,7 +11,8 @@ from .base import Effect
 
 class Mandelbox(Effect):
     TRAIL_ALPHA = 42
-    RES_DIV = 5
+    # Stay within the same resolution bucket on small and large displays.
+    RES_DIV = 3
     MAX_ITERATIONS = 18
     MAX_FIELD = 1.0
 

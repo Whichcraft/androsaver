@@ -11,7 +11,8 @@ from .base import Effect
 
 class Ferrofluid(Effect):
     TRAIL_ALPHA = 40
-    RES_DIV = 4
+    # Avoid a coarser TV-only field caused by the display-aware divisor.
+    RES_DIV = 2
     MAX_POLES = 5
     MAX_CONTOURS = 6
     MAX_FIELD = 8.0

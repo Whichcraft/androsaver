@@ -131,17 +131,27 @@ class AudioEngine:
             self._detect_accum[:] = 0
             self._detect_frames = 0
 
+        # Classify spectral shape, not absolute loudness.  Slow/quiet tracks
+        # otherwise look like silence or get classified from tiny numerical
+        # differences in the raw FFT magnitudes.
         sub_bass = self._band_mean(avg, 0.0, 0.02)
-        bass = self._band_mean(avg, 0.0, 0.06)
-        mids = self._band_mean(avg, 0.06, 0.40)
-        sub_ratio = sub_bass / (bass + 1e-6)
-        bass_ratio = bass / (bass + mids + 1e-6)
+        bass = self._band_mean(avg, 0.02, 0.08)
+        mids = self._band_mean(avg, 0.08, 0.40)
+        highs = self._band_mean(avg, 0.40, 0.90)
+        total = sub_bass + bass + mids + highs + 1e-6
+        sub_share = sub_bass / total
+        bass_share = bass / total
+        high_share = highs / total
 
-        if sub_ratio > 0.55 and bass_ratio > 0.50:
+        band_values = np.array([sub_bass, bass, mids, highs], dtype=np.float32)
+        if float(band_values.max()) <= float(band_values.min()) * 1.2 + 1e-6:
+            return "any"
+
+        if sub_share > 0.16 and bass_share > 0.18 and high_share > 0.12:
             return "electronic"
-        if bass_ratio > 0.50 and sub_ratio < 0.45:
+        if bass_share > 0.22 and sub_share < 0.16:
             return "rock"
-        if bass_ratio < 0.35:
+        if high_share > 0.30 and bass_share < 0.22:
             return "classical"
         return "any"
 

@@ -3,7 +3,8 @@ import math
 import numpy as np
 import pygame
 
-from .utils import hsl
+import config
+from .utils import hsl, _hsl_batch
 
 
 from .base import Effect
@@ -40,16 +41,15 @@ class Spiral(Effect):
     def _path(self, t):
         return (math.sin(t * 0.18) * 0.25, math.cos(t * 0.13) * 0.20)
 
-    def _proj(self, wx, wy, wz, W, H):
-        fov = min(W, H) * 0.72
+    def _proj(self, wx, wy, wz):
+        fov = min(config.WIDTH, config.HEIGHT) * 0.72
         z   = max(wz, 0.01)
-        return (int(wx * fov / z + W // 2),
-                int(wy * fov / z + H // 2),
+        return (int(wx * fov / z + config.WIDTH  // 2),
+                int(wy * fov / z + config.HEIGHT // 2),
                 fov / z)
 
     def draw(self, surf, waveform, fft, beat, tick):
         self.hue  += 0.007 + beat * 0.04
-        W, H = surf.get_size()
         bass       = float(np.mean(fft[:6]))
         dt         = 0.038 + bass * 0.10 + beat * 0.18
         self.time += dt
@@ -69,7 +69,7 @@ class Spiral(Effect):
         for p in self.pts:
             by_arm[p["arm"]].append(p)
 
-        cx0, cy0 = W // 2, H // 2
+        cx0, cy0 = config.WIDTH // 2, config.HEIGHT // 2
 
         arm_segs = []
         for arm_idx, arm_pts in enumerate(by_arm):
@@ -84,7 +84,7 @@ class Spiral(Effect):
                 r      = (self.RADIUS + r_mod) * self.scale
                 wx     = pcx + r * math.cos(angle)
                 wy     = pcy + r * math.sin(angle)
-                sx, sy, sc = self._proj(wx, wy, p["z"], W, H)
+                sx, sy, sc = self._proj(wx, wy, p["z"])
                 h      = (self.hue + arm_idx / self.N_ARMS * 0.5 + near_t * 1.3) % 1.0
                 bright = near_t ** 1.15
                 segs.append((sx, sy, h, bright, sc, near_t))
