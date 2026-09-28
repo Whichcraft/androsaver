@@ -2,6 +2,7 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.fftMean
 import kotlin.math.*
 
 /**
@@ -90,8 +91,8 @@ class AuroraMode : BaseMode() {
         }
 
         val beat   = audio.beat
-        val bass   = beat
-        val mid    = audio.mid
+        val bass   = audio.fftMean(0, 6)
+        val mid    = audio.fftMean(6, 30)
         val treble = audio.treble
 
         hue = (hue + 0.003f + mid * 0.002f) % 1f

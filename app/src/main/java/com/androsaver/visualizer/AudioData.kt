@@ -15,3 +15,13 @@ data class AudioData(
     /** Effect-gain multiplier applied to beat before this snapshot was created (default 1.0). */
     var gain: Float = 1f
 )
+
+/** Allocation-free mean of a half-open FFT range for render-thread consumers. */
+fun AudioData.fftMean(start: Int, end: Int): Float {
+    val first = start.coerceIn(0, fft.size)
+    val last = end.coerceIn(first, fft.size)
+    if (last == first) return 0f
+    var sum = 0f
+    for (i in first until last) sum += fft[i]
+    return sum / (last - first)
+}

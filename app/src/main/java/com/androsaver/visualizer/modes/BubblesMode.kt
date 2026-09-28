@@ -2,6 +2,7 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.fftMean
 import kotlin.math.*
 
 /** Translucent neon bubbles rising with physics; beat spawns more and makes them swell. */
@@ -11,7 +12,6 @@ class BubblesMode : BaseMode() {
 
     private companion object {
         const val MAX = 700
-        const val MAX_RENDER_DIAMETER = 512f
         const val TAU = (Math.PI * 2).toFloat()
     }
 
@@ -70,9 +70,8 @@ class BubblesMode : BaseMode() {
         init(W, H)
 
         val beat = audio.beat
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
+        val bass = audio.fftMean(0, 6)
+        val mid  = audio.fftMean(6, 30)
         hue += 0.005f
 
         // beatSel: capped at 1 for count/size selectors so intensity doesn't blow up counts
@@ -85,11 +84,11 @@ class BubblesMode : BaseMode() {
         pulse += pvel
 
         // Spawn on beat/bass and treble transients
-        val spawnCount = (2 + beatSel * 12 + bass * 6 + high * 8).toInt()
+        val spawnCount = (2 + beatSel * 12 + bass * 6).toInt()
         repeat(spawnCount) {
             if (pool.size < MAX) {
                 val b = makeBubble(W, H)
-                b.vy  *= (1f + beatSel * 0.8f + mid * 0.6f)
+                b.vy  *= (1f + beatSel * 0.8f)
                 b.r   *= (1f + bass * 1.2f)
                 b.hue  = (hue + Math.random().toFloat() * (0.35f + beatSel * 0.30f)) % 1f
                 pool.add(b)
@@ -103,7 +102,7 @@ class BubblesMode : BaseMode() {
                 if (pool.size < MAX) {
                     val b = makeBubble(W, H)
                     b.r  *= (2.2f + bass * 2.0f)
-                    b.vy *= (1.4f + mid * 0.5f)
+                    b.vy *= 1.4f
                     b.hue = (hue + Math.random().toFloat() * 0.5f) % 1f
                     pool.add(b)
                 }
@@ -118,17 +117,13 @@ class BubblesMode : BaseMode() {
         alive.clear()
         for (b in pool) {
             // Treble adds horizontal high-frequency wobble/jitter to bubble paths
-            b.x  += b.vx + sin(tick * b.wobble + b.phase) * 0.9f * (1f + high * 2.5f)
-            // Mids accelerate bubble rising speed
-            b.y  += b.vy * (1f + mid * 0.8f)
+            b.x  += b.vx + sin(tick * b.wobble + b.phase) * 0.9f
+            b.y  += b.vy
             b.hue = (b.hue + 0.004f) % 1f
             if (b.y + b.r < 0) continue
 
             val life  = (b.y / H).coerceIn(0f, 1f)
-            val r     = minOf(
-                MAX_RENDER_DIAMETER * 0.5f - 14f,
-                maxOf(2f, b.r * (1f + pulse * 0.90f + mid * 0.35f + high * 0.20f + bassFlash * 0.45f))
-            )
+            val r     = maxOf(2f, b.r * (1f + pulse * 0.90f + mid * 0.15f + bassFlash * 0.45f))
             val alpha = life * 0.63f  // matches pygame's 160/255
 
             // Multi-layer halos (outermost first)
@@ -157,14 +152,6 @@ class BubblesMode : BaseMode() {
             val hr = maxOf(1f, r / 3f)
             draw.circle(b.x - r / 3f, b.y - r / 3f, hr, 1f, 1f, 1f, alpha * 0.55f,
                         filled = true, segments = 12)
-
-            // Beat flash
-            if (beat > 0.5f) {
-                val fr = maxOf(1f, r * 1.4f)
-                val fc = GLDraw.hsl((b.hue + 0.25f) % 1f, l = 0.88f)
-                draw.circle(b.x, b.y, fr, fc[0], fc[1], fc[2], alpha * beat * 0.4f,
-                            filled = false, segments = 20)
-            }
 
             // Extra neon rings at higher intensity (beat > 1 only when beatGain > 1)
             if (beat > 1.0f) {

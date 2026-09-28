@@ -1,7 +1,7 @@
 # psysuals → AndroSaver Port Notes
 
-The repository vendors upstream psysuals v3.18.0 as a Git subtree under
-`psysuals/` (upstream commit `a543912`). The subtree is the reference source;
+The repository vendors upstream psysuals v3.19.0 as a Git subtree under
+`psysuals/` (upstream commit `99f47da`). The subtree is the reference source;
 the Android implementation remains a Kotlin/OpenGL ES 2.0 port. Keep the
 subtree update and the Android backport in the same change so the two sources
 remain auditable.
@@ -73,13 +73,32 @@ Desktop-only v3.18 changes—PortAudio implicit-device removal, signal watchdogs
 opt-in multi-monitor span startup, Python ModernGL shader cleanup, and quality
 governor bookkeeping—are intentionally not copied into the Android runtime.
 
+### v3.19 import and Android backport
+
+The v3.19 subtree restores stable effect tuning and changes genre
+classification to compare normalized spectral shares across sub-bass, bass,
+mids, and highs. Android applies the same four-band classifier and uses the
+upstream FFT-derived low/mid inputs in Aurora, Bubbles, Cube, and Lattice.
+The Android audio API has no desktop silence-state machine, so the upstream
+quiet-track silence-gate changes remain desktop-only.
+
+Tunnel now subtracts the current path position from ring and triangle geometry
+so the camera remains centered; this is ported directly. Aurora's polygon
+surface composition, Bubbles' cached pygame surfaces, and Cube's persistent
+satellite surface remain replaced by the existing GLES quad/circle, ring-buffer,
+and additive-pass implementations. Lattice keeps Android's adaptive grid and
+center-out mapping for TV vertex quality; its v3.19 audio response tuning is
+ported.
+
 ---
 
 ## Per-effect standing adaptations
 
 ### TunnelMode
-Port directly from psysuals `effects/tunnel.py`.  No special delta needed —
-match parameters exactly (TUBE_R, dt formula, spawn rate, triangle size).
+Port directly from psysuals `effects/tunnel.py`, including the v3.19
+path-relative camera offset.  Android keeps its existing bounded triangle
+list and GLES drawing path while matching parameters (TUBE_R, dt formula,
+spawn rate, triangle size).
 The v1.4.3 enhancements (bass-expanded tube, higher reactivity) were reverted
 upstream in v2.0.0; always track the canonical psysuals version.
 

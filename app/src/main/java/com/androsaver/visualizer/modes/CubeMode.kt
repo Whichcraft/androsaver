@@ -2,6 +2,7 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.fftMean
 import kotlin.math.*
 
 /**
@@ -73,28 +74,28 @@ class CubeMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val beat = audio.beat
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
-        val motion = displayMotionScale(draw)
-        val bassM = bass * motion
-        val midM = mid * motion
-        val highM = high * motion
+        val bass = audio.fftMean(0, 5).coerceAtMost(1f)
+        val mid  = audio.fftMean(5, 25).coerceAtMost(1f)
+        val high = audio.fftMean(25, audio.fft.size).coerceAtMost(1f)
+        // Keep Android-only satellite/jitter tuning on the same scalar inputs.
+        val bassM = beat
+        val midM = mid
+        val highM = high
         val fov  = 680f
 
         fadeHue = (fadeHue + 0.0018f) % 1f
 
         // Base idle terms from v1.4.x (calm on TV at default intensity);
         // audio-reactive multipliers updated for multi-band reactivity (v3.4.0).
-        rvx += 0.00025f + midM * 0.025f + bassM * 0.08f
-        rvy += 0.00035f + bassM * 0.12f
-        rvz += 0.00018f + highM * 0.035f + bassM * 0.04f
+        rvx += 0.00025f + mid * 0.012f + beat * 0.10f
+        rvy += 0.00035f + bass * 0.015f + beat * 0.12f
+        rvz += 0.00018f + high * 0.008f + beat * 0.05f
         rvx *= 0.94f; rvx = rvx.coerceIn(-0.08f, 0.08f)
         rvy *= 0.94f; rvy = rvy.coerceIn(-0.08f, 0.08f)
         rvz *= 0.94f; rvz = rvz.coerceIn(-0.05f, 0.05f)
         rx += rvx; ry += rvy; rz += rvz
 
-        svel += bassM * 0.32f
+        svel += beat * 0.32f
         svel += (1f - scale) * 0.18f * motion
         svel *= 0.68f
         scale = (scale + svel).coerceIn(0.5f, 1.25f)

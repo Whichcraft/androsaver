@@ -19,9 +19,10 @@ class AudioEngine {
         private const val TAG = "VisualizerAudio"
         const val FFT_BINS = 512
         private const val DETECT_MIN_FRAMES = 300   // ~20 s at max capture rate
-        private const val DETECT_SUB_BINS   = 5     // bins 0-4  (~0-215 Hz at 44100/1024)
-        private const val DETECT_BASS_BINS  = 15    // bins 0-14 (~0-645 Hz)
-        private const val DETECT_MID_BINS   = 100   // bins 15-99 (~645-4300 Hz)
+        private const val DETECT_SUB_END    = 10    // ~0-430 Hz
+        private const val DETECT_BASS_END   = 41    // ~430-1760 Hz
+        private const val DETECT_MIDS_END   = 205   // ~1760-8800 Hz
+        private const val DETECT_HIGHS_END  = 461   // ~8800-19800 Hz
     }
 
     private var visualizer: Visualizer? = null
@@ -135,32 +136,31 @@ class AudioEngine {
         synchronized(this) {
             if (detectFrames < DETECT_MIN_FRAMES) return null
 
-            var subSum = 0f
-            for (i in 0 until DETECT_SUB_BINS) subSum += detectAccum[i]
-            val subBass = subSum / DETECT_SUB_BINS
-
-            var bassSum = 0f
-            for (i in 0 until DETECT_BASS_BINS) bassSum += detectAccum[i]
-            val bass = bassSum / DETECT_BASS_BINS
-
-            var midSum = 0f
-            for (i in DETECT_BASS_BINS until DETECT_BASS_BINS + DETECT_MID_BINS) midSum += detectAccum[i]
-            val mids = midSum / DETECT_MID_BINS
-
-            // Normalise by frame count
-            val normSub  = subBass / detectFrames
-            val normBass = bass    / detectFrames
-            val normMids = mids    / detectFrames
-
-            val subRatio  = normSub  / (normBass + 0.001f)
-            val bassRatio = normBass / (normBass + normMids + 0.001f)
+            fun bandMean(start: Int, end: Int): Float {
+                val limit = minOf(end, detectAccum.size)
+                if (limit <= start) return 0f
+                var sum = 0f
+                for (i in start until limit) sum += detectAccum[i]
+                return sum / (limit - start) / detectFrames
+            }
+            val subBass = bandMean(0, DETECT_SUB_END)
+            val bass = bandMean(DETECT_SUB_END, DETECT_BASS_END)
+            val mids = bandMean(DETECT_BASS_END, DETECT_MIDS_END)
+            val highs = bandMean(DETECT_MIDS_END, DETECT_HIGHS_END)
+            val total = subBass + bass + mids + highs + 1e-6f
+            val subShare = subBass / total
+            val bassShare = bass / total
+            val highShare = highs / total
+            val minBand = minOf(subBass, bass, mids, highs)
+            val maxBand = maxOf(subBass, bass, mids, highs)
 
             resetDetection()
 
+            if (maxBand <= minBand * 1.2f + 1e-6f) return "any"
             return when {
-                subRatio  > 0.55f && bassRatio > 0.50f -> "electronic"
-                bassRatio > 0.50f && subRatio  < 0.45f -> "rock"
-                bassRatio < 0.35f                       -> "classical"
+                subShare > 0.16f && bassShare > 0.18f && highShare > 0.12f -> "electronic"
+                bassShare > 0.22f && subShare < 0.16f -> "rock"
+                highShare > 0.30f && bassShare < 0.22f -> "classical"
                 else                                    -> "any"
             }
         }

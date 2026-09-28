@@ -4,7 +4,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 
 ## What's New in v2.10.0
 
-**Static-image controls and psysuals v3.18 integration:**
+**Static-image controls and psysuals v3.19 integration:**
 
 - **Mycelium** — Reworked from a single central burst into a multi-colony bioluminescent hyphae network with rotating satellite rings and swirling orbital spore particles.
 - **Persistence** — Shifted nested rotating polygons into a true 3D perspective projection space with depth-based thickness, brightness shading (depth cueing), and non-coplanar axis rotation.
@@ -16,7 +16,7 @@ An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and
 - **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
 - **Static image mode** — choose a local or configured-source image, with independent portrait and landscape behavior settings.
 - **Adaptive unused-space background** — fitted and centered images can use an automatically derived subdued color gradient, with a manual RGB color picker fallback.
-- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.18.0 while Android-applicable fixes are backported to Kotlin. The Android port follows the upstream Chromatic ring cap, Spiral FFT/beat response, and Persistence fourth-coordinate rotation; desktop-only Python adapters remain in the subtree.
+- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.19.0 while Android-applicable fixes are backported to Kotlin. The Android port follows the upstream FFT-driven effect response, Tunnel camera tracking, Chromatic ring cap, Spiral FFT/beat response, and Persistence fourth-coordinate rotation; desktop-only Python adapters remain in the subtree.
 
 ## What's New in v2.2
 

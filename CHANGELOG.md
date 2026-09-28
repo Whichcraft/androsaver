@@ -2,6 +2,14 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-09-28 — psysuals v3.19 subtree sync and Android parity
+
+- Updated the `psysuals/` subtree to upstream v3.19.0 (`99f47da`).
+- Backported the revised four-band genre classifier and FFT-derived Aurora,
+  Bubbles, Cube, and Lattice response tuning.
+- Ported Tunnel's path-relative camera tracking while retaining the existing
+  GLES ring-buffer and adaptive-field adaptations documented in the port notes.
+
 ## 2026-09-23 — v2.10.0: Android TV quality and documentation cleanup
 
 - Reset the generated app version to the 2.10 minor line; patch versions

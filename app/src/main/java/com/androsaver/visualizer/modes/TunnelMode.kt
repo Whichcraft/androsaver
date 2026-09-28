@@ -83,6 +83,11 @@ class TunnelMode : BaseMode() {
         val dt = 0.018f + bassM * 0.09f + midM * 0.04f + highM * 0.03f
         time += dt
 
+        // Keep the viewer centered while the tunnel path continues to curve.
+        path(time + Z_NEAR, highM)
+        val cameraCx = pathScratch[0]
+        val cameraCy = pathScratch[1]
+
         // ── Spawn triangles ───────────────────────────────────────────────────
         val spawnN = (bassM * 1.2f + if (midM > 0.5f) midM * 1.5f else 0f).toInt()
         repeat(spawnN) {
@@ -118,11 +123,11 @@ class TunnelMode : BaseMode() {
         for (i in 0 until ordered.size - 1) {
             val r1 = ordered[i]; val r2 = ordered[i + 1]
             path(r1.pt, highM)
-            val cx1 = pathScratch[0]; val cy1 = pathScratch[1]
+            val cx1 = pathScratch[0] - cameraCx; val cy1 = pathScratch[1] - cameraCy
             proj(cx1, cy1, r1.z, draw.W, draw.H)
             val sx1 = projScratch[0]; val sy1 = projScratch[1]; val sc1 = projScratch[2]
             path(r2.pt, highM)
-            val cx2 = pathScratch[0]; val cy2 = pathScratch[1]
+            val cx2 = pathScratch[0] - cameraCx; val cy2 = pathScratch[1] - cameraCy
             proj(cx2, cy2, r2.z, draw.W, draw.H)
             val sx2 = projScratch[0]; val sy2 = projScratch[1]; val sc2 = projScratch[2]
 
@@ -173,7 +178,7 @@ class TunnelMode : BaseMode() {
             tri.rot += tri.rvel * (1f + midM * 1.5f)
             if (tri.z < Z_NEAR) continue
             path(tri.pt, highM)
-            val tcx = pathScratch[0]; val tcy = pathScratch[1]
+            val tcx = pathScratch[0] - cameraCx; val tcy = pathScratch[1] - cameraCy
             proj(tcx, tcy, tri.z, draw.W, draw.H)
             val tsx = projScratch[0]; val tsy = projScratch[1]; val tsc = projScratch[2]
             val nearT  = maxOf(0f, 1f - tri.z / Z_FAR)
