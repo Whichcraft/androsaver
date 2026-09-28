@@ -70,6 +70,12 @@ class Tunnel(Effect):
         dt         = 0.018 + bass_m * 0.09 + mid_m * 0.04 + high_m * 0.03
         self.time += dt
 
+        # Follow the tube's current path position so the viewer remains at
+        # the center of the tunnel while the distant rings still curve away.
+        camera_cx, camera_cy = self._path(
+            self.time + self.Z_NEAR, treble=high_m
+        )
+
         # Spawn only in the far third of the tube and cap the live count so the
         # mid-range doesn't fill up with spinning triangles.
         spawn_n = int(bass_m * 1.2 + (mid_m * 1.5 if mid_m > 0.5 else 0))
@@ -97,6 +103,10 @@ class Tunnel(Effect):
 
             cx1, cy1 = self._path(r1["pt"], treble=high_m)
             cx2, cy2 = self._path(r2["pt"], treble=high_m)
+            cx1 -= camera_cx
+            cy1 -= camera_cy
+            cx2 -= camera_cx
+            cy2 -= camera_cy
 
             sx1, sy1, sc1 = self._proj(cx1, cy1, r1["z"], W, H)
             sx2, sy2, sc2 = self._proj(cx2, cy2, r2["z"], W, H)
@@ -142,6 +152,8 @@ class Tunnel(Effect):
             if self._tz[i] < self.Z_NEAR:
                 continue
             tcx, tcy   = self._path(self._tpt[i], treble=high_m)
+            tcx -= camera_cx
+            tcy -= camera_cy
             sx, sy, sc = self._proj(tcx, tcy, self._tz[i], W, H)
             near_t     = max(0.0, 1.0 - self._tz[i] / self.Z_FAR)
             tr         = max(3, int(self._tsize[i] * sc))

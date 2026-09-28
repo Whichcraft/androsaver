@@ -24,7 +24,7 @@ Controls:
 
 from __future__ import annotations
 
-__version__ = "3.18.0"
+__version__ = "3.19.0"
 
 import argparse
 import atexit
@@ -629,7 +629,8 @@ class VisualizerApp:
             phase = (self.tick / max(1.0, config.FPS) * 0.25) % 1.0
         config.BEAT_PHASE = float(phase if np.isfinite(phase) else 0.0)
 
-    def _update_silence_state(self, rms, fft_mean, audio_time, generation):
+    def _update_silence_state(self, rms, fft_mean, audio_time, generation,
+                              music_activity=0.0):
         """Update the silence gate once per newly published audio block."""
         if generation == self._silence_last_generation:
             return
@@ -658,7 +659,17 @@ class VisualizerApp:
             return
 
         if self.is_silent:
-            loud_now = rms >= config.SILENCE_RMS_EXIT or fft_mean >= config.SILENCE_FFT_EXIT
+            # A quiet, sustained track can sit below the absolute loudness
+            # thresholds while still having meaningful spectral energy.
+            structured_now = (
+                fft_mean >= config.SILENCE_FFT_ENTER * 0.5
+                and music_activity >= 1.15
+            )
+            loud_now = (
+                rms >= config.SILENCE_RMS_EXIT
+                or fft_mean >= config.SILENCE_FFT_EXIT
+                or structured_now
+            )
             if loud_now:
                 self._silence_loud_blocks += 1
                 self._silence_quiet_seconds = 0.0
@@ -669,7 +680,15 @@ class VisualizerApp:
                 self._silence_loud_blocks = 0
             return
 
-        quiet_now = rms < config.SILENCE_RMS_ENTER and fft_mean < config.SILENCE_FFT_ENTER
+        structured_now = (
+            fft_mean >= config.SILENCE_FFT_ENTER * 0.5
+            and music_activity >= 1.15
+        )
+        quiet_now = (
+            rms < config.SILENCE_RMS_ENTER
+            and fft_mean < config.SILENCE_FFT_ENTER
+            and not structured_now
+        )
         if quiet_now:
             self._silence_quiet_seconds += elapsed
             if self._silence_quiet_seconds >= config.SILENCE_ENTER_SECONDS:
@@ -694,7 +713,13 @@ class VisualizerApp:
         fft_mean = float(np.mean(self.fft)) if len(self.fft) else 0.0
 
         was_silent = self.is_silent
-        self._update_silence_state(rms, fft_mean, audio_time, generation)
+        music_activity = max(
+            float(mid_e), float(treble_e), float(envelopes[0]),
+            float(envelopes[1]), float(envelopes[2]),
+        )
+        self._update_silence_state(
+            rms, fft_mean, audio_time, generation, music_activity
+        )
         if was_silent and not self.is_silent:
             self._phase_last_onset = 0.0
             self._phase_anchor_time = 0.0

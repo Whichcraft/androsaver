@@ -11,7 +11,9 @@ from .base import Effect
 
 class Phason(Effect):
     TRAIL_ALPHA = 38
-    RES_DIV = 4
+    # Keep the internal field resolution consistent across laptop and TV
+    # display buckets; a larger divisor makes the TV path visibly blocky.
+    RES_DIV = 2
     MAX_WAVES = 11
     MAX_FIELD = 1.0
 

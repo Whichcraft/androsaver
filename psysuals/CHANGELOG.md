@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.19.0] — 2026-09-28
+
+### Changed
+- **Effect visual consistency** — Restored the stable pre-wide-change settings
+  for Cube, Bubbles, Aurora, Lattice, and Spiral, and kept Tunnel centered on
+  its current path.
+- **Audio response** — Improved genre classification and preserved meaningful
+  graphics input for quiet, slow music instead of treating it as silence.
+- **Large-display rendering** — Increased and aligned the internal resolution
+  used by Phason, Mandelbox, and Ferrofluid to prevent TV-only pixelation.
+
+---
+
 ## [3.18.0] — 2026-09-23
 
 ### Changed
