@@ -2,6 +2,16 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-10-11 — v2.11.2: psysuals effect rendering update
+
+- Updated the squashed `psysuals/` subtree through upstream main commit
+  `4dc8095`.
+- Added optional fullscreen ModernGL rendering for Phason, Ferrofluid, and
+  Mandelbox, with their CPU fallbacks retained in the source subtree.
+- Reworked Mycelium motion, branching, and spectral color while bounding its
+  active drawing work; refined Spiral and SlimeMold detail.
+- These are Python source changes. The Android Kotlin renderer was not edited.
+
 ## 2026-10-11 — v2.11.0: Android TV visualizer quality
 
 - Reset the generated app version to the 2.11 minor line; patch versions
