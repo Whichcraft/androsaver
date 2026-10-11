@@ -36,7 +36,7 @@ class PostProcessChain:
         surfarray.blit_array(surface, self._result)
 
     def _cpu_kaleidoscope(self, surface):
-        self._scratch.blit(surface)
+        self._scratch.blit(surface, (0, 0))
         width, height = surface.get_size()
         left = self._scratch.subsurface((0, 0, max(1, width // 2), height)).copy()
         mirror = pygame.transform.flip(left, True, False)
@@ -44,14 +44,14 @@ class PostProcessChain:
         surface.blit(mirror, (width - mirror.get_width(), 0))
 
     def _cpu_rotation(self, surface, amount, tick):
-        self._scratch.blit(surface)
+        self._scratch.blit(surface, (0, 0))
         angle = math.sin(tick * 0.02) * amount * 8.0
         rotated = pygame.transform.rotate(self._scratch, angle)
         surface.fill((0, 0, 0))
         surface.blit(rotated, rotated.get_rect(center=surface.get_rect().center))
 
     def _cpu_bloom(self, surface, amount):
-        self._scratch.blit(surface)
+        self._scratch.blit(surface, (0, 0))
         width, height = surface.get_size()
         small = pygame.transform.smoothscale(self._scratch, (max(1, width // 3), max(1, height // 3)))
         glow = pygame.transform.smoothscale(small, (width, height))

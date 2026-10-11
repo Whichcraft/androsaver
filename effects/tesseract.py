@@ -27,6 +27,8 @@ class Tesseract(Effect):
         self._projected = np.empty((1, 3), dtype=np.float32)
         self._build_preset(0)
         self._beat_prev = 0.0
+        self._rotation_xw = 0.0
+        self._rotation_yz = 0.0
         self._morph_projection = 0.5
         self._hue = float(self._rng.random())
         self._scale = 1.0
@@ -109,7 +111,11 @@ class Tesseract(Effect):
         self._bounce_velocity *= 0.88
         self._bounce_y = max(-0.22, min(0.22, self._bounce_y + self._bounce_velocity))
         self._hue = (self._hue + 0.001 + high * 0.001) % 1.0
-        self._rotate(tick * (0.006 + mid * 0.001), tick * (0.009 + high * 0.001))
+        # Keep both 4-D rotation planes moving, with independent audio bands
+        # driving their speed so the form follows the track instead of only time.
+        self._rotation_xw += 0.006 + bass * 0.045 + high * 0.006
+        self._rotation_yz += 0.009 + mid * 0.040 + high * 0.010
+        self._rotate(self._rotation_xw, self._rotation_yz)
         w = self._rotated[:, 3]
         denom4 = np.maximum(0.45, self.PROJECTION_DISTANCE - w * (0.8 + self._morph_projection * 0.4))
         self._projected[:, 0] = self._rotated[:, 0] * self._scale / denom4
