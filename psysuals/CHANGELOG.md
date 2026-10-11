@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## Unreleased
+
+### Changed
+- **Mycelium** — Let the colony cores wander smoothly around their seeded anchors instead of remaining static.
+- **Tesseract** — Drive both 4-D rotation planes with independent bass, mid, and treble energy so the projected form responds more clearly to music.
+
+### Fixed
+- **Kaleidoscope post-processing** — Copy the source frame with an explicit destination so the CPU pass works with Pygame's surface API.
+
+### Verification
+- Added regression coverage for Mycelium core movement and Tesseract audio-driven rotation.
+
+---
+
 ## [3.19.0] — 2026-09-28
 
 ### Changed
