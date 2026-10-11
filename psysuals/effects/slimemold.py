@@ -24,14 +24,16 @@ _BASE_SD = 7                   # sensor distance in sim pixels
 
 class SlimeMold(Effect):
     TRAIL_ALPHA = 0
-    RES_DIV     = 3
+    RES_DIV     = 1
 
     def _render_div(self) -> int:
-        # Keep the deliberately chunky laptop look, but use a finer grid on
-        # TV-sized displays where enlarged pixels become distracting.
+        # Keep trails crisp on larger displays while retaining the compact
+        # simulation grid on small screens.  The quality governor can lower it.
+        preferred = 1 if min(config.WIDTH, config.HEIGHT) >= 900 else 3
         auto = self._auto_res_div()
-        preferred = 2 if min(config.WIDTH, config.HEIGHT) >= 900 else 3
-        return max(1, min(preferred, auto))
+        base = max(1, min(preferred, auto))
+        quality_scale = max(0.5, min(1.0, float(config.QUALITY_SCALE)))
+        return max(base, min(8, int(math.ceil(base / quality_scale))))
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

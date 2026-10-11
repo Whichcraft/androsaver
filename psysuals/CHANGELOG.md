@@ -8,7 +8,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## Unreleased
 
 ### Changed
-- **Mycelium** — Let the colony cores wander smoothly around their seeded anchors instead of remaining static.
+- **Phason, Ferrofluid, and Mandelbox rendering** — Add optional fullscreen
+  ModernGL shaders for direct and offscreen rendering while retaining the
+  portable pygame/numpy fallbacks. Reuse CPU field buffers to reduce per-frame
+  allocation overhead.
+- **Mycelium** — Make colonies rotate and breathe around their seeds, add
+  spectral hyphae and orbital rings, and cap active branches/spores to keep
+  drawing work bounded.
+- **Spiral and SlimeMold detail** — Refine particle shapes and scale SlimeMold
+  resolution with display size so enlarged agents stay smooth.
+- **Effect benchmarks** — Allow selected effects and 1080p/4K targets for
+  focused performance comparisons.
 - **Tesseract** — Drive both 4-D rotation planes with independent bass, mid, and treble energy so the projected form responds more clearly to music.
 
 ### Fixed

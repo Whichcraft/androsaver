@@ -8,8 +8,10 @@ import config
 from effects import MODES
 from gl_renderer import GLRenderer, HAS_MODERNGL
 
-def run_benchmark(duration_s=2.0, *, enable_gl=False, headless=True):
-    print(f"Running benchmarks (duration: {duration_s}s per mode)...")
+def run_benchmark(duration_s=2.0, *, enable_gl=False, headless=True,
+                  resolution=(1920, 1080), effect_names=None):
+    W, h = resolution
+    print(f"Running benchmarks at {W}x{h} ({duration_s}s per mode)...")
     
     # Mock audio data
     waveform = np.random.uniform(-1, 1, 1024).astype(np.float32)
@@ -20,7 +22,6 @@ def run_benchmark(duration_s=2.0, *, enable_gl=False, headless=True):
     if headless:
         os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
     pygame.init()
-    W, h = 1920, 1080 # Benchmark at Full HD
     _old_w, _old_h = config.WIDTH, config.HEIGHT
     _old_initialized = config._INITIALIZED
     config.WIDTH, config.HEIGHT = W, h
@@ -46,7 +47,16 @@ def run_benchmark(duration_s=2.0, *, enable_gl=False, headless=True):
 
         results = []
 
-        for name, VisCls in MODES:
+        selected_modes = MODES
+        if effect_names:
+            requested = set(effect_names)
+            available = {name for name, _ in MODES}
+            unknown = requested - available
+            if unknown:
+                raise ValueError(f"Unknown effect(s): {', '.join(sorted(unknown))}")
+            selected_modes = [(name, cls) for name, cls in MODES if name in requested]
+
+        for name, VisCls in selected_modes:
             print(f"  Benchmarking {name:12}...", end="", flush=True)
 
             # CPU Test
@@ -112,6 +122,10 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Benchmark CPU effects and optional ModernGL rendering")
     parser.add_argument("--duration", type=float, default=2.0,
                         help="seconds per effect (default: 2.0)")
+    parser.add_argument("--resolution", choices=("1080p", "4k"), default="1080p",
+                        help="CPU benchmark output resolution (default: 1080p)")
+    parser.add_argument("--effects", nargs="+", metavar="NAME",
+                        help="benchmark selected effects only")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--cpu-only", action="store_true",
                        help="run headless CPU measurements only (default)")
@@ -120,6 +134,10 @@ def parse_args(argv=None):
     args = parser.parse_args(argv)
     if args.duration <= 0:
         parser.error("--duration must be greater than zero")
+    available = {name for name, _ in MODES}
+    unknown = set(args.effects or ()) - available
+    if unknown:
+        parser.error(f"unknown effect(s): {', '.join(sorted(unknown))}")
     return args
 
 
@@ -129,4 +147,6 @@ if __name__ == "__main__":
         args.duration,
         enable_gl=args.gl,
         headless=not args.gl,
+        resolution=(3840, 2160) if args.resolution == "4k" else (1920, 1080),
+        effect_names=args.effects,
     )

@@ -2,6 +2,10 @@ import unittest
 
 import config
 from core.quality import QualityGovernor
+from effects.phason import Phason
+from effects.ferrofluid import Ferrofluid
+from effects.mandelbox import Mandelbox
+from effects.slimemold import SlimeMold
 
 
 class QualityGovernorTests(unittest.TestCase):
@@ -34,6 +38,25 @@ class QualityGovernorTests(unittest.TestCase):
         governor.observe(100.0, enabled=False)
         self.assertEqual(governor.tier, 2)
         self.assertAlmostEqual(config.QUALITY_SCALE, 1.0)
+
+    def test_new_effects_render_at_output_resolution_in_high_quality(self):
+        old = (config.WIDTH, config.HEIGHT, config.QUALITY_SCALE)
+        try:
+            config.QUALITY_SCALE = 1.0
+            for width, height in ((1920, 1080), (3840, 2160)):
+                config.WIDTH, config.HEIGHT = width, height
+                for effect_cls in (Phason, Ferrofluid, Mandelbox, SlimeMold):
+                    effect = object.__new__(effect_cls)
+                    self.assertEqual(effect._render_size(), (width, height, 1), effect_cls.__name__)
+            config.QUALITY_SCALE = 0.6
+            config.WIDTH, config.HEIGHT = 1920, 1080
+            self.assertEqual(object.__new__(Phason)._render_size(), (960, 540, 2))
+            self.assertEqual(object.__new__(SlimeMold)._render_size(), (960, 540, 2))
+            config.QUALITY_SCALE = 1.0
+            config.WIDTH, config.HEIGHT = 320, 240
+            self.assertEqual(object.__new__(SlimeMold)._render_size(), (106, 80, 3))
+        finally:
+            config.WIDTH, config.HEIGHT, config.QUALITY_SCALE = old
 
 
 if __name__ == "__main__":
