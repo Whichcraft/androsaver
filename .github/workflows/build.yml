@@ -103,9 +103,11 @@ jobs:
       - name: Write version manifest
         run: |
           VERSION_CODE=$(git rev-list --count HEAD)
-          VERSION_PATCH_BASE=$(grep -oP 'versionPatchBase\s*=\s*\K[0-9]+' app/build.gradle)
+          VERSION_PATCH_BASE_COMMIT=$(grep -oP "versionPatchBaseCommit\s*=\s*'\K[^']+" app/build.gradle)
           VERSION_PREFIX=$(grep -oP 'versionName\s*"\K[0-9]+\.[0-9]+' app/build.gradle)
-          VERSION_PATCH=$((VERSION_CODE - VERSION_PATCH_BASE))
+          VERSION_PATCH_COUNT=$(git rev-list --count --no-merges --ancestry-path "${VERSION_PATCH_BASE_COMMIT}..HEAD")
+          VERSION_PATCH=$((VERSION_PATCH_COUNT - 1))
+          if [ "$VERSION_PATCH" -lt 0 ]; then VERSION_PATCH=0; fi
           VERSION_NAME="${VERSION_PREFIX}.${VERSION_PATCH}"
           if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             TAG="dev-channel"

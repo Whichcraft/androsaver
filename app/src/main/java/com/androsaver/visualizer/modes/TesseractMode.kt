@@ -5,60 +5,83 @@ import com.androsaver.visualizer.GLDraw
 import com.androsaver.visualizer.VisualizerRenderTuning
 import kotlin.math.*
 
+/** Audio-reactive wireframe projection of a rotating four-dimensional cube. */
 class TesseractMode : BaseMode() {
     override val name = "Tesseract"
-    private var phase = 0f
+
+    private val projected = FloatArray(16 * 2)
+    private var angleXY = 0f
+    private var angleXW = 0f
+    private var angleYZ = 0f
     private var hue = 0f
-    private var scale = 1f
-    private var scaleVelocity = 0f
-    private var bounceY = 0f
-    private var bounceVelocity = 0f
-    private var preset = 0
     private var beatPrevious = 0f
-    private val pts = FloatArray(16 * 2)
+    private var pulse = 0f
+
     override fun reset() {
-        phase = 0f; hue = 0f
-        scale = 1f; scaleVelocity = 0f
-        bounceY = 0f; bounceVelocity = 0f
-        preset = 0; beatPrevious = 0f
+        angleXY = 0f
+        angleXW = 0f
+        angleYZ = 0f
+        hue = 0f
+        beatPrevious = 0f
+        pulse = 0f
     }
+
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         VisualizerRenderTuning.fadeTrail(draw)
         val bass = audio.beat.coerceIn(0f, 1.5f)
         val mid = audio.mid.coerceIn(0f, 4f)
-        val high = audio.treble.coerceIn(0f, 4f)
-        if (bass > 0.7f && beatPrevious <= 0.7f) preset = (preset + 1) % 3
+        val treble = audio.treble.coerceIn(0f, 4f)
+        if (bass > 0.7f && beatPrevious <= 0.7f) pulse = 1f
         beatPrevious = bass
-        phase += 0.01f + bass * 0.025f + mid * 0.001f + high * 0.001f
-        hue = (hue + 0.001f + high * 0.001f) % 1f
-        scaleVelocity += bass * 0.28f + (1f - scale) * 0.14f
-        scaleVelocity *= 0.70f
-        scale = (scale + scaleVelocity).coerceIn(0.62f, 1.28f)
-        bounceVelocity += bass * 0.035f - bounceY * 0.08f
-        bounceVelocity *= 0.88f
-        bounceY = (bounceY + bounceVelocity).coerceIn(-0.22f, 0.22f)
+        pulse = maxOf(0f, pulse - 0.035f)
 
-        val baseFocalScale = minOf(draw.W, draw.H) * 0.52f * scale
-        for (layer in 0..preset) {
-            val layerScale = 1f - layer * 0.18f
-            val focalScale = baseFocalScale * layerScale
-            for (i in 0 until 16) {
-                var x = if (i and 1 == 0) -1f else 1f; var y = if (i and 2 == 0) -1f else 1f
-                var z = if (i and 4 == 0) -1f else 1f; var w = if (i and 8 == 0) -1f else 1f
-                val c = cos(phase + layer * 0.12f); val s = sin(phase + layer * 0.12f)
-                val tx = x * c - w * s; w = x * s + w * c; x = tx
-                val d = 3.4f + z * 0.4f + w * 0.35f
-                pts[i * 2] = draw.W / 2f + x * focalScale / d
-                pts[i * 2 + 1] = draw.H / 2f + (y * focalScale + bounceY * focalScale) / d
-            }
-            for (i in 0 until 16) for (bit in intArrayOf(1, 2, 4, 8)) if (i and bit == 0) {
-                val j = i or bit
-                if (j < 16) draw.line(pts[i * 2], pts[i * 2 + 1], pts[j * 2], pts[j * 2 + 1],
-                    0.35f, 0.7f, 1f, (0.38f + bass * 0.22f) / (layer + 1f))
-            }
-            val nodeRadius = (2f + bass * 2f) * psysualsViewportScale(draw) * layerScale
-            for (i in 0 until 16) draw.circle(pts[i * 2], pts[i * 2 + 1], nodeRadius,
-                0.4f, 0.85f, 1f, 0.85f / (layer + 1f), true, 6)
+        // The two rotation planes respond independently to bass and mids.
+        angleXY += 0.008f + bass * 0.035f + treble * 0.004f
+        angleXW += 0.005f + mid * 0.018f + bass * 0.012f
+        angleYZ += 0.003f + treble * 0.012f
+        hue = (hue + 0.0015f + treble * 0.0015f) % 1f
+
+        val size = minOf(draw.W, draw.H) * (0.31f + pulse * 0.025f)
+        val perspective = 3.6f + mid * 0.12f
+        for (i in 0 until 16) {
+            var x = if (i and 1 == 0) -1f else 1f
+            var y = if (i and 2 == 0) -1f else 1f
+            var z = if (i and 4 == 0) -1f else 1f
+            var w = if (i and 8 == 0) -1f else 1f
+
+            var rotated = rotate(x, y, angleXY); x = rotated.first; y = rotated.second
+            rotated = rotate(y, z, angleYZ); y = rotated.first; z = rotated.second
+            rotated = rotate(x, w, angleXW); x = rotated.first; w = rotated.second
+
+            // Project through W first, then use Z for ordinary 3D depth.
+            val wScale = perspective / (perspective - w * 0.38f)
+            x *= wScale; y *= wScale; z *= wScale
+            val depth = 3.4f + z * 0.55f
+            projected[i * 2] = draw.W * 0.5f + x * size / depth
+            projected[i * 2 + 1] = draw.H * 0.5f + y * size / depth
         }
+
+        val color = GLDraw.hsl(hue, 0.82f, 0.62f + pulse * 0.12f)
+        for (i in 0 until 16) {
+            for (bit in intArrayOf(1, 2, 4, 8)) {
+                if (i and bit != 0) continue
+                val j = i or bit
+                val dimensionHue = (hue + when (bit) { 1 -> 0f; 2 -> 0.12f; 4 -> 0.25f; else -> 0.48f }) % 1f
+                val edge = GLDraw.hsl(dimensionHue, 0.9f, 0.58f + pulse * 0.18f)
+                draw.line(projected[i * 2], projected[i * 2 + 1],
+                    projected[j * 2], projected[j * 2 + 1], edge[0], edge[1], edge[2], 0.72f)
+            }
+        }
+        val radius = (2.2f + bass * 2.4f + pulse * 1.2f) * psysualsViewportScale(draw)
+        for (i in 0 until 16) {
+            draw.circle(projected[i * 2], projected[i * 2 + 1], radius,
+                color[0], color[1], color[2], 0.9f, true, 8)
+        }
+    }
+
+    private fun rotate(a: Float, b: Float, angle: Float): Pair<Float, Float> {
+        val c = cos(angle)
+        val s = sin(angle)
+        return (a * c - b * s) to (a * s + b * c)
     }
 }

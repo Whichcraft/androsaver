@@ -15,6 +15,7 @@ class AuroraMode : BaseMode() {
 
     private companion object {
         const val STEP = 5
+        const val TV_COLOR_GAIN = 0.55f
         const val PI_F = Math.PI.toFloat()
     }
 
@@ -68,8 +69,9 @@ class AuroraMode : BaseMode() {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
 
         // Slowly fade out previous frame's trails
-        // Python uses TRAIL_ALPHA=14 -> 14/255 ≈ 0.055f alpha
-        draw.fadeBlack(14f / 255f)
+        // Match the current desktop trail policy, then soften additive overlap
+        // for Android TV's brighter framebuffer and bloom composite.
+        draw.fadeBlack(42f / 255f)
 
         if (W != lastW || H != lastH) {
             lastW = W
@@ -140,9 +142,9 @@ class AuroraMode : BaseMode() {
             val baseColor = GLDraw.hsl(ribbonHue, 1f, 0.5f)
 
             // Outer glow (10-18% intensity)
-            val gi = 0.10f + bloom * 0.08f
+            val gi = (0.10f + bloom * 0.08f) * TV_COLOR_GAIN
             // Core ribbon (28-55% intensity)
-            val ci = 0.28f + bloom * 0.22f + bass * 0.08f
+            val ci = (0.28f + bloom * 0.22f + bass * 0.08f) * TV_COLOR_GAIN
 
             val rGlow = baseColor[0] * gi; val gGlow = baseColor[1] * gi; val bGlow = baseColor[2] * gi
             val rCore = baseColor[0] * ci; val gCore = baseColor[1] * ci; val bCore = baseColor[2] * ci

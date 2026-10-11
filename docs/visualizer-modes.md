@@ -33,7 +33,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 14 | `FireworksMode` | Fireworks | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
 | 16 | `LatticeMode` | Lattice | Dynamic 14×9 / 18×12 / 22×14 FFT-mapped crystal grid with shockwave ring on beat |
-| 17 | `MyceliumMode` | Mycelium | Multi-colony fungal network with spores and rotating satellite rings |
+| 17 | `MyceliumMode` | Mycelium | Wandering multi-colony fungal network with spores and rotating satellite rings |
 | 18 | `MagnetarMode` | Magnetar | Rotating magnetic dipole field with 4 000 particles |
 | 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with adaptive-grid trail diffusion |
 | 20 | `MobiusMode` | Mobius | 3-D wireframe Mobius strip |
@@ -46,7 +46,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 27 | `LiquidLightMode` | LiquidLight | Fluorescent semi-Lagrangian-like dye waves |
 | 28 | `CymaticaMode` | Cymatica | Chladni-like nodal plate with drifting particles |
 | 29 | `PhasonMode` | Phason | Quasiperiodic wave interference field |
-| 30 | `TesseractMode` | Tesseract | Projected rotating 4-D hypercube |
+| 30 | `TesseractMode` | Tesseract | Music-reactive 4-D hypercube rotating across multiple axes |
 | 31 | `FerrofluidMode` | Ferrofluid | Animated magnetic contour rings |
 | 32 | `MandelboxMode` | Mandelbox | Bounded Mandelbox-inspired escape field |
 | 33 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
@@ -140,7 +140,7 @@ A crystal grid of glowing nodes and connection beams (leftmost column cutout). I
 
 ## MyceliumMode
 
-Swirling growth pattern around multiple colonies (cores). Up to 240 active tips grow swirling around 5 cores, each tip leaving a decaying filament segment trail (max 900 segments). Cores are decorated with a rotating ring of satellite nodes. Beat fires a colony bloom burst that seeds new tips and releases swirling spores from the cores. Tips also release spores. Spores orbit the nearest core under gravitational pull and decay. Bioluminescent double-draw segments (soft color glow + bright core line) for neon look. Trail: fadeBlack(8/255).
+Swirling growth pattern around multiple colonies (cores). Up to 240 active tips grow swirling around 5 cores, each tip leaving a decaying filament segment trail (max 900 segments). Core positions wander around their seed points while remaining bounded near their original locations. Cores are decorated with a rotating ring of satellite nodes. Beat fires a colony bloom burst that seeds new tips and releases swirling spores from the cores. Tips also release spores. Spores orbit the nearest core under gravitational pull and decay. Bioluminescent double-draw segments (soft color glow + bright core line) for neon look. Trail: fadeBlack(8/255).
 
 ## MagnetarMode
 
@@ -206,9 +206,9 @@ phase speed, mid offsets one component, and treble accelerates hue drift.
 
 ## TesseractMode
 
-A projected 4-D hypercube wireframe with up to three overlaid layers. A beat
-rising above 0.7 advances its preset; beat also drives bounded scale and
-vertical bounce. Mid and treble contribute small phase and hue changes.
+A projected 4-D hypercube wireframe. Bass, mids, and treble independently
+drive rotation in three planes, including rotation across the fourth dimension.
+Beat onsets add a brief size and brightness pulse; treble also shifts hue.
 
 ## FerrofluidMode
 

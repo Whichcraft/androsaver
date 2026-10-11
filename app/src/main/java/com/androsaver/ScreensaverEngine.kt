@@ -85,6 +85,7 @@ class ScreensaverEngine(
     private var scheduleFinishRunnable: Runnable? = null
     private var consecutiveLoadFailures = 0
     private var displayedIndex = -1
+    private var pendingManualSkipIndex: Int? = null
     private var transitionSequence = 0L
     private var slideshowSession = 0L
     private var devTransitionErrorVisible = false
@@ -212,8 +213,11 @@ class ScreensaverEngine(
     private fun slideshowSkip(delta: Int) {
         try {
             if (imageItems.isEmpty()) return
-            val baseIndex = displayedIndex.takeIf { it in imageItems.indices } ?: currentIndex
+            val baseIndex = pendingManualSkipIndex
+                ?: displayedIndex.takeIf { it in imageItems.indices }
+                ?: currentIndex
             currentIndex = ((baseIndex + delta) % imageItems.size + imageItems.size) % imageItems.size
+            pendingManualSkipIndex = currentIndex
             slideshowRunnable?.let { handler.removeCallbacks(it) }
             slideshowRunnable = null
             settleTransitionBeforeManualSkip()
@@ -653,6 +657,7 @@ class ScreensaverEngine(
         activeView = 1
         currentIndex = 0
         displayedIndex = -1
+        pendingManualSkipIndex = null
         displayedItem = null
         transitionSequence++
         resetSlideshowViews()
@@ -668,6 +673,7 @@ class ScreensaverEngine(
         retryRunnable = null
         transitionSequence++
         displayedIndex = -1
+        pendingManualSkipIndex = null
         displayedItem = null
         activeView = 1
         currentIndex = 0
@@ -709,6 +715,7 @@ class ScreensaverEngine(
                             val currentDisplayed = displayedItem
                             imageItems.clear()
                             imageItems.addAll(fresh.shuffled())
+                            pendingManualSkipIndex = null
                             imageSourceNames.clear()
                             imageSourceNames.putAll(freshSources)
                             displayedIndex = currentDisplayed?.let { current ->
@@ -851,6 +858,7 @@ class ScreensaverEngine(
                         displayedIndex = resolvedItemIndex
                         displayedItem = imageItems[resolvedItemIndex]
                         currentIndex = (resolvedItemIndex + 1) % imageItems.size
+                        pendingManualSkipIndex = null
                         val effect = prefs.getString(Prefs.TRANSITION_EFFECT, "crossfade") ?: "crossfade"
                         val resolvedEffect = applyTransitionWithFallback(
                             incoming, outgoing, effect, prefs, requestSequence

@@ -14,8 +14,18 @@ def gitVersionCode = {
     }
 }()
 
-// Commit count at the time of the 2.10 version bump; patch resets to 0 from here.
-def versionPatchBase = 338
+// Anchor the patch line to the parent of the 2.11.0 release commit. Counting
+// only non-merge descendants keeps the patch at .0 when dev is merged to master.
+def versionPatchBaseCommit = '59b168ecce806511c062b35656013e8f287f1e0d'
+def gitVersionPatch = {
+    try {
+        def process = "git rev-list --count --no-merges --ancestry-path ${versionPatchBaseCommit}..HEAD".execute()
+        process.waitFor()
+        return (process.text.trim().toInteger() - 1).coerceAtLeast(0)
+    } catch (ignored) {
+        return 0
+    }
+}()
 
 android {
     namespace 'com.androsaver'
@@ -26,7 +36,7 @@ android {
         minSdk 21
         targetSdk 35
         versionCode gitVersionCode
-        versionName "2.10.${gitVersionCode - versionPatchBase}"
+        versionName "2.11.${gitVersionPatch}"
     }
 
     signingConfigs {

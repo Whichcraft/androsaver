@@ -26,7 +26,10 @@ class MyceliumMode : BaseMode() {
         val TAU = (2.0 * PI).toFloat()
     }
 
-    private data class Core(val x: Float, val y: Float, val hOff: Float)
+    private data class Core(
+        val anchorX: Float, val anchorY: Float, val hOff: Float,
+        var x: Float = anchorX, var y: Float = anchorY
+    )
 
     private data class Tip(
         val x: Float, val y: Float, val angle: Float,
@@ -136,6 +139,14 @@ class MyceliumMode : BaseMode() {
         hue = (hue + 0.003f + mid * 0.002f) % 1f
         phase += 0.010f + mid * 0.012f + high * 0.006f
         pulse = maxOf(0f, pulse - 0.03f)
+
+        // Keep each colony centered near its seed while letting its source wander.
+        val wander = minOf(W, H) * (0.035f + mid * 0.004f)
+        for (i in cores.indices) {
+            val core = cores[i]
+            core.x = core.anchorX + sin(phase * (0.42f + i * 0.035f) + i * 1.7f) * wander
+            core.y = core.anchorY + cos(phase * (0.37f + i * 0.03f) + i * 2.1f) * wander
+        }
 
         if (bass > 0.65f) {
             if (tips.size < MAX_TIPS) {

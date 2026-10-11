@@ -2,6 +2,22 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-10-11 — v2.11.0: Android TV visualizer quality
+
+- Reset the generated app version to the 2.11 minor line; patch versions
+  increment for non-merge commits on the release line after this bump.
+- Improved Android TV rendering detail for the eight psysuals field effects
+  while retaining the adaptive grid ceiling that protects GLES batch limits.
+- Fixed Cube's accumulated line trails and Spectrum's retained peak bars;
+  reduced Aurora brightness for Android TV displays.
+- Made Mycelium colonies wander and strengthened Tesseract's audio response
+  across three rotation planes.
+- Preserved the user-requested nine-ring Chromatic cap.
+- Improved remote key dispatch and retained detailed debug diagnostics for
+  visual effect failures.
+- Backported the Mycelium and Tesseract source changes into the `psysuals/`
+  subtree; source remains tracked in the standalone psysuals repository.
+
 ## 2026-09-28 — psysuals v3.19 subtree sync and Android parity
 
 - Updated the `psysuals/` subtree to upstream v3.19.0 (`99f47da`).

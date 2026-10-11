@@ -27,6 +27,7 @@ class Mycelium(Effect):
         self._tips: list = []
         self._spores: list = []
         self._cores: list[tuple[float, float, float]] = []
+        self._core_anchors: list[tuple[float, float]] = []
         self._W, self._H = config.WIDTH, config.HEIGHT
         self._halo_w = self._halo_h = 0
         self._halo = None
@@ -85,15 +86,19 @@ class Mycelium(Effect):
         cx, cy = W / 2.0, H / 2.0
         rad = min(W, H) * 0.22
         self._cores = []
+        self._core_anchors = []
         base = np.linspace(0.0, math.tau, _CORE_COUNT, endpoint=False, dtype=np.float32)
         angs = base + self._rng.uniform(-0.22, 0.22, _CORE_COUNT)
         dists = rad * self._rng.uniform(0.55, 1.15, _CORE_COUNT)
         for i, (ang, dist) in enumerate(zip(angs, dists)):
+            core_x = cx + math.cos(ang) * dist
+            core_y = cy + math.sin(ang) * dist
             self._cores.append((
-                cx + math.cos(ang) * dist,
-                cy + math.sin(ang) * dist,
+                core_x,
+                core_y,
                 i / _CORE_COUNT * 0.45,
             ))
+            self._core_anchors.append((core_x, core_y))
 
     def _seed_tips(self, count, core_idx=None):
         if not self._cores:
@@ -136,6 +141,15 @@ class Mycelium(Effect):
         self._hue = (self._hue + 0.003 + mid * 0.002) % 1.0
         self._phase += 0.010 + mid * 0.012 + high * 0.006
         self._pulse = max(0.0, self._pulse - 0.03)
+        wander = min(W, H) * (0.035 + mid * 0.004)
+        self._cores = [
+            (
+                anchor_x + math.sin(self._phase * (0.42 + i * 0.035) + i * 1.7) * wander,
+                anchor_y + math.cos(self._phase * (0.37 + i * 0.030) + i * 2.1) * wander,
+                self._cores[i][2],
+            )
+            for i, (anchor_x, anchor_y) in enumerate(self._core_anchors)
+        ]
         self._draw_halo(surf, bass, mid, high)
 
         # Beat spawns new tips

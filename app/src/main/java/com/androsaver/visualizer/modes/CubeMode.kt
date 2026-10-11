@@ -73,6 +73,10 @@ class CubeMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
+        // These geometry ring buffers already contain the intended trails.
+        // Clear the retained FBO before replaying them so old frames cannot
+        // accumulate into a permanent web of lines.
+        draw.fadeBlack(1f)
         val beat = audio.beat
         val bass = audio.fftMean(0, 5).coerceAtMost(1f)
         val mid  = audio.fftMean(5, 25).coerceAtMost(1f)

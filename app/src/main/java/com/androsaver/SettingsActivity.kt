@@ -247,11 +247,6 @@ class SettingsActivity : AppCompatActivity() {
                 updateWeatherSummary()
                 updateAboutVersion()
                 checkForUpdates()
-                val prefs = Prefs.get(requireContext())
-                val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
-                if (currentMode == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
-                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
             } catch (e: Throwable) {
                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Settings fragment resume failed", e)
             }

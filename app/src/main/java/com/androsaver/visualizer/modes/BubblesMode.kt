@@ -56,6 +56,8 @@ class BubblesMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
+        // Match psysuals' default TRAIL_ALPHA=48 on the persistent Android FBO.
+        draw.fadeBlack()
         val W = draw.W; val H = draw.H
         if (W != lastW || H != lastH) {
             lastW = W
