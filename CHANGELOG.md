@@ -15,8 +15,9 @@ All notable changes to AndroSaver are documented here.
 - Preserved the user-requested nine-ring Chromatic cap.
 - Improved remote key dispatch and retained detailed debug diagnostics for
   visual effect failures.
-- Backported the Mycelium and Tesseract source changes into the `psysuals/`
-  subtree; source remains tracked in the standalone psysuals repository.
+- Updated the squashed `psysuals/` subtree through upstream main commit
+  `adfd17e`, including the Mycelium/Tesseract source changes already reflected
+  in the Android ports and the upstream Bubbles alpha guard.
 
 ## 2026-09-28 — psysuals v3.19 subtree sync and Android parity
 

@@ -1,10 +1,18 @@
 # psysuals → AndroSaver Port Notes
 
-The repository vendors upstream psysuals v3.19.0 as a Git subtree under
-`psysuals/` (upstream commit `99f47da`). The subtree is the reference source;
-the Android implementation remains a Kotlin/OpenGL ES 2.0 port. Keep the
-subtree update and the Android backport in the same change so the two sources
-remain auditable.
+The repository vendors upstream psysuals as a Git subtree under `psysuals/`
+through upstream main commit `adfd17e` (after v3.19.0). The subtree is the
+reference source; the Android implementation remains a Kotlin/OpenGL ES 2.0
+port. Keep the subtree update and the Android backport in the same change so
+the two sources remain auditable.
+
+The post-v3.19 source updates include Mycelium core wandering, stronger
+Tesseract audio rotation, and a Bubbles high-gain alpha clamp. The Mycelium and
+Tesseract behavior is already represented by their Kotlin ports. Android passes
+float alpha to GLES, so pygame's 8-bit Bubbles color-channel clamp has no direct
+Kotlin equivalent. The Kaleidoscope
+CPU blit correction in `core/postprocess.py` remains source-only because the
+Android renderer uses its GLES post-processing pipeline.
 
 When importing a new psysuals release, always apply these Android-specific
 adaptations after porting each effect.  The differences exist because Android

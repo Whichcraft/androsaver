@@ -23,8 +23,8 @@
 ### Upstream visualizer source
 
 `psysuals/` is a Git subtree imported from the upstream psysuals repository.
-The current Android port tracks upstream v3.18.0 (`a543912`) and applies the
-OpenGL ES 2.0 and Android lifecycle adaptations documented in
+The current Android port tracks upstream main through `adfd17e` (after v3.19.0)
+and applies the OpenGL ES 2.0 and Android lifecycle adaptations documented in
 `docs/psysuals-port-notes.md`. To update it, add/fetch the upstream remote with
 `git remote add psysuals-upstream https://github.com/Whichcraft/psysuals.git`
 when it is not already configured, then run
