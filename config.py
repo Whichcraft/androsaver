@@ -24,6 +24,8 @@ FPS    = 60
 LOW_SPEC = False
 QUALITY_TIER = 2       # 0=low, 1=balanced, 2=high
 QUALITY_SCALE = 1.0    # shared internal-resolution multiplier
+FRAME_DT = 1.0 / 60.0  # elapsed render seconds; hosts update once per frame
+VISUAL_PROFILE = "auto"  # auto, laptop, tv; independent of render resolution
 
 SAMPLE_RATE = 44100
 BLOCK_SIZE  = 1024

@@ -2,10 +2,50 @@
 
 **Welcome to the super-duper greatest music visualizer ever made.** psysuals delivers uncompromising visual intensity and rock-solid performance. Whether you're blasting psytrance in a dark room or driving a multi-monitor stage setup, it is built to melt your mind with precision and style.
 
-![Version](https://img.shields.io/badge/version-3.19.0-orange)
+![Version](https://img.shields.io/badge/version-3.20.0-orange)
  ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
+
+## Version 3.20.0
+
+This release fixes CPU-effect visibility in GL mode, makes mode changes start
+with empty framebuffers, preserves simulation state through supported resizes,
+and adds independent Laptop/TV response profiles. Cube, Tunnel, Plasma and
+Phason are calmer; Persistence responds through smooth direction, speed and
+colour changes. Hyperbolic has individually moving 3-D facets.
+
+Mandelbox and Morphogenesis are removed. There are now 32 modes and four layered
+recipes. Because saved presets store numeric mode indices, reselect/re-save
+presets for effects after Heartbeat when upgrading. No dependency or file-format
+migration is required.
+
+## Laptop and TV profiles
+
+Use `--visual-profile laptop` for a close laptop display or `--visual-profile tv`
+for viewing from a distance. `V` cycles Auto → Laptop → TV during playback; the
+selection is saved on exit. Auto uses output width as a fallback (TV from 2560
+pixels), so choose a profile explicitly for a 4K laptop or 1080p TV.
+
+Laptop keeps camera motion gentle and uses a 22×14 Lattice grid. TV uses a 14×9
+grid and stronger light accents. Both retain slow geometry transitions. The fourteen
+retuned effects (Cube, TriFlux, Lissajous, Tunnel, Plasma, Lattice, Mobius,
+Chromatic, Persistence, Synapse, Hyperbolic, Cymatica, Phason and Ferrofluid)
+use elapsed time for motion rather than render-frame counts. External hosts should set `config.FRAME_DT` once per
+frame in seconds; its default is 1/60 and stalls are capped at 0.1 seconds.
+
+GL and CPU effects receive a full display-sized canvas. Reduced-resolution
+simulations scale their completed image once; lowering quality preserves the
+viewport, centre and aspect ratio. TriFlux triangle outlines are antialiased,
+including enlarged foreground triangles. Mode changes clear the CPU/GPU frame
+and presentation buffers immediately; previous pictures are not crossfaded.
+Effects with their own feedback replace the composed frame instead of retaining
+old maximum colours. Fullscreen/quality resizing preserves existing particle,
+network, dye and trail state where supported.
+
+SlimeMold keeps at least 85% of native width/height on TV-sized outputs even at
+lower quality tiers. Phason, Ferrofluid and LiquidLight reduce internal detail
+gradually rather than immediately dropping to half size.
 
 ## 🚀 Highlights
 
@@ -13,7 +53,7 @@
 - **🏗️ Modular Object-Oriented Architecture** — Re-written from a monolithic script into a sleek, professional engine. Specialized `AudioEngine`, `DisplayManager`, and `UIManager` classes ensure a clean, maintainable, and high-performance foundation.
 - **🖥️ Ultimate Multi-Monitor "Span Mode"** — Gone are the days of fixed dual-screen limits. The app scales dynamically, spawning child processes for every monitor you own, with synchronized mode switching across the entire span.
 - **🔊 Resilient Audio Pipeline** — Tolerant audio capture with a no-input fallback, silence-aware idle motion, live device switching, and spectral-flux beat detection.
-- **⚖️ Built-in Benchmarking & Regression Checks** — Measure speed with `benchmarks.py`; the smoke test validates registry order and instantiates all 34 registered effects, with focused tests for audio timing, display lifecycle, and effect safety bounds.
+- **⚖️ Built-in Benchmarking & Regression Checks** — Measure speed with `benchmarks.py`; the smoke test validates registry order and instantiates all 32 registered effects, with focused tests for audio timing, display lifecycle, and effect safety bounds.
 
 ---
 
@@ -103,7 +143,7 @@ Run on low-spec/low-power systems (caps framerate to 30 FPS and scales down simu
 
 The app restores the last saved display index on startup. Use `--display N` to
 override that for a single launch. Use `--mode N` to select the starting effect
-by its zero-based index from the 34-effect registry (`0`–`33`).
+by its zero-based index from the 32-effect registry (`0`–`31`).
 
 ### Controls
 
@@ -112,7 +152,7 @@ by its zero-based index from the 34-effect registry (`0`–`33`).
 | `←` / `→` or `Space` or click | Cycle to previous / next mode (or adjust pane slider when pane is open) |
 | `↑` / `↓` | Increase / decrease effect intensity (or adjust FlowField particles by 2,000, or navigate pane sliders when pane is open) |
 | `1` – `9` | Jump to modes 1–9 |
-| `Tab` | Toggle real-time settings pane (effect gain, bg alpha, crossfade length) |
+| `Tab` | Toggle real-time settings pane (effect gain, bg alpha, parameter-transition length) |
 | `P` | Save current state as a preset |
 | `Shift+P` | Morph to the next saved preset over eight beats (or a short time fallback) |
 | `A` | Toggle auto-gain (auto-scales beat to current volume) · in span mode: cycle the shared secondary-display effect backward |
@@ -167,6 +207,13 @@ not run the visualizer loop.
 
 Audio and graphics boundary tests use fakes when hardware or optional native dependencies are unavailable; the real Pygame resize test runs when Pygame is installed.
 
+For actual GPU validation, run `.venv/bin/python psysualizer.py --gl` with the
+real display and audio session; `SDL_VIDEODRIVER=dummy` cannot exercise OpenGL.
+Version 3.20.0 was also checked by reading visible AMD/Mesa GL framebuffers for
+the affected effects at 960×540, checking clean GPU buffers on mode switches,
+and rendering SlimeMold into a 3840×2160 framebuffer. These checks complement
+the unit suite; they do not measure every TV or music input.
+
 Run a quick headless CPU performance comparison with:
 
 ```bash
@@ -182,7 +229,7 @@ To attempt the CPU/ModernGL comparison, use a real display/context (do not set t
 The benchmark reports when ModernGL is unavailable or the context cannot be created; CPU measurements still complete.
 
 `Shift+R` cycles curated pairings such as Hyperbolic + LiquidLight,
-Tesseract + Persistence, Cymatica + Ferrofluid, Morphogenesis + Plasma, and
+Tesseract + Persistence, Cymatica + Ferrofluid, and
 Fireworks + Aurora. Choosing a recipe explicitly enables its background; the
 individual foreground/background controls remain available afterward.
 
@@ -193,8 +240,8 @@ the CPU path.
 
 Modes with a shared declared morph parameter interpolate it during a
 transition. Tesseract and Persistence currently share their projection
-parameter. Other transitions—including Lattice↔Hyperbolic—use the normal
-surface crossfade.
+parameter. Image buffers are cleared on every mode switch; numeric parameter
+interpolation does not retain the previous effect image.
 GL results include the display-present step (and context synchronization when available), so compare them on the same display and VSync settings.
 
 Use `--display N` for monitor selection. When `xrandr` geometry is unavailable, the app falls back to SDL's detected display count and asks SDL to target the selected display.
@@ -223,7 +270,7 @@ psysuals/
 │   ├── base.py               # Effect base class and contract
 │   ├── utils.py              # Shared colour helpers
 │   ├── palette.py            # Shared colour palette
-│   └── *.py                   # 34 registered visual implementations and helpers
+│   └── *.py                   # 32 registered visual implementations and helpers
 ├── ARCHITECTURE.md           # Code structure and extension guide
 ├── EFFECTS.md                # Full parameter reference for all effects
 ├── tests/                    # Automated settings, audio, graphics, and cleanup tests

@@ -10,6 +10,7 @@ from .base import Effect
 
 
 class Cymatica(Effect):
+    TIME_BASED = True
     TRAIL_ALPHA = 40
     RES_DIV = 4
     MAX_PARTICLES = 700
@@ -30,6 +31,9 @@ class Cymatica(Effect):
         self._scaled = pygame.Surface((1, 1))
         self._hue = float(self._rng.random())
         self._beat_prev = 0.0
+        self._mode_weights = np.zeros(self.MAX_MODES)
+        self._mode_weights[0] = 1.0
+        self._audio = np.zeros(3)
         self._reset_state()
 
     def _reset_state(self):
@@ -53,14 +57,19 @@ class Cymatica(Effect):
         out[:] = np.cos(math.pi * m * self._x) * np.cos(math.pi * n * self._y)
 
     def _update_particles(self, mix, bass, high):
-        strength = 0.004 + bass * 0.008
-        # A cheap analytic drift keeps particles near low-amplitude nodal lines.
-        gx = np.sin(math.pi * self._mode_a.shape[1] * self._px)
-        gy = np.sin(math.pi * self._mode_a.shape[0] * self._py)
-        self._px += -gx * strength + np.sin(self._py * 5.0 + mix) * high * 0.001
-        self._py += -gy * strength + np.cos(self._px * 4.0 + mix) * high * 0.001
-        self._px = ((self._px + 1.0) % 2.0) - 1.0
-        self._py = ((self._py + 1.0) % 2.0) - 1.0
+        # Descend the actual plate amplitude, independent of pixel resolution.
+        field = np.zeros_like(self._px)
+        gx = np.zeros_like(field)
+        gy = np.zeros_like(field)
+        for weight, (m, n) in zip(self._mode_weights, self._MODES):
+            x, y = math.pi * m * self._px, math.pi * n * self._py
+            field += weight * np.cos(x) * np.cos(y)
+            gx -= weight * math.pi * m * np.sin(x) * np.cos(y)
+            gy -= weight * math.pi * n * np.cos(x) * np.sin(y)
+        self._px -= np.clip(field * gx * 0.0008 * self._frame_step(), -0.002 * self._frame_step(), 0.002 * self._frame_step())
+        self._py -= np.clip(field * gy * 0.0008 * self._frame_step(), -0.002 * self._frame_step(), 0.002 * self._frame_step())
+        np.clip(self._px, -0.995, 0.995, out=self._px)
+        np.clip(self._py, -0.995, 0.995, out=self._py)
 
     def _render(self, surf, high):
         line = np.clip(np.exp(-np.abs(self._field) * (12.0 - high * 1.5)), 0.0, 1.0)
@@ -91,22 +100,21 @@ class Cymatica(Effect):
         W, H, _ = self._render_size()
         if (W, H) != (self._W, self._H):
             self._reset_state()
-        bass = min(max(float(beat), 0.0), 1.5)
-        mid = min(max(float(config.MID_ENERGY), 0.0), 4.0)
-        high = min(max(float(config.TREBLE_ENERGY), 0.0), 4.0)
-        self._hue = (self._hue + 0.001 + high * 0.001) % 1.0
-        fft_arr = np.asarray(fft).reshape(-1)
-        if fft_arr.size:
-            dominant = int(np.argmax(np.abs(fft_arr[: min(fft_arr.size, 128)])))
-        else:
-            dominant = 0
-        a_index = dominant % self.MAX_MODES
-        b_index = (a_index + 1 + int(mid)) % self.MAX_MODES
-        phase = (tick * (0.004 + max(0.0, float(getattr(config, "BPM", 0.0))) * 0.00001) + mid * 0.12) % 1.0
-        self._mode_field(self._MODES[a_index], self._mode_a)
-        self._mode_field(self._MODES[b_index], self._mode_b)
-        self._field[:] = self._mode_a * (1.0 - phase) + self._mode_b * phase
-        self._update_particles(phase, bass, high)
+        self._audio, light = self._audio_response(beat)
+        bass, mid, high = self._audio
+        self._hue = (self._hue + (0.0004 + high * 0.0002) * self._frame_step()) % 1.0
+        # Smoothed band weights avoid argmax switches and sawtooth resets.
+        spectrum = np.abs(np.asarray(fft).reshape(-1)[:128])
+        energies = np.array([float(np.mean(b)) if len(b) else 0.0
+                             for b in np.array_split(spectrum, self.MAX_MODES)])
+        target = energies + 0.05
+        target /= target.sum()
+        self._mode_weights = self._smooth(self._mode_weights, target, 0.003)
+        self._field.fill(0)
+        for weight, mode in zip(self._mode_weights, self._MODES):
+            self._mode_field(mode, self._mode_a)
+            self._field += weight * self._mode_a
+        self._update_particles(0.0, bass, high)
         self._render(surf, high)
         self._beat_prev = bass
 

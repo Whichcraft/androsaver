@@ -11,6 +11,7 @@ from .base import Effect
 
 class LiquidLight(Effect):
     TRAIL_ALPHA = 0
+    CONTINUOUS_QUALITY = True
     RES_DIV = 4
     MAX_SUBSTEPS = 3
     MAX_VELOCITY = 5.0
@@ -106,7 +107,18 @@ class LiquidLight(Effect):
     def draw(self, surf, waveform, fft, beat, tick):
         W, H, _ = self._render_size()
         if (W, H) != (self._W, self._H):
+            old_w, old_h = self._W, self._H
+            saved = {name: getattr(self, name) for name in ('_dye', '_vx', '_vy')}
+            hue, previous_beat = self._hue, self._beat_prev
             self._reset_state()
+            for name, field in saved.items():
+                getattr(self, name)[:] = self._resize_field(field, W, H)
+            self._hue, self._beat_prev = hue, previous_beat
+            self._vx *= W / old_w
+            self._vy *= H / old_h
+            np.clip(self._vx, -self.MAX_VELOCITY, self.MAX_VELOCITY, out=self._vx)
+            np.clip(self._vy, -self.MAX_VELOCITY, self.MAX_VELOCITY, out=self._vy)
+
         bass = min(max(float(beat), 0.0), 1.5)
         mid = min(max(float(config.MID_ENERGY), 0.0), 4.0)
         high = min(max(float(config.TREBLE_ENERGY), 0.0), 4.0)

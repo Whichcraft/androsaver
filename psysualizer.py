@@ -17,6 +17,7 @@ Controls:
   Shift+M         Toggle span mode (multi-monitor extension)
   D               Open device picker (or cycle child mode forward in span mode)
   F               Toggle fullscreen
+  V               Cycle Auto / Laptop / TV visual profile
   H               Toggle HUD visibility
   Shift+H         Cycle HUD detail level
   Q / ESC         Quit
@@ -24,7 +25,7 @@ Controls:
 
 from __future__ import annotations
 
-__version__ = "3.19.0"
+__version__ = "3.20.0"
 
 import argparse
 import atexit
@@ -55,7 +56,6 @@ RECIPES = (
     {"name": "Hyperbolic Liquid Cathedral", "foreground": "Hyperbolic", "background": "LiquidLight", "bg_alpha": 112},
     {"name": "Tesseract Persistence", "foreground": "Tesseract", "background": "Persistence", "bg_alpha": 96},
     {"name": "Cymatic Ferrofluid", "foreground": "Cymatica", "background": "Ferrofluid", "bg_alpha": 104},
-    {"name": "Morphogenic Plasma", "foreground": "Morphogenesis", "background": "Plasma", "bg_alpha": 108},
     {"name": "Aurora Fireworks", "foreground": "Fireworks", "background": "Aurora", "bg_alpha": 118},
 )
 
@@ -67,6 +67,8 @@ class VisualizerApp:
         if config.LOW_SPEC:
             config.FPS = 30
         self.settings = sett.load()
+        config.VISUAL_PROFILE = self.args.visual_profile or self.settings["visual_profile"]
+        config.FRAME_DT = 1.0 / 60.0
         # Faster global decay prevents stale grey trails accumulating between
         # frames; effect-owned trails use the same shorter-persistence policy.
         self.fade_alpha = 48
@@ -188,6 +190,7 @@ class VisualizerApp:
         desc += "  Arrows          Intensity / Settings / Modes\n"
         desc += "  Tab             Toggle settings pane\n"
         desc += "  F               Toggle fullscreen\n"
+        desc += "  V               Cycle Auto / Laptop / TV profile\n"
         desc += "  H / Shift+H     HUD visibility / Detail\n"
         desc += "  M / Shift+M     Tap Tempo / Span Mode\n"
         desc += "  D               Device picker / Span cycle\n"
@@ -203,6 +206,8 @@ class VisualizerApp:
         parser.add_argument("-m", "--mode", type=int, default=None, help="Starting mode index (0-based)")
         parser.add_argument("-g", "--gl", action="store_true", help="Enable ModernGL hardware acceleration")
         parser.add_argument("--low-spec", action="store_true", help="Optimize performance for low-end systems (lowers FPS and particle counts)")
+        parser.add_argument("--visual-profile", choices=("auto", "laptop", "tv"), default=None,
+                            help="Motion/detail profile; V cycles profiles during playback")
         parser.add_argument("--span-child", action="store_true", help=argparse.SUPPRESS)
         return parser.parse_args()
 
@@ -222,20 +227,13 @@ class VisualizerApp:
         self.audio.open_input_stream(active_dev, None)
 
     def _update_target_res(self):
-        div = 1
-        if hasattr(self, "vis") and self.vis is not None:
-            if hasattr(self.vis, "_render_div"):
-                div = self.vis._render_div()
-            else:
-                div = getattr(self.vis, "RES_DIV", 1)
-        
         if not self.args.gl:
             self.display.target = self.display.screen
             return
-
-        tw, th = config.WIDTH // div, config.HEIGHT // div
-        if self.display.target is None or self.display.target.get_size() != (tw, th):
-            self.display.target = pygame.Surface((tw, th), pygame.SRCALPHA)
+        size = self.display.screen.get_size()
+        if (self.display.target is self.display.screen or self.display.target is None
+                or self.display.target.get_size() != size):
+            self.display.target = pygame.Surface(size, pygame.SRCALPHA)
             self.fade = self._make_fade(self.fade_alpha)
 
     def _make_fade(self, alpha: int):
@@ -360,17 +358,16 @@ class VisualizerApp:
             "hud_level": self.hud_level,
             "effect_gain": self.effect_gain,
             "postfx_mode": self.postfx_mode,
+            "visual_profile": config.VISUAL_PROFILE,
         })
 
     def _switch_mode(self, new_idx: int):
         old_values = self.vis.get_morph_values() if hasattr(self.vis, "get_morph_values") else {}
         if hasattr(self.vis, "release") and callable(self.vis.release):
             self.vis.release()
-        if not (self.args.gl and self.vis.IS_GL):
-            self.prev_surf = self.display.target.copy()
-        else:
-            self.prev_surf = None
-        self.display.target.fill((0, 0, 0))
+        # Manual mode changes start clean; never reintroduce the previous frame.
+        self.prev_surf = None
+        self.display.target.fill((0,0,0,0))
         self.prev_surf_scaled = None
         self.crossfade_frame = 0
         self.mode_idx = new_idx % len(MODES)
@@ -389,41 +386,71 @@ class VisualizerApp:
             self._parameter_morph = None
         self.effect_gain = config.DEFAULT_EFFECT_GAIN
         self._update_target_res()
+        self.display.target.fill((0,0,0,0 if self.args.gl and self.vis.IS_GL else 255))
+        self._present_surface = None
+        self._display_snapshot = None
+        for name in ("_ui_surface", "bg_surf"):
+            surface = getattr(self,name,None)
+            if surface is not None:
+                surface.fill((0,0,0,0))
+        if hasattr(self,"postfx"):
+            self.postfx.release()
+        renderer = self.display.renderer
+        if self.args.gl and renderer is not None:
+            renderer.ctx.screen.use()
+            renderer.ctx.clear(0.,0.,0.,1.)
 
     def _rebuild_effects(self, force: bool = False):
         prev_size = (config.WIDTH, config.HEIGHT)
         if not force and getattr(self, "_last_rebuild_size", None) == prev_size:
             return
         self._last_rebuild_size = prev_size
-        if hasattr(self.vis, "release") and callable(self.vis.release):
-            self.vis.release()
-        if hasattr(self.bg_vis, "release") and callable(self.bg_vis.release):
-            self.bg_vis.release()
-        self.vis = self.VisCls(renderer=self.display.renderer)
+        for attribute, effect_cls in (("vis", self.VisCls), ("bg_vis", MODES[self.bg_mode_i][1])):
+            effect = getattr(self, attribute, None)
+            if isinstance(effect, effect_cls) and callable(getattr(effect, "detach_renderer", None)):
+                effect.renderer = self.display.renderer
+            else:
+                if effect is not None and callable(getattr(effect, "release", None)):
+                    effect.release()
+                setattr(self, attribute, effect_cls(renderer=self.display.renderer))
         self.bg_name, self.bg_cls = MODES[self.bg_mode_i]
-        self.bg_vis = self.bg_cls(renderer=self.display.renderer)
         self.bg_surf = pygame.Surface((config.WIDTH, config.HEIGHT))
         self.prev_surf_scaled = None
         if hasattr(self, "postfx"):
             self.postfx.renderer = self.display.renderer
         self._update_target_res()
+        snapshot = getattr(self, "_display_snapshot", None)
+        if snapshot is not None and not self.vis.IS_GL:
+            self.display.target.blit(pygame.transform.smoothscale(snapshot, self.display.target.get_size()), (0,0))
+        self._display_snapshot = None
 
     def _release_for_display_change(self):
+        target = getattr(self.display, "target", None)
+        self._display_snapshot = target.copy() if target is not None and not getattr(self.vis, "IS_GL", False) else None
         for name in ("vis", "bg_vis"):
             obj = getattr(self, name, None)
-            if hasattr(obj, "release") and callable(obj.release):
-                obj.release()
-            setattr(self, name, None)
+            detach = getattr(obj, "detach_renderer", None)
+            if callable(detach):
+                detach()
+            else:
+                if callable(getattr(obj, "release", None)):
+                    obj.release()
+                setattr(self, name, None)
         renderer = getattr(self.display, "renderer", None)
         if renderer is not None and hasattr(renderer, "release"):
             renderer.release()
         self.display.renderer = None
         if hasattr(self, "postfx"):
+            self.postfx.release()
             self.postfx.renderer = None
 
     def run(self):
+        previous_frame = _time.monotonic() - 1.0 / 60.0
         try:
             while not self._quit_requested:
+                now = _time.monotonic()
+                config.FRAME_DT = max(0.0, min(0.1, now - previous_frame))
+                previous_frame = now
                 self._handle_events()
                 if self._quit_requested:
                     break
@@ -445,7 +472,8 @@ class VisualizerApp:
                         self.display.renderer.postprocess_screen(
                             self.postfx, self.postfx_mode, min(1.0, self.effect_gain), self.tick
                         )
-                    self.display.target.fill((0, 0, 0, 0))
+                    if self.vis.IS_GL:
+                        self.display.target.fill((0, 0, 0, 0))
 
                 pygame.display.flip()
                 self.quality.observe(self.clock.get_rawtime(), enabled=True)
@@ -489,6 +517,9 @@ class VisualizerApp:
                         self.show_hud = not self.show_hud
                 elif event.key == pygame.K_TAB:
                     self.ui.pane_open = not self.ui.pane_open
+                elif event.key == pygame.K_v:
+                    profiles = ("auto", "laptop", "tv")
+                    config.VISUAL_PROFILE = profiles[(profiles.index(config.VISUAL_PROFILE) + 1) % len(profiles)]
                 elif event.key == pygame.K_m:
                     if event.mod & pygame.KMOD_SHIFT:
                         if self.span_mode:
@@ -698,6 +729,8 @@ class VisualizerApp:
             self._silence_quiet_seconds = 0.0
 
     def _update(self):
+        step_seconds = max(0.0, min(0.1, config.FRAME_DT))
+        self._visual_seconds = getattr(self, "_visual_seconds", 0.0) + step_seconds
         self._advance_preset_morph()
         self._advance_parameter_morph()
         self._update_genre()
@@ -727,7 +760,7 @@ class VisualizerApp:
         if self.is_silent:
             raw_beat = 0.0
             # Gentle breathing/LFO modulation to keep the visuals alive and dynamic in no-input/silent mode
-            t_sec = self.tick / 60.0
+            t_sec = self._visual_seconds
             lfo_mid = 0.5 + 0.5 * math.sin(t_sec * 1.2)
             lfo_treble = 0.5 + 0.5 * math.cos(t_sec * 0.9)
             lfo_beat = 0.5 + 0.5 * math.sin(t_sec * 2.0)
@@ -776,7 +809,7 @@ class VisualizerApp:
         self.energy_sum += raw_beat
         avg = self.energy_sum / len(self.energy_hist) if self.energy_hist else 1e-6
         impulse = max(0.0, min(raw_beat / (avg + 1e-6) - 1.0, 3.0))
-        self.beat_decay = max(impulse, self.beat_decay * (0.82 if self.is_silent else 0.90))
+        self.beat_decay = max(impulse, self.beat_decay * (0.82 if self.is_silent else 0.90) ** (step_seconds * 60))
         self.beat = max(self.beat_decay, silence_beat_floor if self.is_silent else 0.0)
         
         self.rms_buf.append(rms)
@@ -826,6 +859,8 @@ class VisualizerApp:
         genre_alpha = palette.trail_alpha if self.current_genre != "detecting..." else None
         new_alpha = genre_alpha if genre_alpha is not None else getattr(self.vis, "TRAIL_ALPHA", 48)
         new_alpha = int(round(new_alpha))
+        if getattr(self.vis, "TIME_BASED", False):
+            new_alpha = int(round(255 * (1 - (1 - new_alpha / 255) ** self.vis._frame_step())))
         if new_alpha != self.fade_alpha:
             self.fade_alpha = new_alpha
             self._make_fade(self.fade_alpha)
@@ -833,7 +868,11 @@ class VisualizerApp:
         is_gl_fg = self.args.gl and self.vis.IS_GL
         
         if not is_gl_fg:
-            target.blit(self.fade, (0, 0))
+            self.vis._opaque_canvas(target)
+            if getattr(self.vis,"TRAIL_ALPHA",48) == 0:
+                target.fill((0,0,0,255))
+            else:
+                target.blit(self.fade, (0,0))
         
         if self.bg_on and not is_gl_fg:
             self.bg_surf.fill((0, 0, 0))
@@ -904,6 +943,7 @@ class VisualizerApp:
             
         fps = self.clock.get_fps()
         gl_tag = " | GL" if self.args.gl else ""
+        gl_tag += f" | {config.VISUAL_PROFILE}"
         title = f"psysuals v{__version__}  [{fps:.0f} fps{gl_tag}]"
         
         # Build text lines

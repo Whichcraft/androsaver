@@ -20,6 +20,7 @@ _DEFAULTS = {
     "bg_alpha": 102,
     "cf_frames": 45,
     "effect_gain": 0.7,
+    "visual_profile": "auto",
 }
 
 
@@ -36,6 +37,8 @@ def _normalise(data: object) -> dict:
     if not isinstance(data, dict):
         return dict(_DEFAULTS)
     result = {**_DEFAULTS, **data}
+    if result["visual_profile"] not in ("auto", "laptop", "tv"):
+        result["visual_profile"] = "auto"
     int_ranges = {
         "mode_idx": (0, 10_000), "display_idx": (0, 10_000),
         "hud_level": (0, 2), "bg_mode_i": (0, 10_000),

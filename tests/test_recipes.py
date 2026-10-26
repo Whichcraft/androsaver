@@ -7,7 +7,7 @@ from psysualizer import RECIPES
 class RecipeTests(unittest.TestCase):
     def test_recipes_reference_registered_modes_and_valid_alpha(self):
         names = {name for name, _ in MODES}
-        self.assertEqual(len(RECIPES), 5)
+        self.assertEqual(len(RECIPES), 4)
         for recipe in RECIPES:
             self.assertIn(recipe["foreground"], names)
             self.assertIn(recipe["background"], names)

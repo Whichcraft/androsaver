@@ -18,6 +18,7 @@ class Lissajous(Effect):
     Each trail is rendered in two passes (wide dim halo + thin bright core)
     for a neon bloom effect.  Beat explodes the scale outward then snaps back.
     """
+    TIME_BASED = True
 
     TRAIL = 1400
     N_SYM = 3
@@ -38,47 +39,33 @@ class Lissajous(Effect):
         self.svel  = 0.0
 
     def draw(self, surf, waveform, fft, beat, tick):
-        self.hue += 0.006
+        step = self._frame_step()
         W, H = surf.get_size()
-        # Keep Lissajous on its original stable FFT-driven shape.  The newer
-        # cross-effect band distortion made this knot collapse into a bright
-        # blob on large displays.
-        bass = float(np.mean(fft[:6])) if len(fft) else 0.0
-        mid  = float(np.mean(fft[6:30])) if len(fft) > 6 else 0.0
-        high = float(np.mean(fft[30:])) if len(fft) > 30 else 0.0
-
-        # Creative shape distortion mapping
-        ax = 3.0 + bass * 1.3
-        ay = 2.0 + mid  * 1.3
-        az = 5.0 + high * 1.3
-
-        self.dx += 0.0006 + bass * 0.002
-        self.dz += 0.0005 + high * 0.0013
-
-        # BPM scaling: faster knot at higher tempo (guard against BPM=0 before detection)
-        bpm_scale = max(0.7, config.BPM / 138.0) if config.BPM > 60 else 1.0
-        
-        # Dampened beat response to prevent "wild" behavior
-        clamped_beat = min(1.5, beat)
-        self.t += (0.016 + clamped_beat * 0.04) * bpm_scale
-        self.hist.append((math.sin(ax * self.t + self.dx),
-                          math.sin(ay * self.t + self.dy),
-                          math.sin(az * self.t + self.dz)))
-
-        self.svel  += clamped_beat * 0.30
-        self.svel  += (1.0 - self.scale) * 0.16
-        self.svel  *= 0.72
-        self.scale += self.svel
-        self.scale  = max(0.35, self.scale)
-
-        self.hue += clamped_beat * 0.06
-
-        self.rvx += clamped_beat * 0.008 + 0.0001
-        self.rvy += clamped_beat * 0.010 + 0.00015
-        self.rvx *= 0.985
-        self.rvy *= 0.985
-        self.rx  += self.rvx
-        self.ry  += self.rvy
+        motion, light = self._audio_response(beat)
+        bass, mid, high = motion
+        motion_scale, accent = self._profile_response()
+        self.hue += (0.006 + light[0] * 0.02) * step
+        self.dx += (0.0003 + bass * 0.0002) * step
+        self.dz += (0.0002 + high * 0.0002) * step
+        bpm_scale = max(0.7, min(1.5, config.BPM / 138.0)) if config.BPM > 60 else 1.0
+        speed = (0.010 + bass * 0.004 + mid * 0.002) * bpm_scale * motion_scale
+        previous_t = self.t
+        self.t += speed * step
+        # Sample trails at 60 Hz, so their duration is independent of render FPS.
+        credit = getattr(self, "_sample_credit", 0.0)
+        first = 1.0 - credit
+        count = int(credit + step + 1e-9)
+        for i in range(count):
+            t = previous_t + speed * (first + i)
+            self.hist.append((math.sin(3 * t + self.dx), math.sin(2 * t + self.dy),
+                              math.sin(5 * t + self.dz)))
+        self._sample_credit = max(0.0, credit + step - count)
+        self.scale = self._smooth(self.scale, 1.0 + bass * 0.18, 0.08)
+        self.rvx = self._smooth(self.rvx, 0.006 + bass * 0.008 + mid * 0.003, 0.06)
+        self.rvy = self._smooth(self.rvy, 0.009 + bass * 0.010 + mid * 0.004, 0.06)
+        self.rx += self.rvx * step * motion_scale
+        self.ry += self.rvy * step * motion_scale
+        clamped_beat = float(light[0]) * accent
 
         s  = self.scale
         n  = len(self.hist)
@@ -93,10 +80,7 @@ class Lissajous(Effect):
         z2   = py_a * sx_r + pz_a * cx_r
         x3   = px_a * cy_r + z2 * sy_r
         z3   = -px_a * sy_r + z2 * cy_r
-        # Keep the perspective bounded on 4K/TV canvases; the old near-zero
-        # denominator sent most vertices off-screen and left only a colour
-        # smear (or a black first frame).
-        fov_l  = min(W, H) * 0.34
+        fov_l  = min(W, H) * 0.52
         zcam   = np.maximum(z3 + 3.4, 0.75)
         raw_x  = x3 * fov_l / zcam
         raw_y  = y2 * fov_l / zcam
@@ -126,6 +110,9 @@ class Lissajous(Effect):
                 colors = _hsl_batch(h_arr, l=l_arr)
                 lw_arr = np.maximum(1, lw_base * lw_mul)
                 for j in range(1, n):
+                    # Never bridge a discontinuity with a long line to the head.
+                    if math.hypot(sx_arr[j] - sx_arr[j - 1], sy_arr[j] - sy_arr[j - 1]) > min(W, H) * 0.10:
+                        continue
                     pygame.draw.line(surf,
                                      tuple(colors[j].astype(int)),
                                      (int(sx_arr[j - 1]), int(sy_arr[j - 1])),

@@ -4,7 +4,6 @@ import config
 from core.quality import QualityGovernor
 from effects.phason import Phason
 from effects.ferrofluid import Ferrofluid
-from effects.mandelbox import Mandelbox
 from effects.slimemold import SlimeMold
 
 
@@ -45,13 +44,13 @@ class QualityGovernorTests(unittest.TestCase):
             config.QUALITY_SCALE = 1.0
             for width, height in ((1920, 1080), (3840, 2160)):
                 config.WIDTH, config.HEIGHT = width, height
-                for effect_cls in (Phason, Ferrofluid, Mandelbox, SlimeMold):
+                for effect_cls in (Phason, Ferrofluid, SlimeMold):
                     effect = object.__new__(effect_cls)
                     self.assertEqual(effect._render_size(), (width, height, 1), effect_cls.__name__)
             config.QUALITY_SCALE = 0.6
             config.WIDTH, config.HEIGHT = 1920, 1080
-            self.assertEqual(object.__new__(Phason)._render_size(), (960, 540, 2))
-            self.assertEqual(object.__new__(SlimeMold)._render_size(), (960, 540, 2))
+            self.assertEqual(object.__new__(Phason)._render_size(), (1152, 648, 1920 / 1152))
+            self.assertEqual(object.__new__(SlimeMold)._render_size(), (1632, 918, 1920/1632))
             config.QUALITY_SCALE = 1.0
             config.WIDTH, config.HEIGHT = 320, 240
             self.assertEqual(object.__new__(SlimeMold)._render_size(), (106, 80, 3))

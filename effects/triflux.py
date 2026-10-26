@@ -19,6 +19,7 @@ class Attractor(Effect):
     nothing shows through from behind.
     """
 
+    TIME_BASED = True
     TRAIL_ALPHA  = 48
     N_COLS       = 14
     GAP          = 0.88
@@ -37,7 +38,9 @@ class Attractor(Effect):
         self.active_ids = []
         self._built     = False
         self._W = self._H = 0
-        self._swap_cd   = 0
+        self._swap_cd = 0
+        self._beat_prev = 0.0
+        self._beat_cd = 0.0
         self._auto_cd   = int(self._rng.integers(180, 301))  # frames until next auto-activation
         # Two independent rainbow sweeps so one is nearly always on screen
         # Second starts mid-travel so they're never both off-screen simultaneously
@@ -50,6 +53,9 @@ class Attractor(Effect):
 
     # ------------------------------------------------------------------
     def _build_grid(self):
+        self.tiles.clear()
+        self.filled_ids.clear()
+        self.active_ids.clear()
         tw = self._W / self.N_COLS
         th = tw * math.sqrt(3) / 2
         # Start one tile outside each edge so no clipped triangles appear at borders
@@ -142,200 +148,121 @@ class Attractor(Effect):
             a = pts[i];  b = pts[(i + 1) % 3]
             angle = math.atan2(b[1] - a[1], b[0] - a[0])
             h = (self.hue * 2 + angle / math.tau + 0.5) % 1.0
-            pygame.draw.line(surf, hsl(h, l=0.75), a, b, lw)
+            # Parallel subpixel strokes retain smooth outer edges at every width.
+            length = math.hypot(b[0] - a[0], b[1] - a[1])
+            if length == 0:
+                continue
+            nx, ny = -(b[1] - a[1]) / length, (b[0] - a[0]) / length
+            color = hsl(h, l=0.75)
+            for stroke in range(max(1, lw)):
+                offset = stroke - (lw - 1) / 2.0
+                pygame.draw.aaline(surf, color,
+                                   (a[0] + nx * offset, a[1] + ny * offset),
+                                   (b[0] + nx * offset, b[1] + ny * offset))
 
     # ------------------------------------------------------------------
-    def draw(self, surf, waveform, fft, beat, tick):
-        W, H = surf.get_size()
-        if W != self._W or H != self._H:
-            self._W, self._H = W, H
-            self._built = False
-        if not self._built:
-            self._build_grid()
+    def _activate(self, bass):
+        candidates = [i for i in self._interior_indices() if i not in self.active_ids]
+        if candidates and len(self.active_ids) < self.N_ACTIVE_MAX:
+            idx = int(self._rng.choice(candidates))
+            tile = self.tiles[idx]
+            self.active_ids.append(idx)
+            tile["life"] = float(self._rng.integers(self.ACTIVE_LIFE_MIN, self.ACTIVE_LIFE_MAX))
+            tile["rot_vel"] = float(self._rng.choice([-1,1]) * self._rng.uniform(.008,.018))
+            tile["home_cx"], tile["home_cy"] = tile["cx"], tile["cy"]
 
-        self.hue += 0.003
-        bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
-
-        # Slowly rotate filled set
-        self._swap_cd -= 1
-        if self._swap_cd <= 0:
-            self._swap_cd = int(self._rng.integers(70, 121))
-            vis       = self._visible_indices()
-            candidates = [i for i in vis if i not in self.filled_ids]
-            if candidates and self.filled_ids:
-                self.filled_ids[self._rng.integers(len(self.filled_ids))] = candidates[self._rng.integers(len(candidates))]
-
-        # On bass beat, pop a new interior tile to front (or extend life of existing ones)
-        bass_beat = bass > 0.25
-        if bass_beat:
-            if len(self.active_ids) < self.N_ACTIVE_MAX:
-                candidates = [i for i in self._interior_indices() if i not in self.active_ids]
-                if candidates:
-                    idx = candidates[self._rng.integers(len(candidates))]
-                    self.active_ids.append(idx)
-                    t = self.tiles[idx]
-                    t["life"]    = int(self._rng.integers(self.ACTIVE_LIFE_MIN, self.ACTIVE_LIFE_MAX))
-                    t["rot_vel"] = (-1 if self._rng.random() < 0.5 else 1) * self._rng.uniform(0.015, 0.04)
-                    t["home_cx"] = t["cx"]; t["home_cy"] = t["cy"]
-                    t["cvx"] = 0.0;         t["cvy"] = 0.0
-            else:
-                # Slots full — extend life of existing active tiles so they don't fall back yet
-                for idx in self.active_ids:
-                    self.tiles[idx]["life"] = max(self.tiles[idx]["life"], self.MIN_LIFE)
-
-        # Periodically auto-activate 1-2 interior tiles regardless of beat
-        self._auto_cd -= 1
-        if self._auto_cd <= 0:
-            self._auto_cd = int(self._rng.integers(180, 321))
-            n_new = int(self._rng.integers(1, 3))
+    def _resize_grid(self, W, H):
+        active = [(self.tiles[i].copy(), self.tiles[i]["cx"] / self._W,
+                   self.tiles[i]["cy"] / self._H) for i in self.active_ids] if self._built else []
+        self._W, self._H = W, H
+        self._build_grid()
+        for previous, x, y in active:
             candidates = [i for i in self._interior_indices() if i not in self.active_ids]
-            self._rng.shuffle(candidates)
-            for idx in candidates[:n_new]:
-                if len(self.active_ids) < self.N_ACTIVE_MAX:
-                    self.active_ids.append(idx)
-                    t = self.tiles[idx]
-                    t["life"]    = int(self._rng.integers(self.ACTIVE_LIFE_MIN, self.ACTIVE_LIFE_MAX))
-                    t["rot_vel"] = (-1 if self._rng.random() < 0.5 else 1) * self._rng.uniform(0.012, 0.03)
-                    t["home_cx"] = t["cx"]; t["home_cy"] = t["cy"]
-                    t["cvx"] = 0.0;         t["cvy"] = 0.0
+            if not candidates:
+                break
+            idx = min(candidates, key=lambda i: (self.tiles[i]["cx"]-x*W)**2 + (self.tiles[i]["cy"]-y*H)**2)
+            tile = self.tiles[idx]
+            for key in ("hue","hvel","bright","rot","rot_vel","scale","svel","life"):
+                tile[key] = previous[key]
+            tile["home_cx"],tile["home_cy"] = tile["cx"],tile["cy"]
+            self.active_ids.append(idx)
 
-        # ── Advance both sweeps (speed scaled by mids) ───────────────────────
-        for sw in self._sweeps:
-            sw["pos"] += sw["vel"] * (1.0 + mid * 1.5)
-            mn, mx = self._sweep_edge_range(sw["angle"])
-            if sw["pos"] > mx + self._sweep_width:
-                sw["angle"] = self._rng.uniform(0, math.tau)
-                mn2, _ = self._sweep_edge_range(sw["angle"])
-                sw["pos"] = mn2 - self._sweep_width
-
-        # ── Pass 1: all non-active tiles ────────────────────────────────────
-        for i, tile in enumerate(self.tiles):
-            if i in self.active_ids:
-                continue
-
-            tile["hue"] = (tile["hue"] + tile["hvel"] + 0.00015) % 1.0
-
-            # Spring back to scale=1.0 and rot=0.0 (in case it was previously active)
-            tile["svel"]    += (1.0 - tile["scale"]) * 0.15
-            tile["svel"]    *= 0.75
-            tile["scale"]   += tile["svel"]
-            tile["rot_vel"] += (0.0 - tile["rot"]) * 0.05
-            tile["rot_vel"] *= 0.88
-            tile["rot"]     += tile["rot_vel"]
-
-            pts = self._screen_verts(tile)
-            on_screen = not all(p[0] < 0 or p[0] >= W or p[1] < 0 or p[1] >= H for p in pts)
-
-            # Sweep glows — drawn even for off-screen tiles (light shaft effect)
-            for sw in self._sweeps:
-                sw_cos = math.cos(sw["angle"])
-                sw_sin = math.sin(sw["angle"])
-                d      = tile["cx"] * sw_cos + tile["cy"] * sw_sin
-                dist   = abs(d - sw["pos"])
-                if dist < self._sweep_width:
-                    sw_t    = 1.0 - dist / self._sweep_width
-                    sweep_h = (self.hue + d / self._sweep_diag) % 1.0
-                    sweep_br = 0.20 + sw_t * 0.55 + mid * 0.15
-                    pygame.draw.polygon(surf, hsl(sweep_h, s=1.0, l=sweep_br), pts)
-
-            if not on_screen:
-                continue
-
-            if i in self.filled_ids:
-                h      = (tile["hue"] + self.hue) % 1.0
-                bright = min(tile["bright"] + bass * 0.20 + mid * 0.10, 0.75)
-                pygame.draw.polygon(surf, hsl(h, l=bright), pts)
-
-            self._rainbow_edges(surf, pts)
-
-        # ── Pass 2: active tiles — on top, way bigger, bass-pulsing ─────────
+    def _advance(self, bass, mid, high, step):
+        self.hue += .003 * step
+        self._swap_cd -= step
+        self._auto_cd -= step
+        self._beat_cd = max(0., self._beat_cd-step)
+        if self._swap_cd <= 0:
+            self._swap_cd += float(self._rng.integers(70,121))
+            choices = [i for i in self._visible_indices() if i not in self.filled_ids]
+            if choices and self.filled_ids:
+                self.filled_ids[int(self._rng.integers(len(self.filled_ids)))] = int(self._rng.choice(choices))
+        if self._auto_cd <= 0:
+            self._auto_cd += float(self._rng.integers(180,321))
+            self._activate(bass)
+        for sweep in self._sweeps:
+            sweep["pos"] += sweep["vel"] * (1+mid*.35) * step
+            _, maximum = self._sweep_edge_range(sweep["angle"])
+            if sweep["pos"] > maximum+self._sweep_width:
+                sweep["angle"] = float(self._rng.uniform(0, math.tau))
+                sweep["pos"] = self._sweep_edge_range(sweep["angle"])[0]-self._sweep_width
+        # Small integration steps keep the damped springs stable across frame rates.
+        substeps = max(1, math.ceil(step*2))
+        dt = step/substeps
         finished = []
-        for i in self.active_ids:
-            tile = self.tiles[i]
-            tile["hue"] = (tile["hue"] + tile["hvel"] + 0.00015) % 1.0
-
-            alive = tile["life"] > 0
-            if alive:
-                # Still alive: hold at large scale, pulse hard with bass and mids
-                tile["life"] -= 1
-                target         = 4.5 + bass * 4.0 + mid * 1.5
-                tile["svel"]  += (target - tile["scale"]) * 0.22
-                tile["svel"]  *= 0.70
-                tile["scale"]  = min(tile["scale"] + tile["svel"], 12.0)
-                tile["rot"]   += tile["rot_vel"]
-                # Bass and treble reinforce spin (moderated to prevent excessive nervousness)
-                tile["rot_vel"] += (bass * 0.005 + high * 0.008) * math.copysign(1, tile["rot_vel"] or 1)
-                tile["rot_vel"] *= 0.94
-                # Move centroid with velocity, then let bounce handle edges
-                tile["cx"] += tile.get("cvx", 0.0)
-                tile["cy"] += tile.get("cvy", 0.0)
-                tile["cvx"] = tile.get("cvx", 0.0) * 0.97
-                tile["cvy"] = tile.get("cvy", 0.0) * 0.97
-            else:
-                # Life expired: spring back to rest (scale → 1.0, rot → 0.0, pos → home)
-                tile["svel"]    += (1.0 - tile["scale"]) * 0.12
-                tile["svel"]    *= 0.78
-                tile["scale"]   += tile["svel"]
-                tile["rot_vel"] += (0.0 - tile["rot"]) * 0.06
-                tile["rot_vel"] *= 0.85
-                tile["rot"]     += tile["rot_vel"]
-                # Decay centroid velocity and spring back to home grid position
-                tile["cvx"] = tile.get("cvx", 0.0) * 0.80
-                tile["cvy"] = tile.get("cvy", 0.0) * 0.80
-                home_cx = tile.get("home_cx", tile["cx"])
-                home_cy = tile.get("home_cy", tile["cy"])
-                tile["cx"] += (home_cx - tile["cx"]) * 0.10
-                tile["cy"] += (home_cy - tile["cy"]) * 0.10
-
-                if (abs(tile["scale"] - 1.0) < 0.03 and abs(tile["rot"]) < 0.02
-                        and abs(tile["rot_vel"]) < 0.003
-                        and abs(tile["cx"] - home_cx) < 1.0
-                        and abs(tile["cy"] - home_cy) < 1.0):
-                    tile["scale"]   = 1.0
-                    tile["rot"]     = 0.0
-                    tile["rot_vel"] = 0.0
-                    tile["svel"]    = 0.0
-                    tile["cx"]      = home_cx
-                    tile["cy"]      = home_cy
-                    finished.append(i)
-
-            pts = self._screen_verts(tile)
-
-            # ── Bounce off screen edges (active phase only) ──────────────────
-            if alive:
-                min_x = min(p[0] for p in pts)
-                max_x = max(p[0] for p in pts)
-                min_y = min(p[1] for p in pts)
-                max_y = max(p[1] for p in pts)
-                if min_x < 0:
-                    tile["cvx"]  = abs(tile.get("cvx", 0.0)) * 0.8 + 1.5
-                    tile["cx"]  -= min_x          # push back inside
-                    pts = self._screen_verts(tile)
-                elif max_x > W:
-                    tile["cvx"]  = -(abs(tile.get("cvx", 0.0)) * 0.8 + 1.5)
-                    tile["cx"]  -= (max_x - W)
-                    pts = self._screen_verts(tile)
-                if min_y < 0:
-                    tile["cvy"]  = abs(tile.get("cvy", 0.0)) * 0.8 + 1.5
-                    tile["cy"]  -= min_y
-                    pts = self._screen_verts(tile)
-                elif max_y > H:
-                    tile["cvy"]  = -(abs(tile.get("cvy", 0.0)) * 0.8 + 1.5)
-                    tile["cy"]  -= (max_y - H)
-                    pts = self._screen_verts(tile)
-
-            h      = (tile["hue"] + self.hue) % 1.0
-            bright = min(tile["bright"] + bass * 0.40 + mid * 0.15 + 0.25, 0.92)
-
-            # Solid black backing so nothing bleeds through
-            pygame.draw.polygon(surf, (0, 0, 0), pts)
-            # Colour fill
-            pygame.draw.polygon(surf, hsl(h, l=bright), pts)
-            # Bold rainbow edges on top, styled by treble
-            active_lw = max(2, int(3 + high * 3.0))
-            self._rainbow_edges(surf, pts, lw=active_lw)
-
+        for i,tile in enumerate(self.tiles):
+            tile["hue"] = (tile["hue"] + (tile["hvel"]+.00015)*step) % 1
+            active = i in self.active_ids
+            if active:
+                tile["life"] = max(0.,tile["life"]-step)
+            alive = active and tile["life"] > 0
+            target = 4.5 + bass*1.2 + mid*.4 if alive else 1.
+            for _ in range(substeps):
+                tile["svel"] += (target-tile["scale"])*.14*dt
+                tile["svel"] *= .74**dt
+                tile["scale"] += tile["svel"]*dt
+                if alive:
+                    target_speed = math.copysign(.010+bass*.006+high*.003,tile["rot_vel"] or 1)
+                    tile["rot_vel"] += (target_speed-tile["rot_vel"])*(1-.96**dt)
+                else:
+                    tile["rot_vel"] += -tile["rot"]*.05*dt
+                    tile["rot_vel"] *= .85**dt
+                tile["rot"] += tile["rot_vel"]*dt
+            if active and not alive and abs(tile["scale"]-1)<.03 and abs(tile["rot"])<.02 and abs(tile["rot_vel"])<.003:
+                tile["scale"],tile["rot"],tile["rot_vel"],tile["svel"] = 1.,0.,0.,0.
+                finished.append(i)
         for i in finished:
             self.active_ids.remove(i)
+
+    def draw(self, surf, waveform, fft, beat, tick):
+        W,H = surf.get_size()
+        if not self._built or (W,H) != (self._W,self._H):
+            self._resize_grid(W,H)
+        motion,light = self._audio_response(beat)
+        bass,mid,high = motion
+        step = self._frame_step()
+        if beat > .25 and self._beat_prev <= .25 and self._beat_cd <= 0:
+            self._activate(bass)
+            self._beat_cd = 20
+        self._beat_prev = beat
+        self._advance(bass,mid,high,step)
+        for i,tile in enumerate(self.tiles):
+            if i in self.active_ids:
+                continue
+            points = self._screen_verts(tile)
+            for sweep in self._sweeps:
+                distance = tile["cx"]*math.cos(sweep["angle"])+tile["cy"]*math.sin(sweep["angle"])
+                t = max(0.,1-abs(distance-sweep["pos"])/self._sweep_width)
+                if t > 0:
+                    hue = (self.hue+distance/self._sweep_diag)%1
+                    pygame.draw.polygon(surf,hsl(hue,l=min(.85,.2+t*.55+mid*.1)),points)
+            if i in self.filled_ids:
+                pygame.draw.polygon(surf,hsl((tile["hue"]+self.hue)%1,l=min(.75,tile["bright"]+light[0]*.2)),points)
+            self._rainbow_edges(surf,points)
+        for i in self.active_ids:
+            tile = self.tiles[i]
+            points = self._fit_viewport(self._screen_verts(tile),W,H).astype(int).tolist()
+            hue = (tile["hue"]+self.hue)%1
+            pygame.draw.polygon(surf,(0,0,0),points)
+            pygame.draw.polygon(surf,hsl(hue,l=min(.92,tile["bright"]+.25+light[0]*.25)),points)
+            self._rainbow_edges(surf,points,max(2,int(3+light[2]*1.5)))

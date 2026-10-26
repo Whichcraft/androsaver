@@ -20,13 +20,13 @@ BASELINE = {
     "FlowField": (19200, 892884), "Fireworks": (1017, 68958),
     "Aurora": (14009, 124197), "Lattice": (17787, 406107),
     "Mycelium": (17941, 423082), "Magnetar": (18720, 205784),
-    "SlimeMold": (16606, 732669), "Mobius": (4461, 201641),
-    "Chromatic": (15297, 744271), "Persistence": (1104, 8672),
-    "Synapse": (6213, 228956), "Heartbeat": (11644, 153948),
-    "Morphogenesis": (19159, 459180), "Hyperbolic": (19200, 127052),
+    "SlimeMold": (16606, 732669), "Mobius": (1866, 57280),
+    "Chromatic": (15297, 744271), "Persistence": (9335, 126875),
+    "Synapse": (2070, 50689), "Heartbeat": (11644, 153948),
+    "Hyperbolic": (19200, 127052),
     "LiquidLight": (19200, 172183), "Cymatica": (10988, 229039),
     "Phason": (17096, 449507), "Tesseract": (921, 43391),
-    "Ferrofluid": (19200, 711128), "Mandelbox": (16393, 363334),
+    "Ferrofluid": (19200, 110168),
     "Spectrum": (3299, 210051), "Waterfall": (2592, 57384),
 }
 

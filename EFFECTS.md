@@ -1,4 +1,6 @@
-# psysuals — Effects Reference
+# psysuals — Effects Reference (3.20.0)
+
+There are 32 registered modes. Mandelbox and Morphogenesis are removed in 3.20.0.
 
 All effects consume the same shared audio signals. They differ only in how they interpret those signals visually.
 
@@ -47,10 +49,25 @@ Standardized audio energy parameters used across all effects:
 
 ---
 
+## Display profiles and timing
+
+`--visual-profile auto|laptop|tv` selects the viewing profile; `V` cycles it live
+and the selection persists. Profiles control motion, light accents and Lattice
+density separately from internal render resolution. Auto guesses from output
+width; explicit Laptop/TV overrides work at any resolution.
+
+The fourteen retuned effects use `config.FRAME_DT` (seconds, default 1/60) for motion,
+exponential audio smoothing and trail decay. Brightness follows faster audio
+accents while cameras and geometry follow a slower envelope. Frames longer than
+0.1 seconds are capped to avoid jumps after a pause. Other effects retain their
+existing timing. CPU/GL compositing uses a display-sized canvas; each effect owns
+its internal simulation resolution. Fullscreen field shaders use the actual GL
+framebuffer size, including HiDPI outputs.
+
 ## Mode list
 
 The `#` column is the human-readable ordinal. The `--mode` command-line
-option uses the zero-based registry index instead (`0` for Yantra through `33`
+option uses the zero-based registry index instead (`0` for Yantra through `31`
 for Waterfall); the number keys directly select only modes 1–9.
 
 | # | Key | Mode | Summary |
@@ -79,16 +96,14 @@ for Waterfall); the number keys directly select only modes 1–9.
 | 22 | `←` / `→` | Persistence | Long-trail polygon moiré mandala |
 | 23 | `←` / `→` | Synapse | Neural graph with bounded travelling light pulses |
 | 24 | `←` / `→` | Heartbeat | Centre-out shockwave rings morphing circle to polygon |
-| 25 | `←` / `→` | Morphogenesis | Gray–Scott reaction-diffusion skin with neon chemical bands |
-| 26 | `←` / `→` | Hyperbolic | Poincaré-disk-inspired cathedral tiling |
-| 27 | `←` / `→` | LiquidLight | Audio-injected fluorescent fluid |
-| 28 | `←` / `→` | Cymatica | Chladni-like nodal plates with glowing sand |
-| 29 | `←` / `→` | Phason | Quasiperiodic interference bloom with 5–11 waves |
-| 30 | `←` / `→` | Tesseract | Rotating 4-D crystal projections |
-| 31 | `←` / `→` | Ferrofluid | Magnetic liquid contour crowns |
-| 32 | `←` / `→` | Mandelbox | Breathing folded-fractal temple |
-| 33 | `←` / `→` | Spectrum | Log-spaced analyser bars with waveform overlay |
-| 34 | `←` / `→` | Waterfall | Scrolling time-frequency spectrogram |
+| 25 | `←` / `→` | Hyperbolic | Stereographic tiling on a rotating 3-D sphere |
+| 26 | `←` / `→` | LiquidLight | Audio-injected fluorescent fluid |
+| 27 | `←` / `→` | Cymatica | Chladni-like nodal plates with glowing sand |
+| 28 | `←` / `→` | Phason | Quasiperiodic interference bloom with 5–11 waves |
+| 29 | `←` / `→` | Tesseract | Rotating 4-D crystal projections |
+| 30 | `←` / `→` | Ferrofluid | Metallic magnetic droplets |
+| 31 | `←` / `→` | Spectrum | Log-spaced analyser bars with waveform overlay |
+| 32 | `←` / `→` | Waterfall | Scrolling time-frequency spectrogram |
 
 `Spectrum` and `Waterfall` are intentionally the final two registry entries.
 
@@ -105,29 +120,29 @@ Concentric polygon rings rotate in alternating directions around a bright centra
 
 Two nested wireframe cubes rotate in 3-D while a pair of small satellite cubes orbit around them on separate trails.
 
-- Audio: beat drives scale expansion and Y-axis rotation; MID_ENERGY drives X-axis rotation velocity and orbit speed; TREBLE_ENERGY drives Z-axis rotation speed, increases satellite rotation speed, and adds physical 3-D vertex jitter to the wireframe.
+- Audio: smoothed bass and band energies gently change bounded rotation and scale; faster accents change colour/brightness. Satellites orbit slowly and all projected geometry fits inside the viewport.
 - Visual notes: the main app uses the CPU implementation; satellites keep their own persistent trail fade.
 
 ## 3. TriFlux
 
-An equilateral triangle wall fills the screen with rainbow wireframe tiles. Selected tiles erupt into the foreground, spin, bounce, and then spring back into place.
+An equilateral triangle wall fills the screen with rainbow wireframe tiles. Selected tiles rise into the foreground, spin inside a screen margin, and spring back into place.
 
-- Audio: beat (bass) drives active-tile activation and basic scale pulsing; MID_ENERGY scales background sweep speeds and adds to active-tile scale/brightness; TREBLE_ENERGY accelerates active-tile spin rates and shimmers outline widths.
-- Visual notes: two independent sweep bands cross the wall continuously, and the grid extends past screen edges so no clipped borders show.
+- Audio: rising beats activate one foreground tile with a minimum interval; MID_ENERGY scales background sweep speeds and adds to active-tile scale/brightness; TREBLE_ENERGY accelerates active-tile spin rates and shimmers outline widths.
+- Visual notes: triangle outlines are antialiased at all widths; motion/lifetimes use elapsed time, active tiles survive resizing, and two independent sweep bands cross the wall.
 
 ## 4. Lissajous
 
 A neon 3-D knot traces a dense trail with threefold rotational symmetry and a glowing head point.
 
-- Audio: low, mid, and high FFT bands shape the X, Y, and Z coefficients; beat drives spring expansion and rotation bursts, high-band energy expands glow halos and node accents, and live BPM scales knot travel speed.
+- Audio: fixed 3:2:5 frequency ratios retain a continuous knot; beat gently drives spring expansion and rotation, treble expands glow halos, and live BPM scales knot travel speed.
 - Visual notes: motion also reacts to live BPM, so faster tracks tighten and accelerate the knot. Rotation damping is tighter so the knot settles smoothly after beats.
 
 ## 5. Tunnel
 
 A first-person ride through a curving polygon tube, with incoming triangles flying toward the viewer from the far end.
 
-- Audio: beat (bass) increases tunnel travel velocity and ring flares; MID_ENERGY modestly drives obstacle spawn rates and rotation speeds; TREBLE_ENERGY drives camera path curvature wobble amplitude and central star size.
-- Visual notes: the tube bends continuously, the nearest rings flare hard on strong kicks, and the triangle count is kept lean (max 30 live) so the mid-tunnel stays uncluttered.
+- Audio: slow audio envelopes make small changes to forward speed, with quicker light accents. Camera curvature is independent of transients, and ring decoration follows stable ring identities instead of changing on depth sorting.
+- Visual notes: the tube bends continuously, smoothed audio gently changes travel speed and ring brightness, and the triangle count is kept lean (max 30 live) so the mid-tunnel stays uncluttered.
 
 ## 6. Corridor
 
@@ -161,7 +176,7 @@ Hundreds of glowing translucent bubbles drift upward with layered halos, reflect
 
 Seven sine-wave fields interfere into a full-screen psychedelic texture. When running with `--gl`, this effect uses a GLSL fragment shader for per-pixel hardware acceleration.
 
-- Audio: beat (bass) shifts hue, speeds up flow time, and briefly increases coordinate warp; MID_ENERGY modulates interference density; TREBLE_ENERGY shifts brightness and adds fine warp motion.
+- Audio: smoothed audio changes slow phase travel, restrained density/warp and colour; brighter beat accents do not abruptly deform the field. CPU and GL use the same restrained time progression.
 - Visual notes: the field combines a bounded domain warp with seven-wave quasiperiodic interference. This is the primary effect that takes advantage of the ModernGL path; a reduced-resolution CPU fallback is automatically used if GL is not available.
 
 ## 11. Branches
@@ -173,14 +188,14 @@ A recursive lightning tree radiates from the screen centre with multiple branchi
 
 ## 12. Butterflies
 
-Butterflies emerge from drifting cocoon motes at the screen edges. The bounded
+Butterflies emerge from cocoon motes within the visible screen area. The bounded
 flock forms nearby, compatible pairs; partners orbit and mirror one another's
 wing beats, then dissolve the pairing so new relationships can form. The
 simulation supports up to 12 butterflies and six pairs, with seeded randomness
 for repeatable runs.
 
 - Audio: emergence is age-based; bass accelerates free flight, mids affect flight speed and paired orbit motion, treble controls wing shimmer and breakup probability, and beat pulses affect flight and wing cadence.
-- Visual notes: new cocoons start just beyond the screen edge and remain cocoons for their first 19 updates, so visible flight has a brief startup delay. Trails are managed on a persistent reduced-resolution internal surface and scaled into the destination each frame. Pair matching uses a bounded nearest-neighbour search; resize-safe surfaces and idempotent cleanup preserve the normal CPU/Pygame effect contract.
+- Visual notes: new cocoons start inside a screen margin and emerge after 19 updates. Body size follows the internal canvas, and paired orbits remain within its bounds. Trails are managed on a persistent reduced-resolution internal surface and scaled into the destination each frame. Pair matching uses a bounded nearest-neighbour search; resize-safe surfaces and idempotent cleanup preserve the normal CPU/Pygame effect contract.
 
 ## 13. FlowField
 
@@ -195,7 +210,7 @@ The previous frame is zoomed and darkened into a tunnel while fireworks launch u
 
 - Audio: beat (bass) launches rockets and drives zoom scaling; bass injects stronger trail vortices; MID_ENERGY steers the curl; TREBLE_ENERGY increases rocket explosion ember counts, launch-trail widths, velocities, and dye separation; beat bursts briefly increase vorticity.
 - Visual notes: auto-launch timing is also tied to `config.EFFECT_GAIN`, so quieter gain settings create more background rockets between beats. Beat bursts trigger on rising edges, while rocket and ember populations remain explicitly capped.
-- Performance: trail advection is one fixed, clamped step on the existing reduced-resolution surface, keeping the CPU path within the normal frame budget without per-particle field allocations.
+- Performance: trail advection is one fixed, clamped step on the existing reduced-resolution surface, keeping the CPU path within the normal frame budget without per-particle field allocations. Feedback remains on the CPU, avoiding GPU readback stalls during GL composition; rocket/ember coordinates and the feedback trail survive resizing.
 
 ## 15. Aurora
 
@@ -206,10 +221,14 @@ Five translucent ribbon curtains sweep across the screen as thick parallel bands
 
 ## 16. Lattice
 
-A dynamic crystal grid of nodes and beams uses a center-out frequency mapping: center columns glow on bass, edge columns glow on treble, creating a symmetric bloom on beats. Grid density scales by configured display width: 14×9 below 1600 px, 18×12 from 1600–2559 px, and 22×14 from 2560 px upward. Features a zoom feedback tunnel and dynamic peak-normalization for balanced column activity.
+A crystal grid of nodes and beams maps columns across FFT bins and normalizes
+column peaks for balanced activity. Laptop uses 22×14 nodes and TV uses 14×9,
+independently of GL render scale. Auto chooses the profile by output width;
+explicit profiles override it at any resolution. Slow zoom feedback and a
+bounded shockwave reveal the grid without changing its Euclidean spacing.
 
 - Audio: column activity is peak-normalized; beat drives shockwave expansion and subtle whole-grid scaling; MID_ENERGY drives feedback zoom, hue speed, column brightness, and shockwave speed; TREBLE_ENERGY shimmers node size, core brightness, beam width, and grid scale.
-- Visual notes: nodes retain Euclidean grid spacing at all energy levels. Node hue has a radial offset, keeping the centre cooler while corners drift more violet. Lattice no longer exposes the Hyperbolic effect's warp parameter, so transitions between those modes use the standard surface crossfade.
+- Visual notes: nodes retain Euclidean grid spacing at all energy levels. Node hue has a radial offset, keeping the centre cooler while corners drift more violet. Lattice no longer exposes the Hyperbolic effect's warp parameter, so switches between those modes clear the previous image.
 
 ## 17. Mycelium
 
@@ -232,6 +251,8 @@ A Physarum-inspired multi-agent simulation: thousands of agents deposit chemical
 - Audio: bass controls agent speed and trail deposit strength; mid sharpens gradient sensitivity; treble widens the sensor angle; beat teleports a fraction of agents back toward centre.
 - Visual notes: runs at a finer internal resolution with smooth scaling, reducing enlarged pixels on large displays.
 
+- TV detail: at least 85% of native width and height is retained under lower quality tiers. Resizing resamples the floating-point chemical trail and rescales agents without resetting the network.
+
 ## 20. Mobius
 
 A 3-D Möbius strip rendered as a wireframe with perspective projection. The visible structure is carried by the latitude loops alone, leaving the band clean instead of cutting it up with interior cross-lines.
@@ -250,15 +271,15 @@ Prismatic raindrop ripples expand from beat origins as wavy RGB-separated outlin
 
 Multiple nested polygons rotate in 3D space on non-coplanar X, Y, and Z axes at different speeds. The geometric figures target roughly 80% of the render height. Projected through a perspective camera with depth-based thickness and brightness shading, their counter-rotating ghost images accumulate under long persistence to form 3D holographic moiré mandalas.
 
-- Audio: bass drives X/Y/Z rotation speed bursts; mid scales the number of active shapes; treble brightens the foremost shape; beat triggers a speed spike and hue jump.
-- Visual notes: lines closer to the camera are drawn thicker and brighter, creating realistic 3D depth cueing as the polygons spin in perspective. A bounded fourth-coordinate rotation adds an occasional inside-out projection accent.
+- Audio: slow audio envelopes gently adjust rigid X/Y/Z rotation; five shapes stay present at fixed relative sizes; quick bass and treble accents brighten their edges. Beats can reverse one rotation axis at most every two seconds, easing through the direction change; audio also drives bounded speed and colour offsets.
+- Visual notes: lines closer to the camera are drawn thicker and brighter, creating realistic 3D depth cueing as the polygons spin in perspective. Rigid 3-D rotation preserves each solid without fourth-coordinate deformation.
 
 ## 23. Synapse
 
-An evolving neural graph grows and sheds connection points while its nodes wander around loose anchors. Each point is rewired to nearby neighbours as the topology changes. Signals travel visibly along edges as glowing pulses; arriving signals fire destination nodes which cascade further. Beat triggers multi-node cascades.
+An evolving neural graph fades its oldest point over one second and grows two new points near active parents roughly every three seconds, growing to a bounded capacity while its nodes wander around loose anchors. Each point is rewired to nearby neighbours as the topology changes. Signals travel visibly along edges as glowing pulses; arriving signals fire destination nodes which cascade further. Beat triggers multi-node cascades.
 
 - Audio: bass drives signal propagation speed and node glow intensity; mid controls the baseline auto-fire rate; treble increases signal color saturation; beat fires bounded multi-node cascades.
-- Visual notes: the live signal pool is capped, node fan-out is sampled, and topology changes clear only stale in-flight edge references, keeping the effect stable while the graph remains alive.
+- Visual notes: the live signal pool is capped, node fan-out is sampled, and topology changes preserve signals on surviving edges and discard stale edge references, keeping the effect stable while the graph remains alive.
 
 ## 24. Heartbeat
 
@@ -267,70 +288,57 @@ Rhythmic pressure waves expand from the screen centre. Each beat spawns concentr
 - Audio: bass drives wave speed and polygon morphing (low bass = circle, high bass = triangle) and excites the plate overlay; mid modulates propagation speed and nodal-mode morphing; treble adds shimmer; beat spawns new ring(s).
 - Visual notes: strong beats at high bass produce stark polygonal shockwaves over a fading Chladni-like cymatics pattern; gentle beats produce soft circular ripples. The analytic plate is cached at reduced resolution and uses no runtime eigensolver.
 
-## 25. Morphogenesis
+## 25. Hyperbolic
 
-A bounded Gray–Scott reaction-diffusion field evolves from seeded chemistry into coral, cellular, and leopard-like patterns. The low-resolution chemical skin is rendered as layered neon contour bands and smoothly scaled to the destination.
+Connected pentagon and hexagon tiles form the dual of a subdivided icosahedron. The sphere rotates in true 3-D before perspective projection, over a faint shaded body. Each segment independently rises, tilts around an edge and sinks into the surface; shaded side walls and moving neon colour waves reveal the depth.
 
-- Audio: bass injects bounded reagent droplets on beat rising edges; MID_ENERGY moves through curated feed/kill presets; TREBLE_ENERGY sharpens the reaction contours and adds iridescence; BPM controls the slow morph cadence.
-- Visual notes: the simulation uses fixed vectorized substeps and clamps both chemical fields to `[0, 1]`, preserving an evolving low-motion state during silence.
+- Audio: smoothed mids accelerate rotation and travelling displacement waves; bass lifts selected segments and faster treble accents brighten edges. Segment heights are bounded and eased over elapsed time.
+- Visual notes: topology is cached and adjacent cells share their edges. Back faces are hidden and polygons crossing the perspective horizon are clipped before drawing.
 
-## 26. Hyperbolic
-
-A bounded Poincaré-disk-inspired cathedral of curved polygonal tiles compresses toward the boundary. A disk-preserving Möbius camera offset makes the tiling appear to fold and glide through non-Euclidean space.
-
-- Audio: bass sends a radial metric shockwave through tile generations; MID_ENERGY translates the camera offset; TREBLE_ENERGY brightens geodesic-like edges; BPM controls slow rotational cadence.
-- Visual notes: topology is cached, curve sampling is fixed, and all projected geometry is clipped before drawing so tiny displays remain safe.
-
-## 27. LiquidLight
+## 26. LiquidLight
 
 Three fluorescent dye channels are advected through a bounded low-resolution velocity field, producing coherent liquid-light curls and fine tendrils. The field is smoothly scaled into the destination surface.
 
 - Audio: bass injects paired counter-rotating vortices; MID_ENERGY steers the main injection orbit and adds warm dye; TREBLE_ENERGY adds restrained high-frequency wisps; silence retains gentle circulation.
 - Visual notes: semi-Lagrangian advection uses fixed substeps and reusable scratch arrays, with explicit velocity and density caps.
 
-## 28. Cymatica
+## 27. Cymatica
 
 Analytic Chladni-like mode pairs create glowing nodal lines on a morphing virtual plate. A bounded sand layer drifts toward quiet regions, making the geometry appear to crystallize directly from the audio.
 
-- Audio: dominant FFT bins select neighboring mode pairs; bass increases nodal contrast and sand motion; MID_ENERGY morphs the modes; TREBLE_ENERGY adds fine filaments; BPM controls slow mode phase changes.
+- Audio: six FFT regions contribute slowly smoothed mode weights, while smoothed treble adjusts line contrast and colour. Sand descends the actual plate amplitude gradient independently of display resolution.
 - Visual notes: the mode set is curated and evaluated on a cached low-resolution grid, with no runtime eigensolver and safe handling for empty FFT input.
 
-## 29. Phason
+## 28. Phason
 
-Five, seven, nine, or eleven animated plane waves interfere into a quasiperiodic star field. Slow phase shifts rearrange bright constellations without simply translating the image, producing a crystalline bloom.
+Seven slowly animated plane waves interfere into a quasiperiodic star field. Slow phase shifts rearrange bright constellations without simply translating the image, producing a crystalline bloom.
 
-- Audio: bass creates a bounded phason pulse; MID_ENERGY selects wave count and unequal rotations; TREBLE_ENERGY reveals fine interference detail; BPM controls slow phase cadence.
-- Visual notes: coordinate and phase arrays are cached, wave count is capped at eleven, and the field is rendered at reduced resolution before scaling.
+- Audio: slow envelopes control bounded phase speed, a small pulse and gentle colour shifts. Wave count remains fixed to prevent abrupt geometry switches.
+- Visual notes: coordinate and phase arrays are cached, wave count stays at seven, and the field is rendered at reduced resolution before scaling.
 
-## 30. Tesseract
+## 29. Tesseract
 
 A curated tesseract, 24-cell, and deliberately thinned 600-cell-like vertex cloud rotate in two four-dimensional planes before stereographic projection into the display. Bounded edge echoes make the structure turn inside out.
 
 - Audio: bass pulses fourth-coordinate perspective and advances presets on rising edges; bass, MID_ENERGY, and TREBLE_ENERGY independently accelerate rotation in the XW and YZ planes; treble also colors vertices by fourth-coordinate depth.
 - Visual notes: vertex and edge sets are explicit and capped, near-projection singularities are clipped, and no general polytope generator is used.
 
-## 31. Ferrofluid
+## 30. Ferrofluid
 
-A softened magnetic potential field forms glossy liquid crowns around moving poles. Iridescent contour bands merge and split into eye-like voids while the field remains distinct from Magnetar's particle simulation.
+A connected magnetic liquid surface supports a triangular lattice of sharp peaks. Analytic surface normals, soft lighting and specular reflections reveal metallic crowns around slowly moving poles.
 
-- Audio: bass strengthens the contour response; MID_ENERGY rotates pole geometry; TREBLE_ENERGY adds oil-slick hue separation; rising beats briefly invert one bounded lobe.
-- Visual notes: the field is evaluated on a fixed low-resolution grid with softened inverse-distance terms, capped contours, and no contour history growth.
+- Audio: smoothed bass broadens the droplets; mids accelerate their slow rotation; treble brightens reflections.
+- Visual notes: CPU and optional fullscreen GL paths use the same Gaussian liquid envelope, magnetic peak lattice and lighting model, with no beat inversion.
 
-## 32. Mandelbox
 
-A bounded CPU escape-field interpretation of a folding Mandelbox-style distance field creates an iridescent fractal temple with dark cavities and glowing orbit traps. The implementation keeps fixed iteration limits.
-
-- Audio: bass changes fold scale within a safe interval; MID_ENERGY alters the architectural deformation; TREBLE_ENERGY changes orbit-trap color/detail.
-- Visual notes: the CPU fallback is a reduced-resolution 2-D field, so missing ModernGL never prevents the effect from rendering.
-
-## 33. Spectrum
+## 31. Spectrum
 
 Classic analyser bars are spaced logarithmically, with peak markers and a waveform line layered over the centre of the screen.
 
 - Audio: log-spaced FFT bands control bar height; beat drives bar smoothing decay; MID_ENERGY shifts base hue; TREBLE_ENERGY modulates waveform overlay line thickness and vertical amplitude.
 - Visual notes: this is the plainest diagnostic mode and is useful for checking input levels quickly.
 
-## 34. Waterfall
+## 32. Waterfall
 
 A scrolling spectrogram stores recent history as rows, with hue encoding frequency and brightness encoding energy.
 
@@ -344,7 +352,7 @@ A scrolling spectrogram stores recent history as rows, with hue encoding frequen
 | Key | Action |
 |-----|--------|
 | `1` – `9` | Jump directly to modes 1–9 |
-| `←` / `→` | Previous / next mode across all 34 modes |
+| `←` / `→` | Previous / next mode across all 32 modes |
 | `Space` or mouse click | Next mode |
 | `↑` / `↓` | Adjust intensity for the current mode (`0.0 .. 2.0`), or adjust FlowField particles by 2,000 |
 | `Tab` | Open the settings pane |

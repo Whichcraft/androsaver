@@ -92,7 +92,7 @@ void main() {
     // Map UV [0,1]² → plasma coordinate space [-pi*2.5, pi*2.5]²
     vec2  p  = (v_uv * 2.0 - 1.0) * PI * 2.5;
     float r  = length(p);
-    float fm = 1.0 + u_mid * 0.7;
+    float fm = 1.0 + u_mid * 0.15;
     float t  = u_time;
 
     // A bounded domain warp breaks the regular grid before seven-wave
@@ -108,7 +108,7 @@ void main() {
     v /= 7.0;
     v += sin(length(q) * fm * 0.46 - t * 1.2) * 0.16;
 
-    float h = mod(v * 0.55 + 0.5 + u_hue + u_bass * 0.35, 1.0);
+    float h = mod(v * 0.55 + 0.5 + u_hue + u_bass * 0.08, 1.0);
     float l = clamp(0.28 + v * 0.22 + u_beat * 0.22 + u_high * 0.08, 0.0, 0.95);
 
     fragColor = vec4(hsl2rgb(h, l), 1.0);
@@ -142,6 +142,7 @@ class PlasmaGL(Effect):
     from a numpy CPU loop to a GLSL fragment shader executed on the GPU.
     """
     IS_GL = True
+    TIME_BASED = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -169,12 +170,12 @@ class PlasmaGL(Effect):
 
     def _advance(self, fft: np.ndarray, beat: float) -> tuple[float, float, float]:
         """Tick time forward; return (bass, mid, high) scalar energies."""
-        bass = min(max(float(beat), 0.0), 1.5)
-        mid  = min(max(float(config.MID_ENERGY), 0.0), 4.0)
-        high = min(max(float(config.TREBLE_ENERGY), 0.0), 4.0)
-        self._hue  += 0.002
-        self._time += 0.018 + bass * 0.05 + mid * 0.03 + high * 0.02
-        self._warp = min(0.42, 0.08 + bass * 0.12 + mid * 0.025 + high * 0.015)
+        motion, light = self._audio_response(beat)
+        bass, mid, high = motion
+        step = self._frame_step()
+        self._hue += .0005 * step
+        self._time += (.005 + bass*.002 + mid*.001 + high*.0005) * step
+        self._warp = self._smooth(self._warp, min(.14,.04+bass*.025+mid*.01+high*.005),.025)
         return bass, mid, high
 
     def _set_uniforms(self, bass: float, mid: float, high: float, beat: float) -> None:
@@ -182,7 +183,7 @@ class PlasmaGL(Effect):
         self._prog["u_hue"]  = self._hue
         self._prog["u_bass"] = bass
         self._prog["u_mid"]  = mid
-        self._prog["u_beat"] = float(beat)
+        self._prog["u_beat"] = float(self._light_audio[0]) * .25
         self._prog["u_high"] = high
         self._prog["u_warp"] = self._warp
 
@@ -202,7 +203,7 @@ class PlasmaGL(Effect):
             self._set_uniforms(bass, mid, high, beat)
             self.renderer.render(self._vao)
         elif HAS_PYGAME and surf is not None:
-            self._draw_numpy(surf, bass, mid, high, beat)
+            self._draw_numpy(surf, bass, mid, high, float(self._light_audio[0]) * .25)
 
     # ── CPU numpy fallback ────────────────────────────────────────────────────
 
@@ -225,7 +226,7 @@ class PlasmaGL(Effect):
                     high: float, beat: float) -> None:
         w, h = surf.get_size()
         self._ensure_fallback(w, h)
-        fm = 1.0 + mid * 0.7
+        fm = 1.0 + mid * 0.15
         t  = self._time
         qx = self._X + self._warp * np.sin(self._Y * 0.72 + t * 0.71)
         qy = self._Y + self._warp * np.cos(self._X * 0.61 - t * 0.53)
@@ -235,7 +236,7 @@ class PlasmaGL(Effect):
             v += np.sin((qx * np.cos(angle) + qy * np.sin(angle)) * fm
                         + t * (0.72 + index * 0.07))
         v = v / 7.0 + np.sin(np.sqrt(qx * qx + qy * qy) * fm * 0.46 - t * 1.2) * 0.16
-        h = (v * 0.55 + 0.5 + self._hue + bass * 0.35) % 1.0
+        h = (v * 0.55 + 0.5 + self._hue + bass * 0.08) % 1.0
         l = np.clip(0.28 + v * 0.22 + beat * 0.22 + high * 0.08, 0.0, 0.95)
         rgb = _hsl_arr(h, l)
         pygame.surfarray.blit_array(self._fallback_surf, rgb.transpose(1, 0, 2))

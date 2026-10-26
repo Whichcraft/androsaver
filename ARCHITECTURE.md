@@ -1,4 +1,4 @@
-# psysuals — Architecture
+# psysuals — Architecture (3.20.0)
 
 ## Overview
 
@@ -58,7 +58,8 @@ The main loop converts callback-time raw beat energy into the value passed to ef
 
 ```python
 impulse = max(0.0, min(raw_beat / (avg + 1e-6) - 1.0, 3.0))
-beat_decay = max(impulse, beat_decay * (0.82 if is_silent else 0.90))
+step = min(0.1, max(0.0, config.FRAME_DT)) * 60.0
+beat_decay = max(impulse, beat_decay * (0.82 if is_silent else 0.90) ** step)
 beat = max(beat_decay, silence_beat_floor if is_silent else 0.0)
 ```
 
@@ -75,17 +76,19 @@ frame as its anchor. With no reliable timing, the phase uses a slow
 deterministic idle fallback; spectral-flux beat impulses are still computed
 independently when audio is not gated as silent.
 
-Saved-preset changes blend numeric intensity, background alpha, and crossfade
+Saved-preset changes blend numeric intensity, background alpha, and parameter-transition
 length over eight beats when BPM is known, or a short time-based fallback when
 it is not. The discrete foreground/background mode switch occurs at the
 midpoint; a new preset safely replaces an active morph.
 
 Effects may declare a bounded `MORPH_SCHEMA` for compatible mode transitions.
 Tesseract and Persistence currently share `_morph_projection`, so that value
-interpolates during their existing crossfade. Hyperbolic still exposes a
-bounded warp parameter, but Lattice no longer exposes a matching schema;
-Lattice↔Hyperbolic therefore uses the normal surface crossfade only. Effects
-without a shared schema retain the unchanged transition behavior.
+interpolates after switching modes. Hyperbolic exposes a bounded warp parameter,
+but Lattice does not expose a matching schema. Mode switches clear CPU, GPU,
+presentation and post-process buffers; outgoing images are never crossfaded.
+Display/context changes detach GPU resources before rebuilding the context while
+retaining CPU simulation objects. Individual effects resize their state instead
+of reseeding particles, network nodes or dye when supported.
 
 ### Silence handling
 
@@ -112,16 +115,34 @@ The render loop in `psysualizer.py` uses a dual-target strategy to support both 
 
 1. **Target Abstraction**: CPU drawing operations target a `target` surface.
    - In CPU mode: `target` is the display surface.
-   - In GL mode: `target` is an offscreen transparent surface used for UI/HUD.
+   - In GL mode: `target` is display-sized. CPU effects produce an opaque
+     composed frame; direct-GL effects use a transparent UI/HUD overlay.
 2. **Effect Execution**: Effects are instantiated with an optional `GLRenderer`.
    - If an effect supports GL (like `PlasmaGL`), it renders directly to the GL context.
    - Otherwise, it draws to the `target` surface.
-3. **Compositing**: In GL mode, the `target` surface is uploaded as a texture and blitted over the GL-rendered effects every frame.
+3. **Compositing**: In GL mode, the full-size CPU composition or transparent
+   overlay is uploaded once. RGB-only blend operations retain an opaque alpha
+   channel for CPU effects. Effects with `TRAIL_ALPHA = 0` replace the composed
+   image while managing their own internal history. CPU-effect target surfaces
+   are not erased after presentation; direct-GL overlays are cleared.
 4. **Final flip**: `pygame.display.flip()` presents the frame.
 
 Mode switches recreate the effect instance and reset foreground intensity to `config.DEFAULT_EFFECT_GAIN`.
 
-Fullscreen/display changes release foreground effects, background effects, and the shared GL renderer before SDL recreates the context; replacement effects are then constructed against the new renderer. Same-size forced rebuilds are still supported.
+Fullscreen/display changes call `Effect.detach_renderer()` before releasing the
+shared GL renderer and recreating the context. CPU simulation instances remain
+alive and are rebound to the replacement renderer. Supported effects rescale
+particle positions, trails, graph anchors or fields without restarting. GPU
+programs and post-process targets are recreated. Same-size forced rebuilds remain
+supported; effects without the detach contract fall back to reconstruction.
+
+Fourteen retuned effects consume `config.FRAME_DT` in seconds (default 1/60,
+maximum consumed step 0.1). `TIME_BASED` opts their global trail fade into the same
+time units. `CONTINUOUS_QUALITY` lets expensive fields reduce internal width and
+height gradually with the quality scale; SlimeMold protects a native-detail floor
+of 85% per axis on TV-sized/profiled outputs. Rendered images always scale into
+the same display-sized composition. Fullscreen shaders receive actual GL
+framebuffer dimensions rather than logical SDL dimensions.
 
 ---
 
@@ -148,6 +169,9 @@ with the requested physical framebuffer size for the duration of one frame.
 | `WIDTH` | `0` | Placeholder until the display opens |
 | `HEIGHT` | `0` | Placeholder until the display opens |
 | `FPS` | `60` | Target frame rate |
+| `FRAME_DT` | `1/60` | Elapsed render seconds, published once per frame |
+| `VISUAL_PROFILE` | `auto` | Auto/Laptop/TV response profile; `V` cycles, CLI overrides saved setting |
+| `QUALITY_TIER` / `QUALITY_SCALE` | `2` / `1.0` | Governor-selected internal detail budget |
 | `LOW_SPEC` | `False` | Performance mode: caps FPS at 30 and scales down simulation budgets |
 | `SAMPLE_RATE` | `44100` | Audio sample rate |
 | `BLOCK_SIZE` | `1024` | Audio callback / FFT block size |
@@ -212,8 +236,9 @@ Inputs passed to `draw()`:
 
 Butterflies use the standard CPU effect contract. Their persistent trail is
 rendered at the effect's reduced internal resolution and scaled into `surf`.
-New agents begin just beyond a screen edge as cocoon motes and remain in that
-state for their first 19 updates before free flight becomes visible. They then
+New agents begin inside a viewport margin as cocoon motes and remain in that
+state for their first 19 updates. Body size follows the internal canvas and pair
+orbits stay inside the visible area. They then
 pair, orbit with wing synchronisation, and eventually break up; `release()`
 clears all owned surfaces and simulation state and is safe to call more than
 once.
@@ -221,6 +246,7 @@ once.
 Effects may also read:
 
 - `config.WIDTH`, `config.HEIGHT`
+- `config.FRAME_DT`, `config.VISUAL_PROFILE`, `config.QUALITY_SCALE`
 - `config.MID_ENERGY`, `config.TREBLE_ENERGY`
 - `config.BPM`
 - `config.IS_SILENT`
@@ -238,6 +264,9 @@ Standardized audio energy parameters used across the codebase:
 ---
 
 ## Adding an effect
+
+The current registry contains 32 effects; Mandelbox and Morphogenesis were
+removed in 3.20.0. Four recipes reference only active modes.
 
 1. Create `effects/myeffect.py`.
 2. Implement `draw(surf, waveform, fft, beat, tick)`.

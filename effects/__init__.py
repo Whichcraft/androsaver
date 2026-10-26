@@ -22,14 +22,12 @@ from .chromatic   import Chromatic
 from .persistence import Persistence
 from .synapse     import Synapse
 from .heartbeat   import Heartbeat
-from .morphogenesis import Morphogenesis
 from .hyperbolic import Hyperbolic
 from .liquidlight import LiquidLight
 from .cymatica import Cymatica
 from .phason import Phason
 from .tesseract import Tesseract
 from .ferrofluid import Ferrofluid
-from .mandelbox import Mandelbox
 from .spectrum           import Bars
 from .waterfall   import GlowSquares
 
@@ -58,14 +56,12 @@ MODES = [
     ("Persistence", Persistence), # ←/→ only
     ("Synapse",     Synapse),     # ←/→ only
     ("Heartbeat",   Heartbeat),   # ←/→ only
-    ("Morphogenesis", Morphogenesis), # ←/→ only
     ("Hyperbolic",   Hyperbolic),     # ←/→ only
     ("LiquidLight",  LiquidLight),    # ←/→ only
     ("Cymatica",     Cymatica),       # ←/→ only
     ("Phason",       Phason),         # ←/→ only
     ("Tesseract",    Tesseract),      # ←/→ only
     ("Ferrofluid",   Ferrofluid),     # ←/→ only
-    ("Mandelbox",    Mandelbox),      # ←/→ only
     # ── Spectrum and Waterfall must always be the final two entries ──
     ("Spectrum",    Bars),        # ←/→ only — always second-to-last
     ("Waterfall",   GlowSquares), # ←/→ only — always last

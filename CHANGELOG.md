@@ -5,10 +5,31 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## Unreleased
+## [3.20.0] — 2026-10-26
 
 ### Changed
-- **Phason, Ferrofluid, and Mandelbox rendering** — Add optional fullscreen
+- Fix invisible/washed-out RGB-only effects in GL composition by preserving
+  opaque CPU frames, retaining intended trails and replacing owned feedback.
+  Remove Fireworks' per-frame GPU readback and fix Butterflies' edge trapping.
+- Preserve simulation state across display/quality resizing, keep fine SlimeMold
+  detail on TV outputs, calm Cube/Tunnel/Plasma/Phason, and make Persistence
+  respond with smooth direction, speed and colour changes.
+- Animate Hyperbolic facets with independent lifting, hinging and sinking plus
+  shaded walls and travelling colour waves. Clear CPU/GPU and presentation
+  buffers immediately on effect changes, without outgoing image crossfades.
+- Remove Morphogenesis and its recipe; 32 registered effects remain.
+- Add saved Auto/Laptop/TV visual profiles (`V`, `--visual-profile`), separate
+  slow motion response from faster light accents, and use elapsed time in the
+  fourteen retuned effects.
+- Keep CPU/GL compositing at display size, remove double scaling in Lattice,
+  use actual SDL/GL dimensions, scale Cube projection with its canvas, and reset
+  TriFlux geometry on resize. Antialias all TriFlux triangle outlines.
+- Grow Synapse branches near active parents with gradual births/retirement;
+  replace disconnected Hyperbolic tiles with a connected sphere mesh and hidden
+  back faces; rework Ferrofluid into metallic liquid with magnetic peaks.
+- Remove Mandelbox from the effect registry and implementation.
+
+- **Phason and Ferrofluid rendering** — Add optional fullscreen
   ModernGL shaders for direct and offscreen rendering while retaining the
   portable pygame/numpy fallbacks. Reuse CPU field buffers to reduce per-frame
   allocation overhead.
@@ -25,7 +46,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Kaleidoscope post-processing** — Copy the source frame with an explicit destination so the CPU pass works with Pygame's surface API.
 
 ### Verification
-- Added regression coverage for Mycelium core movement and Tesseract audio-driven rotation.
+- 127 unit tests, the headless smoke test for all 32 effects, byte compilation,
+  and `git diff --check` passed.
+- Started the desktop app with `.venv/bin/python psysualizer.py --gl`; exercised
+  affected effects on an AMD/Mesa OpenGL 4.6 context and read back visible
+  framebuffers. Verified blank GPU buffers immediately after mode changes.
+- SlimeMold rendered into a 3840×2160 GPU framebuffer with 3264×1836 internal
+  detail even at quality scale 0.6. Physical TV/audio combinations remain
+  device-specific validation.
+- Added focused coverage for elapsed-time motion, smooth audio, GL composition,
+  resize preservation, facet movement and viewport margins.
+
+### Upgrade notes
+- Saved presets use numeric mode indices. Reselect/re-save effects after
+  Heartbeat after removing Morphogenesis/Mandelbox.
+- `V` cycles Auto/Laptop/TV; `--visual-profile` overrides the saved profile.
+  No dependency upgrades, lockfile refresh or major-version migration.
 
 ---
 

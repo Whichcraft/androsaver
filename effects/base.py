@@ -17,6 +17,8 @@ class Effect:
     # Set to True if the effect renders directly to the GL backbuffer
     IS_GL = False
     MORPH_SCHEMA = {}
+    TIME_BASED = False
+    CONTINUOUS_QUALITY = False
 
     # Cache for display info, invalidated when config dimensions change
     _cached_info: ClassVar[tuple[int, int, pygame.Surface | None]] = (0, 0, None)
@@ -25,6 +27,78 @@ class Effect:
         """One-time setup. Stores optional GLRenderer."""
         config.assert_initialized()
         self.renderer = renderer
+
+    def detach_renderer(self):
+        """Release context-owned resources without discarding CPU simulation state."""
+        field = getattr(self, "_gl_field", None)
+        if field is not None:
+            field.release()
+        for name in ("_prog", "_vao"):
+            resource = getattr(self, name, None)
+            if resource is not None:
+                resource.release()
+                setattr(self, name, None)
+        if hasattr(self, "_feedback_fbo"):
+            self._feedback_fbo = None
+        self.renderer = None
+
+    @staticmethod
+    def _opaque_canvas(surface):
+        """A completed CPU frame is opaque, including RGB-only blend operations."""
+        if surface.get_flags() & pygame.SRCALPHA:
+            alpha = pygame.surfarray.pixels_alpha(surface)
+            alpha[:] = 255
+            del alpha
+
+    @staticmethod
+    def _fit_viewport(points, width, height, margin=0.04):
+        points = np.asarray(points, dtype=float)
+        center = np.array([width / 2., height / 2.])
+        offsets = points - center
+        extent = np.max(np.abs(offsets), axis=tuple(range(offsets.ndim - 1)))
+        available = np.maximum(1., np.array([width, height]) * (.5 - margin))
+        fit = min(1., float(np.min(available / np.maximum(extent, 1.))))
+        return center + offsets * fit
+
+    @staticmethod
+    def _resize_field(field, width, height):
+        """Bilinearly resample floating point simulation data, preserving its range."""
+        old_h, old_w = field.shape[:2]
+        x, y = np.linspace(0, old_w - 1, width), np.linspace(0, old_h - 1, height)
+        x0, y0 = x.astype(int), y.astype(int)
+        x1, y1 = np.minimum(x0 + 1, old_w - 1), np.minimum(y0 + 1, old_h - 1)
+        wx, wy = (x-x0).astype(np.float32), (y-y0).astype(np.float32)
+        extra = (None,) * (field.ndim - 2)
+        wx = wx[(None, slice(None)) + extra]
+        wy = wy[(slice(None), None) + extra]
+        top = field[y0[:, None], x0] * (1-wx) + field[y0[:, None], x1] * wx
+        bottom = field[y1[:, None], x0] * (1-wx) + field[y1[:, None], x1] * wx
+        return (top * (1-wy) + bottom * wy).astype(field.dtype)
+
+    def _frame_step(self):
+        """Elapsed time in 60 Hz units; cap stalls to avoid simulation jumps."""
+        dt = float(config.FRAME_DT)
+        return max(0.0, min(0.1, dt)) * 60.0 if math.isfinite(dt) else 1.0
+
+    def _smooth(self, current, target, rate):
+        return current + (target - current) * (1.0 - (1.0 - rate) ** self._frame_step())
+
+    def _audio_response(self, beat):
+        """Separate quick light accents from slowly changing geometry/motion."""
+        target = np.nan_to_num(np.clip([beat, config.MID_ENERGY, config.TREBLE_ENERGY], 0, 1.5))
+        self._motion_audio = self._smooth(getattr(self, "_motion_audio", np.zeros(3)), target, 0.035)
+        self._light_audio = self._smooth(getattr(self, "_light_audio", np.zeros(3)), target, 0.25)
+        return self._motion_audio, self._light_audio
+
+    def _visual_profile(self):
+        profile = config.VISUAL_PROFILE
+        if profile == "auto":
+            profile = "tv" if config.WIDTH >= 2560 else "laptop"
+        return profile
+
+    def _profile_response(self):
+        # Motion stays gentle on both displays; TV gets stronger light accents.
+        return (0.65, 1.0) if self._visual_profile() == "laptop" else (0.85, 1.3)
 
     def _auto_res_div(self) -> int:
         """Pick a display-aware internal scale bucket.
@@ -58,20 +132,19 @@ class Effect:
         quality_scale = max(0.5, min(1.0, float(getattr(config, "QUALITY_SCALE", 1.0))))
         return max(base, min(8, int(math.ceil(base / quality_scale))))
 
-    def _render_size(self) -> tuple[int, int, int]:
+    def _render_size(self) -> tuple[int, int, float]:
         """Return (internal_width, internal_height, divisor)."""
         div = self._render_div()
+        if self.CONTINUOUS_QUALITY:
+            base = max(1, min(self.RES_DIV, self._auto_res_div()))
+            scale = max(0.5, min(1.0, float(config.QUALITY_SCALE)))
+            width, height = max(1, round(config.WIDTH * scale / base)), max(1, round(config.HEIGHT * scale / base))
+            return width, height, config.WIDTH / width
         return max(1, config.WIDTH // div), max(1, config.HEIGHT // div), div
 
     def _display_motion_scale(self) -> float:
-        """Scale high-energy motion for smaller laptop-sized displays.
-
-        Large TVs retain the original intensity. Smaller displays get a
-        gentler response so rapid perspective effects do not become visually
-        overwhelming at close viewing distance.
-        """
-        shortest = min(max(1, config.WIDTH), max(1, config.HEIGHT))
-        return max(0.55, min(1.0, shortest / 1080.0))
+        """Return gentle camera motion appropriate for the chosen display profile."""
+        return self._profile_response()[0]
     
     def draw(self, surf: pygame.Surface | None, waveform: np.ndarray,
              fft: np.ndarray, beat: float, tick: int) -> None:
@@ -104,6 +177,7 @@ class Effect:
             surface = pygame.Surface((width, height), pygame.SRCALPHA)
             surface.fill((0, 0, 0, 0))
             self.draw(surface, waveform, fft, beat, tick)
+            self._opaque_canvas(surface)
 
             rgb = pygame.surfarray.array3d(surface).transpose(1, 0, 2)
             alpha = pygame.surfarray.array_alpha(surface).transpose(1, 0)
