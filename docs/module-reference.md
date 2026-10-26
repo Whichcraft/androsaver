@@ -430,7 +430,9 @@ Credential migration only fills missing encrypted keys before its encrypted
 migration marker is recorded. Later encrypted values and removals remain
 authoritative after plaintext cleanup failure; stale plaintext cannot resurrect
 a disconnected account. Sensitive writes/removals and clear operations preserve
-that marker, which is hidden from normal preference enumeration. Failed or null MediaStore
+that marker, which is hidden from normal preference enumeration. A sensitive
+edit retries an incomplete initial migration before recording that marker, so
+a new account write cannot discard another provider’s unmigrated credentials. Failed or null MediaStore
 queries produce source failures rather than an authoritative empty snapshot.
 Cleanup attempts every release and preserves failed phases/causes. A failed
 cleanup keeps a session marker even when an overlapping session stops cleanly.

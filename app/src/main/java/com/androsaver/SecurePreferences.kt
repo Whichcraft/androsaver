@@ -92,6 +92,13 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         if (!cleaned) Log.w(TAG, "Encrypted migration succeeded but plaintext cleanup did not")
     }
 
+    private fun ensureMigrationBeforeCredentialEdit() {
+        val enc = encryptedPrefs ?: throw IllegalStateException("Encrypted credential storage unavailable")
+        // If initial migration failed, copy *all* legacy accounts before a new
+        // credential transaction can record the global migration marker.
+        if (!enc.getBoolean(CredentialMigration.MARKER, false)) migrateIfNeeded()
+    }
+
     private fun getPrefs(key: String): SharedPreferences {
         return if (key in SENSITIVE_KEYS) {
             encryptedPrefs ?: throw IllegalStateException("Encrypted credential storage unavailable")
@@ -203,9 +210,17 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         private val encryptedEditor: SharedPreferences.Editor?
     ) : SharedPreferences.Editor {
         private var sensitiveTouched = false
+        private var migrationChecked = false
+        private fun ensureMigration() {
+            if (!migrationChecked) {
+                ensureMigrationBeforeCredentialEdit()
+                migrationChecked = true
+            }
+        }
 
         private fun getEditor(key: String): SharedPreferences.Editor {
             return if (key in SENSITIVE_KEYS) {
+                ensureMigration()
                 sensitiveTouched = true
                 encryptedEditor ?: throw IllegalStateException("Encrypted credential storage unavailable")
             } else {
@@ -244,13 +259,18 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         }
 
         override fun remove(key: String): SharedPreferences.Editor {
-            if (key in SENSITIVE_KEYS) sensitiveTouched = true
+            if (key in SENSITIVE_KEYS) {
+                ensureMigration()
+                sensitiveTouched = true
+            }
             plainEditor.remove(key)
             encryptedEditor?.remove(key)
             return this
         }
 
         override fun clear(): SharedPreferences.Editor {
+            // Clearing all accounts intentionally supersedes every legacy value.
+            migrationChecked = true
             sensitiveTouched = true
             plainEditor.clear()
             encryptedEditor?.clear()
