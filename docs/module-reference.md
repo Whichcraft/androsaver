@@ -391,3 +391,10 @@ manager also pauses/resumes through Glide's hidden Fragment; that competing
 lifecycle could discard target ownership and leave static Preview blank after
 stop/resume. The emulator lifecycle regression verifies visible images before
 and after stop/resume and recreation, rather than merely checking for crashes.
+
+Verification: [GitHub run 40344834235](https://github.com/Whichcraft/androsaver/actions/runs/40344834235)
+passed the JVM suite, all four Android integration tests on each of API 29/35,
+and signed dev APK build/publication with downloaded-asset verification for
+`e553363bfbb5e85ebafcdb64f69b8e8bb89d7477`. The rolling `dev-channel` tag was
+confirmed to target that commit. Physical TV dream activation, system audio
+capture and external installer completion remain manual checks.

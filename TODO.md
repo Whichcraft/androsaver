@@ -181,5 +181,5 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Add Android integration tests for real cache/Glide loading, static imports, all-mode preview lifecycle/recreation, GL samples and APK FileProvider grants.
 - [x] Fix the static-image resume blank exposed by the emulator suite: engine-owned requests use the application RequestManager, avoiding competing Activity lifecycle ownership.
 - [x] Gate APK publication on GitHub emulator tests on API 29 and 35.
-- [ ] Verify this follow-up's JVM tests, device tests and APK build on GitHub.
+- [x] Verify this follow-up's JVM tests, device tests and signed APK build/publication on GitHub: [run 40344834235](https://github.com/Whichcraft/androsaver/actions/runs/40344834235), app commit `e553363bfbb5e85ebafcdb64f69b8e8bb89d7477`. All four Android integration tests passed on both API 29 and 35; downloaded release assets and `dev-channel` target were verified.
 - [ ] Run physical-TV checks for system dream activation, audio capture and external installer completion (see docs/module-reference.md).
