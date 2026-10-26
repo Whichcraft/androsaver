@@ -93,7 +93,8 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
 - [x] Share one process-wide postmortem handler across sessions and write reports atomically.
 - [x] Copy audio under a short lock and perform visualizer drawing outside the capture lock.
 - [x] Add JVM regression tests for cache transactions, cancellation races, postmortem ownership/storage, and audio snapshot/lifecycle behaviour.
-- [ ] Run the new JVM tests in the GitHub builder and perform the device checks in `docs/module-reference.md`; no local Android build.
+- [x] Run the new JVM tests in the GitHub builder (successful run linked below).
+- [ ] Perform the device checks in `docs/module-reference.md`; no local Android build.
 
 ## Second reliability review fixes
 
@@ -106,7 +107,8 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
 - [x] Prefer a validated commit-specific APK URL while retaining compatibility with older rolling manifests and clients.
 - [x] Keep CI signing material in the runner temporary directory outside the checkout.
 - [x] Run four mocked release publication regression tests and check script syntax and workflow YAML.
-- [ ] Run the new Android JVM tests in the GitHub builder; device-check updates on API 21–27, replacing an already displayed static image, and self-hosted redirects.
+- [x] Run the new Android JVM tests in the GitHub builder.
+- [ ] Device-check updates on API 21–27, replacing an already displayed static image, and self-hosted redirects.
 
 ## Third reliability review and startup UX
 
@@ -119,7 +121,8 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
 - [x] Start the slideshow with the first useful source; append later images without restarting the current image or timer.
 - [x] Add focused JVM coverage for session cancellation, progressive source delivery, fatal-report preservation, visualizer selection, response byte limits and Drive pagination budgets.
 - [x] Verify workflow SHA pinning and rerun the four mocked release tests.
-- [ ] GitHub builder: compile/run Android JVM tests. Device: stop/restart preview across all modes, check old report plus a new startup error, and confirm fast-source startup while another source is offline.
+- [x] GitHub builder: compile/run Android JVM tests.
+- [ ] Device: stop/restart preview across all modes, check old report plus a new startup error, and confirm fast-source startup while another source is offline.
 
 ## Playback recovery, HTTP lifetime and freshness
 
@@ -131,7 +134,8 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
 - [x] Refresh cached photos on revision changes or after 24 hours; retain the old file if replacement fails and use distinct replacement filenames/signatures.
 - [x] Add regression cases for late healthy sources, broken fallback-cache loops, stalled body cancellation, normal HTTP close, remote policy, source retry classification and cache revision/age/failure behaviour.
 - [x] Check diff whitespace and parse the updated string resources.
-- [ ] GitHub builder: compile and execute the new JVM tests. Device: exercise actual Glide failures followed by a healthy source; cancel stalled downloads; scroll/dismiss long reports in dream and preview; confirm edited photos refresh offline.
+- [x] GitHub builder: compile and execute the new JVM tests.
+- [ ] Device: exercise actual Glide failures followed by a healthy source; cancel stalled downloads; scroll/dismiss long reports in dream and preview; confirm edited photos refresh offline.
 
 ## Settings fallback, schedule and updater safety
 
@@ -141,4 +145,13 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
 - [x] Revalidate byte count, checksum, package version and signers before reusing a cached update.
 - [x] Share lazily allocated triangle/line vertex staging, reducing its full budget from 24 MiB to 12 MiB without changing the vertex cap or primitive order.
 - [x] Add JVM regression tests for fallback-Fragment visibility, schedule gating, cancelled update attempts, verified artifact reuse and vertex storage allocation.
-- [ ] GitHub builder: compile/run JVM tests. Device: force settings startup failure and recreate the Activity; confirm disabled scheduling stays active past its former end time; repeat update clicks/cancel/retry; profile actual low-memory-TV renderer usage.
+- [x] GitHub builder: compile/run JVM tests.
+- [ ] Device: force settings startup failure and recreate the Activity; confirm disabled scheduling stays active past its former end time; repeat update clicks/cancel/retry; profile actual low-memory-TV renderer usage.
+
+## Confirmed GitHub verification — 2026-10-26
+
+- [x] Commit `b6266b0`: Android JVM tests, signed dev APK build, release publication and downloaded-asset verification passed in [run 40330812147](https://github.com/Whichcraft/androsaver/actions/runs/40330812147).
+- [x] Preserve concurrent remote dev visualizer/versioning updates through merge `d50e4d6`.
+- [x] Correct cancellation-triggered body-read IOExceptions after the first CI run exposed the regression.
+
+Device-only checks above remain open; CI success does not mark them complete.
