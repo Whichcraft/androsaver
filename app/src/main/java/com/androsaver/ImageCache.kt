@@ -52,9 +52,12 @@ class ImageCache internal constructor(
         // Serialise writers across prefetch and live engines. Readers can still
         // use the manifest mutex between downloads.
         private val writerMutex = Mutex()
+        private var sourceStateGeneration = 0L
     }
 
     private val gson = Gson()
+    private var cachedSourceGeneration = Long.MIN_VALUE
+    private var cachedSourceState: Map<String, List<String>> = emptyMap()
     private val dir: File get() = cacheDirectory.also { it.mkdirs() }
 
     data class Entry(val key: String?, val file: String, val source: String, val ts: Long, val size: Long,
@@ -114,7 +117,7 @@ class ImageCache internal constructor(
     }
 
     /** A complete listing is durable authority, including an empty library. Leased bytes survive until retired. */
-    internal suspend fun recordListing(scope: String, result: com.androsaver.source.ImageSourceResult) = withContext(Dispatchers.IO) {
+    internal suspend fun recordListing(scope: String, result: com.androsaver.source.ImageSourceResult, currentNamespaces: Set<String>? = null) = withContext(Dispatchers.IO) {
         val keys = when (result) {
             is com.androsaver.source.ImageSourceResult.Success -> if (result.retryableFailures) return@withContext else result.items.map { it.stableId }
             com.androsaver.source.ImageSourceResult.Empty -> emptyList()
@@ -123,24 +126,38 @@ class ImageCache internal constructor(
         mutex.withLock {
             val state = readSourceState().toMutableMap()
             state[scope] = keys
-            // Keep authority for every namespace with stored images plus the current listing.
-            val manifest = readManifest()
-            val scopes = manifest.mapNotNull { it.scope }.toSet() + scope
-            state.keys.retainAll(scopes)
+            // Preserve authority even when no image has committed yet: a writer may still be in flight.
+            // Keep current configurations (including disabled sources) and compact historical authority to stored keys.
+            if (currentNamespaces != null) {
+                if (scope !in currentNamespaces) return@withLock
+                val stored = readManifest().groupBy { it.scope }
+                state.keys.retainAll(currentNamespaces + stored.keys.filterNotNull())
+                state.entries.filter { it.key !in currentNamespaces }.forEach { entry ->
+                    val keys = stored[entry.key].orEmpty().mapNotNull { it.key }.toSet()
+                    entry.setValue(entry.value.filter { it in keys })
+                }
+            }
             val target = File(dir, SOURCE_STATE)
             val temporary = File(dir, "$SOURCE_STATE.tmp")
             temporary.writeText(gson.toJson(state))
             if (!temporary.renameTo(target)) { temporary.delete(); throw IOException("Could not save source state") }
+            sourceStateGeneration++
+            cachedSourceGeneration = sourceStateGeneration
+            cachedSourceState = state
             // Do not evict here: another writer may be streaming a staged image.
             // Readers and writers check this authority; ordinary eviction reclaims retired bytes.
         }
     }
     private fun readSourceState(): Map<String, List<String>> {
+        if (cachedSourceGeneration == sourceStateGeneration) return cachedSourceState
         val file = File(dir, SOURCE_STATE)
-        if (!file.exists()) return emptyMap()
-        return try { gson.fromJson<Map<String, List<String>>>(file.readText(), object : TypeToken<Map<String, List<String>>>() {}.type)
-            ?: throw IOException("Invalid saved source state") }
-        catch (error: Exception) { throw IOException("Could not read saved source state", error) }
+        val state: Map<String, List<String>> = if (!file.exists()) emptyMap() else try {
+            gson.fromJson<Map<String, List<String>>>(file.readText(), object : TypeToken<Map<String, List<String>>>() {}.type)
+                ?: throw IOException("Invalid saved source state")
+        } catch (error: Exception) { throw IOException("Could not read saved source state", error) }
+        cachedSourceState = state
+        cachedSourceGeneration = sourceStateGeneration
+        return state
     }
     private fun allowed(scope: String?, key: String?, state: Map<String, List<String>>) =
         scope == null || state[scope]?.let { key in it } != false
@@ -336,6 +353,7 @@ class ImageCache internal constructor(
                 if (raw.contains("\"url\"")) {
                     dir.listFiles()?.filter { it != f }?.forEach { it.delete() }
                     f.delete()
+                    sourceStateGeneration++
                     return@synchronized emptyList()
                 }
                 val entries: List<Entry> = gson.fromJson(raw, object : TypeToken<List<Entry>>() {}.type) ?: emptyList()

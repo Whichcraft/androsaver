@@ -17,11 +17,13 @@ internal object ProcessExitDiagnostics {
                 val prefs = context.getSharedPreferences("process_exit_diagnostics", Context.MODE_PRIVATE)
                 val last = prefs.getLong("last_timestamp", 0L)
                 val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                val exit = manager.getHistoricalProcessExitReasons(context.packageName, 0, 8)
-                    .filter { it.timestamp > last && it.processName == context.packageName }.maxByOrNull { it.timestamp } ?: return
-                val abnormal = exit.reason in setOf(ApplicationExitInfo.REASON_CRASH, ApplicationExitInfo.REASON_CRASH_NATIVE,
-                    ApplicationExitInfo.REASON_ANR, ApplicationExitInfo.REASON_LOW_MEMORY, ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE)
-                if (abnormal) {
+                val exits = manager.getHistoricalProcessExitReasons(context.packageName, 0, 8)
+                    .filter { it.timestamp > last && it.processName == context.packageName }
+                val latest = exits.maxOfOrNull { it.timestamp } ?: return
+                val exit = exits.filter { it.reason in setOf(ApplicationExitInfo.REASON_CRASH, ApplicationExitInfo.REASON_CRASH_NATIVE,
+                    ApplicationExitInfo.REASON_ANR, ApplicationExitInfo.REASON_LOW_MEMORY, ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE) }
+                    .maxByOrNull { it.timestamp }
+                if (exit != null) {
                     val trace = try {
                         exit.traceInputStream?.use { input ->
                             if (exit.reason == ApplicationExitInfo.REASON_ANR) {
@@ -38,7 +40,7 @@ internal object ProcessExitDiagnostics {
                         (trace?.takeIf { it.isNotBlank() } ?: "No usable system trace available.")
                     ScreensaverPostmortem.write(File(context.noBackupFilesDir, "screensaver-postmortem.txt.exit"), report)
                 }
-                prefs.edit().putLong("last_timestamp", exit.timestamp).commit()
+                prefs.edit().putLong("last_timestamp", latest).commit()
             } catch (_: Exception) { /* System evidence is optional and must never prevent startup. */ }
         }
     }

@@ -44,7 +44,7 @@ object ImageSourceRegistry {
             val result = delegate.enumerate()
             if (!prefs.getBoolean(SourceIdentity.enabledKey(provider), false) || SourceIdentity.scope(prefs, provider) != cacheScope) return ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
             val bound = if (result is ImageSourceResult.Success) result.copy(items = result.items.map { SourceScope.bind(it, cacheScope) }) else result
-            cache.recordListing(cacheScope, bound)
+            cache.recordListing(cacheScope, bound, SourceIdentity.providers.keys.map { SourceIdentity.scope(prefs, it) }.toSet())
             return bound
         }
     }

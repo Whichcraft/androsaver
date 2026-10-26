@@ -300,6 +300,7 @@ class ImageCacheTest {
             assertTrue("Reader deleted a live download", part.exists())
             if (authoritativeEmpty) {
                 cache.recordListing("fixture", com.androsaver.source.ImageSourceResult.Empty)
+                cache.recordListing("another-provider", com.androsaver.source.ImageSourceResult.Empty, setOf("fixture", "another-provider"))
                 assertTrue("Listing deleted a live download", part.exists())
             }
         } finally {

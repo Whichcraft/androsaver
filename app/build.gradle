@@ -16,7 +16,7 @@ def gitVersionCode = {
 
 // Anchor the patch line to the parent of the 2.12.0 release commit. Counting
 // only non-merge descendants keeps the patch at .0 when dev is merged to master.
-def versionPatchBaseCommit = 'b3b8f7137c607bc4be14f14e5b1be713b0e48498'
+def versionPatchBaseCommit = 'f5dfcd007044851b0ffbfe0343356c5965e4ebbf'
 def gitVersionPatch = {
     try {
         def process = "git rev-list --count --no-merges --ancestry-path ${versionPatchBaseCommit}..HEAD".execute()
