@@ -15,7 +15,6 @@ concurrency:
 
 jobs:
   verify:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,7 +54,7 @@ jobs:
           exit 1
 
   build:
-    needs: device-tests
+    needs: [verify, device-tests]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:
@@ -84,16 +83,6 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@41ad77ca97e46ee2e825d5e6b9a95d8169fcc44c # v4.4.2
-
-      - name: Run JVM tests
-        run: |
-          for attempt in 1 2 3; do
-            ./gradlew test && exit 0
-            if [ "$attempt" -lt 3 ]; then
-              sleep $((attempt * 30))
-            fi
-          done
-          exit 1
 
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/androsaver.jks"
@@ -232,13 +221,14 @@ jobs:
         env:
           TEST_API: ${{ matrix.api }}
         run: |
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           sudo chmod a+rw /dev/kvm
           sdkmanager "platform-tools" "emulator" "system-images;android-${TEST_API};google_apis;x86_64"
           echo no | avdmanager create avd --force --name integration --package "system-images;android-${TEST_API};google_apis;x86_64"
           "$ANDROID_HOME/emulator/emulator" -avd integration -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
           emulator_pid=$!
           trap 'adb emu kill || kill "$emulator_pid" || true' EXIT
-          adb wait-for-device
+          timeout 180 adb wait-for-device
           booted=false
           for attempt in $(seq 1 180); do
             if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then
