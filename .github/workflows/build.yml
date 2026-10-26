@@ -224,11 +224,19 @@ jobs:
         run: |
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           sudo chmod a+rw /dev/kvm
-          sdkmanager "platform-tools" "emulator" "system-images;android-${TEST_API};google_apis;x86_64"
+          sdk_ready=false
+          for attempt in 1 2 3; do
+            if sdkmanager "platform-tools" "emulator" "system-images;android-${TEST_API};google_apis;x86_64"; then
+              sdk_ready=true
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 20; fi
+          done
+          if [ "$sdk_ready" != true ]; then exit 1; fi
           echo no | avdmanager create avd --force --name integration --package "system-images;android-${TEST_API};google_apis;x86_64"
-          "$ANDROID_HOME/emulator/emulator" -avd integration -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          "$ANDROID_HOME/emulator/emulator" -avd integration -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader > "$RUNNER_TEMP/emulator.log" 2>&1 &
           emulator_pid=$!
-          trap 'adb emu kill || kill "$emulator_pid" || true' EXIT
+          trap 'result=$?; if [ "$result" -ne 0 ]; then cat "$RUNNER_TEMP/emulator.log"; fi; adb emu kill || kill "$emulator_pid" || true; exit "$result"' EXIT
           timeout 180 adb wait-for-device
           booted=false
           for attempt in $(seq 1 180); do
@@ -252,3 +260,4 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+            ${{ runner.temp }}/emulator.log

@@ -36,24 +36,12 @@ class ScreensaverLifecycleTest {
                 prefs.edit().putString(Prefs.SCREENSAVER_MODE, mode).commit()
                 ActivityScenario.launch(PreviewActivity::class.java).use { scenario ->
                     scenario.onActivity { assertNotNull(it.findViewById<ImageView>(R.id.imageView1)) }
+                    awaitReady(scenario, mode)
                     scenario.moveToState(Lifecycle.State.CREATED)
                     scenario.moveToState(Lifecycle.State.RESUMED)
+                    awaitReady(scenario, mode)
                     scenario.recreate()
-                    val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20)
-                    var ready = mode == Prefs.MODE_BLANK
-                    while (!ready && System.nanoTime() < deadline) {
-                        scenario.onActivity { activity ->
-                            assertFalse(activity.isFinishing)
-                            val error = activity.findViewById<android.widget.TextView>(R.id.devErrorOverlay)
-                            assertTrue("Unexpected diagnostic in $mode: ${error.text}", error.visibility != android.view.View.VISIBLE)
-                            ready = if (mode == Prefs.MODE_VISUALIZER)
-                                activity.findViewById<android.widget.TextView>(R.id.devPerformanceOverlay).text.isNotEmpty()
-                            else activity.findViewById<ImageView>(R.id.imageView1).drawable != null ||
-                                activity.findViewById<ImageView>(R.id.imageView2).drawable != null
-                        }
-                        if (!ready) Thread.sleep(100)
-                    }
-                    assertTrue("Mode did not produce an image or GL sample: $mode", ready)
+                    awaitReady(scenario, mode)
                 }
                 assertFalse(File(context.noBackupFilesDir, "screensaver-postmortem.txt.active").exists())
             }
@@ -71,4 +59,22 @@ class ScreensaverLifecycleTest {
             image.delete()
         }
     }
+    private fun awaitReady(scenario: ActivityScenario<PreviewActivity>, mode: String) {
+        val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20)
+        var ready = mode == Prefs.MODE_BLANK
+        while (!ready && System.nanoTime() < deadline) {
+            scenario.onActivity { activity ->
+                assertFalse(activity.isFinishing)
+                val error = activity.findViewById<android.widget.TextView>(R.id.devErrorOverlay)
+                assertTrue("Unexpected diagnostic in $mode: ${error.text}", error.visibility != android.view.View.VISIBLE)
+                ready = if (mode == Prefs.MODE_VISUALIZER)
+                    activity.findViewById<android.widget.TextView>(R.id.devPerformanceOverlay).text.isNotEmpty()
+                else activity.findViewById<ImageView>(R.id.imageView1).drawable != null ||
+                    activity.findViewById<ImageView>(R.id.imageView2).drawable != null
+            }
+            if (!ready) Thread.sleep(100)
+        }
+        assertTrue("Mode did not produce an image or GL sample: $mode", ready)
+    }
+
 }
