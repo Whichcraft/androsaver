@@ -209,5 +209,5 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Add settings to view/copy/clear diagnostic reports and inspect/clear saved images by provider; preserve active-session markers and leased images.
 - [x] Show last successful source refresh and next scheduled check.
 - [x] Add JVM and Android regressions for these transitions.
-- [ ] Verify JVM tests, API 29/35 emulator tests and signed APK publication on GitHub.
+- [x] Verify JVM tests across all variants, all 11 integration tests on each API 29/35 emulator, signed APK publication and downloaded-asset integrity: [run 40396730355](https://github.com/Whichcraft/androsaver/actions/runs/40396730355), app commit `bae3f6db757ef2ac09f0c448a35f75a7ce432039`; `dev-channel` target confirmed.
 - [ ] Check account switching, source management and authorization recreation against real providers on the TV.

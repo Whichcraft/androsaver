@@ -466,4 +466,4 @@ Settings offers saved diagnostic viewing/copying/clearing without resetting pref
 
 Google/OneDrive authorization uses an in-memory ViewModel session across Activity recreation. Process death starts a new session; device codes and tokens are not persisted in saved Activity state. Host fields reject URLs, credentials, embedded ports, query/fragment/path syntax and normalize DNS/IP literals before use. No visualizer effects or vendored upstream code changed in this follow-up.
 
-Verification pending GitHub builder; physical TV/cloud/server integration remains a manual check.
+Verified app commit `bae3f6db757ef2ac09f0c448a35f75a7ce432039` in [GitHub run 40396730355](https://github.com/Whichcraft/androsaver/actions/runs/40396730355): JVM tests across all variants, all 11 integration tests on each API 29/35 emulator, signed dev APK publication and downloaded-asset integrity passed. The `dev-channel` tag was confirmed against that app commit. Resource XML parsing, diff whitespace checks and four release-script tests also passed locally; no Android build ran locally. Physical TV/cloud/server integration remains a manual check.
