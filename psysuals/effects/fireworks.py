@@ -171,8 +171,8 @@ class Fireworks(Effect):
             return
         W, H = max(1, config.WIDTH // res_div), max(1, config.HEIGHT // res_div)
         x  = float(self._rng.uniform(W * self._LAUNCH_X_RANGE[0], W * self._LAUNCH_X_RANGE[1]))
-        vy = float(self._rng.uniform(self._LAUNCH_VY_RANGE[0] / res_div, self._LAUNCH_VY_RANGE[1] / res_div))
-        vx = float(self._rng.uniform(self._LAUNCH_VX_RANGE[0] / res_div, self._LAUNCH_VX_RANGE[1] / res_div))
+        vy = float(self._rng.uniform(self._LAUNCH_VY_RANGE[0] * H/720, self._LAUNCH_VY_RANGE[1] * H/720))
+        vx = float(self._rng.uniform(self._LAUNCH_VX_RANGE[0] * H/720, self._LAUNCH_VX_RANGE[1] * H/720))
         h  = (self._hue + float(self._rng.uniform(-self._LAUNCH_HUE_JITTER, self._LAUNCH_HUE_JITTER))) % 1.0
         self._rockets.append([float(x), float(H), vx, vy, h, []])
 
@@ -208,22 +208,20 @@ class Fireworks(Effect):
         high  = config.TREBLE_ENERGY
 
         if self._trail.get_width() != W or self._trail.get_height() != H:
-            self._trail = pygame.Surface((W, H))
-            self._trail.fill((0, 0, 0))
+            old_w, old_h = self._trail.get_size()
+            sx, sy = W / old_w, H / old_h
+            self._trail = pygame.transform.smoothscale(self._trail, (W,H))
+            for rocket in self._rockets:
+                rocket[0] *= sx; rocket[1] *= sy; rocket[2] *= sx; rocket[3] *= sy
+                rocket[5] = [(round(x*sx), round(y*sy)) for x,y in rocket[5]]
+            for ember in self._embers:
+                ember[0] *= sx; ember[1] *= sy; ember[2] *= sx; ember[3] *= sy
+                ember[5] = max(1, round(ember[5] * min(sx,sy)))
             self._fade = pygame.Surface((W, H), pygame.SRCALPHA)
             self._fade.fill((0, 0, 0, self._FADE_ALPHA))
             self._reset_flow(W, H)
         if self._scaled.get_width() != surf.get_width() or self._scaled.get_height() != surf.get_height():
             self._scaled = pygame.Surface(surf.get_size())
-        fbo_current = getattr(self.renderer, "is_offscreen_current", lambda fbo, w, h: True)
-        if self.renderer is not None and (
-            self._feedback_fbo is None
-            or self._feedback_fbo.width != W
-            or self._feedback_fbo.height != H
-            or not fbo_current(self._feedback_fbo, W, H)
-        ):
-            self._feedback_fbo = self.renderer.offscreen(W, H)
-        
         self._hue = (self._hue + self._HUE_BASE_STEP + bass * self._HUE_BASS_GAIN + high * self._HUE_HIGH_GAIN) % 1.0
 
         # Beat: launch rockets + boost
@@ -247,16 +245,12 @@ class Fireworks(Effect):
         self._beat_t = max(0, self._beat_t - 1)
         zoom    = self._BASE_ZOOM + t * (self._BEAT_ZOOM - self._BASE_ZOOM) + bass * self._ZOOM_BASS_GAIN + high * self._ZOOM_HIGH_GAIN
 
-        # Feedback transform: use GL when available, CPU scale otherwise.
-        if self.renderer is not None and self._feedback_fbo is not None:
-            self.renderer.feedback_transform(self._trail, self._feedback_fbo, zoom, 0.0)
-            fb = self.renderer.read_pixels(self._feedback_fbo)
-            surfarray.blit_array(self._trail, fb[:, :, :3].transpose(1, 0, 2))
-        else:
-            zw, zh = round(W * zoom), round(H * zoom)
-            zoomed = pygame.transform.scale(self._trail, (zw, zh))
-            self._trail.fill((0, 0, 0))
-            self._trail.blit(zoomed, (-((zw - W) // 2), -((zh - H) // 2)))
+        # Keep feedback on the CPU: a GL readback every frame stalls the pipeline
+        # and redirects the active framebuffer while other effects are composing.
+        zw, zh = max(1, round(W*zoom)), max(1, round(H*zoom))
+        zoomed = pygame.transform.smoothscale(self._trail, (zw,zh))
+        self._trail.fill((0,0,0))
+        self._trail.blit(zoomed, (-((zw-W)//2), -((zh-H)//2)))
 
         # Fade with alpha overlay to preserve chroma better than RGB multiply.
         self._trail.blit(self._fade, (0, 0))
@@ -266,7 +260,7 @@ class Fireworks(Effect):
         live = []
         for rk in self._rockets:
             x, y, vx, vy, hue, trail = rk
-            vy += _GRAV / RD
+            vy += _GRAV * H/720
             vx *= _DRAG
             x += vx; y += vy
             # Thinned trail for performance
@@ -295,7 +289,7 @@ class Fireworks(Effect):
         live = []
         for em in self._embers:
             x, y, vx, vy, hue, radius, life, max_life = em
-            vy += _GRAV / RD
+            vy += _GRAV * H/720
             vx *= _DRAG
             vy *= _DRAG
             x += vx; y += vy
@@ -313,7 +307,7 @@ class Fireworks(Effect):
         self._embers = live
 
         if surf.get_size() != self._trail.get_size():
-            pygame.transform.scale(self._trail, surf.get_size(), self._scaled)
+            pygame.transform.smoothscale(self._trail, surf.get_size(), self._scaled)
             surf.blit(self._scaled, (0, 0), special_flags=pygame.BLEND_RGB_MAX)
         else:
             surf.blit(self._trail, (0, 0), special_flags=pygame.BLEND_RGB_MAX)

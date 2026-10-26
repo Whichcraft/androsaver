@@ -184,6 +184,8 @@ class DisplayManager:
             self.renderer = None
             self.screen = pygame.display.set_mode((1280, 720), 0)
             config.WIDTH, config.HEIGHT = 1280, 720
+        # SDL actual window size can differ from xrandr logical geometry.
+        config.WIDTH, config.HEIGHT = self.screen.get_size()
         config._INITIALIZED = True
         
         if self.args.gl and self._has_moderngl and self._gl_renderer_cls is not None:
@@ -232,6 +234,9 @@ class DisplayManager:
             str(mode_i),
             "--span-child",
         ]
+        cmd.extend(["--visual-profile", config.VISUAL_PROFILE])
+        if getattr(self.args, "low_spec", False):
+            cmd.append("--low-spec")
         if self.args.gl:
             cmd.append("--gl")
         try:

@@ -57,9 +57,13 @@ class Aurora(Effect):
             self._ks.append([k_unit * km for km, *_ in harms])
 
     def draw(self, surf, waveform, fft, beat, tick):
-        W, H   = config.WIDTH, config.HEIGHT
-        bass   = float(np.mean(fft[:6]))
-        mid    = float(np.mean(fft[6:30]))
+        W, H = surf.get_size()
+        if self._tmp.get_size() != (W, H):
+            self._tmp = pygame.Surface((W, H))
+            self._xs = np.arange(0, W, _STEP, dtype=np.float32)
+            self._ks = [[math.tau / W * km for km, *_ in harms] for _, _, harms in self._DEFS]
+        bass   = float(np.mean(fft[:6])) if len(fft) else 0.0
+        mid    = float(np.mean(fft[6:30])) if len(fft) > 6 else 0.0
         treble = config.TREBLE_ENERGY
 
         self._hue = (self._hue + 0.003 + mid * 0.002) % 1.0

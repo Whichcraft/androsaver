@@ -83,7 +83,7 @@ class UIManager:
         items = [
             ("effect_gain", effect_gain, 2.0, f"{effect_gain:.1f}"),
             ("bg_alpha", bg_alpha, 255, f"{bg_alpha}"),
-            ("crossfade", cf_frames, 90, f"{int(cf_frames)} fr"),
+            ("transition", cf_frames, 90, f"{int(cf_frames)} fr"),
         ]
         for i, (label, value, max_value, value_str) in enumerate(items):
             y = py + 30 + i * 42

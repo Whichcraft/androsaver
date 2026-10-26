@@ -26,6 +26,7 @@ _MAX_NODES     = 90
 
 
 class Synapse(Effect):
+    TIME_BASED = True
     TRAIL_ALPHA = 42
 
     def __init__(self, **kwargs):
@@ -53,6 +54,9 @@ class Synapse(Effect):
         self._beat_prev  = 0.0
         self._auto_fire_cd = 30
         self._topology_cd = 120
+        self._visibility = []
+        self._birth_origins = []
+        self._retiring = False
 
     def _random_node(self, W, H):
         ang = float(self._rng.uniform(0, math.tau))
@@ -64,6 +68,8 @@ class Synapse(Effect):
 
     def _rebuild_edges(self):
         """Rewire nearest-neighbour connections after node changes."""
+        active = [(tuple(self._edges[ei]), t, speed, hue)
+                  for ei, t, speed, hue in self._signals]
         self._edges.clear()
         edge_set = set()
         for i, (xi, yi) in enumerate(self._nodes):
@@ -80,14 +86,26 @@ class Synapse(Effect):
         for ei, (fi, _) in enumerate(self._edges):
             self._outgoing[fi].append(ei)
         # Edge indices held by active signals are no longer valid.
-        self._signals.clear()
+        lookup = {tuple(edge): i for i, edge in enumerate(self._edges)}
+        self._signals = [[lookup[edge], t, speed, hue]
+                         for edge, t, speed, hue in active if edge in lookup]
 
     def _mutate_topology(self, W, H, add):
         """Add or remove one live connection point and rewire the graph."""
         low = max(20, _MIN_NODES // 2) if getattr(config, "LOW_SPEC", False) else _MIN_NODES
         high = max(low + 1, _MAX_NODES // 2) if getattr(config, "LOW_SPEC", False) else _MAX_NODES
         if add and self.n_nodes < high:
-            node = self._random_node(W, H)
+            mature = [i for i, visibility in enumerate(self._visibility) if visibility >= 0.9]
+            candidates = mature or list(range(self.n_nodes))
+            weights = np.array([0.1 + self._glow[i] for i in candidates])
+            parent = int(self._rng.choice(candidates, p=weights / weights.sum()))
+            origin = self._nodes[parent].copy()
+            angle = math.atan2(origin[1] - H / 2, origin[0] - W / 2) + float(self._rng.uniform(-1.2, 1.2))
+            distance = float(self._rng.uniform(0.05, 0.11)) * min(W, H)
+            node = [max(W * 0.06, min(W * 0.94, origin[0] + math.cos(angle) * distance)),
+                    max(H * 0.06, min(H * 0.94, origin[1] + math.sin(angle) * distance))]
+            self._visibility.append(0.0)
+            self._birth_origins.append(origin)
             self._nodes.append(node)
             self._anchors.append(node.copy())
             self._wander_phase = np.append(self._wander_phase, self._rng.uniform(0, math.tau))
@@ -96,7 +114,19 @@ class Synapse(Effect):
             self._glow.append(0.0)
             self.n_nodes += 1
         elif not add and self.n_nodes > low:
-            idx = int(self._rng.integers(0, self.n_nodes))
+            idx = 0  # Oldest node retires first.
+            # Preserve signals on surviving edges when node indices shift.
+            active = [(self._edges[ei], t, speed, hue) for ei, t, speed, hue in self._signals]
+            self._signals = []
+            self._edges = [[a - (a > idx), b - (b > idx)]
+                           for a, b in self._edges if a != idx and b != idx]
+            lookup = {tuple(edge): i for i, edge in enumerate(self._edges)}
+            for (a, b), t, speed, hue in active:
+                if a != idx and b != idx:
+                    edge = (a - (a > idx), b - (b > idx))
+                    self._signals.append([lookup[edge], t, speed, hue])
+            self._visibility.pop(idx)
+            self._birth_origins.pop(idx)
             self._nodes.pop(idx)
             self._anchors.pop(idx)
             self._wander_phase = np.delete(self._wander_phase, idx)
@@ -111,11 +141,24 @@ class Synapse(Effect):
     def _ensure_nodes(self, W, H):
         if self._nodes and self._init_w == W and self._init_h == H:
             return
+        if self._nodes:
+            sx, sy = W / self._init_w, H / self._init_h
+            for collection in (self._nodes, self._anchors, self._birth_origins):
+                for point in collection:
+                    point[0] *= sx
+                    point[1] *= sy
+            self._wander_amp *= min(W, H) / min(self._init_w, self._init_h)
+            self._init_w, self._init_h = W, H
+            return
         self._init_w, self._init_h = W, H
         self._nodes.clear()
         for i in range(self.n_nodes):
             self._nodes.append(self._random_node(W, H))
         self._anchors = [node.copy() for node in self._nodes]
+        self._visibility = [1.0] * self.n_nodes
+        self._birth_origins = [node.copy() for node in self._nodes]
+        self._retiring = False
+        self._signals.clear()
         self._wander_phase = self._rng.uniform(0, math.tau, self.n_nodes).astype(np.float32)
         self._wander_speed = self._rng.uniform(0.006, 0.018, self.n_nodes).astype(np.float32)
         self._wander_amp = (self._rng.uniform(0.012, 0.045, self.n_nodes) * min(W, H)).astype(np.float32)
@@ -125,6 +168,8 @@ class Synapse(Effect):
     # ------------------------------------------------------------------
 
     def _fire(self, idx, fanout=2):
+        if self._visibility[idx] < 0.9 or (idx == 0 and self._retiring):
+            return
         self._glow[idx] = 1.0
         h = (self._hue + idx / self.n_nodes * 0.4) % 1.0
         outgoing = self._outgoing[idx]
@@ -143,41 +188,50 @@ class Synapse(Effect):
     def draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         self._ensure_nodes(W, H)
-        bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        step = self._frame_step()
+        motion, light = self._audio_response(beat)
+        bass, mid, high = motion
+        motion_scale, accent = self._profile_response()
+        self._hue = (self._hue + (0.003 + mid * 0.002) * step) % 1.0
 
-        self._hue = (self._hue + 0.003 + mid * 0.002) % 1.0
-
-        # Let the network grow on strong beats and shed an occasional point
-        # between beats. Rewiring keeps the graph alive instead of freezing a
-        # single 55-node layout forever.
-        self._topology_cd -= 1
-        if bass > 0.72 and self._beat_prev <= 0.72:
+        # Fade the oldest node out before retiring it; grow two visible branches.
+        for i in range(self.n_nodes):
+            delta = -step / 60.0 if i == 0 and self._retiring else step / 75.0
+            self._visibility[i] = max(0.0, min(1.0, self._visibility[i] + delta))
+        if self._retiring and self._visibility[0] <= 1e-8:
+            self._mutate_topology(W, H, add=False)
+            self._retiring = False
             self._mutate_topology(W, H, add=True)
-            self._topology_cd = 90
-        elif self._topology_cd <= 0:
-            self._mutate_topology(W, H, add=bool(self._rng.integers(0, 2)))
-            self._topology_cd = int(self._rng.integers(90, 180))
+            self._mutate_topology(W, H, add=True)
+        self._topology_cd -= step
+        if self._topology_cd <= 0 and not self._retiring:
+            self._retiring = True
+            self._topology_cd += 180
 
         # Wander around stable anchors so links breathe without losing the
         # recognizable graph structure.
-        self._wander_phase += self._wander_speed * (1.0 + high * 1.8 + bass * 0.5)
+        self._wander_phase += self._wander_speed * (1.0 + high * 0.25 + bass * 0.1) * step * motion_scale
         for i, node in enumerate(self._nodes):
             phase = float(self._wander_phase[i])
             node[0] = self._anchors[i][0] + math.sin(phase) * float(self._wander_amp[i])
             node[1] = self._anchors[i][1] + math.cos(phase * 0.77) * float(self._wander_amp[i]) * 0.72
+            if self._visibility[i] < 1.0 and not (i == 0 and self._retiring):
+                progress = self._visibility[i]
+                ease = progress * progress * (3 - 2 * progress)
+                ox, oy = self._birth_origins[i]
+                node[0] = ox + (node[0] - ox) * ease
+                node[1] = oy + (node[1] - oy) * ease
             node[0] = max(4.0, min(W - 4.0, node[0]))
             node[1] = max(4.0, min(H - 4.0, node[1]))
 
         # Beat cascade
-        if bass > 0.65 and self._beat_prev <= 0.65:
+        if beat > 0.65 and self._beat_prev <= 0.65:
             for _ in range(int(1 + bass * 3)):
                 self._fire(int(self._rng.integers(0, self.n_nodes)), fanout=2 + int(high * 2))
-        self._beat_prev = bass
+        self._beat_prev = beat
 
         # Auto-fire
-        self._auto_fire_cd -= 1
+        self._auto_fire_cd -= step
         if self._auto_fire_cd <= 0:
             self._fire(int(self._rng.integers(0, self.n_nodes)), fanout=1)
             self._auto_fire_cd = max(8, int(25 - mid * 15))
@@ -188,7 +242,7 @@ class Synapse(Effect):
         fired_nodes = []
         for sig in self._signals:
             ei, t, spd, h = sig
-            t += spd * spd_mul
+            t += spd * spd_mul * step
             sig[1] = t
             if t < 1.0:
                 live_sigs.append(sig)
@@ -200,14 +254,17 @@ class Synapse(Effect):
 
         # Decay glow
         for i in range(self.n_nodes):
-            self._glow[i] = max(0.0, self._glow[i] - 0.035)
+            self._glow[i] = max(0.0, self._glow[i] - 0.035 * step)
 
         # Draw edges (dim background wiring)
         for fi, ti in self._edges:
             xf, yf = self._nodes[fi]
             xt, yt = self._nodes[ti]
             h   = (self._hue + fi / self.n_nodes * 0.3) % 1.0
-            lum = 0.06 + self._glow[fi] * 0.14
+            visibility = min(self._visibility[fi], self._visibility[ti])
+            lum = (0.06 + self._glow[fi] * 0.14) * visibility
+            xt = xf + (xt - xf) * visibility
+            yt = yf + (yt - yf) * visibility
             pygame.draw.line(surf, hsl(h, l=lum),
                              (int(xf), int(yf)), (int(xt), int(yt)), 1)
 
@@ -218,7 +275,7 @@ class Synapse(Effect):
             xt, yt = self._nodes[ti]
             sx = int(xf + (xt - xf) * t)
             sy = int(yf + (yt - yf) * t)
-            bright = 0.55 + bass * 0.25 + high * 0.15
+            bright = min(0.95, 0.55 + light[0] * 0.2 * accent + light[2] * 0.1) * min(self._visibility[fi], self._visibility[ti])
             r_px   = max(2, int(3 + bass * 2))
             pygame.draw.circle(surf, hsl(h, l=bright * 0.30),
                                (sx, sy), r_px + 3)
@@ -227,7 +284,7 @@ class Synapse(Effect):
 
         # Draw nodes
         for i, (x, y) in enumerate(self._nodes):
-            g = self._glow[i]
+            g = self._glow[i] * self._visibility[i]
             h = (self._hue + i / self.n_nodes * 0.4) % 1.0
             if g > 0.05:
                 r_px = max(2, int(4 + g * 8 + bass * 4))
@@ -236,4 +293,4 @@ class Synapse(Effect):
                 pygame.draw.circle(surf, hsl(h, l=g * 0.70), (int(x), int(y)),
                                    r_px)
             else:
-                pygame.draw.circle(surf, hsl(h, l=0.10), (int(x), int(y)), 2)
+                pygame.draw.circle(surf, hsl(h, l=0.10 * self._visibility[i]), (int(x), int(y)), 2)

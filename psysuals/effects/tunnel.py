@@ -16,6 +16,7 @@ class Tunnel(Effect):
     decreases every frame so rings physically fly toward the camera.
     When a ring passes through (z < Z_NEAR) it is recycled to the far end.
     """
+    TIME_BASED = True
 
     N_RINGS = 30
     N_SIDES = 20
@@ -29,9 +30,10 @@ class Tunnel(Effect):
         self._rng = np.random.default_rng(config.RNG_SEED)
         self.hue  = 0.0
         self.time = 0.0
+        self._audio = np.zeros(3)
         spacing = (self.Z_FAR - self.Z_NEAR) / self.N_RINGS
         self.rings = [
-            {"z": self.Z_NEAR + i * spacing,
+            {"id": i, "z": self.Z_NEAR + i * spacing,
              "pt": self.Z_NEAR + i * spacing}
             for i in range(self.N_RINGS)
         ]
@@ -44,10 +46,10 @@ class Tunnel(Effect):
         self._thue  = np.empty(self.MAX_TRIS, dtype=np.float32)
 
     def _path(self, t, treble=0.0):
-        # Treble increases path wobble amplitude
-        scale = 1.0 + treble * 0.45
-        return (math.sin(t * 0.21) * 0.8 * scale,
-                math.cos(t * 0.16) * 0.6 * scale)
+        # Camera curvature stays independent of fast audio changes
+        scale = 1.0
+        return (math.sin(t * 0.12) * 0.35 * scale,
+                math.cos(t * 0.09) * 0.25 * scale)
 
     def _proj(self, wx, wy, wz, W, H):
         fov = min(W, H) * 0.75
@@ -57,17 +59,18 @@ class Tunnel(Effect):
                 fov / z)
 
     def draw(self, surf, waveform, fft, beat, tick):
-        self.hue  += 0.006
+        step = self._frame_step()
+        self.hue += 0.006 * step
         W, H = surf.get_size()
-        bass       = beat
-        mid        = config.MID_ENERGY
-        high       = config.TREBLE_ENERGY
+        motion_audio, light_audio = self._audio_response(beat)
+        bass, mid, high = motion_audio
+        light_bass = light_audio[0] * self._profile_response()[1]
         motion     = self._display_motion_scale()
         bass_m     = bass * motion
         mid_m      = mid * motion
         high_m     = high * motion
 
-        dt         = 0.018 + bass_m * 0.09 + mid_m * 0.04 + high_m * 0.03
+        dt         = (0.008 + bass_m * 0.0015 + mid_m * 0.0008) * step
         self.time += dt
 
         # Follow the tube's current path position so the viewer remains at
@@ -78,13 +81,15 @@ class Tunnel(Effect):
 
         # Spawn only in the far third of the tube and cap the live count so the
         # mid-range doesn't fill up with spinning triangles.
-        spawn_n = int(bass_m * 1.2 + (mid_m * 1.5 if mid_m > 0.5 else 0))
+        self._spawn_credit = getattr(self, "_spawn_credit", 0.0) + (0.025 + bass_m * 0.08 + mid_m * 0.04) * step
+        spawn_n = int(self._spawn_credit)
+        self._spawn_credit -= spawn_n
         for _ in range(min(spawn_n, self.MAX_TRIS - self._tri_count)):
             i = self._tri_count
             self._tz[i]    = float(self._rng.uniform(self.Z_FAR * 0.80, self.Z_FAR * 0.98))
             self._tpt[i]   = self.time + self._tz[i]
             self._trot[i]  = float(self._rng.uniform(0, math.tau))
-            self._trvel[i] = float(self._rng.choice([-1, 1]) * self._rng.uniform(0.04, 0.12) * (1.0 + mid_m * 1.5))
+            self._trvel[i] = float(self._rng.choice([-1, 1]) * self._rng.uniform(0.005, 0.015) * (1.0 + mid_m * 1.5))
             self._tsize[i] = float(self._rng.uniform(0.45, 1.1) * (1.0 + bass_m * 1.5 + high_m * 0.5))
             self._thue[i]  = float((self.hue + self._rng.uniform(0, 0.5)) % 1.0)
             self._tri_count += 1
@@ -116,7 +121,7 @@ class Tunnel(Effect):
 
             near_t = max(0.0, 1.0 - r1["z"] / self.Z_FAR)
             h      = (self.hue + near_t) % 1.0
-            bright = 0.06 + near_t * 0.60 + mid_m * 0.15 * near_t + bass_m * near_t * 0.40
+            bright = 0.06 + near_t * 0.60 + mid_m * 0.15 * near_t + light_bass * near_t * 0.12
             lw     = max(1, int(1 + bass_m * 2.5 * near_t + high_m * 1.5 * near_t))
 
             pygame.draw.circle(surf, hsl(h, l=bright * 0.35), (sx1, sy1), sr1 + 4, lw + 3)
@@ -131,9 +136,9 @@ class Tunnel(Effect):
                 hs = (h + side / self.N_SIDES * 0.25 + high * 0.10) % 1.0
                 pygame.draw.line(surf, hsl(hs, l=bright * 0.55), p1, p2, 1)
 
-            n_star  = 3 + (i % 4)
-            s_dir   = 1 if i % 2 == 0 else -1
-            s_rot   = self.time * 0.45 * s_dir + i * 0.52 + mid_m * 0.15
+            n_star  = 3 + (r1["id"] % 4)
+            s_dir   = 1 if r1["id"] % 2 == 0 else -1
+            s_rot   = self.time * 0.12 * s_dir + r1["id"] * 0.52
             s_r     = max(2, int(sr1 * (0.24 + high_m * 0.12)))
             s_h     = (h + 0.5) % 1.0
             s_l     = min(bright * 1.1 + mid_m * 0.25 + high_m * 0.15, 0.95)
@@ -148,7 +153,7 @@ class Tunnel(Effect):
         new_n = 0
         for i in range(self._tri_count):
             self._tz[i]   -= dt
-            self._trot[i] += self._trvel[i] * (1.0 + mid_m * 1.5)
+            self._trot[i] += self._trvel[i] * (1.0 + mid_m * 0.3) * step
             if self._tz[i] < self.Z_NEAR:
                 continue
             tcx, tcy   = self._path(self._tpt[i], treble=high_m)

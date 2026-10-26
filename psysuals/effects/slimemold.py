@@ -35,6 +35,13 @@ class SlimeMold(Effect):
         quality_scale = max(0.5, min(1.0, float(config.QUALITY_SCALE)))
         return max(base, min(8, int(math.ceil(base / quality_scale))))
 
+    def _render_size(self):
+        if min(config.WIDTH, config.HEIGHT) >= 900 or self._visual_profile() == "tv":
+            scale = max(.85, min(1., float(config.QUALITY_SCALE)))
+            w,h = max(1,round(config.WIDTH*scale)), max(1,round(config.HEIGHT*scale))
+            return w,h,config.WIDTH/w
+        return super()._render_size()
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._rng = np.random.default_rng(config.RNG_SEED)
@@ -48,6 +55,14 @@ class SlimeMold(Effect):
 
     def _reset_or_resize_sim(self):
         W, H, RD = self._render_size()
+        if self._W > 1 and self._H > 1:
+            old_w,old_h = self._W,self._H
+            self._px *= W/old_w; self._py *= H/old_h
+            self._trail = self._resize_field(self._trail,W,H)
+            self._W,self._H = W,H
+            self._surf = pygame.Surface((W,H))
+            self._scaled = pygame.Surface((config.WIDTH,config.HEIGHT))
+            return
         self._W, self._H = W, H
         area = W * H
         self._n = max(5000, min(26000, int(13000 * area / (640 * 360))))

@@ -20,9 +20,9 @@ class BenchmarkCliTests(unittest.TestCase):
             benchmarks.parse_args(["--duration", "0"])
 
     def test_resolution_and_effect_selection(self):
-        args = benchmarks.parse_args(["--resolution", "4k", "--effects", "Phason", "Mandelbox"])
+        args = benchmarks.parse_args(["--resolution", "4k", "--effects", "Phason", "Cymatica"])
         self.assertEqual(args.resolution, "4k")
-        self.assertEqual(args.effects, ["Phason", "Mandelbox"])
+        self.assertEqual(args.effects, ["Phason", "Cymatica"])
 
     def test_unknown_effect_is_rejected(self):
         with self.assertRaises(SystemExit):

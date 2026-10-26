@@ -19,6 +19,7 @@ from .utils import hsl
 
 
 class Mobius(Effect):
+    TIME_BASED = True
     TRAIL_ALPHA = 42
 
     _N_LAT  = 60    # latitude lines (parallel to the long axis)
@@ -75,27 +76,29 @@ class Mobius(Effect):
 
     def draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
-        bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        step = self._frame_step()
+        motion, light = self._audio_response(beat)
+        bass, mid, high = motion
+        motion_scale, accent = self._profile_response()
+        self._hue = (self._hue + (0.0012 + mid * 0.002) * step) % 1.0
+        self._ry += (0.008 + bass * 0.006 + mid * 0.003 + high * 0.003) * step * motion_scale
+        self._rx += (0.003 + bass * 0.002) * step * motion_scale
+        self._rw += (0.004 + mid * 0.002 + high * 0.003) * step * motion_scale
+        self._shiver = float(light[0]) * accent * 0.4
+        twist = 1.0 + bass * 0.06 + mid * 0.06
 
-        self._hue   = (self._hue + 0.0012 + mid * 0.002) % 1.0
-        self._ry   += 0.008 + bass * 0.025 + mid * 0.012 + high * 0.015
-        self._rx   += 0.003 + bass * 0.008
-        self._rw   += 0.004 + mid * 0.008 + high * 0.012
-
-        if bass > 0.75 and self._beat_prev <= 0.75:
-            self._shiver = 1.0
-        self._beat_prev = bass
-        self._shiver = max(0.0, self._shiver - 0.04)
-
-        twist = 1.0 + self._shiver * 0.30 + mid * 0.15
-
-        # Latitude lines
-        u = self._u
+        # Fit the entire strip together: preserve shape and leave a glow margin.
+        projected = np.array([self._project(self._strip_pts(self._u, v, twist), W, H)
+                              for v in self._vs])
+        center = np.array([W / 2.0, H / 2.0])
+        offsets = projected - center
+        extent = np.max(np.abs(offsets), axis=(0, 1))
+        fit = min(1.0, (W * 0.5 - max(4, W * 0.04)) / max(1, extent[0]),
+                  (H * 0.5 - max(4, H * 0.04)) / max(1, extent[1]))
+        self._fit = min(getattr(self, "_fit", fit) + 0.001 * step, fit)
+        self._projected = center + offsets * self._fit
         for i, v in enumerate(self._vs):
-            pts3d = self._strip_pts(u, v, twist)
-            pts2d = self._project(pts3d, W, H)
+            pts2d = self._projected[i]
             h      = (self._hue + (v + 0.5)) % 1.0
             bright = 0.18 + abs(v) * 0.30 + bass * 0.20 + self._shiver * 0.25
             col    = hsl(h, l=bright)

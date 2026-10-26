@@ -11,6 +11,7 @@ _MAX_RINGS = 5
 
 
 class Chromatic(Effect):
+    TIME_BASED = True
     TRAIL_ALPHA = 0
     RES_DIV     = 1
 
@@ -29,27 +30,33 @@ class Chromatic(Effect):
 
     def draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
-        bass = beat
-        mid = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        display_scale = max(1.0, min(W, H) / 1080.0)
+        step = self._frame_step()
+        motion, light = self._audio_response(beat)
+        bass, mid, high = motion
+        motion_scale, accent = self._profile_response()
 
         if self._trail.get_width() != W or self._trail.get_height() != H:
-            self._trail = pygame.Surface((W, H))
-            self._trail.fill((0, 0, 0))
+            old_w, old_h = self._trail.get_size()
+            sx,sy = W/old_w,H/old_h
+            self._trail = pygame.transform.smoothscale(self._trail,(W,H))
+            for ring in self._rings:
+                ring[0] *= sx; ring[1] *= sy
+                ring[2] *= min(sx,sy); ring[3] *= min(sx,sy)
 
-        self._hue = (self._hue + 0.004 + mid * 0.003) % 1.0
+        self._hue = (self._hue + (0.004 + mid * 0.003) * step) % 1.0
 
-        if bass > 0.60 and self._beat_prev <= 0.60:
-            self._spawn(bass, W, H)
-        self._beat_prev = bass
+        if beat > 0.60 and self._beat_prev <= 0.60:
+            self._spawn(min(1.5, beat), W, H)
+        self._beat_prev = beat
 
-        self._auto_cd -= 1
+        self._auto_cd -= step
         if self._auto_cd <= 0 and len(self._rings) < 3:
             self._spawn(mid * 0.5, W, H)
             self._auto_cd = 55
 
-        self._trail.fill((210, 206, 214), special_flags=pygame.BLEND_RGB_MULT)
-        split = 2.0 + high * 12.0
+        self._trail.fill(tuple(int(round(c ** step / 255 ** (step - 1))) for c in (210, 206, 214)), special_flags=pygame.BLEND_RGB_MULT)
+        split = (2.0 + light[2] * 12.0 * accent) * display_scale
 
         self._rings = [
             entry for entry in self._rings
@@ -58,17 +65,17 @@ class Chromatic(Effect):
         for ring in self._rings:
             cx, cy, _, max_r, speed, intensity, phase = ring
 
-            ring[2] += speed + bass * 3.0
-            ring[6] += 0.08 + high * 0.22 + mid * 0.05
+            ring[2] += (speed + bass * 1.0) * display_scale * step * motion_scale
+            ring[6] += (0.025 + high * 0.035 + mid * 0.015) * step
             r = ring[2]
 
             fade = max(0.0, 1.0 - r / max_r)
-            bright = intensity * fade
+            bright = min(1.0, intensity * fade * (1.0 + light[0] * 0.35 * accent))
             if bright < 0.04:
                 continue
 
-            thick = max(1, int(2 + fade * 4))
-            warp = (2.5 + high * 11.0 + bass * 5.0) * (0.45 + fade * 0.9)
+            thick = max(1, int((2 + fade * 4) * display_scale))
+            warp = display_scale * (2.5 + high * 11.0 + bass * 5.0) * (0.45 + fade * 0.9)
             base_r = max(1.0, r)
             channels = (
                 ((255, 40, 80), -split, phase),

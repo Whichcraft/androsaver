@@ -75,13 +75,10 @@ class FlowField(Effect):
     def draw(self, surf, waveform, fft, beat, tick):
         W, H, RD = self._render_size()
         if self._trail.get_width() != W or self._trail.get_height() != H:
-            self._trail = pygame.Surface((W, H))
-            self._trail.fill((0, 0, 0))
-            area = config.WIDTH * config.HEIGHT
-            self._n = int(max(8000, min(100000, 25000 * area / (1920 * 1080))))
-            if getattr(config, "LOW_SPEC", False):
-                self._n = max(4000, self._n // 2)
-            self._allocate_particles(self._n, W, H)
+            old_w,old_h = self._trail.get_size()
+            self._trail = pygame.transform.smoothscale(self._trail,(W,H))
+            self._px *= W/old_w
+            self._py *= H/old_h
         sw, sh = surf.get_size()
         if self._scaled.get_width() != sw or self._scaled.get_height() != sh:
             self._scaled = pygame.Surface((sw, sh))

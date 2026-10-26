@@ -5,6 +5,16 @@ Every implementation task should include focused tests, documentation updates
 where behavior is user-visible, the full unit suite, the headless smoke test,
 and `git diff --check`.
 
+## Completed in 3.20.0
+
+- [x] Correct GL alpha/composition and clean effect-switch framebuffers.
+- [x] Add Laptop/TV profiles, calm motion and preserve supported resize state.
+- [x] Tune sound-reactive Persistence, animate Hyperbolic segments, fix Butterfly
+  edge trapping and retain fine SlimeMold detail on TV outputs.
+- [x] Remove Mandelbox and Morphogenesis; update registry, recipes and docs.
+- [x] Verify 127 unit tests, all 32 smoke-test effects, actual AMD GL rendering,
+  effect-switch GPU clearing and a 4K SlimeMold framebuffer.
+
 ## Major-release work (outside the current improvement queue)
 
 This work is intentionally separate from the current improvement queue. Do not

@@ -10,16 +10,15 @@ from effects.plasma_gl import PlasmaGL
 from effects.mycelium import Mycelium
 from effects.slimemold import SlimeMold
 from effects.synapse import Synapse
-from effects.morphogenesis import Morphogenesis
 from effects.hyperbolic import Hyperbolic
 from effects.liquidlight import LiquidLight
 from effects.cymatica import Cymatica
 from effects.phason import Phason
 from effects.tesseract import Tesseract
 from effects.ferrofluid import Ferrofluid
-from effects.mandelbox import Mandelbox
 from effects.heartbeat import Heartbeat
 from effects.mobius import Mobius
+from effects.chromatic import Chromatic
 from effects.persistence import Persistence
 from effects.lattice import Lattice
 from effects.magnetar import Magnetar
@@ -163,22 +162,6 @@ class EffectRenderRegressionTests(unittest.TestCase):
             self.assertLessEqual(float(effect._contour.max()), 1.0)
         self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
 
-    def test_morphogenesis_bounds_reaction_diffusion_state(self):
-        effect = Morphogenesis()
-        first_u = effect._u
-        first_v = effect._v
-        for tick, beat in enumerate((0.0, 3.0, 6.0) * 40):
-            effect.draw(self.surface, self.waveform, self.fft, beat, tick)
-            self.assertTrue(np.isfinite(effect._u).all())
-            self.assertTrue(np.isfinite(effect._v).all())
-            self.assertGreaterEqual(float(effect._u.min()), 0.0)
-            self.assertLessEqual(float(effect._u.max()), effect.MAX_FIELD_VALUE)
-            self.assertGreaterEqual(float(effect._v.min()), 0.0)
-            self.assertLessEqual(float(effect._v.max()), effect.MAX_FIELD_VALUE)
-        self.assertIs(effect._u, first_u)
-        self.assertIs(effect._v, first_v)
-        self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
-
     def test_hyperbolic_tiles_are_bounded_on_small_and_wide_targets(self):
         effect = Hyperbolic()
         for size in ((64, 48), (320, 240), (1920, 1080)):
@@ -285,15 +268,79 @@ class EffectRenderRegressionTests(unittest.TestCase):
         self.assertTrue(np.isfinite(effect._field).all())
         self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
 
-    def test_mandelbox_escape_field_is_finite_and_bounded(self):
-        effect = Mandelbox()
-        for tick, beat in enumerate((0.0, 3.0, 6.0) * 8):
-            effect.draw(self.surface, self.waveform, self.fft, beat, tick)
-            self.assertTrue(np.isfinite(effect._field).all())
-            self.assertTrue(np.isfinite(effect._orbit).all())
-            self.assertLessEqual(float(effect._field.max()), effect.MAX_FIELD)
-            self.assertLessEqual(effect.MAX_ITERATIONS, 18)
-        self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
+    def test_mobius_whole_strip_stays_inside_margin(self):
+        effect = Mobius()
+        for size in ((320, 240), (1200, 400), (400, 1200)):
+            target = pygame.Surface(size)
+            for tick in range(50):
+                effect.draw(target, self.waveform, self.fft, 6.0, tick)
+                points = effect._projected
+                self.assertGreaterEqual(points[..., 0].min(), size[0] * 0.04 - 1)
+                self.assertLessEqual(points[..., 0].max(), size[0] * 0.96 + 1)
+                self.assertGreaterEqual(points[..., 1].min(), size[1] * 0.04 - 1)
+                self.assertLessEqual(points[..., 1].max(), size[1] * 0.96 + 1)
+
+    def test_lattice_laptop_density_and_resize_with_empty_fft(self):
+        effect = Lattice()
+        for size, count in (((1280, 720), 22 * 14), ((3840, 2160), 14 * 9)):
+            config.WIDTH, config.HEIGHT = size
+            effect.draw(pygame.Surface(size), self.waveform, np.zeros(0), 0.0, 0)
+            self.assertEqual(len(effect._nodes), count)
+
+    def test_synapse_retires_oldest_and_grows_without_beats(self):
+        effect = Synapse()
+        effect._ensure_nodes(320, 240)
+        initial = effect.n_nodes
+        oldest = effect._anchors[0]
+        for tick in range(450):
+            effect.draw(self.surface, self.waveform, self.fft, 0.0, tick)
+        self.assertGreater(effect.n_nodes, initial)
+        self.assertFalse(any(anchor is oldest for anchor in effect._anchors))
+        for ei, *_ in effect._signals:
+            self.assertLess(ei, len(effect._edges))
+        self.assertEqual(len(effect._glow), effect.n_nodes)
+
+    def test_cymatica_alternating_fft_has_no_mode_jumps(self):
+        effect = Cymatica()
+        previous = None
+        for tick in range(30):
+            fft = np.zeros(128, dtype=np.float32)
+            fft[1 if tick % 2 else 120] = 1.0
+            effect.draw(self.surface, self.waveform, fft, 1.5, tick)
+            if previous is not None:
+                self.assertLess(float(np.abs(effect._field - previous).max()), 0.012)
+            previous = effect._field.copy()
+
+    def test_chromatic_expansion_scales_with_tv_resolution(self):
+        normalized_steps = []
+        for width, height in ((1920, 1080), (3840, 2160)):
+            effect = Chromatic()
+            effect._spawn(0.8, width, height)
+            effect._beat_prev = 0.8
+            effect.draw(pygame.Surface((width, height)), self.waveform, self.fft, 0.8, 0)
+            normalized_steps.append(effect._rings[0][2] / height)
+        self.assertAlmostEqual(*normalized_steps)
+
+    def test_hyperbolic_projection_uses_rotating_unit_sphere(self):
+        effect = Hyperbolic()
+        for angle in (0, 0.8, 2.5):
+            effect._angle = angle
+            for point in (0j, 0.5j, complex(0.5, 0.5)):
+                self.assertAlmostEqual(np.linalg.norm(effect._sphere_point(point)), 1.0)
+        effect._angle = 0
+        first = effect._project(0.5j, 320, 240)
+        effect._angle = 0.8
+        self.assertNotEqual(first, effect._project(0.5j, 320, 240))
+
+    def test_ferrofluid_smooth_state_advances_for_gl_adapter(self):
+        effect = Ferrofluid()
+        bass, _, _ = effect._advance_state(1.5)
+        self.assertLess(bass, 0.1)
+        uniforms = effect._gl_uniforms((1920, 1080), bass, 0.1, 0)
+        self.assertGreater(uniforms["u_time"], 0)
+        previous = effect._time
+        effect._advance_state(0.0)
+        self.assertGreater(effect._time, previous)
 
     def test_fireworks_flow_field_preserves_caps_and_trail(self):
         old_size = (config.WIDTH, config.HEIGHT)

@@ -40,8 +40,10 @@ void main() {
 
 class Phason(Effect):
     IS_GL = True
+    TIME_BASED = True
     TRAIL_ALPHA = 38
     # Preserve full-size pixels instead of enlarging a coarse internal field.
+    CONTINUOUS_QUALITY = True
     RES_DIV = 1
     MAX_WAVES = 11
     MAX_FIELD = 1.0
@@ -61,6 +63,7 @@ class Phason(Effect):
         self._hue = 0.0
         self._beat_prev = 0.0
         self._pulse = 0.0
+        self._time = 0.0
         self._gl_field = FullscreenField(_FRAGMENT_SHADER)
         self._reset_state()
 
@@ -76,11 +79,6 @@ class Phason(Effect):
         self._wave_work = np.empty_like(self._field)
         self._surface = pygame.Surface((W, H))
         self._scaled = pygame.Surface((max(1, config.WIDTH), max(1, config.HEIGHT)))
-        self._angles = np.arange(self.MAX_WAVES, dtype=np.float32) * (math.tau / self.MAX_WAVES)
-        self._phases.fill(0.0)
-        self._hue = 0.0
-        self._beat_prev = 0.0
-        self._pulse = 0.0
 
     def _render(self, surf, high):
         field = np.clip(self._field, -self.MAX_FIELD, self.MAX_FIELD)
@@ -107,26 +105,14 @@ class Phason(Effect):
         W, H, _ = self._render_size()
         if (W, H) != (self._W, self._H):
             self._reset_state()
-        bass = min(max(float(beat), 0.0), 1.5)
-        mid = min(max(float(config.MID_ENERGY), 0.0), 4.0)
-        high = min(max(float(config.TREBLE_ENERGY), 0.0), 4.0)
+        bass, mid, high = self._advance_state(beat)
         if self._gl_field.available(self.renderer):
-            if bass > 0.7 and self._beat_prev <= 0.7:
-                self._pulse = min(1.0, self._pulse + 0.75)
-            self._beat_prev = bass
-            self._pulse *= 0.94
-            self._hue = (self._hue + 0.001 + mid * 0.0007) % 1.0
             self._gl_field.render(self.renderer, self._gl_uniforms(surf.get_size(), bass, mid, high, tick))
             return
-        bpm = min(max(float(getattr(config, "BPM", 0.0)), 0.0), 240.0)
-        if bass > 0.7 and self._beat_prev <= 0.7:
-            self._pulse = min(1.0, self._pulse + 0.75)
-        self._beat_prev = bass
-        self._pulse *= 0.94
-        wave_count = min(self.MAX_WAVES, 5 + 2 * int(mid))
-        speed = 0.002 + bpm * 0.000004 + high * 0.001
-        self._angles[:wave_count] += 0.0007 + speed
-        self._phases[:wave_count] = self._phases[:wave_count] + speed + self._pulse * 0.008
+        wave_count = 7
+        indices = np.arange(self.MAX_WAVES)
+        self._angles[:] = indices * (math.tau / wave_count) + np.sin(self._time*.13 + indices)*.16
+        self._phases[:] = self._time*(.30 + indices*.047)
         field = self._field_work
         field.fill(0.0)
         for index in range(wave_count):
@@ -134,6 +120,7 @@ class Phason(Effect):
             np.multiply(self._x, math.cos(float(angle)), out=self._wave_work)
             np.multiply(self._y, math.sin(float(angle)), out=self._projection)
             np.add(self._wave_work, self._projection, out=self._wave_work)
+            self._wave_work *= .82 + mid*.035
             self._wave_work += self._phases[index]
             np.cos(self._wave_work, out=self._wave_work)
             np.add(field, self._wave_work, out=field)
@@ -141,23 +128,32 @@ class Phason(Effect):
         np.multiply(self._x, 0.5, out=self._wave_work)
         np.multiply(self._y, 0.5, out=self._projection)
         np.add(self._wave_work, self._projection, out=self._wave_work)
+        self._wave_work -= self._time * .7
         np.cos(self._wave_work, out=self._wave_work)
-        self._wave_work *= self._pulse
+        self._wave_work *= .20 + self._pulse*.25
         np.add(field, self._wave_work, out=field)
         np.clip(field, -1.0, 1.0, out=self._field)
-        self._hue = (self._hue + 0.001 + mid * 0.0007) % 1.0
         self._render(surf, high)
+
+    def _advance_state(self, beat):
+        motion, light = self._audio_response(beat)
+        bass,mid,high = motion
+        step = self._frame_step()
+        self._time += (.004 + mid*.001) * step
+        self._hue = (self._hue + (.00025 + mid*.0002) * step) % 1
+        self._pulse = self._smooth(self._pulse, min(.12, bass*.08), .025)
+        return bass,mid,high
 
     def _gl_uniforms(self, size, bass, mid, high, tick):
         return {
             "u_resolution": tuple(map(float, size)),
-            "u_time": float(tick) * 0.035,
+            "u_time": self._time,
             "u_hue": self._hue,
             "u_bass": bass,
             "u_mid": mid,
             "u_high": high,
             "u_pulse": self._pulse,
-            "u_waves": min(self.MAX_WAVES, 5 + 2 * int(mid)),
+            "u_waves": 7,
         }
 
     def draw_frame(self, width, height, waveform, fft, beat, tick, renderer=None):
@@ -166,14 +162,7 @@ class Phason(Effect):
         old_size = (config.WIDTH, config.HEIGHT)
         config.WIDTH, config.HEIGHT = int(width), int(height)
         try:
-            bass = min(max(float(beat), 0.0), 1.5)
-            mid = min(max(float(config.MID_ENERGY), 0.0), 4.0)
-            high = min(max(float(config.TREBLE_ENERGY), 0.0), 4.0)
-            if bass > 0.7 and self._beat_prev <= 0.7:
-                self._pulse = min(1.0, self._pulse + 0.75)
-            self._beat_prev = bass
-            self._pulse *= 0.94
-            self._hue = (self._hue + 0.001 + mid * 0.0007) % 1.0
+            bass, mid, high = self._advance_state(beat)
             uniforms = self._gl_uniforms((width, height), bass, mid, high, tick)
             return self._gl_field.draw_frame(renderer or self.renderer, int(width), int(height), uniforms)
         finally:

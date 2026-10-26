@@ -32,6 +32,14 @@ class FullscreenField:
             self.release()
             self._renderer = renderer
             self._program, self._vao = renderer.program(VERTEX_SHADER, self.fragment_shader)
+        # gl_FragCoord is measured in framebuffer pixels, not SDL logical pixels.
+        uniforms = dict(uniforms)
+        if "u_resolution" in uniforms:
+            if fbo is not None:
+                size = (fbo.width, fbo.height)
+            else:
+                size = renderer.ctx.screen.size
+            uniforms["u_resolution"] = tuple(map(float, size))
         for name, value in uniforms.items():
             uniform = self._program[name]
             if isinstance(value, np.ndarray):

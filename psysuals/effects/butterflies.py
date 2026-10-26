@@ -32,14 +32,15 @@ class _Butterfly:
             if self._wander_cd<=0: self._wander += float(self._rng.uniform(-.8,.8)); self._wander_cd=int(self._rng.integers(35,130))
             desired=self._wander+math.sin(self.age*.013+self._seed)*(.15+treble*.4)
         else: desired=math.atan2(target[1]-self.y,target[0]-self.x)
-        if self.x<50: desired=0
-        elif self.x>w-50: desired=math.pi
-        if self.y<50: desired=math.pi/2
-        elif self.y>h-50: desired=-math.pi/2
+        margin = min(w,h)*.13
+        if self.x<margin or self.x>w-margin or self.y<margin or self.y>h-margin:
+            desired=math.atan2(h/2-self.y,w/2-self.x)
         self.heading += max(-.18,min(.18,_delta(self.heading,desired)*(.12 if target is None else .22)))
         speed=(1.1+bass*.9+mids*.35+beat*.5)*self.scale/4.8
         self.vx=self.vx*.88+math.cos(self.heading)*speed*.12; self.vy=self.vy*.88+math.sin(self.heading)*speed*.12
         self.x+=self.vx; self.y+=self.vy
+        self.x=max(margin*.5,min(w-margin*.5,self.x))
+        self.y=max(margin*.5,min(h-margin*.5,self.y))
     def draw(self,surf,treble=0):
         flap=math.sin(self.wing_phase)*.5+.5; body=hsl(self.hue,l=.28); c1=hsl(self.hue,l=.58+treble*.12); c2=hsl((self.hue+.1)%1,l=.45)
         for upper,col in ((-1,c2),(1,c1)):
@@ -55,8 +56,13 @@ class _Pair:
     def update(self,bass,mids,treble,beat,w,h):
         self.age+=1; self.orbit += .012+beat*.025+mids*.008; self.radius=max(28,self.radius-.015-beat*.03)
         if self.age>self.break_at and self._rng.random()<.012+treble*.01: self.a.partner=self.b.partner=None; self.a.state=self.b.state='free'; return False
-        ax,ay,bx,by=self.a.x,self.a.y,self.b.x,self.b.y; c,s=math.cos(self.orbit),math.sin(self.orbit)
-        self.a.update(bass,mids,treble,beat,w,h,(bx+c*self.radius,by+s*self.radius)); self.b.update(bass,mids,treble,beat,w,h,(ax-c*self.radius,ay-s*self.radius))
+        self.radius=min(self.radius,min(w,h)*.15)
+        margin=self.radius+min(w,h)*.15
+        cx=max(margin,min(w-margin,(self.a.x+self.b.x)*.5))
+        cy=max(margin,min(h-margin,(self.a.y+self.b.y)*.5))
+        c,s=math.cos(self.orbit),math.sin(self.orbit)
+        self.a.update(bass,mids,treble,beat,w,h,(cx+c*self.radius,cy+s*self.radius))
+        self.b.update(bass,mids,treble,beat,w,h,(cx-c*self.radius,cy-s*self.radius))
         phase=(self.a.wing_phase+self.b.wing_phase)*.5; self.a.wing_phase+=(phase-self.a.wing_phase)*.12; self.b.wing_phase+=(phase-self.b.wing_phase)*.12; return True
 
 class Butterflies(Effect):
@@ -65,15 +71,26 @@ class Butterflies(Effect):
         super().__init__(**kwargs); self._rng=np.random.default_rng(config.RNG_SEED); self._tick=0; self._hue=float(self._rng.random()); self._butterflies=[]; self._pairs=[]; self._trail=None; self._scaled=None
     @staticmethod
     def _spawn(w,h,rng):
-        e=int(rng.integers(4)); m=min(35,max(4,min(w,h)//4)); return ((-m,float(rng.uniform(0,h))) if e==0 else (w+m,float(rng.uniform(0,h))) if e==1 else (float(rng.uniform(0,w)),-m) if e==2 else (float(rng.uniform(0,w)),h+m))
+        margin=min(w,h)*.18
+        return float(rng.uniform(margin,w-margin)),float(rng.uniform(margin,h-margin))
+
     def _surfaces(self,w,h,dw,dh):
-        if self._trail is None or self._trail.get_size()!=(w,h): self._trail=pygame.Surface((w,h)); self._trail.fill((0,0,0))
+        if self._trail is None:
+            self._trail = pygame.Surface((w,h)); self._trail.fill((0,0,0))
+        elif self._trail.get_size() != (w,h):
+            old_w, old_h = self._trail.get_size(); sx,sy=w/old_w,h/old_h
+            self._trail = pygame.transform.smoothscale(self._trail,(w,h))
+            for butterfly in self._butterflies:
+                butterfly.x *= sx; butterfly.y *= sy
+                butterfly.vx *= sx; butterfly.vy *= sy
+                butterfly.scale *= min(sx,sy)
+            for pair in self._pairs: pair.radius *= min(sx,sy)
         if self._scaled is None or self._scaled.get_size()!=(dw,dh): self._scaled=pygame.Surface((dw,dh))
     def draw(self,surf,waveform,fft,beat,tick):
         dw,dh=surf.get_size(); w,h=self._render_size()[:2]; self._surfaces(w,h,dw,dh); self._tick+=1; self._hue=(self._hue+.0012+getattr(config,'TREBLE_ENERGY',0)*.0005)%1
         bass=float(np.mean(fft[:min(6,len(fft))])) if len(fft) else 0.; mids=float(getattr(config,'MID_ENERGY',0)); treble=float(getattr(config,'TREBLE_ENERGY',0)); self._trail.fill((212,212,212),special_flags=pygame.BLEND_RGB_MULT)
         if len(self._butterflies)<self.MAX_POPULATION and (self._tick<20 or self._tick%24==0):
-            x,y=self._spawn(w,h,self._rng); self._butterflies.append(_Butterfly(x,y,self._hue+self._rng.random()*.25,self._rng,state='cocoon'))
+            x,y=self._spawn(w,h,self._rng); self._butterflies.append(_Butterfly(x,y,self._hue+self._rng.random()*.25,self._rng,scale=max(.35,min(w,h)/360*2.4),state='cocoon'))
         for b in self._butterflies:
             if b.state=='cocoon' and b.age>18: b.state='free'
         free=[b for b in self._butterflies if b.state=='free' and b.partner is None]
@@ -91,6 +108,6 @@ class Butterflies(Effect):
             elif not b.off_screen(w,h): b.draw(self._trail,treble)
             if not b.off_screen(w,h) or b.partner is not None: alive.append(b)
         self._butterflies=alive[:self.MAX_POPULATION]
-        if (w,h)!=(dw,dh): pygame.transform.scale(self._trail,(dw,dh),self._scaled); surf.blit(self._scaled,(0,0),special_flags=pygame.BLEND_RGB_MAX)
+        if (w,h)!=(dw,dh): pygame.transform.smoothscale(self._trail,(dw,dh),self._scaled); surf.blit(self._scaled,(0,0),special_flags=pygame.BLEND_RGB_MAX)
         else: surf.blit(self._trail,(0,0),special_flags=pygame.BLEND_RGB_MAX)
     def release(self): self._trail=None; self._scaled=None; self._butterflies.clear(); self._pairs.clear()
