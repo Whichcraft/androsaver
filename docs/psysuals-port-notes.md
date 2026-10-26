@@ -260,3 +260,29 @@ Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon d
 5. Update `CHANGELOG.md`, `docs/visualizer-modes.md`, and `docs/architecture.md`.
 6. Run `qmd update && qmd embed`.
 7. Commit on `dev`.
+
+### Android audio snapshot and pause lifecycle
+
+The Android renderer copies capture data into a reusable, render-owned
+`AudioData` buffer under a short audio lock, then releases the lock before
+issuing any GL work. This follows upstream
+`psysuals/core/audio_engine.py::get_audio()`, which returns copies under its lock;
+the Android buffer is reused to avoid per-frame array allocation. The original
+long render lock was an Android-only integration issue, so no upstream effect
+change is needed. Android pauses clear accumulated audio and genre samples but
+preserve whether automatic genre detection is configured, allowing collection
+to resume when the host returns to the foreground.
+
+Android host startup now applies the enabled-effect selection even with cycling
+set to Off/manual. This is a native host preference/lifecycle correction; it
+does not change any vendored psysuals effect or its mathematical behaviour.
+
+### Android vertex staging memory
+
+The native GLDraw triangle/line staging arrays and direct upload buffers now
+share one lazy pair. Primitive changes already flush before emitting the next
+primitive type; an assertion enforces the single-live-batch invariant. The
+vertex limit and rendering order are unchanged, while full staging drops from
+24 MiB to 12 MiB. This is Android-only CPU/upload storage: upstream
+`psysuals/gl_renderer.py::_upload_surface()` stages surface pixels on demand,
+without these Kotlin vertex batches. No upstream effect change is required.

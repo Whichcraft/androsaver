@@ -22,6 +22,7 @@ data class VisualizerPerformance(
  */
 class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Renderer {
 
+    private val frameAudio = AudioData()
     private val draw = GLDraw(1280, 720)
     private var tick = 0
     private var lastFrameNs = 0L
@@ -165,8 +166,9 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
             clearFrameCount = 2
             tick = 0
         }
-        synchronized(audio) {
-            val snapshot = audio.data
+        audio.copyDataTo(frameAudio)
+        run {
+            val snapshot = frameAudio
             val mode  = modes[activeModeIndex]
             val originalBeat = snapshot.beat
             val originalGain = snapshot.gain

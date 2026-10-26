@@ -50,7 +50,13 @@ class AudioEngine {
     private var firstFrame = true
     private var fftPrimed = false
 
-    val data: AudioData get() = _data.get()
+    /** Copy into render-owned storage while holding the capture lock only briefly. */
+    @Synchronized
+    fun copyDataTo(destination: AudioData) {
+        destination.copyFrom(_data.get())
+    }
+
+    internal val genreDetectionEnabled: Boolean get() = detectionEnabled
 
     @Synchronized
     fun start() {
@@ -176,7 +182,7 @@ class AudioEngine {
     @Synchronized
     fun stop() {
         running = false
-        detectionEnabled = false
+        // Preserve the configured genre setting across pause/resume.
         visualizer?.let { active ->
             // Best-effort teardown: a failure disabling capture must not skip
             // release, and repeated stop calls remain harmless.

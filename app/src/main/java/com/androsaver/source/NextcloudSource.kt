@@ -56,7 +56,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
             Request.Builder().url(davUrl).header("Authorization", Credentials.basic(user, password))
                 .header("Depth", "0").method("PROPFIND", body).build()
         ).awaitResponse().use { response ->
-            if (!response.isSuccessful) throw java.io.IOException("HTTP error code ${response.code}")
+            if (!response.isSuccessful) throw ImageSourceHttpException(response.code)
             response.body?.readLimited(MAX_RESPONSE_BYTES)?.isNotBlank() ?: throw java.io.IOException("Empty WebDAV response")
         }
         true
@@ -106,7 +106,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
         if (!response.isSuccessful) {
             val code = response.code
             response.close()
-            throw java.io.IOException("HTTP error code $code")
+            throw ImageSourceHttpException(code)
         }
         val xml = response.use { it.body?.readLimited(MAX_RESPONSE_BYTES) } ?: throw java.io.IOException("Empty response body")
         return parseResponse(xml, baseUrl, credential, insecureEndpoint)

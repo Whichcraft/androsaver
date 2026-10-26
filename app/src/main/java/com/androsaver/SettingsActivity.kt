@@ -74,7 +74,7 @@ class SettingsActivity : AppCompatActivity() {
 
     // ── Main settings screen ──────────────────────────────────────────────────
 
-    private class StartupErrorFragment : Fragment() {
+    class StartupErrorFragment : Fragment() {
         override fun onCreateView(
             inflater: LayoutInflater,
             container: ViewGroup?,
@@ -151,11 +151,6 @@ class SettingsActivity : AppCompatActivity() {
                         ).show()
                         return@launch
                     }
-                    Prefs.get(appContext).edit()
-                        .remove(Prefs.STATIC_IMAGE_URI)
-                        .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, localPath)
-                        .putString(Prefs.STATIC_IMAGE_DISPLAY_NAME, uri.lastPathSegment ?: "Selected image")
-                        .apply()
                     updateStaticImageSummary()
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
@@ -278,11 +273,11 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
                 "about_app" -> {
+                    if (updateJob?.isActive == true) return true
                     val update = pendingUpdate
                     if (update != null) {
                         findPreference<Preference>("about_app")?.summary = getString(R.string.update_downloading)
                         val appContext = requireContext().applicationContext
-                        updateJob?.cancel()
                         updateJob = viewLifecycleOwner.lifecycleScope.launch {
                             try {
                                 UpdateInstaller.downloadAndInstall(appContext, update)
@@ -298,7 +293,6 @@ class SettingsActivity : AppCompatActivity() {
                         }
                     } else {
                         findPreference<Preference>("about_app")?.summary = getString(R.string.update_checking)
-                        updateJob?.cancel()
                         updateJob = viewLifecycleOwner.lifecycleScope.launch {
                             val update = UpdateChecker.checkForUpdate()
                             if (update != null) {
@@ -639,11 +633,6 @@ class SettingsActivity : AppCompatActivity() {
                         Toast.makeText(requireContext(), R.string.image_browser_download_failed, Toast.LENGTH_LONG).show()
                         return@launch
                     }
-                    Prefs.get(appContext).edit()
-                        .remove(Prefs.STATIC_IMAGE_URI)
-                        .putString(Prefs.STATIC_IMAGE_LOCAL_PATH, path)
-                        .putString(Prefs.STATIC_IMAGE_DISPLAY_NAME, image.name.ifBlank { "Selected image" })
-                        .apply()
                     Toast.makeText(requireContext(), R.string.image_browser_selected, Toast.LENGTH_SHORT).show()
                     parentFragmentManager.popBackStack()
                 } catch (e: kotlinx.coroutines.CancellationException) {

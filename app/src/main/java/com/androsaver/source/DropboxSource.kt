@@ -74,7 +74,7 @@ class DropboxSource(private val context: Context) : ImageSource {
                     .header("Authorization", "Bearer $accessToken")
                     .post(body).build()
                 parseListResponse(client.newCall(request).awaitResponse().use { response ->
-                    if (!response.isSuccessful) throw java.io.IOException("Dropbox listing failed with HTTP ${response.code}")
+                    if (!response.isSuccessful) throw ImageSourceHttpException(response.code)
                     response.body?.stringLimited(MAX_RESPONSE_BYTES)
                 } ?: return files)
             } else {
@@ -86,7 +86,7 @@ class DropboxSource(private val context: Context) : ImageSource {
                     .header("Authorization", "Bearer $accessToken")
                     .post(body).build()
                 parseListResponse(client.newCall(request).awaitResponse().use { response ->
-                    if (!response.isSuccessful) throw java.io.IOException("Dropbox listing failed with HTTP ${response.code}")
+                    if (!response.isSuccessful) throw ImageSourceHttpException(response.code)
                     response.body?.stringLimited(MAX_RESPONSE_BYTES)
                 } ?: return files)
             }

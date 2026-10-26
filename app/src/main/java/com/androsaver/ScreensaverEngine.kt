@@ -74,6 +74,16 @@ class ScreensaverEngine(
         )
     }
 
+    private val sessionWork = ScreensaverSession(scope)
+    private val workScope get() = sessionWork.scope
+    private var diagnosticMode = "unknown"
+    private var diagnosticSession: Long? = null
+    private val postmortemFile get() = File(context.noBackupFilesDir, "screensaver-postmortem.txt")
+
+    private fun persistDiagnostic(details: String) {
+        if (BuildConfig.DEBUG_LOGGING) ScreensaverPostmortem.writeRecoverable(postmortemFile, details)
+    }
+
     private val handler = Handler(Looper.getMainLooper())
     private val imageItems = mutableListOf<ImageItem>()
     private var currentIndex = 0
@@ -83,11 +93,12 @@ class ScreensaverEngine(
     private var retryRunnable: Runnable? = null
     private var finishRunnable: Runnable? = null
     private var scheduleFinishRunnable: Runnable? = null
-    private var consecutiveLoadFailures = 0
+    private val playback = SlideshowPlayback()
     private var displayedIndex = -1
     private var transitionSequence = 0L
     private var slideshowSession = 0L
     private var devTransitionErrorVisible = false
+    private var diagnosticDismissKey: Int? = null
     private var activeTransitionAnimator: ValueAnimator? = null
     private var displayedItem: ImageItem? = null
     private val imageSourceNames = mutableMapOf<String, String>()
@@ -109,6 +120,42 @@ class ScreensaverEngine(
     private val dateFmt  = SimpleDateFormat("EEE, d MMM", Locale.getDefault())
 
     fun start(prefs: SharedPreferences) {
+        stop()
+        diagnosticMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
+            ?.takeIf { it in setOf(Prefs.MODE_STATIC, Prefs.MODE_BLANK, Prefs.MODE_VISUALIZER) }
+            ?: Prefs.MODE_SLIDESHOW
+        sessionWork.start(diagnosticMode)
+        // Snapshot saved evidence before startup can report a new failure.
+        val previousReport = if (BuildConfig.DEBUG_LOGGING) {
+            diagnosticSession = ScreensaverPostmortem.register(postmortemFile, diagnosticMode)
+            try {
+                ScreensaverPostmortem.readReports(postmortemFile)
+            } catch (error: Exception) {
+                Log.w(TAG, "Could not read screensaver postmortem", error)
+                null
+            }
+        } else null
+        devTransitionErrorVisible = false
+        diagnosticDismissKey = null
+        binding.devErrorOverlay.scrollTo(0, 0)
+        binding.devErrorOverlay.text = ""
+        binding.devErrorOverlay.visibility = View.GONE
+        try {
+            startMode(prefs)
+        } catch (error: Throwable) {
+            if (!BuildConfig.DEBUG_LOGGING) throw error
+            reportTransitionFailure("mode startup", error)
+        }
+        if (!previousReport.isNullOrBlank()) {
+            val startupReport = binding.devErrorOverlay.text?.toString().orEmpty()
+            binding.devErrorOverlay.text = ""
+            devTransitionErrorVisible = true
+            displayDiagnostic("PREVIOUS SCREENSAVER FAILURE\n\n$previousReport")
+            if (startupReport.isNotBlank()) displayDiagnostic(startupReport)
+        }
+    }
+
+    private fun startMode(prefs: SharedPreferences) {
         finishRunnable?.let { handler.removeCallbacks(it) }
         finishRunnable = null
         binding.imageView1.alpha = 1f
@@ -123,7 +170,7 @@ class ScreensaverEngine(
             return
         }
 
-        val mode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW)
+        val mode = sessionWork.mode
         blankMode = mode == Prefs.MODE_BLANK
         when (mode) {
             Prefs.MODE_VISUALIZER -> startVisualizerMode(prefs)
@@ -137,7 +184,8 @@ class ScreensaverEngine(
             if (prefs.getBoolean(Prefs.WEATHER_ENABLED, false)) startWeather(prefs)
         }
         scheduleFinishRunnable?.let { handler.removeCallbacks(it) }
-        ScheduleWindow.millisUntilEnd(Calendar.getInstance(), scheduleStart(prefs), scheduleEnd(prefs))?.let { delay ->
+        ScheduleWindow.millisUntilEnd(Calendar.getInstance(), scheduleStart(prefs), scheduleEnd(prefs),
+            enabled = prefs.getBoolean(Prefs.SCHEDULE_ENABLED, false))?.let { delay ->
             scheduleFinishRunnable = Runnable { onRequestFinish() }
             handler.postDelayed(scheduleFinishRunnable!!, delay)
         }
@@ -150,21 +198,52 @@ class ScreensaverEngine(
     fun resumeVisualizer() { visualizerView?.startVisualizer() }
 
     fun stop() {
-        // The Handler belongs exclusively to this engine. This also removes
-        // one-shot callbacks (fallback notices and deferred Glide cleanup)
-        // that are intentionally not stored in dedicated fields.
-        handler.removeCallbacksAndMessages(null)
-        finishRunnable = null
-        scheduleFinishRunnable = null
-        stopSlideshow()
-        stopImageRefresh()
-        stopVisualizerMode()
-        stopClock()
-        stopWeather()
-        cancelAllKenBurns()
+        sessionWork.stop()
+        blankMode = false
+        try {
+            // The Handler belongs exclusively to this engine. This also removes
+            // one-shot callbacks (fallback notices and deferred Glide cleanup)
+            // that are intentionally not stored in dedicated fields.
+            handler.removeCallbacksAndMessages(null)
+            finishRunnable = null
+            scheduleFinishRunnable = null
+            stopSlideshow()
+            stopImageRefresh()
+            stopVisualizerMode()
+            stopClock()
+            stopWeather()
+            cancelAllKenBurns()
+        } finally {
+            diagnosticSession?.let { ScreensaverPostmortem.unregister(it) }
+            diagnosticSession = null
+        }
+    }
+
+    fun handleDiagnosticKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_UP && event.keyCode == diagnosticDismissKey) {
+            diagnosticDismissKey = null
+            return true
+        }
+        if (!devTransitionErrorVisible || binding.devErrorOverlay.visibility != View.VISIBLE) return false
+        val action = DiagnosticControls.action(event.keyCode)
+        if (action == DiagnosticControls.Action.PASS) return false
+        if (event.action != KeyEvent.ACTION_DOWN) return true
+        if (action == DiagnosticControls.Action.DISMISS) {
+            diagnosticDismissKey = event.keyCode
+            devTransitionErrorVisible = false
+            binding.devErrorOverlay.visibility = View.GONE
+        } else {
+            val overlay = binding.devErrorOverlay
+            val viewport = (overlay.height - overlay.totalPaddingTop - overlay.totalPaddingBottom).coerceAtLeast(1)
+            val content = overlay.layout?.height ?: overlay.lineCount * overlay.lineHeight
+            overlay.scrollTo(0, DiagnosticControls.scrollPosition(overlay.scrollY, viewport, content, action))
+        }
+        return true
     }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
+        if (handleDiagnosticKeyEvent(event)) return true
+        if (sessionWork.mode == null) return false
         if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
             event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
             event.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
@@ -197,7 +276,7 @@ class ScreensaverEngine(
                 KeyEvent.KEYCODE_DPAD_DOWN  -> adjustIntensity(-1)
                 else -> { onRequestFinish(); return true }
             }
-        } else if (imageItems.isNotEmpty()) {
+        } else if (sessionWork.mode == Prefs.MODE_SLIDESHOW && imageItems.isNotEmpty()) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_RIGHT -> slideshowSkip(+1)
                 KeyEvent.KEYCODE_DPAD_LEFT  -> slideshowSkip(-1)
@@ -248,11 +327,10 @@ class ScreensaverEngine(
     // ── Schedule ──────────────────────────────────────────────────────────────
 
     private fun checkSchedule(prefs: SharedPreferences): Boolean {
-        if (!prefs.getBoolean(Prefs.SCHEDULE_ENABLED, false)) return true
         val start = scheduleStart(prefs)
         val end = scheduleEnd(prefs)
         val hour  = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        return ScheduleWindow.isActive(hour, start, end)
+        return ScheduleWindow.isActive(hour, start, end, enabled = prefs.getBoolean(Prefs.SCHEDULE_ENABLED, false))
     }
 
     private fun scheduleStart(prefs: SharedPreferences) =
@@ -304,7 +382,7 @@ class ScreensaverEngine(
 
     private fun refreshWeather(city: String, apiKey: String, generation: Long) {
         weatherRequestJob?.cancel()
-        weatherRequestJob = scope.launch {
+        weatherRequestJob = workScope.launch {
             val data = weatherFetcher.getWeather(city, apiKey)
             if (generation != weatherRequestGeneration) return@launch
             if (data != null) {
@@ -332,8 +410,11 @@ class ScreensaverEngine(
         val modePref = prefs.getString(Prefs.VISUALIZER_MODE, "auto") ?: "auto"
         val vv = VisualizerView(context)
         visualizerView = vv
+        val visualizerSession = sessionWork.generation
         vv.onRenderError = { error ->
-            reportTransitionFailure("visualizer render", error, sourceName = "visualizer", forceShow = true)
+            if (visualizerSession == sessionWork.generation) {
+                reportTransitionFailure("visualizer render", error, sourceName = "visualizer", forceShow = true)
+            }
         }
 
         val allNames = vv.renderer.modeNames.toSet()
@@ -349,11 +430,7 @@ class ScreensaverEngine(
             .putStringSet(Prefs.VIZ_ENABLED_MODES, enabledModes)
             .apply()
 
-        when (modePref) {
-            "auto"   -> vv.setModeIndex(vv.firstEnabledMode())
-            "random" -> vv.randomMode()
-            else     -> { /* off: stay on first enabled mode */ }
-        }
+        vv.selectInitialMode(modePref)
 
         vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
         val genre = prefs.getString(Prefs.AUDIO_GENRE, "any") ?: "any"
@@ -448,9 +525,10 @@ class ScreensaverEngine(
         binding.devErrorOverlay.visibility = View.GONE
         resetSlideshowViews()
 
-        val localPath = prefs.getString(Prefs.STATIC_IMAGE_LOCAL_PATH, null)
-            ?.takeIf { File(it).isFile }
-        val imageSource: Any? = localPath?.let { File(it) }
+        val imageSource = StaticImageFiles.selectedFile(
+            File(context.filesDir, "static_background"),
+            prefs.getString(Prefs.STATIC_IMAGE_LOCAL_PATH, null)
+        )
         if (imageSource == null) {
             binding.statusText.text = context.getString(R.string.static_image_not_selected)
             binding.statusText.visibility = View.VISIBLE
@@ -469,15 +547,19 @@ class ScreensaverEngine(
         ) {
             override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
                 if (imageTargets[imageView] !== this) return
-                imageView.setImageDrawable(resource)
-                imageView.scaleType = imageScaleTypeForDrawable(
-                    prefs,
-                    resource,
-                    Prefs.STATIC_IMAGE_SCALE,
-                    Prefs.STATIC_IMAGE_SCALE_PORTRAIT
-                )
-                applyImageBackground(prefs, Prefs.STATIC_BACKGROUND_MODE, Prefs.STATIC_BACKGROUND_COLOR, resource)
-                imageView.alpha = 1f
+                try {
+                    imageView.setImageDrawable(resource)
+                    imageView.scaleType = imageScaleTypeForDrawable(
+                        prefs,
+                        resource,
+                        Prefs.STATIC_IMAGE_SCALE,
+                        Prefs.STATIC_IMAGE_SCALE_PORTRAIT
+                    )
+                    applyImageBackground(prefs, Prefs.STATIC_BACKGROUND_MODE, Prefs.STATIC_BACKGROUND_COLOR, resource)
+                    imageView.alpha = 1f
+                } catch (error: Throwable) {
+                    reportTransitionFailure("static image ready/background", error)
+                }
             }
 
             override fun onLoadCleared(placeholder: Drawable?) {
@@ -496,7 +578,21 @@ class ScreensaverEngine(
         imageTargets[imageView] = target
         val staticRequest = Glide.with(context).load(imageSource)
             .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
-        staticRequest.into(target)
+            .disallowHardwareConfig()
+        staticRequest.listener(object : RequestListener<Drawable> {
+            override fun onLoadFailed(
+                e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean
+            ): Boolean {
+                reportTransitionFailure("static image fetch/decode",
+                    e ?: GlideException("Unknown static image load failure"))
+                return false
+            }
+
+            override fun onResourceReady(
+                resource: Drawable, model: Any, target: Target<Drawable>?,
+                dataSource: DataSource, isFirstResource: Boolean
+            ): Boolean = false
+        }).into(target)
     }
 
     private fun startSlideshowMode(prefs: SharedPreferences) {
@@ -507,9 +603,6 @@ class ScreensaverEngine(
         val defaultScale = ImageBehavior.defaultFor(Prefs.MODE_SLIDESHOW, false)
         binding.imageView1.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, defaultScale))
         binding.imageView2.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, defaultScale))
-        devTransitionErrorVisible = false
-        binding.devErrorOverlay.text = ""
-        binding.devErrorOverlay.visibility = View.GONE
         slideshowSession++
         resetSlideshowViews()
         loadImages(prefs, slideshowSession)
@@ -559,62 +652,68 @@ class ScreensaverEngine(
 
         val sources = getConfiguredSources(prefs)
         if (sources.isEmpty()) {
-            scope.launch { tryFallbackCache(session) }
+            workScope.launch { tryFallbackCache(session) }
             return
         }
 
-        scope.launch {
+        workScope.launch {
             try {
-                val items = mutableListOf<ImageItem>()
-                val deferreds = sources.map { src ->
-                    async {
-                        val urls = fetchSourceItems(src, "image source load")
-                        src.name to urls
-                    }
-                }
-                val results = deferreds.awaitAll()
-                if (session != slideshowSession) return@launch
-                imageSourceNames.clear()
-                for ((sourceName, res) in results) {
-                    if (res != null) {
-                        res.forEach { imageSourceNames[imageKey(it)] = sourceName }
-                        items.addAll(res)
-                    }
-                }
-
-                if (items.isEmpty()) {
-                    tryFallbackCache(session)
-                } else {
-                    // ImageCache moves its file/network work to Dispatchers.IO.
-                    // Keep this caller on Main so diagnostic/UI handling in the
-                    // catch block never reads or mutates Views from an IO thread.
-                    scope.launch {
-                        try {
-                            imageCache.saveImages(items, "mixed")
-                        } catch (t: Throwable) {
-                            if (t is CancellationException) throw t
-                            reportTransitionFailure("image cache write", t)
+                ProgressiveSources.load(
+                    sources,
+                    fetch = { source -> fetchSourceItems(source, "image source load") },
+                    onItems = merge@ { source, items ->
+                        if (session != slideshowSession) return@merge
+                        val known = imageItems.map(::imageKey).toHashSet()
+                        val added = items.filter { known.add(imageKey(it)) }
+                        if (added.isEmpty()) return@merge
+                        val previousCount = imageItems.size
+                        val firstSource = previousCount == 0
+                        added.forEach { imageSourceNames[imageKey(it)] = source.name }
+                        // Append later sources without resetting the displayed image,
+                        // in-flight Glide request, current index or slide timer.
+                        imageItems.addAll(added.shuffled())
+                        if (!firstSource && displayedIndex == previousCount - 1 && currentIndex == 0) {
+                            currentIndex = previousCount
+                        }
+                        if (firstSource) {
+                            if (!devTransitionErrorVisible) binding.statusText.visibility = View.GONE
+                            startSlideshow(prefs, session)
+                        } else if (playback.resumeWithNewItems()) {
+                            currentIndex = previousCount
+                            handler.post {
+                                if (session == slideshowSession) showNextImage()
+                            }
+                        }
+                        workScope.launch {
+                            try {
+                                imageCache.saveImages(added, source.name)
+                            } catch (error: Throwable) {
+                                if (error is CancellationException) throw error
+                                if (session == slideshowSession) reportTransitionFailure("image cache write", error)
+                            }
                         }
                     }
-                    if (session != slideshowSession) return@launch
-                    if (!devTransitionErrorVisible) binding.statusText.visibility = View.GONE
-                    imageItems.clear()
-                    imageItems.addAll(items.shuffled())
-                    startSlideshow(prefs, session)
-                }
-            } catch (t: Throwable) {
-                if (t is CancellationException) throw t
-                reportTransitionFailure("slideshow loading pipeline", t)
-                tryFallbackCache(session)
+                )
+                if (session == slideshowSession && imageItems.isEmpty()) tryFallbackCache(session)
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                if (session != slideshowSession) return@launch
+                reportTransitionFailure("slideshow loading pipeline", error)
+                if (imageItems.isEmpty()) tryFallbackCache(session)
             }
         }
     }
 
-    private suspend fun tryFallbackCache(session: Long) {
+    private suspend fun tryFallbackCache(session: Long, requireStalled: Boolean = false) {
         try {
             if (session != slideshowSession) return
             val cached = imageCache.getCachedItems()
             if (session != slideshowSession) return
+            if (requireStalled && !playback.isStalled) {
+                playback.fallbackFinished(used = false)
+                return
+            }
+            playback.fallbackFinished(used = true)
             if (cached.isNotEmpty()) {
                 if (!devTransitionErrorVisible) {
                     binding.statusText.text = context.getString(R.string.cache_fallback_notice)
@@ -634,6 +733,8 @@ class ScreensaverEngine(
             }
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
+            if (session != slideshowSession) return
+            playback.fallbackFinished(used = true)
             reportTransitionFailure("fallback image cache", t, sourceName = "fallback image cache")
         }
     }
@@ -662,6 +763,9 @@ class ScreensaverEngine(
 
     private fun stopSlideshow() {
         slideshowSession++
+        imageItems.clear()
+        imageSourceNames.clear()
+        playback.reset()
         slideshowRunnable?.let { handler.removeCallbacks(it) }
         slideshowRunnable = null
         retryRunnable?.let { handler.removeCallbacks(it) }
@@ -682,7 +786,7 @@ class ScreensaverEngine(
         imageRefreshRunnable = object : Runnable {
             override fun run() {
                 if (session != slideshowSession) return
-                scope.launch {
+                workScope.launch {
                     try {
                         if (session != slideshowSession) return@launch
                         val sources = getConfiguredSources(prefs)
@@ -722,7 +826,7 @@ class ScreensaverEngine(
                             }
                             // ImageCache performs its own IO dispatch. Keeping this
                             // coroutine on Main makes failure reporting UI-safe.
-                            scope.launch {
+                            workScope.launch {
                                 try {
                                     imageCache.saveImages(fresh, "mixed")
                                 } catch (t: Throwable) {
@@ -730,6 +834,7 @@ class ScreensaverEngine(
                                     reportTransitionFailure("refreshed image cache write", t)
                                 }
                             }
+                            if (playback.resumeWithNewItems()) showNextImage()
                             if (BuildConfig.DEBUG_LOGGING) {
                                 Log.d(TAG, "Image list refreshed: ${fresh.size} items")
                             }
@@ -765,6 +870,7 @@ class ScreensaverEngine(
         retryRunnable?.let { handler.removeCallbacks(it) }
         retryRunnable = null
         if (imageItems.isEmpty()) return
+        playback.loading()
         val incoming = if (activeView == 1) binding.imageView2 else binding.imageView1
         val outgoing  = if (activeView == 1) binding.imageView1 else binding.imageView2
         val itemIndex = currentIndex.takeIf { it in imageItems.indices } ?: 0
@@ -802,6 +908,10 @@ class ScreensaverEngine(
         val prefs = Prefs.get(context)
         val request = Glide.with(context).load(glideModel)
             .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
+            .disallowHardwareConfig()
+            .apply {
+                item.contentVersion?.let { signature(com.bumptech.glide.signature.ObjectKey(it)) }
+            }
 
         var glideFailureReported = false
         val target = object : CustomTarget<Drawable>(
@@ -836,7 +946,7 @@ class ScreensaverEngine(
                             }
                             return
                         }
-                        consecutiveLoadFailures = 0
+                        playback.ready()
                         cancelKenBurns(incoming)
                         val prefs = com.androsaver.Prefs.get(context)
                         incoming.setImageDrawable(resource)
@@ -884,19 +994,26 @@ class ScreensaverEngine(
                             )
                         }
                         if (imageItems.isEmpty()) return
-                        consecutiveLoadFailures++
                         val failedIndex = findImageItemIndex(item)
                         currentIndex = if (failedIndex >= 0) {
                             (failedIndex + 1) % imageItems.size
                         } else {
                             currentIndex.coerceIn(0, imageItems.lastIndex)
                         }
-                        if (consecutiveLoadFailures < imageItems.size) {
+                        if (playback.failed(imageItems.size)) {
                             val r = Runnable { showNextImage() }
                             retryRunnable = r
                             handler.postDelayed(r, 300L)
-                        } else {
-                            consecutiveLoadFailures = 0
+                        } else if (playback.requestFallback()) {
+                            val failedSession = slideshowSession
+                            // Glide forbids new loads/clears inside its callbacks.
+                            handler.post {
+                                if (failedSession == slideshowSession && playback.isStalled) {
+                                    workScope.launch { tryFallbackCache(failedSession, requireStalled = true) }
+                                } else if (failedSession == slideshowSession) {
+                                    playback.fallbackFinished(used = false)
+                                }
+                            }
                         }
                     } catch (t: Throwable) {
                         reportTransitionFailure("image failure callback", t, attemptedItem = item)
@@ -1199,9 +1316,18 @@ class ScreensaverEngine(
         forceShow: Boolean = false
     ) {
         if (!BuildConfig.DEBUG_LOGGING && !forceShow) return
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            val generation = sessionWork.generation
+            handler.post {
+                if (generation == sessionWork.generation && sessionWork.mode != null) {
+                    reportTransitionFailure(effect, throwable, attemptedItem, sourceName, forceShow)
+                }
+            }
+            return
+        }
         devTransitionErrorVisible = true
         try {
-            Log.e(TAG, "Slideshow failure: $effect", throwable)
+            Log.e(TAG, "Screensaver failure ($diagnosticMode): $effect", throwable)
         } catch (_: Throwable) {
             // On-screen reporting must not depend on logcat being available.
         }
@@ -1215,7 +1341,19 @@ class ScreensaverEngine(
                 ?: "unknown"
             buildString {
                 append("ANDROSAVER DEV ERROR — PERSISTENT\n\n")
+                append("Time: ").append(Date()).append('\n')
+                append("Mode: ").append(diagnosticMode).append('\n')
                 append("Stage/effect: ").append(effect).append('\n')
+                if (diagnosticMode == Prefs.MODE_STATIC) {
+                    val prefs = com.androsaver.Prefs.get(context)
+                    val file = prefs.getString(Prefs.STATIC_IMAGE_LOCAL_PATH, null)?.let { File(it) }
+                    append("Static image: exists=").append(file?.isFile ?: false)
+                        .append(", bytes=").append(file?.length() ?: 0).append('\n')
+                    append("Static scale: ").append(prefs.getString(Prefs.STATIC_IMAGE_SCALE, null))
+                        .append(", portrait=").append(prefs.getString(Prefs.STATIC_IMAGE_SCALE_PORTRAIT, null))
+                        .append("; background=").append(prefs.getString(Prefs.STATIC_BACKGROUND_MODE, null))
+                        .append('\n')
+                }
                 append("Configured transition: ")
                     .append(com.androsaver.Prefs.get(context)
                         .getString(Prefs.TRANSITION_EFFECT, "crossfade"))
@@ -1277,11 +1415,16 @@ class ScreensaverEngine(
             }
         }
 
+        persistDiagnostic(details)
+        displayDiagnostic(details)
+    }
+
+    private fun displayDiagnostic(details: String) {
         val display = Runnable {
             try {
                 val prior = binding.devErrorOverlay.text?.toString().orEmpty()
                 binding.devErrorOverlay.text = when {
-                    prior.isBlank() -> details
+                    prior.isBlank() -> context.getString(R.string.diagnostic_controls) + "\n\n" + details
                     prior.length + details.length <= 64_000 ->
                         "$prior\n\n──────── ADDITIONAL FAILURE ────────\n\n$details"
                     else ->

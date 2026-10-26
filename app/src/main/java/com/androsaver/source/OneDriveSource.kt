@@ -62,7 +62,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
                         .header("Authorization", "Bearer $accessToken").build()
                 ).awaitResponse().use { resp ->
                     if (!resp.isSuccessful) {
-                        throw java.io.IOException("OneDrive listing failed with HTTP ${resp.code}")
+                        throw ImageSourceHttpException(resp.code)
                     }
                     gson.fromJson(resp.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
                 }
@@ -109,7 +109,12 @@ class OneDriveSource(private val context: Context) : ImageSource {
                 Request.Builder()
                     .url("https://login.microsoftonline.com/common/oauth2/v2.0/token")
                     .post(body).build()
-            ).awaitResponse().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            ).awaitResponse().use { response ->
+                if (!response.isSuccessful && com.androsaver.PrefetchRetryPolicy.http(response.code)) {
+                    throw ImageSourceHttpException(response.code)
+                }
+                gson.fromJson(response.body?.stringLimited(64L * 1024), JsonObject::class.java)
+            }
 
             val token = json.get("access_token")?.asString
             if (token != null) {
@@ -120,6 +125,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
             token
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (e is java.io.IOException || e is com.google.gson.JsonParseException) throw e
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Token refresh failed", e)
             null
         }

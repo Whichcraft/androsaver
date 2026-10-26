@@ -52,7 +52,13 @@ class ImagePrefetchWorker(
             }.awaitAll()
         }
 
-        if (results.none { it.result !is ImageSourceResult.Failure }) return Result.retry()
+        val sourceNeedsRetry = results.any {
+            val failure = it.result as? ImageSourceResult.Failure
+            failure != null && PrefetchRetryPolicy.source(failure.kind)
+        }
+        if (results.all { it.result is ImageSourceResult.Failure }) {
+            return if (PrefetchRetryPolicy.retry(runAttemptCount, sourceNeedsRetry)) Result.retry() else Result.success()
+        }
 
         val queues = results.map {
             (it.result as? ImageSourceResult.Success)?.items?.toMutableList() ?: mutableListOf()
@@ -66,14 +72,24 @@ class ImagePrefetchWorker(
         }
 
         try {
+            var cached = 0
+            var downloaded = 0
+            var failed = 0
+            var shouldRetry = sourceNeedsRetry
             selected.groupBy({ it.first }, { it.second }).forEach { (source, sourceItems) ->
-                imageCache.saveImages(sourceItems, source.name)
+                val saved = imageCache.saveImages(sourceItems, source.name)
+                cached += saved.cached
+                downloaded += saved.downloaded
+                failed += saved.failed
+                shouldRetry = shouldRetry || saved.needsRetry
             }
-            if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Prefetch successfully cached ${selected.size} images")
+            if (BuildConfig.DEBUG_LOGGING) Log.d(TAG,
+                "Prefetch: $cached already cached, $downloaded downloaded, $failed failed")
+            if (PrefetchRetryPolicy.retry(runAttemptCount, shouldRetry)) return Result.retry()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Failed to cache prefetched images", e)
-            return Result.retry()
+            return if (PrefetchRetryPolicy.retry(runAttemptCount, e is java.io.IOException)) Result.retry() else Result.success()
         }
         return Result.success()
     }

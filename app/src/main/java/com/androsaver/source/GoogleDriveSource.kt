@@ -3,6 +3,7 @@ package com.androsaver.source
 import android.content.Context
 import android.util.Log
 import com.androsaver.BuildConfig
+import com.androsaver.stringLimited
 import com.androsaver.awaitResponse
 import com.androsaver.Prefs
 import com.google.gson.Gson
@@ -43,41 +44,30 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             "UTF-8"
         )
         val baseUrl = "https://www.googleapis.com/drive/v3/files" +
-                "?q=$query&fields=files(id,name,mimeType),nextPageToken&pageSize=1000"
+                "?q=$query&fields=files(id,name,mimeType,modifiedTime),nextPageToken&pageSize=1000"
 
-        val items = mutableListOf<ImageItem>()
-            var pageToken: String? = null
-            val maxFetch = 2000
-            do {
-                val url = if (pageToken != null) "$baseUrl&pageToken=${URLEncoder.encode(pageToken, "UTF-8")}" else baseUrl
-                val response = client.newCall(
-                    Request.Builder().url(url).addHeader("Authorization", "Bearer $accessToken").build()
-                ).awaitResponse()
+        GoogleDrivePages().list { pageToken ->
+            val url = if (pageToken != null) {
+                "$baseUrl&pageToken=${URLEncoder.encode(pageToken, "UTF-8")}"
+            } else baseUrl
+            client.newCall(
+                Request.Builder().url(url).addHeader("Authorization", "Bearer $accessToken").build()
+            ).awaitResponse().use { response ->
                 if (!response.isSuccessful) {
-                    val code = response.code
-                    response.close()
-                    throw java.io.IOException("Google Drive listing failed with HTTP $code")
+                    throw ImageSourceHttpException(response.code)
                 }
-                val json = response.use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
-                val files = json.getAsJsonArray("files")
-                if (files != null) {
-                    for (file in files) {
-                        if (items.size >= maxFetch) break
-                        val obj = file.asJsonObject
-                        val fileId = obj.get("id")?.asString ?: continue
-                        val name = obj.get("name")?.asString ?: continue
-                        items.add(ImageItem(
-                            url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media",
-                            name = name,
-                            headers = mapOf("Authorization" to "Bearer $accessToken"),
-                            stableId = "google:$fileId"
-                        ))
-                    }
-                }
-                if (items.size >= maxFetch) break
-                pageToken = json.get("nextPageToken")?.asString
-            } while (pageToken != null)
-        items
+                gson.fromJson(response.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
+                    ?: throw java.io.IOException("Empty Google Drive listing")
+            }
+        }.map { file ->
+            ImageItem(
+                url = "https://www.googleapis.com/drive/v3/files/${file.id}?alt=media",
+                name = file.name,
+                headers = mapOf("Authorization" to "Bearer $accessToken"),
+                stableId = "google:${file.id}",
+                contentVersion = file.version
+            )
+        }
     }
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
@@ -102,7 +92,12 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             .build()
 
         try {
-            val json = client.newCall(request).awaitResponse().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            val json = client.newCall(request).awaitResponse().use { response ->
+                if (!response.isSuccessful && com.androsaver.PrefetchRetryPolicy.http(response.code)) {
+                    throw ImageSourceHttpException(response.code)
+                }
+                gson.fromJson(response.body?.stringLimited(MAX_TOKEN_RESPONSE_BYTES), JsonObject::class.java)
+            }
             val token = json.get("access_token")?.asString
             if (token != null) {
                 prefs.edit().putString(Prefs.GOOGLE_ACCESS_TOKEN, token).apply()
@@ -110,6 +105,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
             token
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (e is java.io.IOException || e is com.google.gson.JsonParseException) throw e
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Token refresh failed", e)
             null
         }
@@ -117,6 +113,8 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
 
     companion object {
         private const val TAG = "GoogleDriveSource"
+        private const val MAX_RESPONSE_BYTES = 4L * 1024 * 1024
+        private const val MAX_TOKEN_RESPONSE_BYTES = 64L * 1024
         private val refreshMutex = Mutex()
     }
 }

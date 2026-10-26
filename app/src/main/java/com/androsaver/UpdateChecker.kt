@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 data class UpdateInfo(
     val versionCode: Int,
@@ -27,7 +26,7 @@ object UpdateChecker {
             val request = Request.Builder().url(manifestUrl()).build()
             val body = HttpClients.standard.newCall(request).awaitResponse().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                response.body?.string() ?: return@withContext null
+                response.body?.stringLimited(64 * 1024L) ?: return@withContext null
             }
             val json = Gson().fromJson(body, com.google.gson.JsonObject::class.java)
             val versionCode = json.get("versionCode")?.takeIf { it.isJsonPrimitive }?.asInt ?: return@withContext null
@@ -40,10 +39,10 @@ object UpdateChecker {
                 ?.takeIf { it in 1..100_000_000 } ?: return@withContext null
             val expectedReleaseTag = if (BuildConfig.IS_DEV) Prefs.UPDATE_RELEASE_TAG_DEV
                                      else Prefs.UPDATE_CHANNEL_STABLE
-            val parsed = apkUrl.toHttpUrlOrNull() ?: return@withContext null
-            val expectedPath = "/Whichcraft/androsaver/releases/download/$expectedReleaseTag/androsaver.apk"
-            if (parsed.scheme != "https" || parsed.host != "github.com" || parsed.encodedPath != expectedPath) return@withContext null
-            if (versionCode > BuildConfig.VERSION_CODE) UpdateInfo(versionCode, versionName, apkUrl, sha256, sizeBytes) else null
+            val immutableUrl = json.get("immutableApkUrl")?.asString
+            val downloadUrl = UpdateDownloadPolicy.select(apkUrl, immutableUrl, expectedReleaseTag)
+                ?: return@withContext null
+            if (versionCode > BuildConfig.VERSION_CODE) UpdateInfo(versionCode, versionName, downloadUrl, sha256, sizeBytes) else null
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             if (BuildConfig.DEBUG_LOGGING) android.util.Log.w("UpdateChecker", "Check failed", e)

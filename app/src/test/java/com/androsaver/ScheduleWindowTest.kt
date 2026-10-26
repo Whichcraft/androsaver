@@ -3,9 +3,20 @@ package com.androsaver
 import java.util.Calendar
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ScheduleWindowTest {
+    @Test fun disabledScheduleNeverBlocksStartupOrArmsShutdown() {
+        for ((start, end) in listOf(8 to 22, 22 to 6, 8 to 8)) {
+            for (hour in 0..23) {
+                val now = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, hour) }
+                assertTrue(ScheduleWindow.isActive(hour, start, end, enabled = false))
+                assertNull(ScheduleWindow.millisUntilEnd(now, start, end, enabled = false))
+            }
+        }
+    }
+
     @Test fun equalHoursMeanAllDay() {
         assertTrue(ScheduleWindow.isActive(0, 8, 8))
         assertTrue(ScheduleWindow.isActive(23, 8, 8))

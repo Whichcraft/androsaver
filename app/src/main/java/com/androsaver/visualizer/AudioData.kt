@@ -25,3 +25,16 @@ fun AudioData.fftMean(start: Int, end: Int): Float {
     for (i in first until last) sum += fft[i]
     return sum / (last - first)
 }
+
+/** Copy capture state without sharing mutable arrays with the render thread. */
+fun AudioData.copyFrom(source: AudioData) {
+    if (source === this) return
+    waveform.fill(0f)
+    fft.fill(0f)
+    System.arraycopy(source.waveform, 0, waveform, 0, minOf(source.waveform.size, waveform.size))
+    System.arraycopy(source.fft, 0, fft, 0, minOf(source.fft.size, fft.size))
+    beat = source.beat
+    mid = source.mid
+    treble = source.treble
+    gain = source.gain
+}

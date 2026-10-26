@@ -91,7 +91,12 @@ class DropboxAuthManager(private val context: Context) {
                         .header("Authorization", Credentials.basic(appKey, appSecret))
                         .post(body).build()
                 ).awaitResponse().use { response ->
-                    if (!response.isSuccessful) return@withContext null
+                    if (!response.isSuccessful) {
+                        if (com.androsaver.PrefetchRetryPolicy.http(response.code)) {
+                            throw com.androsaver.source.ImageSourceHttpException(response.code)
+                        }
+                        return@withContext null
+                    }
                     gson.fromJson(response.body?.string(), JsonObject::class.java)
                 }
 
@@ -101,6 +106,7 @@ class DropboxAuthManager(private val context: Context) {
                 newToken
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is java.io.IOException || e is com.google.gson.JsonParseException) throw e
                 null
             }
         }

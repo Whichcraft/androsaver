@@ -39,6 +39,9 @@ internal object HttpClients {
         OkHttpClient.Builder()
             .sslSocketFactory(sslContext.socketFactory, trustManager)
             .hostnameVerifier { _, _ -> true }
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .addInterceptor(SameOriginRedirectInterceptor())
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()

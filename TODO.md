@@ -82,3 +82,63 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
   - Keep psysuals effect files focused on effect behavior.
   - Update architecture documentation and verify there are no duplicate helper
     implementations.
+
+## Screensaver reliability review fixes
+
+- [x] Prevent hardware-bitmap sampling failures in static/slideshow automatic backgrounds and retain a manual-colour fallback.
+- [x] Serialise cache writers, commit each image separately, reserve download space, and preserve active downloads when reading an empty manifest.
+- [x] Close HTTP responses when cancellation wins the race with coroutine dispatch.
+- [x] Preserve automatic genre detection across audio pause/resume.
+- [x] Restore the postmortem overlay on every preview start.
+- [x] Share one process-wide postmortem handler across sessions and write reports atomically.
+- [x] Copy audio under a short lock and perform visualizer drawing outside the capture lock.
+- [x] Add JVM regression tests for cache transactions, cancellation races, postmortem ownership/storage, and audio snapshot/lifecycle behaviour.
+- [ ] Run the new JVM tests in the GitHub builder and perform the device checks in `docs/module-reference.md`; no local Android build.
+
+## Second reliability review fixes
+
+- [x] Select APK signing-query flags correctly on API 21–27 and API 28+.
+- [x] Disable automatic redirects for insecure TLS and permit manually checked same-origin redirects only.
+- [x] Publish uniquely named static images before committing their selection, serialise imports, retain the previous image, and recover legacy interrupted replacements.
+- [x] Reconcile cache contents once per batch while retaining individual download commits.
+- [x] Return actual cache/download/failure counts and retry incomplete prefetch work.
+- [x] Stage commit-specific releases, download and verify remote APK/AAB assets, and move existing channel tags only after verification.
+- [x] Prefer a validated commit-specific APK URL while retaining compatibility with older rolling manifests and clients.
+- [x] Keep CI signing material in the runner temporary directory outside the checkout.
+- [x] Run four mocked release publication regression tests and check script syntax and workflow YAML.
+- [ ] Run the new Android JVM tests in the GitHub builder; device-check updates on API 21–27, replacing an already displayed static image, and self-hosted redirects.
+
+## Third reliability review and startup UX
+
+- [x] Pin every CI checkout to the triggering SHA and assert `HEAD` before building.
+- [x] Snapshot diagnostic history before startup and store recoverable failures separately from fatal postmortems.
+- [x] Give each engine run a cancellable child job; cancel fetch/cache/weather work on stop and reject stale visualizer diagnostics.
+- [x] Clear slideshow items/source state on stop and route remote input by the active mode.
+- [x] Start manual visualizer mode on an enabled effect.
+- [x] Bound Google Drive response bytes, pages, scanned entries, accepted images and repeated page tokens.
+- [x] Start the slideshow with the first useful source; append later images without restarting the current image or timer.
+- [x] Add focused JVM coverage for session cancellation, progressive source delivery, fatal-report preservation, visualizer selection, response byte limits and Drive pagination budgets.
+- [x] Verify workflow SHA pinning and rerun the four mocked release tests.
+- [ ] GitHub builder: compile/run Android JVM tests. Device: stop/restart preview across all modes, check old report plus a new startup error, and confirm fast-source startup while another source is offline.
+
+## Playback recovery, HTTP lifetime and freshness
+
+- [x] Track slideshow loading/waiting/stalled state; resume with later source results and attempt offline fallback once per session when every image fails.
+- [x] Keep HTTP cancellation attached until response-body closure so cancellation interrupts active socket reads, and retire the watcher on normal close.
+- [x] Route diagnostic remote controls before mode navigation: Up/Down scroll, Left/Right page, Center/Back dismiss; consume dismissal key-up and preserve volume controls.
+- [x] Separate permanent/authentication/parse/unsupported-image failures from transient HTTP/network failures and cap prefetch retries at three per periodic run.
+- [x] Preserve source HTTP status classification and token-refresh network failures through provider enumeration.
+- [x] Refresh cached photos on revision changes or after 24 hours; retain the old file if replacement fails and use distinct replacement filenames/signatures.
+- [x] Add regression cases for late healthy sources, broken fallback-cache loops, stalled body cancellation, normal HTTP close, remote policy, source retry classification and cache revision/age/failure behaviour.
+- [x] Check diff whitespace and parse the updated string resources.
+- [ ] GitHub builder: compile and execute the new JVM tests. Device: exercise actual Glide failures followed by a healthy source; cancel stalled downloads; scroll/dismiss long reports in dream and preview; confirm edited photos refresh offline.
+
+## Settings fallback, schedule and updater safety
+
+- [x] Make the settings startup error Fragment public with a public no-argument constructor so AndroidX can add and restore it.
+- [x] Apply the schedule-enabled flag to both admission and the scheduled shutdown timer; cover disabled daytime/overnight/all-day windows.
+- [x] Ignore repeated update clicks while busy, serialise update preparation, and use per-attempt temporary files plus reusable verified APKs keyed by version/checksum.
+- [x] Revalidate byte count, checksum, package version and signers before reusing a cached update.
+- [x] Share lazily allocated triangle/line vertex staging, reducing its full budget from 24 MiB to 12 MiB without changing the vertex cap or primitive order.
+- [x] Add JVM regression tests for fallback-Fragment visibility, schedule gating, cancelled update attempts, verified artifact reuse and vertex storage allocation.
+- [ ] GitHub builder: compile/run JVM tests. Device: force settings startup failure and recreate the Activity; confirm disabled scheduling stays active past its former end time; repeat update clicks/cancel/retry; profile actual low-memory-TV renderer usage.

@@ -126,7 +126,7 @@ class ImmichSource(private val context: Context) : ImageSource {
         if (!response.isSuccessful) {
             val code = response.code
             response.close()
-            throw java.io.IOException("HTTP error code $code")
+            throw ImageSourceHttpException(code)
         }
         return response.use { it.body?.stringLimited(MAX_RESPONSE_BYTES) } ?: throw java.io.IOException("Empty response body")
     }

@@ -51,6 +51,7 @@ class PreviewActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (engine.handleDiagnosticKeyEvent(event)) return true
         if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
             finish(); return true
         }

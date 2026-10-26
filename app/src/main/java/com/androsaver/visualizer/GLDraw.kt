@@ -154,9 +154,12 @@ open class GLDraw(var W: Int, var H: Int) {
     // ── Vertex batches ─────────────────────────────────────────────────────────
 
     private val STRIDE    = 6           // floats per vertex: x, y, r, g, b, a
-    private val MAX_VERTS = 262144      // 256 K vertices ≈ 6 MB
-    private val triVerts  = FloatArray(MAX_VERTS * STRIDE)
-    private val lineVerts = FloatArray(MAX_VERTS * STRIDE)
+    private val MAX_VERTS = 262144
+    // Switching primitive type flushes the preceding batch, so only one
+    // primitive's staging data can be live. Share both heap and upload storage.
+    private val vertexStorage = VertexBatchStorage(MAX_VERTS, STRIDE)
+    private val triVerts get() = vertexStorage.values
+    private val lineVerts get() = vertexStorage.values
     private var triCount  = 0
     private var lineCount = 0
     // 1 = triangles, 2 = lines. Switching type flushes the preceding run so
@@ -164,12 +167,10 @@ open class GLDraw(var W: Int, var H: Int) {
     private var batchType = 0
     private var overflowLogged = false
 
-    // Pre-allocated direct FloatBuffers — reused every frame to avoid
-    // per-frame ByteBuffer.allocateDirect() calls and GC pressure.
-    private val triFloatBuf: FloatBuffer = ByteBuffer
-        .allocateDirect(MAX_VERTS * STRIDE * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
-    private val lineFloatBuf: FloatBuffer = ByteBuffer
-        .allocateDirect(MAX_VERTS * STRIDE * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+    // Allocated on first use, then retained across frames (12 MiB total at
+    // the unchanged 256K-vertex limit, rather than two pairs totalling 24 MiB).
+    private val triFloatBuf get() = vertexStorage.upload
+    private val lineFloatBuf get() = vertexStorage.upload
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -405,6 +406,7 @@ open class GLDraw(var W: Int, var H: Int) {
     // ── Batch flusher (no bloom — used mid-frame for blend switches) ───────────
 
     private fun flushBatches() {
+        check(triCount == 0 || lineCount == 0) { "Primitive batches must not overlap shared staging" }
         GLES20.glUseProgram(program)
         GLES20.glUniformMatrix4fv(uProj, 1, false, projMatrix, 0)
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo)

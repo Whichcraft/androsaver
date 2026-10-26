@@ -24,13 +24,18 @@ object ImageBackground {
             return
         }
 
-        val topLeft = sample(bitmap, 0.08f, 0.08f)
-        val center = sample(bitmap, 0.50f, 0.50f)
-        val bottomRight = sample(bitmap, 0.92f, 0.92f)
-        view.background = GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            intArrayOf(darken(topLeft), darken(center), darken(bottomRight))
-        )
+        try {
+            val topLeft = sample(bitmap, 0.08f, 0.08f)
+            val center = sample(bitmap, 0.50f, 0.50f)
+            val bottomRight = sample(bitmap, 0.92f, 0.92f)
+            view.background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(darken(topLeft), darken(center), darken(bottomRight))
+            )
+        } catch (_: IllegalStateException) {
+            // Hardware or recycled bitmaps cannot be sampled on the CPU.
+            view.setBackgroundColor(manualColor)
+        }
     }
 
     private fun sample(bitmap: Bitmap, xFraction: Float, yFraction: Float): Int {

@@ -158,15 +158,14 @@ class SynologySource(private val context: Context) : ImageSource {
         if (!response.isSuccessful) {
             val code = response.code
             response.close()
-            throw java.io.IOException("HTTP error code $code")
+            throw ImageSourceHttpException(code)
         }
         val json = response.use { gson.fromJson(it.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java) }
         if (json.get("success")?.asBoolean == true) {
             return json.getAsJsonObject("data")?.get("sid")?.asString
                 ?: throw java.io.IOException("Invalid API response: missing SID")
         } else {
-            val error = json.get("error")?.toString() ?: "Unknown error"
-            throw java.io.IOException("Login failed: $error")
+            throw ImageSourceAuthenticationException("Synology login failed")
         }
     }
 
@@ -185,7 +184,7 @@ class SynologySource(private val context: Context) : ImageSource {
             if (!response.isSuccessful) {
                 val code = response.code
                 response.close()
-                throw java.io.IOException("HTTP error code $code")
+                throw ImageSourceHttpException(code)
             }
             val json = response.use { gson.fromJson(it.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java) }
             if (json.get("success")?.asBoolean != true) {

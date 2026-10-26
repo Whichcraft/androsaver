@@ -3,12 +3,14 @@ package com.androsaver
 import java.util.Calendar
 
 object ScheduleWindow {
-    fun isActive(hour: Int, start: Int, end: Int): Boolean {
+    fun isActive(hour: Int, start: Int, end: Int, enabled: Boolean = true): Boolean {
+        if (!enabled) return true
         if (start == end) return true
         return if (start < end) hour in start until end else hour >= start || hour < end
     }
 
-    fun millisUntilEnd(now: Calendar, start: Int, end: Int): Long? {
+    fun millisUntilEnd(now: Calendar, start: Int, end: Int, enabled: Boolean = true): Long? {
+        if (!enabled) return null
         if (start == end) return null
         val active = isActive(now.get(Calendar.HOUR_OF_DAY), start, end)
         if (!active) return null

@@ -40,6 +40,10 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
 
     fun firstEnabledMode(): Int = enabledIndices().firstOrNull() ?: 0
 
+    fun selectInitialMode(mode: String) {
+        renderer.modeIndex = VisualizerSelection.initialIndex(mode, enabledIndices())
+    }
+
     fun startVisualizer() {
         if (started) return
         started = true
