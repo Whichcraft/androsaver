@@ -196,4 +196,4 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Attempt every shutdown action, retain cleanup failure causes, and preserve unclean-session evidence across overlapping sessions.
 - [x] Show audio permission/backend/signal status; require an explicit Enable audio response action rather than prompting on mode changes.
 - [x] Split emulator lifecycle tests into independent mode cases and add provider/security/migration/cache/cleanup/audio regressions.
-- [ ] Verify this follow-up on GitHub: JVM suite, API 29/35 device cases, signed APK build and publication.
+- [x] Verify this follow-up on GitHub: JVM suite, API 29/35 device cases, signed APK build/publication and downloaded-asset verification passed in [run 40356857225](https://github.com/Whichcraft/androsaver/actions/runs/40356857225) for `861f9eef687f8762e07327a728ba8cafa8c61596`; `dev-channel` target confirmed.

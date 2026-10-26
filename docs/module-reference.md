@@ -447,3 +447,11 @@ continue without audio. No microphone recording or new audio transport is added.
 
 The emulator suite now reports static, offline slideshow, blank and visualizer
 lifecycle/recreation independently so one failure cannot hide the other modes.
+
+Verification: [GitHub run 40356857225](https://github.com/Whichcraft/androsaver/actions/runs/40356857225)
+passed the full JVM suite, device integration on API 29 and 35 (independent
+four-mode lifecycle cases plus cache/import/installer checks), and signed dev
+APK build/publication with downloaded-asset verification for
+`861f9eef687f8762e07327a728ba8cafa8c61596`. The rolling `dev-channel` tag was
+confirmed to target that commit. Real-server certificate/API compatibility and
+physical-TV system audio capture remain deployment checks.
