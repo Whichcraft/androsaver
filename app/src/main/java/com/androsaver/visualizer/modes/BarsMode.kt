@@ -5,7 +5,7 @@ import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
 /**
- * BarsMode — Classic spectrum bars with peak markers and a waveform overlay.
+ * BarsMode — Live spectrum bars with a waveform overlay.
  * Port of Python class `Bars`.
  */
 class BarsMode : BaseMode() {
@@ -15,13 +15,11 @@ class BarsMode : BaseMode() {
     private var hue = 0f
     private lateinit var edges: IntArray
     private var n = 0
-    private lateinit var peaks: FloatArray
     private lateinit var counts: FloatArray   // pre-computed bin widths
     private lateinit var display: FloatArray  // smoothed heights shown on screen
     private lateinit var heights: FloatArray
     private var wavePts = FloatArray(0)
     private val barColor = FloatArray(4)
-    private val peakColor = FloatArray(4)
     private val waveColor = FloatArray(4)
 
     override fun reset() {
@@ -30,13 +28,14 @@ class BarsMode : BaseMode() {
         val raw = geomSpaceInt(2.0, 434.0, 81)
         edges = raw.map { it.coerceIn(1, 511) }.distinct().sorted().toIntArray()
         n = edges.size - 1
-        peaks   = FloatArray(n)
         counts  = FloatArray(n) { i -> (edges[i + 1] - edges[i]).toFloat().coerceAtLeast(1f) }
         display = FloatArray(n)
         heights = FloatArray(n)
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
+        // Spectrum is a live meter; prior bar heights must not remain in the FBO.
+        draw.fadeBlack(1f)
         val fft = audio.fft
         val beat = audio.beat
         val mid  = audio.mid
@@ -63,18 +62,12 @@ class BarsMode : BaseMode() {
             display[i] = display[i] + (heights[i] - display[i]) * lerpSpeed
         }
 
-        // Update peaks from smoothed display heights
-        for (i in 0 until n) {
-            peaks[i] = maxOf(peaks[i] * 0.94f, display[i])
-        }
-
         val barW = W / n
 
-        // Draw bars and peak markers
+        // Draw the current bars without retained peak markers.
         for (i in 0 until n) {
             val h = display[i]
             val barH = h * H * 0.82f
-            val peak = peaks[i] * H * 0.82f
             val x = i * barW
             val hue = (this.hue + i.toFloat() / n) % 1f
 
@@ -87,15 +80,6 @@ class BarsMode : BaseMode() {
                 barColor[0], barColor[1], barColor[2], 1f
             )
 
-            // Peak marker: lightness 0.9
-            if (barH > 0f) {
-                GLDraw.hsl(hue, 1f, 0.9f, 1f, peakColor)
-                draw.rect(
-                    x, H - peak - 3f,
-                    width, 3f,
-                    peakColor[0], peakColor[1], peakColor[2], 1f
-                )
-            }
         }
 
         // Waveform overlay (amplitude and thickness react to treble)

@@ -213,10 +213,10 @@ A dynamic crystal grid of nodes and beams uses a center-out frequency mapping: c
 
 ## 17. Mycelium
 
-A bioluminescent fungal colony simulation featuring rotating satellite node rings orbiting the cores, glowing organic root structures (hyphae), and dynamic swirling spore particles that drift according to a gravity/orbital vector field.
+A bioluminescent fungal colony simulation featuring wandering colony cores with rotating satellite node rings, glowing organic root structures (hyphae), and dynamic swirling spore particles that drift according to a gravity/orbital vector field.
 
 - Audio: bass drives growth speed, core pulsing, and core spore releases; mid controls swirl field motion and branching spread; treble/high frequencies accelerate spore flutter, spore count, and glowing trail brightness; beat seeds new bursts across multiple colony cores.
-- Visual notes: growing hyphae tips dynamically shed glowing spores, while a bounded low-resolution reaction halo blooms around active cores and tips. The cores feature rotating rings of satellite nodes, and the hyphae draw with a soft neon bioluminescent glow style.
+- Visual notes: growing hyphae tips dynamically shed glowing spores, while a bounded low-resolution reaction halo blooms around active cores and tips. The cores wander smoothly around seeded anchors and carry rotating rings of satellite nodes; hyphae draw with a soft neon bioluminescent glow.
 
 ## 18. Magnetar
 
@@ -306,7 +306,7 @@ Five, seven, nine, or eleven animated plane waves interfere into a quasiperiodic
 
 A curated tesseract, 24-cell, and deliberately thinned 600-cell-like vertex cloud rotate in two four-dimensional planes before stereographic projection into the display. Bounded edge echoes make the structure turn inside out.
 
-- Audio: bass pulses fourth-coordinate perspective and advances presets on rising edges; MID_ENERGY rotates the XW/YZ planes; TREBLE_ENERGY rotates the XY/ZW feel and colors vertices by fourth-coordinate depth.
+- Audio: bass pulses fourth-coordinate perspective and advances presets on rising edges; bass, MID_ENERGY, and TREBLE_ENERGY independently accelerate rotation in the XW and YZ planes; treble also colors vertices by fourth-coordinate depth.
 - Visual notes: vertex and edge sets are explicit and capped, near-projection singularities are clipped, and no general polytope generator is used.
 
 ## 31. Ferrofluid

@@ -118,11 +118,13 @@ class Bubbles(Effect):
                 excess = beat - 1.0
                 er1 = max(1, int(r * (1.7 + excess * 0.4)))
                 ec1 = hsl((b["hue"] + 0.33) % 1.0, l=0.90)
-                pygame.draw.circle(bsurf, (*ec1, int(alpha * excess * 0.55)), (cc, cc), er1, 2)
+                glow_alpha = min(255, int(alpha * excess * 0.55))
+                pygame.draw.circle(bsurf, (*ec1, glow_alpha), (cc, cc), er1, 2)
                 if excess > 0.5:
                     er2 = max(1, int(r * (2.0 + excess * 0.3)))
                     ec2 = hsl((b["hue"] + 0.66) % 1.0, l=0.85)
-                    pygame.draw.circle(bsurf, (*ec2, int(alpha * (excess - 0.5) * 0.45)), (cc, cc), er2, 2)
+                    glow_alpha = min(255, int(alpha * (excess - 0.5) * 0.45))
+                    pygame.draw.circle(bsurf, (*ec2, glow_alpha), (cc, cc), er2, 2)
 
             surf.blit(bsurf, (int(b["x"]) - cc, int(b["y"]) - cc))
             alive.append(b)

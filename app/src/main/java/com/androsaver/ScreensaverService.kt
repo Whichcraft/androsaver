@@ -51,5 +51,6 @@ class ScreensaverService : DreamService() {
         super.onDetachedFromWindow()
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean = engine.handleKeyEvent(event)
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        engine.handleKeyEvent(event) || super.dispatchKeyEvent(event)
 }

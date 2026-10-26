@@ -2,6 +2,17 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage), a **static image**, a fullscreen **music visualizer**, or a **blank black screen**. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
+## What's New in v2.11.0
+
+**Android TV visual quality and psysuals effect updates:**
+
+- Improved the eight recent psysuals effects on Android TV with higher detail and bounded render grids to reduce visible pixelation.
+- Fixed Cube trail accumulation and removed stale Spectrum peak bars; softened Aurora color intensity for TV displays.
+- Made Mycelium colonies wander and strengthened Tesseract's music response with rotations across multiple axes.
+- Kept Chromatic at a maximum of nine rings.
+- Improved remote key delivery and added debug diagnostics when a visual effect fails.
+- Reset the generated app patch version to 2.11.0; later non-merge commits on the release line increment the patch number.
+
 ## What's New in v2.10.0
 
 **Static-image controls and psysuals v3.19 integration:**

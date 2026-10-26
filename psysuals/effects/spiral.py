@@ -102,13 +102,13 @@ class Spiral(Effect):
             for segs in arm_segs:
                 for sx, sy, h, bright, sc, near_t in segs:
                     rx, ry  = rot(sx, sy)
-                    r_dot   = max(1, min(int(sc * 0.028), 9))
+                    r_dot   = max(1, min(int(sc * 0.008), 3))
                     c_halo  = hsl(h, l=bright * 0.20)
                     c_core  = hsl(h, l=min(bright * 0.90 + 0.08, 0.95))
-                    pygame.draw.circle(surf, c_halo, (rx, ry), r_dot * 3 + 1)
+                    pygame.draw.circle(surf, c_halo, (rx, ry), r_dot * 2)
                     pygame.draw.circle(surf, c_core, (rx, ry), r_dot)
                     if near_t > 0.80 and beat > 0.35:
-                        fr = max(3, int(r_dot * (2.2 + beat * 0.9)))
+                        fr = max(2, int(r_dot * (1.6 + beat * 0.5)))
                         pygame.draw.circle(surf, hsl(h, l=0.96), (rx, ry), fr)
 
             n = len(arm_segs[0]) if arm_segs else 0
@@ -117,8 +117,8 @@ class Spiral(Effect):
                     if j < len(a_segs):
                         sx, sy, h, bright, sc, near_t = a_segs[j]
                         rp      = rot(sx, sy)
-                        r_dot   = max(1, min(int(sc * 0.022), 7))
+                        r_dot   = max(1, min(int(sc * 0.006), 2))
                         c_halo  = hsl(h, l=bright * 0.35)
                         c_core  = hsl(h, l=min(bright * 0.85 + 0.10, 0.92))
-                        pygame.draw.circle(surf, c_halo, rp, r_dot * 3)
+                        pygame.draw.circle(surf, c_halo, rp, r_dot * 2)
                         pygame.draw.circle(surf, c_core, rp, r_dot + 1)

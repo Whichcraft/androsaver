@@ -125,6 +125,16 @@ class EffectRenderRegressionTests(unittest.TestCase):
             self.assertLessEqual(len(effect._tips), initial_tips)
         self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
 
+    def test_mycelium_cores_wander_around_seeded_anchors(self):
+        effect = Mycelium()
+        initial = [(core[0], core[1]) for core in effect._cores]
+        for tick in range(60):
+            effect.draw(self.surface, self.waveform, self.fft, 0.0, tick)
+        self.assertTrue(any(
+            np.hypot(core[0] - x, core[1] - y) > 1.0
+            for core, (x, y) in zip(effect._cores, initial)
+        ))
+
     def test_fourth_dimension_projection_accents_remain_finite(self):
         mobius = Mobius()
         persistence = Persistence()
@@ -249,6 +259,19 @@ class EffectRenderRegressionTests(unittest.TestCase):
             self.assertTrue(np.isfinite(effect._projected).all())
         self.assertEqual(effect._preset, 2)
         self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
+
+    def test_tesseract_rotation_responds_to_audio_bands(self):
+        baseline = Tesseract()
+        baseline.draw(self.surface, self.waveform, self.fft, 0.0, 0)
+        baseline_xw = baseline._rotation_xw
+        baseline_yz = baseline._rotation_yz
+
+        effect = Tesseract()
+        config.MID_ENERGY = 3.0
+        config.TREBLE_ENERGY = 2.0
+        effect.draw(self.surface, self.waveform, self.fft, 1.2, 0)
+        self.assertGreater(effect._rotation_xw, baseline_xw)
+        self.assertGreater(effect._rotation_yz, baseline_yz)
 
     def test_ferrofluid_field_handles_poles_and_strong_beats(self):
         effect = Ferrofluid()
