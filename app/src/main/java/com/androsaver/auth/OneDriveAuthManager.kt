@@ -3,6 +3,7 @@ package com.androsaver.auth
 import android.content.Context
 import com.androsaver.HttpClients
 import com.androsaver.awaitResponse
+import com.androsaver.stringLimited
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -34,17 +35,11 @@ class OneDriveAuthManager(private val context: Context) {
                     .post(body).build()
             ).awaitResponse().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                gson.fromJson(response.body?.string(), JsonObject::class.java)
+                gson.fromJson(response.body?.stringLimited(64 * 1024L), JsonObject::class.java)
             }
 
             if (json.has("error")) return@withContext null
-            DeviceCodeResponse(
-                deviceCode      = json.get("device_code").asString,
-                userCode        = json.get("user_code").asString,
-                verificationUrl = json.get("verification_uri").asString,
-                expiresIn       = json.get("expires_in").asInt,
-                interval        = json.get("interval")?.asInt ?: 5
-            )
+            DeviceAuthResponses.device(json, google = false)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             null
@@ -69,12 +64,13 @@ class OneDriveAuthManager(private val context: Context) {
                 Request.Builder()
                     .url("https://login.microsoftonline.com/common/oauth2/v2.0/token")
                     .post(body).build()
-            ).awaitResponse().use { gson.fromJson(it.body?.string(), JsonObject::class.java) }
+            ).awaitResponse().use { gson.fromJson(it.body?.stringLimited(64 * 1024L), JsonObject::class.java) }
 
             when {
                 json.has("access_token") -> {
-                    val accessToken  = json.get("access_token").asString
-                    val refreshToken = json.get("refresh_token").asString
+                    val credentials = DeviceAuthResponses.success(json)
+                    val accessToken = credentials.accessToken
+                    val refreshToken = credentials.refreshToken
                     if (!OAuthAccounts.publish(prefs, account) {
                         prefs.edit()
                             .putString(Prefs.ONEDRIVE_ACCESS_TOKEN, accessToken)
@@ -94,7 +90,7 @@ class OneDriveAuthManager(private val context: Context) {
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            AuthResult.Error(e.message ?: "Network error")
+            AuthResult.Error("Authorization request failed")
         }
     }
 

@@ -30,7 +30,8 @@ class TemporaryLinksTest {
     }
     @Test fun authenticationAndCancellationAreNotDisguisedAsAnEmptyFolder() = runBlocking {
         val auth = imageSourceResult { TemporaryLinks.load(listOf(1)) { throw ImageSourceHttpException(401) } }
-        assertEquals(ImageSourceResult.Failure(ImageSourceResult.FailureKind.AUTHENTICATION), auth)
+        assertEquals(ImageSourceResult.FailureKind.AUTHENTICATION, (auth as ImageSourceResult.Failure).kind)
+        assertEquals(401, auth.httpStatus)
         try {
             TemporaryLinks.load(listOf(1)) { throw CancellationException("stop") }
             fail("Cancellation was swallowed")

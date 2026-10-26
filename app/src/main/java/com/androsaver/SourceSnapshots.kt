@@ -5,7 +5,7 @@ import com.androsaver.source.ImageSourceResult
 
 /** Main-thread source state: failure preserves the last useful snapshot. */
 internal class SourceSnapshots(private val now: () -> Long = System::currentTimeMillis) {
-    data class Health(val failure: ImageSourceResult.FailureKind? = null, val partial: Boolean = false, val empty: Boolean = false, val lastSuccessAt: Long? = null, val lastAttemptAt: Long? = null)
+    data class Health(val failure: ImageSourceResult.FailureKind? = null, val partial: Boolean = false, val empty: Boolean = false, val lastSuccessAt: Long? = null, val lastAttemptAt: Long? = null, val details: String? = null)
     private val bindings = mutableMapOf<String, String?>()
     private val freshForCache = linkedMapOf<String, List<ImageItem>>()
     private val snapshots = linkedMapOf<String, List<ImageItem>>()
@@ -35,7 +35,7 @@ internal class SourceSnapshots(private val now: () -> Long = System::currentTime
             ImageSourceResult.Empty -> { freshForCache.remove(name); snapshots[name] = emptyList(); health[name] = Health(empty = true, lastSuccessAt = now(), lastAttemptAt = now()) }
             is ImageSourceResult.Failure -> {
                 freshForCache.remove(name)
-                health[name] = Health(failure = result.kind, lastSuccessAt = health[name]?.lastSuccessAt, lastAttemptAt = now())
+                health[name] = Health(failure = result.kind, empty = health[name]?.empty == true, lastSuccessAt = health[name]?.lastSuccessAt, lastAttemptAt = now(), details = (result.exceptionTypes + listOfNotNull(result.httpStatus?.let { "HTTP $it" })).joinToString(" → ").takeIf { it.isNotEmpty() })
             }
         }
     }

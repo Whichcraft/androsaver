@@ -14,9 +14,9 @@ def gitVersionCode = {
     }
 }()
 
-// Anchor the patch line to the parent of the 2.11.0 release commit. Counting
+// Anchor the patch line to the parent of the 2.12.0 release commit. Counting
 // only non-merge descendants keeps the patch at .0 when dev is merged to master.
-def versionPatchBaseCommit = '59b168ecce806511c062b35656013e8f287f1e0d'
+def versionPatchBaseCommit = 'b3b8f7137c607bc4be14f14e5b1be713b0e48498'
 def gitVersionPatch = {
     try {
         def process = "git rev-list --count --no-merges --ancestry-path ${versionPatchBaseCommit}..HEAD".execute()
@@ -37,7 +37,7 @@ android {
         targetSdk 35
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         versionCode gitVersionCode
-        versionName "2.11.${gitVersionPatch}"
+        versionName "2.12.${gitVersionPatch}"
     }
 
     signingConfigs {

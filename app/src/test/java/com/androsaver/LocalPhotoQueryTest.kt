@@ -21,7 +21,8 @@ class LocalPhotoQueryTest {
     }
     @Test fun permissionAndCancellationStayDistinct() = runBlocking {
         val result = imageSourceResult { localPhotoQuery<String> { throw SecurityException("denied") }; ImageSourceResult.Empty }
-        assertEquals(ImageSourceResult.Failure(ImageSourceResult.FailureKind.PERMISSION), result)
+        assertEquals(ImageSourceResult.FailureKind.PERMISSION, (result as ImageSourceResult.Failure).kind)
+        assertEquals(listOf(ImageSourcePermissionException::class.java.name), result.exceptionTypes)
         try { localPhotoQuery<String> { throw CancellationException("stop") }; fail("Cancellation swallowed") }
         catch (_: CancellationException) { }
     }

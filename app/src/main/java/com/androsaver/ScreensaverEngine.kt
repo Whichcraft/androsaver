@@ -35,6 +35,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import android.text.format.DateFormat
 import java.text.SimpleDateFormat
@@ -97,18 +100,26 @@ class ScreensaverEngine(
     private var imageRefreshRunnable: Runnable? = null
     private var healthRunnable: Runnable? = null
     private var nextSourceRefreshAt: Long? = null
+    private val refreshMutex = Mutex()
+    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
     private var retryRunnable: Runnable? = null
     private var finishRunnable: Runnable? = null
     private var scheduleFinishRunnable: Runnable? = null
     private var timeChangeReceiver: BroadcastReceiver? = null
     private val playback = SlideshowPlayback()
-    private val sourceRefresh = SourceRefreshCoordinator { source, result ->
+    private val sourceRefresh: SourceRefreshCoordinator = SourceRefreshCoordinator { source, result ->
         renderSourceHealth()
+        SourceHealthStore.record(context, source.name, result, sourceSnapshots.health[source.name])
         if (result is ImageSourceResult.Failure) {
             reportImageSourceFailure("source enumeration", source, result.kind.name.lowercase(Locale.ROOT), null)
+            workScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                ScreensaverPostmortem.write(File(postmortemFile.parentFile, "${postmortemFile.name}.sources"),
+                    "SOURCE FAILURE\n${Date()}\n${source.name}: ${result.kind}\n" +
+                        result.exceptionTypes.joinToString(" → ") + (result.httpStatus?.let { "\nHTTP $it" } ?: ""))
+            }
         }
     }
-    private val sourceSnapshots get() = sourceRefresh.snapshots
+    private val sourceSnapshots: SourceSnapshots get() = sourceRefresh.snapshots
     private var usingCachedImages = false
     private var cacheSnapshot: ImageCache.Snapshot? = null
     private var displayedIndex = -1
@@ -148,14 +159,20 @@ class ScreensaverEngine(
             ?.takeIf { it in setOf(Prefs.MODE_STATIC, Prefs.MODE_BLANK, Prefs.MODE_VISUALIZER) }
             ?: Prefs.MODE_SLIDESHOW
         sessionWork.start(diagnosticMode)
+        workScope.launch {
+            try { ImageCachePolicy.purgeLegacyDiskCache(context.applicationContext) }
+            catch (error: CancellationException) { throw error }
+            catch (_: Exception) { /* Retried next session; disk caching is already disabled. */ }
+        }
         val journal = sessionJournal.begin(postmortemFile, diagnosticMode)
         journalSession = journal.id
         previousSessionInterrupted = journal.previousInterruption != null
         // Snapshot saved evidence before startup can report a new failure.
+        diagnosticSession = ScreensaverPostmortem.register(postmortemFile, diagnosticMode)
+        workScope.launch(kotlinx.coroutines.Dispatchers.IO) { ProcessExitDiagnostics.collect(context.applicationContext) }
         val previousReport = if (BuildConfig.DEBUG_LOGGING) {
-            diagnosticSession = ScreensaverPostmortem.register(postmortemFile, diagnosticMode)
             try {
-                ScreensaverPostmortem.readReports(postmortemFile)
+                ScreensaverPostmortem.readReports(postmortemFile, includeSourceFailures = false)
             } catch (error: Exception) {
                 Log.w(TAG, "Could not read screensaver postmortem", error)
                 null
@@ -712,6 +729,7 @@ class ScreensaverEngine(
         binding.imageView2.scaleType = imageScaleType(prefs.getString(Prefs.SLIDESHOW_IMAGE_SCALE, defaultScale))
         slideshowSession++
         resetSlideshowViews()
+        startSourceRecovery(slideshowSession)
         loadImages(prefs, slideshowSession)
     }
 
@@ -723,6 +741,9 @@ class ScreensaverEngine(
             val message = when {
                 health.failure == ImageSourceResult.FailureKind.AUTHENTICATION -> R.string.source_health_auth
                 health.failure == ImageSourceResult.FailureKind.PERMISSION -> R.string.source_health_permission
+                health.failure == ImageSourceResult.FailureKind.TLS_EXPIRED -> R.string.source_health_tls_expired
+                health.failure == ImageSourceResult.FailureKind.TLS_NOT_YET_VALID -> R.string.source_health_tls_date
+                health.failure in setOf(ImageSourceResult.FailureKind.TLS_UNTRUSTED, ImageSourceResult.FailureKind.TLS_IDENTITY, ImageSourceResult.FailureKind.TLS) -> R.string.source_health_tls
                 health.failure != null || health.partial -> R.string.source_health_unavailable
                 health.empty -> R.string.source_health_empty
                 else -> null
@@ -884,6 +905,11 @@ class ScreensaverEngine(
     }
 
     private fun stopSlideshow() {
+        networkCallback?.let { callback ->
+            try { (context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).unregisterNetworkCallback(callback) }
+            catch (_: Exception) { }
+        }
+        networkCallback = null
         slideshowSession++
         imageItems.clear()
         imageSourceNames.clear()
@@ -925,22 +951,54 @@ class ScreensaverEngine(
                 }
                 if (session == slideshowSession) {
                     nextSourceRefreshAt = System.currentTimeMillis() + IMAGE_REFRESH_INTERVAL_MS
+                    SourceHealthStore.schedule(context, nextSourceRefreshAt)
                     handler.postDelayed(this, IMAGE_REFRESH_INTERVAL_MS)
                 }
             }
         }
         nextSourceRefreshAt = System.currentTimeMillis() + IMAGE_REFRESH_INTERVAL_MS
+        SourceHealthStore.schedule(context, nextSourceRefreshAt)
         handler.postDelayed(imageRefreshRunnable!!, IMAGE_REFRESH_INTERVAL_MS)
         startHealthUpdates(session)
     }
 
-    internal suspend fun refreshSourcesNow() {
-        if (sessionWork.mode != Prefs.MODE_SLIDESHOW) return
+    internal suspend fun refreshSourcesNow() = refreshMutex.withLock {
+        if (sessionWork.mode != Prefs.MODE_SLIDESHOW) return@withLock
         val session = slideshowSession
         sourceRefresh.refresh(getConfiguredSources(Prefs.get(context)),
             onUpdated = { available -> if (session == slideshowSession) applySourceSnapshots(available) },
             onItems = { _, _ -> })
         if (session == slideshowSession) warmImageCache(session)
+    }
+
+    private suspend fun retrySourcesSafely() {
+        try { refreshSourcesNow() }
+        catch (error: CancellationException) { throw error }
+        catch (error: Exception) { reportTransitionFailure("source retry", error) }
+    }
+
+    private fun startSourceRecovery(session: Long) {
+        workScope.launch {
+            SourceRefreshSignals.events.collect {
+                if (session == slideshowSession) retrySourcesSafely()
+            }
+        }
+        try {
+            val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val offline = java.util.concurrent.atomic.AtomicBoolean(manager.activeNetworkInfo?.isConnected != true)
+            val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onLost(network: android.net.Network) { offline.set(true) }
+                override fun onAvailable(network: android.net.Network) {
+                    if (offline.getAndSet(false)) handler.post {
+                        if (session == slideshowSession) workScope.launch { retrySourcesSafely() }
+                    }
+                }
+            }
+            if (android.os.Build.VERSION.SDK_INT >= 24) manager.registerDefaultNetworkCallback(callback)
+            else manager.registerNetworkCallback(android.net.NetworkRequest.Builder()
+                .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET).build(), callback)
+            networkCallback = callback
+        } catch (_: Exception) { /* Scheduled and manual retries remain available. */ }
     }
 
     private fun warmImageCache(session: Long) {
@@ -1036,6 +1094,7 @@ class ScreensaverEngine(
         healthRunnable?.let { handler.removeCallbacks(it) }
         healthRunnable = null
         nextSourceRefreshAt = null
+        SourceHealthStore.schedule(context, null)
         imageRefreshRunnable?.let { handler.removeCallbacks(it) }
         imageRefreshRunnable = null
     }
@@ -1069,7 +1128,7 @@ class ScreensaverEngine(
             .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
             .disallowHardwareConfig()
             .apply {
-                item.contentVersion?.let { signature(com.bumptech.glide.signature.ObjectKey(it)) }
+                signature(ImageCachePolicy.signature(item))
             }
 
         var glideFailureReported = false

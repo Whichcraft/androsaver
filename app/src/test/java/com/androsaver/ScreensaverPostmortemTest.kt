@@ -67,6 +67,18 @@ class ScreensaverPostmortemTest {
         }
     }
 
+    @Test fun systemAndProviderEvidenceCanBeReadAndClearedTogether() {
+        val file = File(temporary.root, "report.txt")
+        ScreensaverPostmortem.write(File(temporary.root, "report.txt.exit"), "NATIVE_CRASH")
+        ScreensaverPostmortem.write(File(temporary.root, "report.txt.sources"), "TLS_EXPIRED")
+        val report = ScreensaverPostmortem.readReports(file)!!
+        assertTrue(report.contains("NATIVE_CRASH"))
+        assertTrue(report.contains("TLS_EXPIRED"))
+        assertFalse(ScreensaverPostmortem.readReports(file, includeSourceFailures = false)!!.contains("TLS_EXPIRED"))
+        assertTrue(ScreensaverPostmortem.clearReports(file))
+        assertNull(ScreensaverPostmortem.readReports(file))
+    }
+
     @Test fun reportsAreBoundedRedactedAndCanBeReadRepeatedly() {
         val file = File(temporary.root, "report.txt")
         ScreensaverPostmortem.write(file, "HTTPS://example.invalid/?token=placeholder\n" + "x".repeat(70_000))

@@ -132,7 +132,7 @@ class SynologySource(private val context: Context) : ImageSource {
         var pages = 0
         while (result.size < 2000 && offset < total && scanned < MAX_SCANNED_ENTRIES && pages < MAX_PAGES) {
             val url = "$baseUrl/webapi/entry.cgi?api=SYNO.FileStation.List&version=2&method=list" +
-                    "&folder_path=$encodedFolder&filetype=file&offset=$offset&limit=$pageSize&_sid=$sid"
+                    "&folder_path=$encodedFolder&filetype=file&additional=%5B%22time%22%2C%22size%22%5D&offset=$offset&limit=$pageSize&_sid=$sid"
             val response = client.newCall(Request.Builder().url(url).build()).awaitResponse()
             if (!response.isSuccessful) {
                 val code = response.code
@@ -163,7 +163,10 @@ class SynologySource(private val context: Context) : ImageSource {
             val downloadUrl = "$baseUrl/webapi/entry.cgi?api=SYNO.FileStation.Download" +
                     "&version=2&method=download&path=$encodedPath&mode=download&_sid=$sid"
 
-            ImageItem(url = downloadUrl, name = name, stableId = "synology:$path", insecureEndpoint = insecureEndpoint, credentialEndpoint = baseUrl)
+            val additional = obj.getAsJsonObject("additional")
+            val modified = additional?.getAsJsonObject("time")?.get("mtime")?.takeUnless { it.isJsonNull }?.asString
+            val size = additional?.get("size")?.takeUnless { it.isJsonNull }?.asString
+            ImageItem(url = downloadUrl, name = name, stableId = "synology:$path", contentVersion = modified?.let { "$it:${size.orEmpty()}" }, insecureEndpoint = insecureEndpoint, credentialEndpoint = baseUrl)
             }.take(2000 - result.size)
             offset += files.size()
             if (result.size == before && files.size() < pageSize) break

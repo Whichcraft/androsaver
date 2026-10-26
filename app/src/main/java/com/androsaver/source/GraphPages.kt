@@ -48,7 +48,7 @@ internal class GraphPages(
                 val id = text("id")?.takeIf { it.isNotBlank() } ?: continue
                 val name = text("name") ?: continue
                 val download = text("@microsoft.graph.downloadUrl") ?: continue
-                if (ids.add(id)) images += ImageItem(download, name, stableId = "onedrive:$id")
+                if (ids.add(id)) images += ImageItem(download, name, stableId = "onedrive:$id", contentVersion = text("eTag") ?: text("lastModifiedDateTime"))
             }
             next = page.get("@odata.nextLink")?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
         }

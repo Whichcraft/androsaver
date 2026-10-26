@@ -51,7 +51,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
                 .joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
             "https://graph.microsoft.com/v1.0/me/drive/root:/$encodedPath:/children"
         }
-        val startUrl = "$childrenBase?\$select=id,name,file,@microsoft.graph.downloadUrl&\$top=1000"
+        val startUrl = "$childrenBase?\$select=id,name,file,eTag,lastModifiedDateTime,@microsoft.graph.downloadUrl&\$top=1000"
 
         GraphPages().list(startUrl) { page ->
             listingClient.newCall(

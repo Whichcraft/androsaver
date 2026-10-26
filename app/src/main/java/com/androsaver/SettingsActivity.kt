@@ -53,6 +53,12 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        lifecycleScope.launch(Dispatchers.IO) {
+            ProcessExitDiagnostics.collect(applicationContext)
+            try { ImageCachePolicy.purgeLegacyDiskCache(applicationContext) }
+            catch (error: kotlinx.coroutines.CancellationException) { throw error }
+            catch (_: Exception) { }
+        }
         try {
             PrefetchScheduler.schedule(this)
         } catch (e: Throwable) {
@@ -279,6 +285,7 @@ class SettingsActivity : AppCompatActivity() {
                         .commit()
                     true
                 }
+                "source_status" -> { showSourceStatus(); true }
                 "saved_diagnostics" -> { showDiagnostics(); true }
                 "saved_images" -> { showSavedImages(); true }
                 "about_app" -> {
@@ -321,17 +328,41 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        private fun showSourceStatus() {
+            val app = requireContext().applicationContext
+            viewLifecycleOwner.lifecycleScope.launch {
+                val report = withContext(Dispatchers.IO) { SourceHealthStore.report(app) }
+                if (!isAdded) return@launch
+                AlertDialog.Builder(requireContext()).setTitle(R.string.source_status).setMessage(report)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.retry_sources) { _, _ ->
+                        val progress = AlertDialog.Builder(requireContext()).setMessage(R.string.checking_sources).setCancelable(false).create()
+                        progress.show()
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            try { SourceHealthStore.checkNow(app) }
+                            catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                            catch (_: Exception) { Toast.makeText(app, R.string.source_check_failed, Toast.LENGTH_LONG).show() }
+                            finally { progress.dismiss() }
+                            if (isAdded) showSourceStatus()
+                        }
+                    }.show().findViewById<TextView>(android.R.id.message)?.setTextIsSelectable(true)
+            }
+        }
+
         private fun showDiagnostics() {
             val app = requireContext().applicationContext
             viewLifecycleOwner.lifecycleScope.launch {
                 val file = java.io.File(app.noBackupFilesDir, "screensaver-postmortem.txt")
-                val report = withContext(Dispatchers.IO) {
-                    try { ScreensaverPostmortem.readReports(file) } catch (_: Exception) { null }
+                val loaded = withContext(Dispatchers.IO) {
+                    try { Result.success(ScreensaverPostmortem.readReports(file)) }
+                    catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                    catch (error: Exception) { Result.failure<String?>(error) }
                 }
+                val report = loaded.getOrNull()
                 if (!isAdded) return@launch
                 val dialog = AlertDialog.Builder(requireContext())
                     .setTitle(R.string.saved_diagnostics)
-                    .setMessage(report ?: getString(R.string.no_saved_diagnostics))
+                    .setMessage(if (loaded.isFailure) getString(R.string.diagnostics_read_failed) else report ?: getString(R.string.no_saved_diagnostics))
                     .setNegativeButton(android.R.string.cancel, null)
                 if (report != null) {
                     dialog.setNeutralButton(R.string.copy_diagnostics) { _, _ ->
@@ -372,10 +403,17 @@ class SettingsActivity : AppCompatActivity() {
                             .setNegativeButton(android.R.string.cancel, null)
                             .setPositiveButton(R.string.clear_saved_source) { _, _ ->
                                 viewLifecycleOwner.lifecycleScope.launch {
+                                    val progress = AlertDialog.Builder(requireContext()).setMessage(R.string.clearing_saved_images)
+                                        .setCancelable(false).create()
+                                    progress.show()
                                     val message = try {
-                                        if (cache.clearSource(usage[index].provider)) R.string.saved_source_cleared else R.string.saved_source_in_use
+                                        if (cache.clearSource(usage[index].provider)) {
+                                            com.bumptech.glide.Glide.get(app).clearMemory()
+                                            R.string.saved_source_cleared
+                                        } else R.string.saved_source_in_use
                                     } catch (error: kotlinx.coroutines.CancellationException) { throw error }
                                     catch (_: Exception) { R.string.saved_source_clear_failed }
+                                    finally { progress.dismiss() }
                                     Toast.makeText(app, message, Toast.LENGTH_LONG).show()
                                 }
                             }.show()

@@ -17,6 +17,12 @@ import java.io.InputStream
  */
 @GlideModule
 class AndroSaverGlideModule : AppGlideModule() {
+    override fun applyOptions(context: Context, builder: com.bumptech.glide.GlideBuilder) {
+        // ImageCache is the sole persistent remote-photo cache: scoped, bounded and manageable.
+        builder.setDefaultRequestOptions(com.bumptech.glide.request.RequestOptions()
+            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE))
+    }
+
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
         val dynamicCallFactory = object : Call.Factory {
             override fun newCall(request: Request): Call {

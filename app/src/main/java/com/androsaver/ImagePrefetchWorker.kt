@@ -47,6 +47,7 @@ class ImagePrefetchWorker(
                         if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Prefetch error from ${src.name}", e)
                         ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
                     }
+                    SourceHealthStore.record(applicationContext, src.name, result)
                     SourceResult(src, result)
                 }
             }.awaitAll()

@@ -21,6 +21,54 @@ import java.net.URI
 class ImageCacheTest {
     @get:Rule val temporary = TemporaryFolder()
 
+
+    @Test fun completeEmptyAndDeletionAuthoritySurvivesRecreationAndRejectsLateWriters() = runBlocking {
+        val requests = AtomicInteger()
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            requests.incrementAndGet()
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK").body("image".toResponseBody()).build()
+        }.build()
+        try {
+            val dir = temporary.newFolder()
+            val scope = "source:dropbox:fixture"
+            val a = ImageItem("https://example.invalid/a", stableId = "a", sourceScope = scope)
+            val b = a.copy(url = "https://example.invalid/b", stableId = "b")
+            val cache = ImageCache(dir, { it.length() > 0 }, { client })
+            cache.recordListing(scope, com.androsaver.source.ImageSourceResult.Success(listOf(a, b)))
+            cache.saveImages(listOf(a, b), "test")
+            cache.acquireSnapshot(setOf(scope)).use { active ->
+                cache.recordListing(scope, com.androsaver.source.ImageSourceResult.Empty)
+                assertTrue(active.items.all { File(URI(it.url)).isFile })
+                val recreated = ImageCache(dir, { it.length() > 0 }, { client })
+                recreated.acquireSnapshot(setOf(scope)).use { assertTrue(it.items.isEmpty()) }
+                assertEquals(0, recreated.saveImages(listOf(a, b), "late").downloaded)
+                assertEquals(2, requests.get())
+                recreated.recordListing(scope, com.androsaver.source.ImageSourceResult.Success(listOf(b)))
+                recreated.acquireSnapshot(setOf(scope)).use { assertEquals(listOf("b"), it.items.map { item -> item.stableId }) }
+            }
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
+    @Test fun actualSizeReservationUsesFullCapacityAndNetworkFailurePreservesThePlaylist() = runBlocking {
+        val status = AtomicInteger(200)
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(status.get()).message("fixture")
+                .body("x".toResponseBody()).build()
+        }.build()
+        try {
+            val cache = ImageCache(temporary.newFolder(), { it.length() > 0 }, { client }, maxBytes = 150, maxImageBytes = 50)
+            val items = (1..150).map { ImageItem("https://example.invalid/$it", stableId = "image-$it") }
+            assertEquals(150, cache.saveImages(items, "test", items.map { it.stableId }.toSet()).downloaded)
+            status.set(503)
+            val before = cache.getCachedItems().map { it.url }.toSet()
+            assertEquals(1, cache.saveImages(listOf(ImageItem("https://example.invalid/new")), "test").failed)
+            assertEquals(before, cache.getCachedItems().map { it.url }.toSet())
+            status.set(200)
+            assertEquals(0, cache.saveImages(listOf(ImageItem("https://example.invalid/new")), "test", items.map { it.stableId }.toSet()).downloaded)
+            assertEquals(before, cache.getCachedItems().map { it.url }.toSet())
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
     @Test fun downloadBytesAreBoundedAcrossTheWholePlan() = runBlocking {
         val requests = AtomicInteger()
         val client = OkHttpClient.Builder().addInterceptor { chain ->
@@ -208,7 +256,11 @@ class ImageCacheTest {
         }
     }
 
-    private suspend fun kotlinx.coroutines.CoroutineScope.exercisePendingDownload(pendingIndex: Int) {
+    @Test fun authoritativeEmptyDoesNotDeleteAnActivePartAndPreventsItsLateCommit() = runBlocking {
+        exercisePendingDownload(pendingIndex = 0, authoritativeEmpty = true)
+    }
+
+    private suspend fun kotlinx.coroutines.CoroutineScope.exercisePendingDownload(pendingIndex: Int, authoritativeEmpty: Boolean = false) {
         val reading = CountDownLatch(1)
         val release = CountDownLatch(1)
         val directory = temporary.newFolder()
@@ -235,7 +287,7 @@ class ImageCacheTest {
         }.build()
         val cache = ImageCache(directory, { it.isFile && it.length() > 0 }, { client })
         val items = (0..pendingIndex).map { index ->
-            ImageItem(url = "https://example.invalid/$index", name = "test", stableId = "image-$index")
+            ImageItem(url = "https://example.invalid/$index", name = "test", stableId = "image-$index", sourceScope = if (authoritativeEmpty) "fixture" else null)
         }
         // UNDISPATCHED enters saveImages before we block waiting for the IO thread.
         val saving = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
@@ -246,6 +298,10 @@ class ImageCacheTest {
             val part = directory.listFiles()!!.single { it.extension == "part" }
             assertEquals(pendingIndex, cache.getCachedItems().size)
             assertTrue("Reader deleted a live download", part.exists())
+            if (authoritativeEmpty) {
+                cache.recordListing("fixture", com.androsaver.source.ImageSourceResult.Empty)
+                assertTrue("Listing deleted a live download", part.exists())
+            }
         } finally {
             release.countDown()
             try {
@@ -255,7 +311,7 @@ class ImageCacheTest {
                 client.connectionPool.evictAll()
             }
         }
-        assertEquals(items.size, cache.getCachedItems().size)
+        assertEquals(if (authoritativeEmpty) 0 else items.size, cache.getCachedItems().size)
         assertFalse(directory.listFiles()!!.any { it.extension == "part" })
     }
 }

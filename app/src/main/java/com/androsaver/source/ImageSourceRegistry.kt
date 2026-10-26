@@ -14,7 +14,7 @@ object ImageSourceRegistry {
             if (!enabled) return
             try {
                 val delegate = factory()
-                sources += if (provider == null) delegate else ScopedSource(delegate, provider, prefs)
+                sources += if (provider == null) delegate else ScopedSource(delegate, provider, prefs, com.androsaver.ImageCache(appContext))
             } catch (t: Throwable) {
                 Log.w("ImageSourceRegistry", "Provider unavailable", t)
             }
@@ -34,7 +34,7 @@ object ImageSourceRegistry {
 
     private class ScopedSource(
         private val delegate: ImageSource, private val provider: String,
-        private val prefs: android.content.SharedPreferences
+        private val prefs: android.content.SharedPreferences, private val cache: com.androsaver.ImageCache
     ) : ImageSource {
         override val name get() = delegate.name
         override val cacheScope = SourceIdentity.scope(prefs, provider)
@@ -43,7 +43,9 @@ object ImageSourceRegistry {
         override suspend fun enumerate(): ImageSourceResult {
             val result = delegate.enumerate()
             if (!prefs.getBoolean(SourceIdentity.enabledKey(provider), false) || SourceIdentity.scope(prefs, provider) != cacheScope) return ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
-            return if (result is ImageSourceResult.Success) result.copy(items = result.items.map { SourceScope.bind(it, cacheScope) }) else result
+            val bound = if (result is ImageSourceResult.Success) result.copy(items = result.items.map { SourceScope.bind(it, cacheScope) }) else result
+            cache.recordListing(cacheScope, bound)
+            return bound
         }
     }
 

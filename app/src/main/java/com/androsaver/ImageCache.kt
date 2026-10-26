@@ -24,7 +24,9 @@ class ImageCache internal constructor(
     private val validImage: (File) -> Boolean,
     private val clientFor: (ImageItem) -> OkHttpClient,
     private val now: () -> Long = { System.currentTimeMillis() },
-    private val logFailure: (String) -> Unit = {}
+    private val logFailure: (String) -> Unit = {},
+    private val maxBytes: Long = MAX_BYTES,
+    private val maxImageBytes: Long = MAX_IMAGE_BYTES
 ) {
     constructor(context: Context) : this(
         File(context.cacheDir, CACHE_DIR),
@@ -41,6 +43,7 @@ class ImageCache internal constructor(
         private const val TAG = "ImageCache"
         private const val CACHE_DIR = "image_cache"
         private const val MANIFEST = "manifest.json"
+        private const val SOURCE_STATE = "source-state.json"
         private const val MAX_ENTRIES = 200
         private const val MAX_BYTES = 150L * 1024 * 1024
         private const val MAX_IMAGE_BYTES = 50L * 1024 * 1024
@@ -80,8 +83,10 @@ class ImageCache internal constructor(
         try {
             return withContext(Dispatchers.IO) {
                 mutex.withLock {
+                    val state = readSourceState()
                     val entries = reconcileManifest().filter {
-                        eligibleScopes == null || com.androsaver.source.SourceScope.eligible(it.scope, eligibleScopes)
+                        (eligibleScopes == null || com.androsaver.source.SourceScope.eligible(it.scope, eligibleScopes)) &&
+                            allowed(it.scope, it.key, state)
                     }
                     val files = entries.map { File(dir, it.file) }
                     Snapshot(entries.map { entry ->
@@ -108,6 +113,46 @@ class ImageCache internal constructor(
         }
     }
 
+    /** A complete listing is durable authority, including an empty library. Leased bytes survive until retired. */
+    internal suspend fun recordListing(scope: String, result: com.androsaver.source.ImageSourceResult) = withContext(Dispatchers.IO) {
+        val keys = when (result) {
+            is com.androsaver.source.ImageSourceResult.Success -> if (result.retryableFailures) return@withContext else result.items.map { it.stableId }
+            com.androsaver.source.ImageSourceResult.Empty -> emptyList()
+            else -> return@withContext
+        }
+        mutex.withLock {
+            val state = readSourceState().toMutableMap()
+            state[scope] = keys
+            // Keep authority for every namespace with stored images plus the current listing.
+            val manifest = readManifest()
+            val scopes = manifest.mapNotNull { it.scope }.toSet() + scope
+            state.keys.retainAll(scopes)
+            val target = File(dir, SOURCE_STATE)
+            val temporary = File(dir, "$SOURCE_STATE.tmp")
+            temporary.writeText(gson.toJson(state))
+            if (!temporary.renameTo(target)) { temporary.delete(); throw IOException("Could not save source state") }
+            // Do not evict here: another writer may be streaming a staged image.
+            // Readers and writers check this authority; ordinary eviction reclaims retired bytes.
+        }
+    }
+    private fun readSourceState(): Map<String, List<String>> {
+        val file = File(dir, SOURCE_STATE)
+        if (!file.exists()) return emptyMap()
+        return try { gson.fromJson<Map<String, List<String>>>(file.readText(), object : TypeToken<Map<String, List<String>>>() {}.type)
+            ?: throw IOException("Invalid saved source state") }
+        catch (error: Exception) { throw IOException("Could not read saved source state", error) }
+    }
+    private fun allowed(scope: String?, key: String?, state: Map<String, List<String>>) =
+        scope == null || state[scope]?.let { key in it } != false
+    private fun allowedByListing(item: ImageItem) = allowed(item.sourceScope, item.stableId, readSourceState())
+
+    private fun canFit(entries: List<Entry>, protectedKey: String?, protectedPlan: Set<String>): Boolean {
+        val referenced = entries.map { File(dir, it.file).absoluteFile }.toSet()
+        val orphans = CacheFileLeases.inDirectory(dir) - referenced
+        val required = entries.filter { it.key == protectedKey || it.key in protectedPlan || CacheFileLeases.contains(File(dir, it.file)) }
+        return required.size + orphans.size <= MAX_ENTRIES && required.sumOf { it.size } + orphans.sumOf { it.length() } <= maxBytes
+    }
+
     data class SourceUsage(val provider: String, val count: Int, val bytes: Long)
     suspend fun sourceUsage(): List<SourceUsage> = withContext(Dispatchers.IO) {
         mutex.withLock { readManifest().groupBy { com.androsaver.source.SourceScope.provider(it.scope) ?: "legacy" }
@@ -119,11 +164,9 @@ class ImageCache internal constructor(
             val manifest = readManifest()
             val removed = manifest.filter { (com.androsaver.source.SourceScope.provider(it.scope) ?: "legacy") == provider }
             if (removed.any { CacheFileLeases.contains(File(dir, it.file)) }) return@clear false
-            writeManifest(manifest - removed.toSet())
-            removed.forEach {
-                val file = File(dir, it.file)
-                if (file.exists() && !file.delete()) throw IOException("Could not clear saved image")
-            }
+            val failed = removed.filter { val file = File(dir, it.file); file.exists() && !file.delete() }
+            writeManifest(manifest - (removed - failed.toSet()).toSet())
+            if (failed.isNotEmpty()) throw IOException("Could not clear saved image")
             true
         } }
     }
@@ -151,7 +194,7 @@ class ImageCache internal constructor(
                 it.url.startsWith("http://") || it.url.startsWith("https://")
             }.take(MAX_ENTRIES)) {
                 coroutineContext.ensureActive()
-                if (!eligible(item)) continue
+                if (!eligible(item) || !mutex.withLock { allowedByListing(item) }) continue
                 val existing = known[item.stableId]
                 val age = existing?.let { now() - it.ts }
                 if (existing != null && age != null && age in 0L until FRESHNESS_MS &&
@@ -160,20 +203,14 @@ class ImageCache internal constructor(
                     continue
                 }
                 if (remainingBytes <= 0) break
-                val reserved = mutex.withLock {
-                    val manifest = readManifest().toMutableList()
-                    val available = evict(manifest, MAX_BYTES - MAX_IMAGE_BYTES,
-                        protectedKey = item.stableId,
-                        entryLimit = if (existing != null && !CacheFileLeases.contains(File(dir, existing.file))) MAX_ENTRIES else MAX_ENTRIES - 1,
-                        protectedPlan = if (existing == null) plannedKeys else emptySet())
-                    known.keys.retainAll(manifest.mapNotNull { it.key }.toSet())
-                    available
+                // A non-destructive minimum-size check avoids network work when leases/count make any commit impossible.
+                val possible = mutex.withLock {
+                    val manifest = readManifest().filter { it.key != item.stableId } +
+                        Entry(item.stableId, "unpublished-candidate", sourceName, now(), 1L, item.contentVersion, item.sourceScope)
+                    canFit(manifest, item.stableId, plannedKeys)
                 }
-                if (!reserved) {
-                    // Offline readers own this space; caching is optional and may wait.
-                    failed++
-                    if (plannedKeys.isNotEmpty()) break else continue
-                }
+                if (!possible) { failed++; break }
+                var capacityBlocked = false
                 try {
                     val entry = download(item, sourceName, remainingBytes) { count -> remainingBytes -= count }
                     if (!eligible(item)) { File(dir, entry.file).delete(); continue }
@@ -182,14 +219,21 @@ class ImageCache internal constructor(
                         kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
                             mutex.withLock {
                                 val manifest = readManifest().toMutableList()
+                                if (!allowedByListing(item)) { File(dir, entry.file).delete(); return@withLock }
                                 manifest.removeAll { it.key == item.stableId }
                                 manifest += entry
-                                evict(manifest)
+                                if (!canFit(manifest, entry.key, plannedKeys)) {
+                                    File(dir, entry.file).delete()
+                                    failed++
+                                    capacityBlocked = true
+                                    return@withLock
+                                }
+                                evict(manifest, protectedKey = entry.key, protectedPlan = plannedKeys)
                                 known.clear()
                                 known.putAll(manifest.associateBy { it.key })
+                                downloaded++
                             }
                         }
-                        downloaded++
                     }
                 } catch (_: BudgetExhausted) {
                     break
@@ -203,6 +247,7 @@ class ImageCache internal constructor(
                     }
                     logFailure("Cache miss (${e::class.java.simpleName})")
                 }
+                if (capacityBlocked) break
             }
             SaveResult(cached, downloaded, failed, retryableFailed)
         }
@@ -223,7 +268,7 @@ class ImageCache internal constructor(
             clientFor(item).newCall(request).awaitResponse().use { response ->
                 if (!response.isSuccessful) throw DownloadFailure(PrefetchRetryPolicy.http(response.code))
                 val body = response.body ?: throw DownloadFailure(false)
-                if (body.contentLength() > MAX_IMAGE_BYTES) throw DownloadFailure(false)
+                if (body.contentLength() > maxImageBytes) throw DownloadFailure(false)
                 if (body.contentLength() > remainingBudget || remainingBudget <= 0) throw BudgetExhausted()
                 body.byteStream().use { input ->
                     temporary.outputStream().use { output ->
@@ -238,7 +283,7 @@ class ImageCache internal constructor(
                             total += read
                             consumed(read.toLong())
                             if (total > remainingBudget) throw BudgetExhausted()
-                            if (total > MAX_IMAGE_BYTES) throw DownloadFailure(false)
+                            if (total > maxImageBytes) throw DownloadFailure(false)
                             output.write(buffer, 0, read)
                         }
                     }
@@ -253,7 +298,7 @@ class ImageCache internal constructor(
     }
 
     private fun evict(
-        manifest: MutableList<Entry>, byteLimit: Long = MAX_BYTES,
+        manifest: MutableList<Entry>, byteLimit: Long = maxBytes,
         protectedKey: String? = null, entryLimit: Int = MAX_ENTRIES, protectedPlan: Set<String> = emptySet()
     ): Boolean {
         manifest.sortByDescending { it.ts }
@@ -275,7 +320,7 @@ class ImageCache internal constructor(
         writeManifest(manifest)
         val referenced = manifest.map { it.file }.toHashSet()
         dir.listFiles()?.filter {
-            it.name != MANIFEST && it.name !in referenced && !CacheFileLeases.contains(it)
+            it.name != MANIFEST && it.name != SOURCE_STATE && it.name !in referenced && !CacheFileLeases.contains(it)
         }?.forEach { it.delete() }
         return manifest.size + leasedOrphans.size <= entryLimit && totalBytes <= byteLimit
     }

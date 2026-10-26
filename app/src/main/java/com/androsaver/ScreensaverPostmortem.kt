@@ -63,8 +63,10 @@ internal object ScreensaverPostmortem {
     fun writeRecoverable(file: File, details: String) = write(recoverableFile(file), details)
 
     @Synchronized
-    fun readReports(file: File): String? {
+    fun readReports(file: File, includeSourceFailures: Boolean = true): String? {
         val reports = listOfNotNull(
+            read(File(file.parentFile, "${file.name}.exit")),
+            if (includeSourceFailures) read(File(file.parentFile, "${file.name}.sources")) else null,
             read(File(file.parentFile, "${file.name}.interrupted"))?.let { it },
             read(file)?.let { "SAVED FATAL / LEGACY REPORT\n\n$it" },
             read(recoverableFile(file))?.let { "LATEST RECOVERABLE FAILURE\n\n$it" }
@@ -74,7 +76,8 @@ internal object ScreensaverPostmortem {
 
     /** Clear saved reports only; an active-session marker must remain owned by its session. */
     @Synchronized fun clearReports(file: File): Boolean {
-        val reports = listOf(file, recoverableFile(file), File(file.parentFile, "${file.name}.interrupted"))
+        val reports = listOf(file, recoverableFile(file), File(file.parentFile, "${file.name}.interrupted"),
+            File(file.parentFile, "${file.name}.exit"), File(file.parentFile, "${file.name}.sources"))
         var success = true
         reports.forEach { report ->
             if (report.exists() && !report.delete()) success = false

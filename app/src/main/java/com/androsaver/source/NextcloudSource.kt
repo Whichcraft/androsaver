@@ -93,6 +93,8 @@ class NextcloudSource(private val context: Context) : ImageSource {
 <d:propfind xmlns:d="DAV:">
   <d:prop>
     <d:getcontenttype/>
+    <d:getetag/>
+    <d:getlastmodified/>
     <d:resourcetype/>
   </d:prop>
 </d:propfind>""".toRequestBody("application/xml".toMediaType())
@@ -122,6 +124,8 @@ class NextcloudSource(private val context: Context) : ImageSource {
             var href: String? = null
             var isCollection = false
             var contentType: String? = null
+            var revision: String? = null
+            var modified: String? = null
             var inHref = false
 
             var event = parser.eventType
@@ -129,10 +133,12 @@ class NextcloudSource(private val context: Context) : ImageSource {
                 val tag = parser.name?.substringAfterLast(':')
                 when (event) {
                     XmlPullParser.START_TAG -> when (tag) {
-                        "response"       -> { href = null; isCollection = false; contentType = null }
+                        "response"       -> { href = null; isCollection = false; contentType = null; revision = null; modified = null }
                         "href"           -> inHref = true
                         "collection"     -> isCollection = true
                         "getcontenttype" -> contentType = parser.nextText()
+                        "getetag" -> revision = parser.nextText()
+                        "getlastmodified" -> modified = parser.nextText()
                     }
                     XmlPullParser.TEXT -> if (inHref) { href = parser.text; inHref = false }
                     XmlPullParser.END_TAG -> {
@@ -146,7 +152,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
                             if (isImage && name.isNotEmpty() && items.size < 2000) {
                                 items.add(ImageItem(url = resolved.toString(), name = name,
                                     headers = mapOf("Authorization" to credential),
-                                    stableId = "nextcloud:${resolved.encodedPath}",
+                                    stableId = "nextcloud:${resolved.encodedPath}", contentVersion = revision ?: modified,
                                     insecureEndpoint = insecureEndpoint, credentialEndpoint = baseUrl.toString()))
                             }
                         }

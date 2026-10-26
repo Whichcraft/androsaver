@@ -41,9 +41,10 @@ class GraphPagesTest {
         GraphPages(maxPages = 2).list(start) { requests++; page("$start?page=$requests") }
         assertEquals(2, requests)
         val images = GraphPages(maxImages = 1).list(start) {
-            JsonParser.parseString("""{"value":[{"id":"1","name":"photo","file":{"mimeType":"image/jpeg"},"@microsoft.graph.downloadUrl":"https://example.invalid/photo"}]}""").asJsonObject
+            JsonParser.parseString("""{"value":[{"id":"1","name":"photo","eTag":"revision-two","file":{"mimeType":"image/jpeg"},"@microsoft.graph.downloadUrl":"https://example.invalid/photo"}]}""").asJsonObject
         }
         assertEquals("onedrive:1", images.single().stableId)
+        assertEquals("revision-two", images.single().contentVersion)
         assertTrue(images.single().headers.isEmpty())
     }
 }

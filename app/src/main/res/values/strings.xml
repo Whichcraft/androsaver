@@ -157,7 +157,7 @@
     <string name="update_storage_full">Update storage is full. Finish any pending installation, or use Clear cache for AndroSaver in Android settings, then retry.</string>
     <string name="source_health_auth">%1$s: reconnect this account in Settings → Image sources.</string>
     <string name="source_health_permission">%1$s: grant photo access in Settings → Image sources.</string>
-    <string name="source_health_unavailable">%1$s: temporarily unavailable. Keeping available images; retrying automatically. Check the connection or retry by restarting Preview.</string>
+    <string name="source_health_unavailable">%1$s: temporarily unavailable. Keeping available images; retrying automatically. Check the connection or use Settings → Source status → Retry now.</string>
     <string name="source_health_empty">%1$s: no images. Check the selected folder in Settings → Image sources.</string>
     <string name="source_health_cache">Playing saved images from the offline cache.</string>
     <string name="session_interrupted_notice">The previous screensaver session ended unexpectedly. The cause was not captured; Android may have stopped the app.</string>
@@ -194,4 +194,17 @@
     <string name="saved_source_cleared">Saved images cleared. Remote photos and account settings are unchanged.</string>
     <string name="saved_source_in_use">These images are in use. Close the screensaver and Preview, then try again.</string>
     <string name="saved_source_clear_failed">Some saved images could not be removed. Try again after stopping playback.</string>
+    <string name="source_status">Source status</string>
+    <string name="source_status_summary">Check all sources, successful refresh times and connection details; retry now</string>
+    <string name="retry_sources">Retry now</string>
+    <string name="checking_sources">Checking sources and updating saved images…</string>
+    <string name="source_check_failed">The check could not finish. Saved source status shows completed checks.</string>
+    <string name="source_not_checked">Not checked yet</string>
+    <string name="source_last_attempt">Last attempt: %1$s</string>
+    <string name="source_no_active_check">No active screensaver refresh timer. Background prefetch is scheduled separately.</string>
+    <string name="source_health_tls_expired">%1$s: server certificate expired. Renew it on the server.</string>
+    <string name="source_health_tls_date">%1$s: certificate is not valid yet. Check the TV clock and server certificate.</string>
+    <string name="source_health_tls">%1$s: TLS identity or trust validation failed. Check the server certificate and hostname.</string>
+    <string name="diagnostics_read_failed">Saved reports could not be read. This does not mean no reports exist.</string>
+    <string name="clearing_saved_images">Clearing saved images…</string>
 </resources>

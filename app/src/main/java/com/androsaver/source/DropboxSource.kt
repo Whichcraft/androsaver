@@ -146,7 +146,10 @@ class DropboxSource(private val context: Context) : ImageSource {
         }
         val link = json.get("link")?.asString
             ?: throw com.google.gson.JsonParseException("Missing temporary link")
-        ImageItem(url = link, name = name, stableId = "dropbox:${path.lowercase()}")
+        val metadata = json.getAsJsonObject("metadata")
+        ImageItem(url = link, name = name, stableId = "dropbox:${path.lowercase()}",
+            contentVersion = metadata?.get("rev")?.takeUnless { it.isJsonNull }?.asString
+                ?: metadata?.get("server_modified")?.takeUnless { it.isJsonNull }?.asString)
     }
 
     companion object {

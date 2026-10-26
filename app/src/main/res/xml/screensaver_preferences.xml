@@ -99,6 +99,7 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:key="cat_about" android:title="About">
+        <Preference android:key="source_status" android:title="@string/source_status" android:summary="@string/source_status_summary" />
         <Preference android:key="saved_diagnostics" android:title="@string/saved_diagnostics" android:summary="@string/saved_diagnostics_summary" />
         <Preference android:key="saved_images" android:title="@string/saved_images" android:summary="@string/saved_images_summary" />
         <Preference

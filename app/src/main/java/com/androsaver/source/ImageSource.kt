@@ -9,9 +9,9 @@ class ImageSourcePermissionException(message: String) : java.io.IOException(mess
 sealed class ImageSourceResult {
     data class Success(val items: List<ImageItem>, val retryableFailures: Boolean = false) : ImageSourceResult()
     object Empty : ImageSourceResult()
-    data class Failure(val kind: FailureKind) : ImageSourceResult()
+    data class Failure(val kind: FailureKind, val exceptionTypes: List<String> = emptyList(), val httpStatus: Int? = null) : ImageSourceResult()
 
-    enum class FailureKind { NETWORK, AUTHENTICATION, PERMISSION, PARSE, TIMEOUT, UNKNOWN }
+    enum class FailureKind { NETWORK, AUTHENTICATION, PERMISSION, PARSE, TIMEOUT, UNKNOWN, TLS_EXPIRED, TLS_NOT_YET_VALID, TLS_UNTRUSTED, TLS_IDENTITY, TLS }
 }
 
 data class ImageItem(
@@ -47,23 +47,6 @@ internal suspend fun imageSourceResult(block: suspend () -> ImageSourceResult): 
     block()
 } catch (e: CancellationException) {
     throw e
-} catch (e: ImageSourceAuthenticationException) {
-    ImageSourceResult.Failure(ImageSourceResult.FailureKind.AUTHENTICATION)
-} catch (e: ImageSourcePermissionException) {
-    ImageSourceResult.Failure(ImageSourceResult.FailureKind.PERMISSION)
-} catch (e: ImageSourceHttpException) {
-    val kind = when {
-        e.code == 401 || e.code == 403 -> ImageSourceResult.FailureKind.AUTHENTICATION
-        e.code == 408 || e.code == 425 || e.code == 429 || e.code in 500..599 -> ImageSourceResult.FailureKind.NETWORK
-        else -> ImageSourceResult.FailureKind.UNKNOWN
-    }
-    ImageSourceResult.Failure(kind)
-} catch (e: javax.net.ssl.SSLException) {
-    ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
-} catch (e: java.io.IOException) {
-    ImageSourceResult.Failure(ImageSourceResult.FailureKind.NETWORK)
-} catch (e: com.google.gson.JsonParseException) {
-    ImageSourceResult.Failure(ImageSourceResult.FailureKind.PARSE)
-} catch (_: Exception) {
-    ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
+} catch (e: Exception) {
+    sourceFailure(e)
 }

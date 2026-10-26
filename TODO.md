@@ -211,3 +211,17 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Add JVM and Android regressions for these transitions.
 - [x] Verify JVM tests across all variants, all 11 integration tests on each API 29/35 emulator, signed APK publication and downloaded-asset integrity: [run 40396730355](https://github.com/Whichcraft/androsaver/actions/runs/40396730355), app commit `bae3f6db757ef2ac09f0c448a35f75a7ce432039`; `dev-channel` target confirmed.
 - [ ] Check account switching, source management and authorization recreation against real providers on the TV.
+
+## 2.12 cache integrity, diagnostics and recovery (2026-10-26)
+
+- [x] Include account/stable identity/revision in Glide signatures, disable its duplicate persistent photo cache, and remove legacy Glide disk data.
+- [x] Persist complete source-list authority, exclude deleted images after restart, and reject late cache writers without invalidating active leases.
+- [x] Stage downloads before eviction, use actual sizes, and preserve existing images after failed downloads.
+- [x] Track OneDrive, Dropbox, Nextcloud and Synology revisions.
+- [x] Preserve typed provider failure causes/HTTP status and distinguish expired, future and untrusted TLS certificates without storing request secrets.
+- [x] Bound Google/OneDrive device-auth responses and validate codes/tokens before display/publication.
+- [x] Collect Android process-exit metadata and available ANR stack frames; retain the journal fallback on older Android versions.
+- [x] Add persistent source status, Retry now, active-playback notification, connectivity recovery, explicit report-read errors and cache-clearing progress.
+- [x] Bump the minor version to 2.12.0 and add cache/auth/diagnostic/provider regression coverage.
+- [ ] Verify the JVM suite, API 29/35 emulator tests, signed APK publication and downloaded-asset integrity on GitHub.
+- [ ] Physical TV: verify real certificate failures, connectivity restoration, cache cleanup and system exit evidence with real providers.

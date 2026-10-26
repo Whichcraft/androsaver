@@ -20,8 +20,8 @@ internal class SourceRefreshCoordinator(
             ImageSourceResult.Failure(ImageSourceResult.FailureKind.TIMEOUT)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
-            ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
+        } catch (error: Exception) {
+            com.androsaver.source.sourceFailure(error)
         }
         snapshots.update(source.name, result)
         onResult(source, result)

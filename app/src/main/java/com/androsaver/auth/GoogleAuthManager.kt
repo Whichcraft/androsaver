@@ -3,6 +3,7 @@ package com.androsaver.auth
 import android.content.Context
 import com.androsaver.HttpClients
 import com.androsaver.awaitResponse
+import com.androsaver.stringLimited
 import com.androsaver.Prefs
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -51,16 +52,10 @@ class GoogleAuthManager(private val context: Context) {
         try {
             val json = client.newCall(request).awaitResponse().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                gson.fromJson(response.body?.string(), JsonObject::class.java)
+                gson.fromJson(response.body?.stringLimited(64 * 1024L), JsonObject::class.java)
             }
             if (json.has("error")) return@withContext null
-            DeviceCodeResponse(
-                deviceCode = json.get("device_code").asString,
-                userCode = json.get("user_code").asString,
-                verificationUrl = json.get("verification_url").asString,
-                expiresIn = json.get("expires_in").asInt,
-                interval = json.get("interval")?.asInt ?: 5
-            )
+            DeviceAuthResponses.device(json, google = true)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             null
@@ -90,13 +85,14 @@ class GoogleAuthManager(private val context: Context) {
 
         try {
             val json = client.newCall(request).awaitResponse().use { response ->
-                gson.fromJson(response.body?.string(), JsonObject::class.java)
+                gson.fromJson(response.body?.stringLimited(64 * 1024L), JsonObject::class.java)
             }
 
             when {
                 json.has("access_token") -> {
-                    val accessToken = json.get("access_token").asString
-                    val refreshToken = json.get("refresh_token").asString
+                    val credentials = DeviceAuthResponses.success(json)
+                    val accessToken = credentials.accessToken
+                    val refreshToken = credentials.refreshToken
                     if (!OAuthAccounts.publish(prefs, account) {
                         prefs.edit()
                             .putString(Prefs.GOOGLE_ACCESS_TOKEN, accessToken)
@@ -116,7 +112,7 @@ class GoogleAuthManager(private val context: Context) {
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            AuthResult.Error(e.message ?: "Network error")
+            AuthResult.Error("Authorization request failed")
         }
     }
 
