@@ -94,6 +94,27 @@ in normal playback; readbacks are confined to device regression tests.
   external audio adapters. The existing Android audio-permission and lifecycle
   diagnostics remain authoritative.
 
+## Retained standing host adaptations
+
+- Corridor draws frames normally and sparks additively on top. Its dedicated
+  25-snapshot spark trail remains separate from the frame fade; the Android
+  bass spark multiplier remains 5 rather than the desktop 1.2.
+- FlowField keeps bass attraction (`delta-to-centre * bass * 0.0018`) and
+  per-axis treble scatter (`random(-1,1) * treble * 3.2`) in addition to the
+  field-angle displacement. Particle adjustments remain in 2,000-agent steps.
+- Fireworks keeps the gain-aware background launch interval:
+  `(40 * gain).toInt().coerceIn(20, 200)`. Ember drawing remains additive.
+- Lattice retains Android's centre-out frequency assignment (bass near the
+  centre, treble near the edges), reusable scratch arrays and double-stroke
+  beams. Its grid density now follows the explicit profile rather than the old
+  width-only three-tier rule.
+- Audio snapshots are copied into reusable render-owned storage under a short
+  capture lock. Pausing clears accumulated audio/genre samples while preserving
+  whether automatic genre detection is configured. GL work never holds that lock.
+- Geometry and direct-upload buffers share a lazy 12 MiB staging pair, with one
+  live batch at a time and the existing vertex ceiling. The dev performance
+  overlay is throttled and session-guarded; persistent diagnostics stay on top.
+
 ## Verification and future imports
 
 The vendored tree passed 127 Python unit tests, headless smoke rendering of all

@@ -1451,7 +1451,6 @@ class ScreensaverEngine(
         val idx = INTENSITY_STEPS.indexOfFirst { it >= current - 0.01f }.takeIf { it >= 0 } ?: 2
         val newIdx = (idx + delta).coerceIn(0, INTENSITY_STEPS.lastIndex)
         val newGain = INTENSITY_STEPS[newIdx]
-        vv.renderer.visualProfile = prefs.getString(Prefs.VISUALIZER_PROFILE, "auto") ?: "auto"
         vv.renderer.beatGain = newGain
         com.androsaver.Prefs.get(context).edit()
             .putString(Prefs.VISUALIZER_INTENSITY, newGain.toString()).apply()
