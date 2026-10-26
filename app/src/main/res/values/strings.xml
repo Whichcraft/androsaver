@@ -154,4 +154,5 @@
     <string name="update_failed">Update failed — press to check again</string>
     <string name="update_failed_toast">Failed to download update</string>
     <string name="diagnostic_controls">Diagnostics: Up/Down scroll; Left/Right page; Center/Back close.</string>
+    <string name="update_storage_full">Update storage is full. Finish any pending installation, or use Clear cache for AndroSaver in Android settings, then retry.</string>
 </resources>

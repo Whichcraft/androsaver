@@ -155,3 +155,15 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
 - [x] Correct cancellation-triggered body-read IOExceptions after the first CI run exposed the regression.
 
 Device-only checks above remain open; CI success does not mark them complete.
+
+## Retention, clock changes, performance display and Graph pagination
+
+- [x] Bound new update staging to three APKs / 200 MiB; prune obsolete installed versions and old unprotected stages, protect recent stages for 24 hours, and never prune the current temporary download.
+- [x] Refuse a new download when only protected stages occupy the budget and explain the cache-clearing option in settings.
+- [x] Monitor system time/timezone changes for the active engine session, cancel/recalculate the shutdown timer, and refresh clock formatting; recheck wall time when a deadline fires.
+- [x] Connect dev visualizer performance samples to a dedicated overlay with one-second UI throttling and session guards, keeping crash diagnostics above it.
+- [x] Display effect, viewport, frame time/FPS, vertices, bloom and allocated vertex staging; keep release builds hidden.
+- [x] Validate every bearer-authenticated OneDrive page against HTTPS Graph origin, reject repeated URLs, preserve opaque cursors and disable listing redirects.
+- [x] Add regression cases for retention quotas/protection, timezone and wall-clock shifts, performance formatting/throttling, and untrusted/repeated Graph links.
+- [x] Validate changed XML resources and diff whitespace.
+- [ ] GitHub builder: compile/run the new JVM tests and signed APK build. Device: change time/timezone during a running schedule, observe dev performance samples and diagnostic priority, exercise update-storage-full UI, and enumerate a multi-page OneDrive folder.

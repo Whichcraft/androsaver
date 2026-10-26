@@ -280,8 +280,10 @@ class SettingsActivity : AppCompatActivity() {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Update failed", e)
                                 if (isAdded) {
-                                    findPreference<Preference>("about_app")?.summary = getString(R.string.update_failed)
-                                    android.widget.Toast.makeText(appContext, R.string.update_failed_toast, android.widget.Toast.LENGTH_LONG).show()
+                                    val message = if (e is UpdateStagingFullException) R.string.update_storage_full else R.string.update_failed_toast
+                                    findPreference<Preference>("about_app")?.summary =
+                                        getString(if (e is UpdateStagingFullException) R.string.update_storage_full else R.string.update_failed)
+                                    android.widget.Toast.makeText(appContext, message, android.widget.Toast.LENGTH_LONG).show()
                                 }
                                 pendingUpdate = null
                             }

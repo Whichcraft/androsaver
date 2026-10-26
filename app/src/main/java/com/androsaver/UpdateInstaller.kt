@@ -23,9 +23,11 @@ object UpdateInstaller {
     suspend fun downloadAndInstall(context: Context, update: UpdateInfo) {
         require(update.sha256.matches(Regex("[0-9a-f]{64}"))) { "Invalid update checksum" }
         val apkFile = withContext(Dispatchers.IO) {
-            UpdateDownloadFiles.prepare(
+            UpdateDownloadFiles.prepareBounded(
                 File(context.cacheDir, "updates"),
                 "androsaver-${update.versionCode}-${update.sha256}.apk",
+                expectedBytes = update.sizeBytes,
+                installedVersion = BuildConfig.VERSION_CODE,
                 validate = { file ->
                     verifyBytes(file, update)
                     validatePackage(context, file, update)

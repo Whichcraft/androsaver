@@ -1,12 +1,30 @@
 package com.androsaver
 
 import java.util.Calendar
+import java.util.TimeZone
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ScheduleWindowTest {
+    @Test fun scheduleDecisionRecalculatesForTimezoneAndWallClockChanges() {
+        val utc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            clear()
+            set(2026, Calendar.OCTOBER, 26, 18, 0, 0)
+        }
+        assertEquals(4 * 60 * 60 * 1000L, ScheduleWindow.evaluate(utc, 8, 22, true).endDelayMs)
+        val shifted = (utc.clone() as Calendar).apply { timeZone = TimeZone.getTimeZone("GMT+03:00") }
+        assertEquals(60 * 60 * 1000L, ScheduleWindow.evaluate(shifted, 8, 22, true).endDelayMs)
+        shifted.timeZone = TimeZone.getTimeZone("GMT+06:00")
+        assertFalse(ScheduleWindow.evaluate(shifted, 8, 22, true).active)
+        assertNull(ScheduleWindow.evaluate(shifted, 8, 22, true).endDelayMs)
+        assertTrue(ScheduleWindow.evaluate(shifted, 8, 22, false).active)
+        utc.set(Calendar.HOUR_OF_DAY, 12)
+        assertEquals(10 * 60 * 60 * 1000L, ScheduleWindow.evaluate(utc, 8, 22, true).endDelayMs)
+    }
+
     @Test fun disabledScheduleNeverBlocksStartupOrArmsShutdown() {
         for ((start, end) in listOf(8 to 22, 22 to 6, 8 to 8)) {
             for (hour in 0..23) {

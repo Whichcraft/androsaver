@@ -13,7 +13,8 @@ data class VisualizerPerformance(
     val height: Int,
     val frameTimeMs: Float,
     val submittedVertices: Int,
-    val bloomEnabled: Boolean
+    val bloomEnabled: Boolean,
+    val vertexStagingBytes: Int = 0
 )
 
 /**
@@ -33,10 +34,10 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     private var surfaceReady = false
 
     /** Set by the host so render failures are visible outside Logcat. */
-    var onRenderError: ((Throwable) -> Unit)? = null
+    @Volatile var onRenderError: ((Throwable) -> Unit)? = null
 
     /** Debug-only performance samples delivered from the GL thread. */
-    var onPerformanceUpdate: ((VisualizerPerformance) -> Unit)? = null
+    @Volatile var onPerformanceUpdate: ((VisualizerPerformance) -> Unit)? = null
 
     /** Exponential moving average of frame render time in milliseconds (EMA α=0.1). */
     var frameTimeMs = 0f
@@ -207,7 +208,8 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
                             height = draw.H,
                             frameTimeMs = frameTimeMs,
                             submittedVertices = draw.lastSubmittedVertices,
-                            bloomEnabled = draw.bloomEnabled
+                            bloomEnabled = draw.bloomEnabled,
+                            vertexStagingBytes = draw.vertexStagingBytes
                         )
                     )
                 }

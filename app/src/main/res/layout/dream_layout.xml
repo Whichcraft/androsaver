@@ -21,6 +21,20 @@
         <TextView android:id="@+id/weatherDesc" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#AAFFFFFF" android:textSize="18sp" android:shadowColor="#CC000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="4" />
     </LinearLayout>
 
+    <!-- Dev-only visualizer samples; persistent errors always remain above this. -->
+    <TextView
+        android:id="@+id/devPerformanceOverlay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:padding="8dp"
+        android:background="#B0000000"
+        android:textColor="#FFFFFFFF"
+        android:fontFamily="monospace"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
     <!-- Dev builds only: persistent crash diagnostics. Kept as the final child
          so it can always be raised above slideshow images and normal overlays. -->
     <TextView

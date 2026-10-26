@@ -301,3 +301,10 @@ vertex limit and rendering order are unchanged, while full staging drops from
 24 MiB to 12 MiB. This is Android-only CPU/upload storage: upstream
 `psysuals/gl_renderer.py::_upload_surface()` stages surface pixels on demand,
 without these Kotlin vertex batches. No upstream effect change is required.
+
+The Android host now connects the existing performance-sample callback to a
+dev-only overlay, throttled to one update per second and guarded by the active
+visualizer session. It includes allocated vertex staging alongside effect,
+viewport, frame time/FPS, vertices and bloom; persistent crash details have
+priority. This is Android host instrumentation and does not alter upstream
+effect rendering or tuning.

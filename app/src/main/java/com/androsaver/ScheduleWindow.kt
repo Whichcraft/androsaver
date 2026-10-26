@@ -3,6 +3,13 @@ package com.androsaver
 import java.util.Calendar
 
 object ScheduleWindow {
+    data class Decision(val active: Boolean, val endDelayMs: Long?)
+
+    fun evaluate(now: Calendar, start: Int, end: Int, enabled: Boolean): Decision = Decision(
+        isActive(now.get(Calendar.HOUR_OF_DAY), start, end, enabled),
+        millisUntilEnd(now, start, end, enabled)
+    )
+
     fun isActive(hour: Int, start: Int, end: Int, enabled: Boolean = true): Boolean {
         if (!enabled) return true
         if (start == end) return true

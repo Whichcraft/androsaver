@@ -24,6 +24,8 @@ class OneDriveSource(private val context: Context) : ImageSource {
     override val name = "OneDrive"
 
     private val client = HttpClients.standard
+    // A validated page must not silently redirect into an unvalidated request.
+    private val listingClient = client.newBuilder().followRedirects(false).followSslRedirects(false).build()
     private val gson = Gson()
 
     override fun isConfigured(): Boolean {
@@ -50,44 +52,15 @@ class OneDriveSource(private val context: Context) : ImageSource {
         }
         val startUrl = "$childrenBase?\$select=id,name,file,@microsoft.graph.downloadUrl&\$top=1000"
 
-        val items = mutableListOf<ImageItem>()
-            var url: String? = startUrl
-            val maxFetch = 2000
-            var scanned = 0
-            var pages = 0
-
-            while (url != null && items.size < maxFetch && scanned < MAX_SCANNED_ENTRIES && pages < MAX_PAGES) {
-                val json = client.newCall(
-                    Request.Builder().url(url)
-                        .header("Authorization", "Bearer $accessToken").build()
-                ).awaitResponse().use { resp ->
-                    if (!resp.isSuccessful) {
-                        throw ImageSourceHttpException(resp.code)
-                    }
-                    gson.fromJson(resp.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
-                }
-
-                pages++
-                val valueArray = json.getAsJsonArray("value")
-                if (valueArray != null) {
-                    scanned += valueArray.size()
-                    for (el in valueArray) {
-                        if (items.size >= maxFetch) break
-                        val obj      = el.asJsonObject
-                        val fileObj  = obj.getAsJsonObject("file") ?: continue
-                        val mime     = fileObj.get("mimeType")?.asString ?: continue
-                        if (!mime.startsWith("image/")) continue
-                        val name     = obj.get("name")?.asString ?: continue
-                        val id       = obj.get("id")?.asString ?: continue
-                        // @microsoft.graph.downloadUrl is a pre-authenticated temporary URL — no auth header needed for Glide
-                        val dlUrl    = obj.get("@microsoft.graph.downloadUrl")?.asString ?: continue
-                        items.add(ImageItem(url = dlUrl, name = name, stableId = "onedrive:$id"))
-                    }
-                }
-
-                url = if (items.size >= maxFetch) null else json.get("@odata.nextLink")?.asString
+        GraphPages().list(startUrl) { page ->
+            listingClient.newCall(
+                Request.Builder().url(page).header("Authorization", "Bearer $accessToken").build()
+            ).awaitResponse().use { response ->
+                if (!response.isSuccessful) throw ImageSourceHttpException(response.code)
+                gson.fromJson(response.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
+                    ?: throw java.io.IOException("Empty OneDrive listing")
             }
-        items
+        }
     }
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
@@ -133,8 +106,6 @@ class OneDriveSource(private val context: Context) : ImageSource {
 
     companion object {
         private const val TAG = "OneDriveSource"
-        private const val MAX_PAGES = 40
-        private const val MAX_SCANNED_ENTRIES = 20_000
         private const val MAX_RESPONSE_BYTES = 8L * 1024 * 1024
         private val refreshMutex = Mutex()
     }

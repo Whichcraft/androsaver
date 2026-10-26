@@ -3,6 +3,9 @@ package com.androsaver
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.drawable.Drawable
@@ -13,12 +16,14 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.ImageView
+import androidx.core.content.ContextCompat
 import com.androsaver.databinding.DreamLayoutBinding
 import com.androsaver.source.ImageItem
 import com.androsaver.source.ImageSource
 import com.androsaver.source.ImageSourceResult
 import com.androsaver.source.ImageSourceRegistry
 import com.androsaver.visualizer.VisualizerView
+import com.androsaver.visualizer.PerformanceOverlay
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -42,6 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 class ScreensaverEngine(
     private val context: Context,
@@ -93,6 +99,7 @@ class ScreensaverEngine(
     private var retryRunnable: Runnable? = null
     private var finishRunnable: Runnable? = null
     private var scheduleFinishRunnable: Runnable? = null
+    private var timeChangeReceiver: BroadcastReceiver? = null
     private val playback = SlideshowPlayback()
     private var displayedIndex = -1
     private var pendingManualSkipIndex: Int? = null
@@ -184,12 +191,8 @@ class ScreensaverEngine(
             if (prefs.getBoolean(Prefs.SHOW_CLOCK, false)) startClock()
             if (prefs.getBoolean(Prefs.WEATHER_ENABLED, false)) startWeather(prefs)
         }
-        scheduleFinishRunnable?.let { handler.removeCallbacks(it) }
-        ScheduleWindow.millisUntilEnd(Calendar.getInstance(), scheduleStart(prefs), scheduleEnd(prefs),
-            enabled = prefs.getBoolean(Prefs.SCHEDULE_ENABLED, false))?.let { delay ->
-            scheduleFinishRunnable = Runnable { onRequestFinish() }
-            handler.postDelayed(scheduleFinishRunnable!!, delay)
-        }
+        monitorTimeChanges(prefs)
+        refreshSchedule(prefs, finishOutsideWindow = true)
     }
 
     /** Pause the visualizer audio + GL when the host goes to background (e.g. Home press). */
@@ -199,6 +202,7 @@ class ScreensaverEngine(
     fun resumeVisualizer() { visualizerView?.startVisualizer() }
 
     fun stop() {
+        stopTimeMonitoring()
         sessionWork.stop()
         blankMode = false
         try {
@@ -330,6 +334,51 @@ class ScreensaverEngine(
 
     // ── Schedule ──────────────────────────────────────────────────────────────
 
+    private fun monitorTimeChanges(prefs: SharedPreferences) {
+        stopTimeMonitoring()
+        val generation = sessionWork.generation
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (generation != sessionWork.generation || sessionWork.mode == null) return
+                if (intent?.action != Intent.ACTION_TIME_CHANGED && intent?.action != Intent.ACTION_TIMEZONE_CHANGED) return
+                if (!refreshSchedule(prefs, finishOutsideWindow = true)) return
+                if (clockRunnable != null) startClock()
+            }
+        }
+        ContextCompat.registerReceiver(context, receiver, IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        timeChangeReceiver = receiver
+    }
+
+    private fun stopTimeMonitoring() {
+        timeChangeReceiver?.let { receiver ->
+            try { context.unregisterReceiver(receiver) } catch (_: IllegalArgumentException) { }
+        }
+        timeChangeReceiver = null
+    }
+
+    private fun refreshSchedule(prefs: SharedPreferences, finishOutsideWindow: Boolean): Boolean {
+        scheduleFinishRunnable?.let { handler.removeCallbacks(it) }
+        scheduleFinishRunnable = null
+        val decision = ScheduleWindow.evaluate(Calendar.getInstance(), scheduleStart(prefs), scheduleEnd(prefs),
+            prefs.getBoolean(Prefs.SCHEDULE_ENABLED, false))
+        if (!decision.active) {
+            if (finishOutsideWindow) onRequestFinish()
+            return false
+        }
+        decision.endDelayMs?.let { delay ->
+            val generation = sessionWork.generation
+            scheduleFinishRunnable = Runnable {
+                if (generation == sessionWork.generation && sessionWork.mode != null) {
+                    refreshSchedule(prefs, finishOutsideWindow = true)
+                }
+            }.also { handler.postDelayed(it, delay) }
+        }
+        return true
+    }
+
     private fun checkSchedule(prefs: SharedPreferences): Boolean {
         val start = scheduleStart(prefs)
         val end = scheduleEnd(prefs)
@@ -346,6 +395,8 @@ class ScreensaverEngine(
     // ── Clock ─────────────────────────────────────────────────────────────────
 
     private fun startClock() {
+        timeFmt.timeZone = TimeZone.getDefault()
+        dateFmt.timeZone = TimeZone.getDefault()
         clockRunnable?.let { handler.removeCallbacks(it) }
         binding.clockOverlay.visibility = View.VISIBLE
         clockRunnable = object : Runnable {
@@ -418,6 +469,23 @@ class ScreensaverEngine(
         vv.onRenderError = { error ->
             if (visualizerSession == sessionWork.generation) {
                 reportTransitionFailure("visualizer render", error, sourceName = "visualizer", forceShow = true)
+            }
+        }
+
+        if (BuildConfig.DEBUG_LOGGING) {
+            val performance = PerformanceOverlay()
+            vv.onPerformanceUpdate = { sample ->
+                if (visualizerSession == sessionWork.generation && performance.shouldPublish(System.nanoTime())) {
+                    handler.post {
+                        if (visualizerSession == sessionWork.generation && visualizerView === vv &&
+                            sessionWork.mode == Prefs.MODE_VISUALIZER) {
+                            binding.devPerformanceOverlay.text = performance.text(sample)
+                            binding.devPerformanceOverlay.visibility = View.VISIBLE
+                            binding.devPerformanceOverlay.bringToFront()
+                            if (devTransitionErrorVisible) binding.devErrorOverlay.bringToFront()
+                        }
+                    }
+                }
             }
         }
 
@@ -502,10 +570,13 @@ class ScreensaverEngine(
         genreDetectRunnable?.let { handler.removeCallbacks(it) }
         genreDetectRunnable = null
         visualizerView?.let { vv ->
+            vv.onPerformanceUpdate = null
             vv.stopVisualizer()
             binding.visualizerContainer.removeView(vv)
         }
         visualizerView = null
+        binding.devPerformanceOverlay.visibility = View.GONE
+        binding.devPerformanceOverlay.text = ""
         binding.visualizerContainer.visibility = View.GONE
     }
 
@@ -1511,6 +1582,7 @@ class ScreensaverEngine(
     }
 
     private fun bringSlideshowOverlaysToFront() {
+        binding.devPerformanceOverlay.bringToFront()
         binding.clockOverlay.bringToFront()
         binding.weatherWidget.bringToFront()
         binding.statusText.bringToFront()

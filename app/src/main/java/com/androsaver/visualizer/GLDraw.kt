@@ -158,6 +158,7 @@ open class GLDraw(var W: Int, var H: Int) {
     // Switching primitive type flushes the preceding batch, so only one
     // primitive's staging data can be live. Share both heap and upload storage.
     private val vertexStorage = VertexBatchStorage(MAX_VERTS, STRIDE)
+    val vertexStagingBytes: Int get() = vertexStorage.allocatedBytes
     private val triVerts get() = vertexStorage.values
     private val lineVerts get() = vertexStorage.values
     private var triCount  = 0

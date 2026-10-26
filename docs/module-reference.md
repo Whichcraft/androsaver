@@ -309,3 +309,46 @@ six-float budget requires 12 MiB of staging instead of 24 MiB. This excludes GPU
 VBOs, framebuffers, textures and effect state; actual device memory/performance
 still needs profiling. The pure storage tests check lazy allocation, reuse and
 the full capacity budget without invoking Android GL APIs.
+
+### Update staging retention
+
+`UpdateRetentionPolicy` limits new staged updates to three APKs and 200 MiB.
+Before downloading, it removes stages whose version is already installed and
+then evicts the oldest other APKs only when they have not been used for 24 hours.
+Recent stages and the current destination are protected because an external
+package installer may still need them. Reusing a verified APK refreshes its
+protection timestamp. If protected files leave insufficient budget, no new
+network download starts; settings explains how to finish an installation or use
+Android's Clear cache action. Previously oversized protected caches may remain
+above the limit until their files become obsolete or age out, but cannot grow
+through new stages. Abandoned temporary files older than 24 hours are cleaned,
+with the current attempt explicitly excluded. A post-download quota check also
+covers callers without a declared size.
+
+### Clock corrections and dev performance samples
+
+The engine registers a non-exported time/timezone-change receiver only while a
+mode is active and unregisters it on stop. A change cancels the previous schedule
+timer and evaluates the window against the new local clock. Moving outside the
+window finishes the screensaver; otherwise its deadline is recalculated. Timer
+callbacks also recheck wall time. Clock formatting is refreshed on time changes
+and when restarting the clock overlay.
+
+Dev visualizers now attach `onPerformanceUpdate` to `devPerformanceOverlay`.
+Samples are accepted at most once per second and posted to Main only for the
+same active visualizer session. The display includes mode, viewport, frame time,
+FPS, vertices, bloom and allocated vertex staging. It does not measure total
+process or GPU memory. Stop removes the callback and hides the view; release
+builds never attach the callback. The persistent error overlay stays above the
+performance display.
+
+### OneDrive authenticated pagination boundary
+
+`GraphPages` validates the starting URL and each next link before the caller can
+attach a bearer header. Only HTTPS `graph.microsoft.com` on port 443 is accepted,
+without userinfo or fragments; repeated canonical URLs are rejected. The full
+opaque query is passed through, rather than extracting/rebuilding skip tokens.
+Listing requests disable automatic redirects, so a validated request cannot
+silently turn into a request to an unvalidated origin. Page, scanned-entry and
+image limits remain enforced, and pre-authenticated image download URLs receive
+no Graph Authorization header.
