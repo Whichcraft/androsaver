@@ -5,12 +5,14 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Response
 import okhttp3.ResponseBody
+import okio.Buffer
 import okio.ForwardingSource
 import okio.buffer
 import java.util.concurrent.atomic.AtomicBoolean
@@ -22,10 +24,11 @@ import kotlin.coroutines.resumeWithException
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 suspend fun Call.awaitResponse(): Response {
     val call = this
+    val ownerContext = currentCoroutineContext()
     val finished = AtomicBoolean(false)
     // Unconfined cancellation runs promptly even if the consumer is blocked in
     // a socket read on its dispatcher. Closing the body retires this child job.
-    val lifetime = CoroutineScope(currentCoroutineContext()).launch(
+    val lifetime = CoroutineScope(ownerContext).launch(
         Dispatchers.Unconfined, start = CoroutineStart.UNDISPATCHED
     ) {
         try { awaitCancellation() }
@@ -51,6 +54,21 @@ suspend fun Call.awaitResponse(): Response {
                     } else response.newBuilder().body(object : ResponseBody() {
                         private val stream by lazy {
                             object : ForwardingSource(body.source()) {
+                                override fun read(sink: Buffer, byteCount: Long): Long {
+                                    ownerContext.ensureActive()
+                                    try {
+                                        val count = super.read(sink, byteCount)
+                                        ownerContext.ensureActive()
+                                        return count
+                                    } catch (error: IOException) {
+                                        // OkHttp interrupts a cancelled socket read with
+                                        // IOException. Preserve coroutine cancellation so
+                                        // it cannot fail an otherwise healthy parent job.
+                                        ownerContext.ensureActive()
+                                        throw error
+                                    }
+                                }
+
                                 override fun close() {
                                     try { super.close() } finally { complete() }
                                 }
