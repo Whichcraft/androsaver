@@ -102,11 +102,12 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
 
     override fun getAll(): Map<String, *> {
         return try {
-            val allPlain = plainPrefs.all.toMutableMap()
+            val allPlain = plainPrefs.all.filterKeys { it !in SENSITIVE_KEYS }.toMutableMap()
             val enc = encryptedPrefs
             if (enc != null) {
                 allPlain.putAll(enc.all)
             }
+            allPlain.remove(CredentialMigration.MARKER)
             allPlain
         } catch (e: Throwable) {
             Log.e(TAG, "Decryption/Read failed while loading preferences", e)
@@ -259,7 +260,7 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
         override fun commit(): Boolean {
             if (sensitiveTouched) {
                 val encryptedCommitted = try {
-                    encryptedEditor?.commit() ?: false
+                    encryptedEditor?.putBoolean(CredentialMigration.MARKER, true)?.commit() ?: false
                 } catch (e: Throwable) {
                     Log.e(TAG, "Encryption/Commit failed", e)
                     false
@@ -271,7 +272,7 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
 
         override fun apply() {
             if (sensitiveTouched) {
-                if (!(encryptedEditor?.commit() ?: false)) {
+                if (!(encryptedEditor?.putBoolean(CredentialMigration.MARKER, true)?.commit() ?: false)) {
                     throw IllegalStateException("Encrypted credential write failed")
                 }
                 plainEditor.apply()

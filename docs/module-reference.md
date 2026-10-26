@@ -426,8 +426,11 @@ instance. They count toward byte/entry limits; optional downloads are skipped
 when a full leased playlist leaves no reservation space. Leases are released on
 stop or after a fresh replacement image has loaded, including cancellation.
 
-Credential migration only fills missing encrypted keys; existing encrypted
-values remain authoritative after cleanup failure. Failed or null MediaStore
+Credential migration only fills missing encrypted keys before its encrypted
+migration marker is recorded. Later encrypted values and removals remain
+authoritative after plaintext cleanup failure; stale plaintext cannot resurrect
+a disconnected account. Sensitive writes/removals and clear operations preserve
+that marker, which is hidden from normal preference enumeration. Failed or null MediaStore
 queries produce source failures rather than an authoritative empty snapshot.
 Cleanup attempts every release and preserves failed phases/causes. A failed
 cleanup keeps a session marker even when an overlapping session stops cleanly.

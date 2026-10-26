@@ -15,6 +15,18 @@ class CredentialMigrationTest {
         assertEquals("placeholder-refreshed", encrypted["credential"])
         assertTrue(plain.isEmpty())
     }
+    @Test fun aRemovedAccountCannotBeResurrectedByOldPlaintextAfterCleanupFailure() {
+        val plain = mutableMapOf<String, Any>("credential" to "placeholder-old")
+        val encrypted = mutableMapOf<String, Any>()
+        CredentialMigration.migrate(plain, encrypted.keys, setOf("credential"),
+            { encrypted.putAll(it); true }, { false })
+        encrypted.remove("credential")
+        CredentialMigration.migrate(plain, encrypted.keys, setOf("credential"),
+            { encrypted.putAll(it); true }, { false })
+        assertFalse(encrypted.containsKey("credential"))
+        assertTrue(encrypted.containsKey(CredentialMigration.MARKER))
+    }
+
     @Test fun aFailedEncryptedWriteNeverDeletesTheOnlyCopy() {
         var removed = false
         assertThrows(IllegalStateException::class.java) {
