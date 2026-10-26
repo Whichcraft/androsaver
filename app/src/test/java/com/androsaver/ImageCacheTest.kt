@@ -21,6 +21,60 @@ import java.net.URI
 class ImageCacheTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun downloadBytesAreBoundedAcrossTheWholePlan() = runBlocking {
+        val requests = AtomicInteger()
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            requests.incrementAndGet()
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body("12345".toResponseBody()).build()
+        }.build()
+        try {
+            val cache = ImageCache(temporary.newFolder(), { it.length() > 0 }, { client })
+            val images = (1..5).map { ImageItem("https://example.invalid/$it") }
+            assertEquals(2, cache.saveImages(images, "test", networkBudget = 10).downloaded)
+            assertEquals(2, requests.get())
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
+    @Test fun fallbackNeverIncludesDisabledPreviousAccountOrLegacyImages() = runBlocking {
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body("image".toResponseBody()).build()
+        }.build()
+        try {
+            val cache = ImageCache(temporary.newFolder(), { it.length() > 0 }, { client })
+            val one = com.androsaver.source.SourceScope.create("dropbox", "account-one", emptyList())
+            val two = com.androsaver.source.SourceScope.create("dropbox", "account-two", emptyList())
+            val base = ImageItem("https://example.invalid/same-path", stableId = "dropbox:/photo.jpg")
+            cache.saveImages(listOf(com.androsaver.source.SourceScope.bind(base, one),
+                com.androsaver.source.SourceScope.bind(base, two), base.copy(stableId = "legacy")), "test")
+            cache.acquireSnapshot(setOf(two)).use { snapshot ->
+                assertEquals(1, snapshot.items.size)
+                assertEquals(two, snapshot.items.single().sourceScope)
+            }
+            cache.acquireSnapshot(emptySet()).use { assertTrue(it.items.isEmpty()) }
+            assertTrue(cache.clearSource("dropbox"))
+            cache.acquireSnapshot(setOf(one, two)).use { assertTrue(it.items.isEmpty()) }
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
+    @Test fun oneFairPlanDoesNotRedownloadSourcesThatPreviouslyEvictedEachOther() = runBlocking {
+        val requests = AtomicInteger()
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            requests.incrementAndGet()
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body("image".toResponseBody()).build()
+        }.build()
+        try {
+            val cache = ImageCache(temporary.newFolder(), { it.length() > 0 }, { client })
+            val a = (1..250).map { ImageItem("https://a.invalid/$it", stableId = "a-$it", sourceScope = "a") }
+            val b = (1..250).map { ImageItem("https://b.invalid/$it", stableId = "b-$it", sourceScope = "b") }
+            assertEquals(200, cache.warm(listOf(a, b)).downloaded)
+            assertEquals(0, cache.warm(listOf(b.reversed(), a.reversed())).downloaded)
+            assertEquals(200, requests.get())
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
     @Test fun leasedOfflinePlaylistsSurviveAnotherCacheInstanceWritingAndEvicting() = runBlocking {
         val requests = AtomicInteger()
         val client = OkHttpClient.Builder().addInterceptor { chain ->

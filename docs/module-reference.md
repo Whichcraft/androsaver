@@ -455,3 +455,15 @@ APK build/publication with downloaded-asset verification for
 `861f9eef687f8762e07327a728ba8cafa8c61596`. The rolling `dev-channel` tag was
 confirmed to target that commit. Real-server certificate/API compatibility and
 physical-TV system audio capture remain deployment checks.
+
+### Account-scoped offline images and management (2026-10-26)
+
+Remote stable IDs now include an account namespace and nonsecret source configuration fingerprint. Random namespace IDs are encrypted alongside credentials and rotated atomically on account replacement; normal OAuth refresh does not replace the namespace. Legacy unscoped cache entries are excluded from fallback until images are fetched again. Disabling/disconnecting a source or changing its account/origin/folder excludes its previous cache immediately at fallback/refresh boundaries.
+
+After progressive enumeration finishes, live playback and background prefetch each use one stable fair plan of at most 200 remote images. Unavailable providers retain quota rather than letting healthy providers repeatedly displace their images. Warming is bounded to 100 MiB transferred and 90 seconds per round; file leases and storage budgets still apply. A successful empty listing clears the displayed slideshow and cancels pending transitions instead of treating old cache as an outage fallback.
+
+Settings offers saved diagnostic viewing/copying/clearing without resetting preferences; clearing never removes active-session markers. Saved images shows provider counts/storage and permits per-provider clearing when files are not leased. Enabled sources may refill their cache. Source health includes the last successful refresh and next scheduled check.
+
+Google/OneDrive authorization uses an in-memory ViewModel session across Activity recreation. Process death starts a new session; device codes and tokens are not persisted in saved Activity state. Host fields reject URLs, credentials, embedded ports, query/fragment/path syntax and normalize DNS/IP literals before use. No visualizer effects or vendored upstream code changed in this follow-up.
+
+Verification pending GitHub builder; physical TV/cloud/server integration remains a manual check.

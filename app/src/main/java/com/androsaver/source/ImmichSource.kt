@@ -25,7 +25,7 @@ class ImmichSource(private val context: Context) : ImageSource {
     }
 
     internal suspend fun probeConnection(config: ConnectionConfig): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val host = config.host
+        val host = com.androsaver.SourceSetupValidation.host(config.host) ?: throw java.io.IOException("Invalid configured host")
         val port = config.port
         val key = config.apiKey
         val https = config.useHttps
@@ -46,7 +46,8 @@ class ImmichSource(private val context: Context) : ImageSource {
     override suspend fun getImageUrls(): List<ImageItem> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val prefs    = com.androsaver.Prefs.get(context)
-            val host     = prefs.getString(Prefs.IMMICH_HOST, null) ?: return@withContext emptyList()
+            val host = com.androsaver.SourceSetupValidation.host(prefs.getString(Prefs.IMMICH_HOST, null).orEmpty())
+                ?: throw java.io.IOException("Invalid configured host; edit source settings")
             val port     = prefs.getString(Prefs.IMMICH_PORT, "2283") ?: "2283"
             val useHttps = prefs.getBoolean(Prefs.IMMICH_USE_HTTPS, true)
             val allowInsecure = prefs.getBoolean(Prefs.IMMICH_ALLOW_INSECURE, false)

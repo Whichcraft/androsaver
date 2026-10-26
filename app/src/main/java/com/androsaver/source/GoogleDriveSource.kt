@@ -73,7 +73,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
         val prefs = com.androsaver.Prefs.get(context)
-        val account = OAuthAccounts.capture(prefs, "google")
+        val account = OAuthAccounts.capture(prefs, "google", replacement = false)
         val refreshToken = prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null)
             ?: return@withLock null
         val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null)

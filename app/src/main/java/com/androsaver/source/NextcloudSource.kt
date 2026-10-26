@@ -38,7 +38,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
     }
 
     internal suspend fun probeConnection(config: ConnectionConfig): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val host = config.host
+        val host = com.androsaver.SourceSetupValidation.host(config.host) ?: throw java.io.IOException("Invalid configured host")
         val port = config.port
         val user = config.username
         val password = config.password
@@ -65,7 +65,8 @@ class NextcloudSource(private val context: Context) : ImageSource {
     override suspend fun getImageUrls(): List<ImageItem> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val prefs = com.androsaver.Prefs.get(context)
-            val host     = prefs.getString(Prefs.NEXTCLOUD_HOST, null) ?: return@withContext emptyList()
+            val host = com.androsaver.SourceSetupValidation.host(prefs.getString(Prefs.NEXTCLOUD_HOST, null).orEmpty())
+                ?: throw java.io.IOException("Invalid configured host; edit source settings")
             val port     = prefs.getString(Prefs.NEXTCLOUD_PORT, "443") ?: "443"
             val useHttps = prefs.getBoolean(Prefs.NEXTCLOUD_USE_HTTPS, true)
             val allowInsecure = prefs.getBoolean(Prefs.NEXTCLOUD_ALLOW_INSECURE, false)

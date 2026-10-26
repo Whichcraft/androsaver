@@ -57,32 +57,11 @@ class ImagePrefetchWorker(
             return if (PrefetchRetryPolicy.retry(runAttemptCount, sourceNeedsRetry)) Result.retry() else Result.success()
         }
 
-        val queues = results.map {
-            (it.result as? ImageSourceResult.Success)?.items?.toMutableList() ?: mutableListOf()
-        }
-        val selected = mutableListOf<Pair<ImageSource, ImageItem>>()
-        while (selected.size < 200 && queues.any { it.isNotEmpty() }) {
-            results.forEachIndexed { index, result ->
-                if (selected.size >= 200) return@forEachIndexed
-                queues[index].removeFirstOrNull()?.let { selected += result.source to it }
-            }
-        }
-
         try {
-            var cached = 0
-            var downloaded = 0
-            var failed = 0
-            var shouldRetry = sourceNeedsRetry
-            selected.groupBy({ it.first }, { it.second }).forEach { (source, sourceItems) ->
-                val saved = imageCache.saveImages(sourceItems, source.name)
-                cached += saved.cached
-                downloaded += saved.downloaded
-                failed += saved.failed
-                shouldRetry = shouldRetry || saved.needsRetry
-            }
-            if (BuildConfig.DEBUG_LOGGING) Log.d(TAG,
-                "Prefetch: $cached already cached, $downloaded downloaded, $failed failed")
-            if (PrefetchRetryPolicy.retry(runAttemptCount, shouldRetry)) return Result.retry()
+            val groups = results.map { (it.result as? ImageSourceResult.Success)?.items.orEmpty() }
+            val prefs = Prefs.get(applicationContext)
+            val saved = imageCache.warm(groups) { SourceIdentity.eligible(prefs, it.sourceScope) }
+            if (PrefetchRetryPolicy.retry(runAttemptCount, sourceNeedsRetry || saved.needsRetry)) return Result.retry()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             if (BuildConfig.DEBUG_LOGGING) Log.e(TAG, "Failed to cache prefetched images", e)

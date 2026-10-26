@@ -7,6 +7,22 @@ import org.junit.Test
 
 class SourceSnapshotsTest {
     private fun image(id: String, url: String = id) = ImageItem(url, stableId = id)
+    @Test fun configurationChangesDiscardOldSnapshotsAndHealthKeepsRealTimestamps() {
+        var now = 1000L
+        val state = SourceSnapshots { now }
+        state.bind("provider", "old-account")
+        state.update("provider", Success(listOf(image("old"))))
+        now = 2000L
+        state.update("provider", Failure(FailureKind.NETWORK))
+        assertEquals(1000L, state.health["provider"]!!.lastSuccessAt)
+        assertEquals(2000L, state.health["provider"]!!.lastAttemptAt)
+        state.bind("provider", "new-account")
+        assertTrue(state.items().isEmpty())
+        assertNull(state.health["provider"])
+        state.update("provider", Empty)
+        assertEquals(setOf("new-account"), state.emptyScopes())
+    }
+
     @Test fun failedProviderKeepsImagesWhileHealthyProviderRefreshes() {
         val state = SourceSnapshots()
         state.update("a", Success(listOf(image("old-a"))))

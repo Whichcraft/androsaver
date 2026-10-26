@@ -13,7 +13,8 @@ import kotlinx.coroutines.cancel
 class PreviewActivity : AppCompatActivity() {
 
     private lateinit var binding: DreamLayoutBinding
-    private lateinit var engine: ScreensaverEngine
+    internal lateinit var engine: ScreensaverEngine
+        private set
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun onCreate(savedInstanceState: Bundle?) {

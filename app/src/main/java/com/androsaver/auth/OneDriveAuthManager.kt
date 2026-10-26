@@ -79,6 +79,7 @@ class OneDriveAuthManager(private val context: Context) {
                         prefs.edit()
                             .putString(Prefs.ONEDRIVE_ACCESS_TOKEN, accessToken)
                             .putString(Prefs.ONEDRIVE_REFRESH_TOKEN, refreshToken)
+                            .putString(com.androsaver.source.SourceIdentity.key("onedrive"), java.util.UUID.randomUUID().toString())
                             .apply()
                     }) return@withContext AuthResult.Error("Account changed; please sign in again")
                     AuthResult.Success(accessToken, refreshToken)
@@ -106,6 +107,7 @@ class OneDriveAuthManager(private val context: Context) {
             com.androsaver.Prefs.get(context).edit()
                 .remove(Prefs.ONEDRIVE_ACCESS_TOKEN)
                 .remove(Prefs.ONEDRIVE_REFRESH_TOKEN)
+                .remove(com.androsaver.source.SourceIdentity.key("onedrive"))
                 .apply()
         }
     }

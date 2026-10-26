@@ -4,17 +4,17 @@ package com.androsaver.auth
 internal class AccountTransactions {
     class Ticket internal constructor(
         internal val provider: String, internal val epoch: Long,
-        internal val values: List<String?>
+        internal val values: List<String?>, internal val replacement: Boolean
     )
     private val epochs = mutableMapOf<String, Long>()
 
-    @Synchronized fun capture(provider: String, read: () -> List<String?>): Ticket =
-        Ticket(provider, epochs[provider] ?: 0L, read())
+    @Synchronized fun capture(provider: String, replacement: Boolean = true, read: () -> List<String?>): Ticket =
+        Ticket(provider, epochs[provider] ?: 0L, read(), replacement)
 
     @Synchronized fun publish(ticket: Ticket, read: () -> List<String?>, write: () -> Unit): Boolean {
         if ((epochs[ticket.provider] ?: 0L) != ticket.epoch || read() != ticket.values) return false
         write()
-        epochs[ticket.provider] = ticket.epoch + 1L
+        if (ticket.replacement) epochs[ticket.provider] = ticket.epoch + 1L
         return true
     }
 

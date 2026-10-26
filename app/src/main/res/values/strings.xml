@@ -174,4 +174,24 @@
     <string name="audio_status_permission">Audio permission required. Select Enable audio response in Visualizer settings.</string>
     <string name="audio_status_unavailable">System audio capture unavailable on this device. Visual effects continue without audio.</string>
     <string name="audio_status_starting">Starting audio capture…</string>
+    <string name="source_last_success">Last success: %1$s</string>
+    <string name="source_next_check">Next scheduled check: %1$s</string>
+    <string name="saved_diagnostics">Saved diagnostics</string>
+    <string name="saved_diagnostics_summary">View, copy or clear saved reports without clearing accounts or settings</string>
+    <string name="no_saved_diagnostics">No saved diagnostic reports.</string>
+    <string name="copy_diagnostics">Copy report</string>
+    <string name="clear_diagnostics">Clear reports</string>
+    <string name="diagnostics_copied">Report copied.</string>
+    <string name="diagnostics_cleared">Saved reports cleared.</string>
+    <string name="diagnostics_clear_failed">Some reports could not be cleared.</string>
+    <string name="saved_images">Saved images by source</string>
+    <string name="saved_images_summary">Manage offline copies, including disabled sources and older accounts</string>
+    <string name="no_saved_images">No saved offline images.</string>
+    <string name="legacy_saved_images">Older unscoped images</string>
+    <string name="source_cache_usage">%1$s: %2$d images, %3$d MiB</string>
+    <string name="clear_saved_source">Clear saved images</string>
+    <string name="clear_saved_source_summary">Remove the offline copies for %1$s? This keeps the account and its remote photos. Enabled sources can save fresh copies again.</string>
+    <string name="saved_source_cleared">Saved images cleared. Remote photos and account settings are unchanged.</string>
+    <string name="saved_source_in_use">These images are in use. Close the screensaver and Preview, then try again.</string>
+    <string name="saved_source_clear_failed">Some saved images could not be removed. Try again after stopping playback.</string>
 </resources>

@@ -72,6 +72,18 @@ internal object ScreensaverPostmortem {
         return reports.takeIf { it.isNotEmpty() }?.joinToString("\n\n────────\n\n")
     }
 
+    /** Clear saved reports only; an active-session marker must remain owned by its session. */
+    @Synchronized fun clearReports(file: File): Boolean {
+        val reports = listOf(file, recoverableFile(file), File(file.parentFile, "${file.name}.interrupted"))
+        var success = true
+        reports.forEach { report ->
+            if (report.exists() && !report.delete()) success = false
+            val temporary = File(report.parentFile, "${report.name}.tmp")
+            if (temporary.exists() && !temporary.delete()) success = false
+        }
+        return success
+    }
+
     @Synchronized
     fun write(file: File, details: String) {
         val temporary = File(file.parentFile, "${file.name}.tmp")

@@ -47,6 +47,8 @@ class ScreensaverEngine(
     private val context: Context,
     private val binding: DreamLayoutBinding,
     private val scope: CoroutineScope,
+    private val sourceProvider: (() -> List<ImageSource>)? = null,
+    private val eligibleScopesProvider: (() -> Set<String>)? = null,
     private val onRequestFinish: () -> Unit
 ) {
     companion object {
@@ -93,6 +95,8 @@ class ScreensaverEngine(
     private var activeView = 1
     private var slideshowRunnable: Runnable? = null
     private var imageRefreshRunnable: Runnable? = null
+    private var healthRunnable: Runnable? = null
+    private var nextSourceRefreshAt: Long? = null
     private var retryRunnable: Runnable? = null
     private var finishRunnable: Runnable? = null
     private var scheduleFinishRunnable: Runnable? = null
@@ -276,29 +280,8 @@ class ScreensaverEngine(
     fun handleKeyEvent(event: KeyEvent): Boolean {
         if (handleDiagnosticKeyEvent(event)) return true
         if (sessionWork.mode == null) return false
-        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
-            event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
-            event.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
-            return false
-        }
+        if (RemoteInputPolicy.passThrough(blankMode, event.keyCode)) return false
         if (event.action != KeyEvent.ACTION_DOWN) return true
-        if (blankMode && event.keyCode in setOf(
-                KeyEvent.KEYCODE_DPAD_LEFT,
-                KeyEvent.KEYCODE_DPAD_RIGHT,
-                KeyEvent.KEYCODE_DPAD_UP,
-                KeyEvent.KEYCODE_DPAD_DOWN,
-                KeyEvent.KEYCODE_MEDIA_PLAY,
-                KeyEvent.KEYCODE_MEDIA_PAUSE,
-                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_MEDIA_NEXT,
-                KeyEvent.KEYCODE_MEDIA_PREVIOUS,
-                KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
-                KeyEvent.KEYCODE_MEDIA_REWIND
-            )) {
-            // Let Android TV's audio/media stack handle remote controls while the
-            // screensaver remains a blank black page.
-            return false
-        }
         val vv = visualizerView
         if (vv != null) {
             when (event.keyCode) {
@@ -732,6 +715,9 @@ class ScreensaverEngine(
         loadImages(prefs, slideshowSession)
     }
 
+    private fun healthTime(at: Long): String =
+        android.text.format.DateFormat.getDateFormat(context).format(Date(at)) + " " + timeFmt.format(Date(at))
+
     private fun renderSourceHealth() {
         val lines = sourceSnapshots.health.mapNotNull { (name, health) ->
             val message = when {
@@ -741,7 +727,12 @@ class ScreensaverEngine(
                 health.empty -> R.string.source_health_empty
                 else -> null
             }
-            message?.let { context.getString(it, name) }
+            message?.let {
+                val details = mutableListOf(context.getString(it, name))
+                health.lastSuccessAt?.let { at -> details += context.getString(R.string.source_last_success, healthTime(at)) }
+                nextSourceRefreshAt?.let { at -> details += context.getString(R.string.source_next_check, healthTime(at)) }
+                details.joinToString("\n")
+            }
         }.toMutableList()
         if (previousSessionInterrupted) lines.add(0, context.getString(R.string.session_interrupted_notice))
         if (usingCachedImages) lines.add(0, context.getString(R.string.source_health_cache))
@@ -786,11 +777,6 @@ class ScreensaverEngine(
                         if (usingCachedImages) {
                             // Prefer newly working URLs over paths that cache refresh may retire.
                             applySourceSnapshots()
-                            workScope.launch {
-                                try { imageCache.saveImages(items, source.name) }
-                                catch (e: CancellationException) { throw e }
-                                catch (e: Exception) { reportTransitionFailure("image cache write", e) }
-                            }
                             return@merge
                         }
                         val known = imageItems.map(::imageKey).toHashSet()
@@ -814,17 +800,13 @@ class ScreensaverEngine(
                                 if (session == slideshowSession) showNextImage()
                             }
                         }
-                        workScope.launch {
-                            try {
-                                imageCache.saveImages(added, source.name)
-                            } catch (error: Throwable) {
-                                if (error is CancellationException) throw error
-                                if (session == slideshowSession) reportTransitionFailure("image cache write", error)
-                            }
-                        }
                     }
                 )
-                if (session == slideshowSession && imageItems.isEmpty()) tryFallbackCache(session)
+                if (session == slideshowSession) {
+                    if (imageItems.isEmpty()) tryFallbackCache(session)
+                    if (imageRefreshRunnable == null) scheduleImageRefresh(prefs, session)
+                    warmImageCache(session)
+                }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 if (session != slideshowSession) return@launch
@@ -837,7 +819,7 @@ class ScreensaverEngine(
     private suspend fun tryFallbackCache(session: Long, requireStalled: Boolean = false) {
         try {
             if (session != slideshowSession) return
-            val snapshot = imageCache.acquireSnapshot()
+            val snapshot = imageCache.acquireSnapshot(eligibleCacheScopes())
             if (session != slideshowSession) { snapshot.close(); return }
             val cached = snapshot.items
             if (requireStalled && !playback.isStalled) {
@@ -875,9 +857,12 @@ class ScreensaverEngine(
         }
     }
 
+    private fun eligibleCacheScopes(): Set<String> =
+        (eligibleScopesProvider?.invoke() ?: ImageSourceRegistry.eligibleScopes(context)) - sourceSnapshots.emptyScopes()
+
     private fun getConfiguredSources(prefs: SharedPreferences): List<ImageSource> {
         return try {
-            ImageSourceRegistry.configured(context, includeBundledFallback = true)
+            sourceProvider?.invoke() ?: ImageSourceRegistry.configured(context, includeBundledFallback = true)
         } catch (t: Throwable) {
             reportTransitionFailure("image source initialization", t)
             emptyList()
@@ -932,35 +917,71 @@ class ScreensaverEngine(
                 workScope.launch {
                     try {
                         if (session != slideshowSession) return@launch
-                        val sources = getConfiguredSources(prefs)
-                        if (sources.isEmpty()) return@launch
-                        sourceRefresh.refresh(sources,
-                            onUpdated = { freshItemsAvailable ->
-                                if (session == slideshowSession) applySourceSnapshots(freshItemsAvailable)
-                            },
-                            onItems = { source, items ->
-                                workScope.launch {
-                                    try { imageCache.saveImages(items, source.name) }
-                                    catch (e: CancellationException) { throw e }
-                                    catch (e: Exception) { reportTransitionFailure("refreshed image cache write", e) }
-                                }
-                            }
-                        )
+                        refreshSourcesNow()
                     } catch (t: Throwable) {
                         if (t is CancellationException) throw t
                         reportTransitionFailure("image refresh pipeline", t)
                     }
                 }
                 if (session == slideshowSession) {
+                    nextSourceRefreshAt = System.currentTimeMillis() + IMAGE_REFRESH_INTERVAL_MS
                     handler.postDelayed(this, IMAGE_REFRESH_INTERVAL_MS)
                 }
             }
         }
+        nextSourceRefreshAt = System.currentTimeMillis() + IMAGE_REFRESH_INTERVAL_MS
         handler.postDelayed(imageRefreshRunnable!!, IMAGE_REFRESH_INTERVAL_MS)
+        startHealthUpdates(session)
+    }
+
+    internal suspend fun refreshSourcesNow() {
+        if (sessionWork.mode != Prefs.MODE_SLIDESHOW) return
+        val session = slideshowSession
+        sourceRefresh.refresh(getConfiguredSources(Prefs.get(context)),
+            onUpdated = { available -> if (session == slideshowSession) applySourceSnapshots(available) },
+            onItems = { _, _ -> })
+        if (session == slideshowSession) warmImageCache(session)
+    }
+
+    private fun warmImageCache(session: Long) {
+        val groups = sourceSnapshots.groups()
+        val emptyScopes = sourceSnapshots.emptyScopes()
+        val prefs = Prefs.get(context)
+        workScope.launch {
+            try { imageCache.warm(groups) { com.androsaver.source.SourceIdentity.eligible(prefs, it.sourceScope) && it.sourceScope !in emptyScopes } }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { if (session == slideshowSession) reportTransitionFailure("image cache warming", error) }
+        }
+    }
+
+    private fun startHealthUpdates(session: Long) {
+        healthRunnable?.let { handler.removeCallbacks(it) }
+        healthRunnable = object : Runnable {
+            override fun run() {
+                if (session != slideshowSession) return
+                renderSourceHealth()
+                handler.postDelayed(this, 60_000L)
+            }
+        }.also { handler.post(it) }
     }
 
     private fun applySourceSnapshots(allowLeavingCache: Boolean = true) {
-        if (usingCachedImages && !allowLeavingCache) return
+        if (usingCachedImages) {
+            val allowed = eligibleCacheScopes()
+            val removed = imageItems.removeAll { it.sourceScope !in allowed }
+            if (imageItems.isEmpty()) enterEmptySlideshow()
+            else {
+                if (removed) {
+                    transitionSequence++
+                    resetSlideshowViews()
+                    displayedItem = null
+                    displayedIndex = -1
+                    currentIndex = 0
+                    showNextImage()
+                }
+                if (!allowLeavingCache) return
+            }
+        }
         val fresh = sourceSnapshots.items()
         // A temporary outage must not replace an already active offline fallback.
         if (fresh.isEmpty() && usingCachedImages) return
@@ -976,17 +997,45 @@ class ScreensaverEngine(
         displayedItem = imageItems.getOrNull(displayedIndex)
         currentIndex = if (displayedIndex >= 0 && imageItems.isNotEmpty()) (displayedIndex + 1) % imageItems.size else 0
         if (fresh.isEmpty()) {
-            slideshowRunnable?.let { handler.removeCallbacks(it) }
-            slideshowRunnable = null
-            binding.statusText.text = context.getString(R.string.no_images_found)
-            binding.statusText.visibility = View.VISIBLE
+            enterEmptySlideshow()
         } else {
             if (!devTransitionErrorVisible) binding.statusText.visibility = View.GONE
-            if (playback.resumeWithNewItems() || current == null) showNextImage()
+            if (current != null && displayedIndex < 0) {
+                transitionSequence++
+                resetSlideshowViews()
+            }
+            if (playback.resumeWithNewItems() || current == null || displayedIndex < 0) showNextImage()
         }
     }
 
+    private fun enterEmptySlideshow() {
+        transitionSequence++
+        imageItems.clear()
+        imageSourceNames.clear()
+        slideshowRunnable?.let { handler.removeCallbacks(it) }
+        retryRunnable?.let { handler.removeCallbacks(it) }
+        slideshowRunnable = null
+        retryRunnable = null
+        resetSlideshowViews()
+        cacheSnapshot?.close()
+        cacheSnapshot = null
+        usingCachedImages = false
+        displayedItem = null
+        displayedIndex = -1
+        pendingManualSkipIndex = null
+        currentIndex = 0
+        playback.empty()
+        if (!devTransitionErrorVisible) {
+            binding.statusText.text = context.getString(R.string.no_images_found)
+            binding.statusText.visibility = View.VISIBLE
+        }
+        renderSourceHealth()
+    }
+
     private fun stopImageRefresh() {
+        healthRunnable?.let { handler.removeCallbacks(it) }
+        healthRunnable = null
+        nextSourceRefreshAt = null
         imageRefreshRunnable?.let { handler.removeCallbacks(it) }
         imageRefreshRunnable = null
     }

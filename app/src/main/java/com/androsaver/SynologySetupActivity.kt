@@ -57,13 +57,18 @@ class SynologySetupActivity : AppCompatActivity() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
         try { com.androsaver.Prefs.get(this).edit()
-            .putString(Prefs.SYNOLOGY_HOST, binding.hostEdit.text.toString().trim())
+            .putString(Prefs.SYNOLOGY_HOST, SourceSetupValidation.host(binding.hostEdit.text.toString()) ?: return)
             .putString(Prefs.SYNOLOGY_PORT, port)
             .putString(Prefs.SYNOLOGY_USERNAME, binding.usernameEdit.text.toString())
             .putString(Prefs.SYNOLOGY_PASSWORD, binding.passwordEdit.text.toString())
             .putString(Prefs.SYNOLOGY_FOLDER, binding.folderEdit.text.toString().trim().ifEmpty { "/photos" })
             .putBoolean(Prefs.SYNOLOGY_USE_HTTPS, binding.httpsSwitch.isChecked)
             .putBoolean(Prefs.SYNOLOGY_ALLOW_INSECURE, binding.allowInsecureSwitch.isChecked)
+            .apply {
+                if (Prefs.get(this@SynologySetupActivity).getString(Prefs.SYNOLOGY_PASSWORD, null) != binding.passwordEdit.text.toString()) {
+                    com.androsaver.source.SourceIdentity.rotate(this, "synology")
+                }
+            }
             .commit().also { if (!it) error("Credential storage failed") }
         } catch (_: Throwable) {
             Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
@@ -77,7 +82,7 @@ class SynologySetupActivity : AppCompatActivity() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
         val config = SynologySource.ConnectionConfig(
-            host = binding.hostEdit.text.toString().trim(),
+            host = (SourceSetupValidation.host(binding.hostEdit.text.toString()) ?: return),
             port = port,
             username = binding.usernameEdit.text.toString(),
             password = binding.passwordEdit.text.toString(),

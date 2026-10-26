@@ -35,9 +35,6 @@ class ScreensaverLifecycleTest {
             image.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
             image.copyTo(cacheImage, overwrite = true)
-            manifest.writeText(com.google.gson.Gson().toJson(listOf(ImageCache.Entry(
-                "lifecycle-offline-image", cacheImage.name, "test", System.currentTimeMillis(), cacheImage.length()
-            ))))
             runBlocking(Dispatchers.IO) { StaticImageStore.copyItem(context,
                 com.androsaver.source.ImageItem(image.toURI().toString())) }
             prefs.edit().apply {
@@ -46,6 +43,16 @@ class ScreensaverLifecycleTest {
                 putBoolean(Prefs.WEATHER_ENABLED, false)
                 putBoolean(Prefs.SHOW_CLOCK, false)
             }.commit()
+            if (mode == Prefs.MODE_SLIDESHOW) {
+                prefs.edit().putBoolean(Prefs.ENABLE_IMMICH, true)
+                    .putString(Prefs.IMMICH_HOST, "127.0.0.1").putString(Prefs.IMMICH_PORT, "1")
+                    .putBoolean(Prefs.IMMICH_USE_HTTPS, false).putBoolean(Prefs.IMMICH_ALLOW_INSECURE, true)
+                    .putString(Prefs.IMMICH_API_KEY, "nonfunctional-placeholder").commit()
+                val identity = com.androsaver.source.SourceIdentity.scope(prefs, "immich")
+                manifest.writeText(com.google.gson.Gson().toJson(listOf(ImageCache.Entry(
+                    "$identity:lifecycle-offline-image", cacheImage.name, "test", System.currentTimeMillis(), cacheImage.length(), scope = identity
+                ))))
+            }
             prefs.edit().putString(Prefs.SCREENSAVER_MODE, mode).commit()
             ActivityScenario.launch(PreviewActivity::class.java).use { scenario ->
                 scenario.onActivity { assertNotNull(it.findViewById<ImageView>(R.id.imageView1)) }

@@ -25,11 +25,14 @@ data class ImageItem(
     /** Non-secret provider revision or modification time, separate from identity. */
     val contentVersion: String? = null,
     /** Configured origin to which provider credentials are confined, even with valid TLS. */
-    val credentialEndpoint: String? = null
+    val credentialEndpoint: String? = null,
+    /** Opaque account/configuration scope; never a credential or credential hash. */
+    val sourceScope: String? = null
 )
 
 interface ImageSource {
     val name: String
+    val cacheScope: String? get() = null
     suspend fun getImageUrls(): List<ImageItem>
     fun isConfigured(): Boolean
 

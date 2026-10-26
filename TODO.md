@@ -197,3 +197,17 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Show audio permission/backend/signal status; require an explicit Enable audio response action rather than prompting on mode changes.
 - [x] Split emulator lifecycle tests into independent mode cases and add provider/security/migration/cache/cleanup/audio regressions.
 - [x] Verify this follow-up on GitHub: JVM suite, API 29/35 device cases, signed APK build/publication and downloaded-asset verification passed in [run 40356857225](https://github.com/Whichcraft/androsaver/actions/runs/40356857225) for `861f9eef687f8762e07327a728ba8cafa8c61596`; `dev-channel` target confirmed.
+
+## Account-scoped cache, playback and settings follow-up (2026-10-26)
+
+- [x] Namespace remote images by account and source configuration; exclude disabled, disconnected, replaced and legacy unscoped accounts from offline playback.
+- [x] Separate account replacement from routine token refresh so concurrent sign-in remains valid.
+- [x] Clear slideshow views and pending requests on successful empty refresh; pass both media key actions through blank mode.
+- [x] Share a stable fair cache plan across providers, reserve unavailable-provider quotas, and bound warming to 200 images, 100 MiB transferred and 90 seconds per round.
+- [x] Retain Google/OneDrive device authorization across Activity recreation without persisting device codes.
+- [x] Validate and canonicalize host-only fields for setup, probes and stored configurations.
+- [x] Add settings to view/copy/clear diagnostic reports and inspect/clear saved images by provider; preserve active-session markers and leased images.
+- [x] Show last successful source refresh and next scheduled check.
+- [x] Add JVM and Android regressions for these transitions.
+- [ ] Verify JVM tests, API 29/35 emulator tests and signed APK publication on GitHub.
+- [ ] Check account switching, source management and authorization recreation against real providers on the TV.

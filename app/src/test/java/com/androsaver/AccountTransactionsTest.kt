@@ -5,6 +5,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AccountTransactionsTest {
+    @Test fun tokenRefreshDoesNotInvalidateSignInButAccountReplacementInvalidatesOldRefreshes() {
+        val transactions = AccountTransactions()
+        var identity = listOf<String?>("same-account")
+        var refreshToken = "placeholder-refresh-one"
+        val login = transactions.capture("provider") { identity }
+        val refresh = transactions.capture("provider", replacement = false) { identity + refreshToken }
+        assertTrue(transactions.publish(refresh, { identity + refreshToken }) { refreshToken = "placeholder-refresh-two" })
+        assertTrue(transactions.publish(login, { identity }) { identity = listOf("new-account") })
+        assertFalse(transactions.publish(refresh, { identity + refreshToken }) { fail("Old refresh overwrote new sign-in") })
+    }
+
     @Test fun disconnectRejectsResponseEvenIfIdenticalSettingsAreRestored() {
         val state = AccountTransactions()
         var values = listOf<String?>("placeholder-account")

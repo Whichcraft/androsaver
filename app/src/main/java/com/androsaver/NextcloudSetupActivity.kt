@@ -57,13 +57,18 @@ class NextcloudSetupActivity : AppCompatActivity() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
         try { com.androsaver.Prefs.get(this).edit()
-            .putString(Prefs.NEXTCLOUD_HOST, binding.hostEdit.text.toString().trim())
+            .putString(Prefs.NEXTCLOUD_HOST, SourceSetupValidation.host(binding.hostEdit.text.toString()) ?: return)
             .putString(Prefs.NEXTCLOUD_PORT, port)
             .putString(Prefs.NEXTCLOUD_USERNAME, binding.usernameEdit.text.toString())
             .putString(Prefs.NEXTCLOUD_PASSWORD, binding.passwordEdit.text.toString())
             .putString(Prefs.NEXTCLOUD_FOLDER, binding.folderEdit.text.toString().trim().ifEmpty { "/Photos" })
             .putBoolean(Prefs.NEXTCLOUD_USE_HTTPS, binding.httpsSwitch.isChecked)
             .putBoolean(Prefs.NEXTCLOUD_ALLOW_INSECURE, binding.allowInsecureSwitch.isChecked)
+            .apply {
+                if (Prefs.get(this@NextcloudSetupActivity).getString(Prefs.NEXTCLOUD_PASSWORD, null) != binding.passwordEdit.text.toString()) {
+                    com.androsaver.source.SourceIdentity.rotate(this, "nextcloud")
+                }
+            }
             .commit().also { if (!it) error("Credential storage failed") }
         } catch (_: Throwable) {
             Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
@@ -77,7 +82,7 @@ class NextcloudSetupActivity : AppCompatActivity() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
         val config = NextcloudSource.ConnectionConfig(
-            host = binding.hostEdit.text.toString().trim(),
+            host = (SourceSetupValidation.host(binding.hostEdit.text.toString()) ?: return),
             port = port,
             username = binding.usernameEdit.text.toString(),
             password = binding.passwordEdit.text.toString(),

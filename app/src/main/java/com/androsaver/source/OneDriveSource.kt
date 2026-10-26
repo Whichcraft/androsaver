@@ -66,7 +66,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
         val prefs = com.androsaver.Prefs.get(context)
-        val account = OAuthAccounts.capture(prefs, "onedrive")
+        val account = OAuthAccounts.capture(prefs, "onedrive", replacement = false)
         val refreshToken = prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null)
             ?: return@withLock null
         val clientId = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null)

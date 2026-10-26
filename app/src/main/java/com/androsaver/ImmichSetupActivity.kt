@@ -56,12 +56,17 @@ class ImmichSetupActivity : AppCompatActivity() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
         try { com.androsaver.Prefs.get(this).edit()
-            .putString(Prefs.IMMICH_HOST, binding.hostEdit.text.toString().trim())
+            .putString(Prefs.IMMICH_HOST, SourceSetupValidation.host(binding.hostEdit.text.toString()) ?: return)
             .putString(Prefs.IMMICH_PORT, port)
             .putString(Prefs.IMMICH_API_KEY, binding.apiKeyEdit.text.toString().trim())
             .putString(Prefs.IMMICH_ALBUM_ID, binding.albumIdEdit.text.toString().trim())
             .putBoolean(Prefs.IMMICH_USE_HTTPS, binding.httpsSwitch.isChecked)
             .putBoolean(Prefs.IMMICH_ALLOW_INSECURE, binding.allowInsecureSwitch.isChecked)
+            .apply {
+                if (Prefs.get(this@ImmichSetupActivity).getString(Prefs.IMMICH_API_KEY, null) != binding.apiKeyEdit.text.toString().trim()) {
+                    com.androsaver.source.SourceIdentity.rotate(this, "immich")
+                }
+            }
             .commit().also { if (!it) error("Credential storage failed") }
         } catch (_: Throwable) {
             Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
@@ -75,7 +80,7 @@ class ImmichSetupActivity : AppCompatActivity() {
         if (!validateRequired()) return
         val port = validatedPort() ?: return
         val config = ImmichSource.ConnectionConfig(
-            host = binding.hostEdit.text.toString().trim(),
+            host = (SourceSetupValidation.host(binding.hostEdit.text.toString()) ?: return),
             port = port,
             apiKey = binding.apiKeyEdit.text.toString().trim(),
             useHttps = binding.httpsSwitch.isChecked,

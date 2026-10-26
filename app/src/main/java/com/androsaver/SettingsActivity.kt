@@ -279,6 +279,8 @@ class SettingsActivity : AppCompatActivity() {
                         .commit()
                     true
                 }
+                "saved_diagnostics" -> { showDiagnostics(); true }
+                "saved_images" -> { showSavedImages(); true }
                 "about_app" -> {
                     if (updateJob?.isActive == true) return true
                     val update = pendingUpdate
@@ -316,6 +318,68 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
                 else -> super.onPreferenceTreeClick(preference)
+            }
+        }
+
+        private fun showDiagnostics() {
+            val app = requireContext().applicationContext
+            viewLifecycleOwner.lifecycleScope.launch {
+                val file = java.io.File(app.noBackupFilesDir, "screensaver-postmortem.txt")
+                val report = withContext(Dispatchers.IO) {
+                    try { ScreensaverPostmortem.readReports(file) } catch (_: Exception) { null }
+                }
+                if (!isAdded) return@launch
+                val dialog = AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.saved_diagnostics)
+                    .setMessage(report ?: getString(R.string.no_saved_diagnostics))
+                    .setNegativeButton(android.R.string.cancel, null)
+                if (report != null) {
+                    dialog.setNeutralButton(R.string.copy_diagnostics) { _, _ ->
+                        val clipboard = app.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AndroSaver diagnostics", report))
+                        Toast.makeText(app, R.string.diagnostics_copied, Toast.LENGTH_SHORT).show()
+                    }
+                    dialog.setPositiveButton(R.string.clear_diagnostics) { _, _ ->
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val cleared = withContext(Dispatchers.IO) { ScreensaverPostmortem.clearReports(file) }
+                            Toast.makeText(app, if (cleared) R.string.diagnostics_cleared else R.string.diagnostics_clear_failed, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+                dialog.show().findViewById<TextView>(android.R.id.message)?.setTextIsSelectable(true)
+            }
+        }
+
+        private fun showSavedImages() {
+            val app = requireContext().applicationContext
+            viewLifecycleOwner.lifecycleScope.launch {
+                val cache = ImageCache(app)
+                val usage = cache.sourceUsage().sortedBy { it.provider }
+                if (!isAdded) return@launch
+                if (usage.isEmpty()) {
+                    AlertDialog.Builder(requireContext()).setTitle(R.string.saved_images)
+                        .setMessage(R.string.no_saved_images).setPositiveButton(android.R.string.ok, null).show()
+                    return@launch
+                }
+                val labels = usage.map { entry ->
+                    val name = com.androsaver.source.SourceIdentity.providers[entry.provider] ?: getString(R.string.legacy_saved_images)
+                    getString(R.string.source_cache_usage, name, entry.count, entry.bytes / (1024 * 1024))
+                }.toTypedArray()
+                AlertDialog.Builder(requireContext()).setTitle(R.string.saved_images)
+                    .setItems(labels) { _, index ->
+                        AlertDialog.Builder(requireContext()).setTitle(R.string.clear_saved_source)
+                            .setMessage(getString(R.string.clear_saved_source_summary, labels[index]))
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .setPositiveButton(R.string.clear_saved_source) { _, _ ->
+                                viewLifecycleOwner.lifecycleScope.launch {
+                                    val message = try {
+                                        if (cache.clearSource(usage[index].provider)) R.string.saved_source_cleared else R.string.saved_source_in_use
+                                    } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                                    catch (_: Exception) { R.string.saved_source_clear_failed }
+                                    Toast.makeText(app, message, Toast.LENGTH_LONG).show()
+                                }
+                            }.show()
+                    }.setNegativeButton(android.R.string.cancel, null).show()
             }
         }
 

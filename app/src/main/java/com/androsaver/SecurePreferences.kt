@@ -29,7 +29,7 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
             Prefs.NEXTCLOUD_PASSWORD,
             Prefs.SYNOLOGY_PASSWORD,
             Prefs.WEATHER_API_KEY
-        )
+        ) + com.androsaver.source.SourceIdentity.keys
 
         @Volatile
         private var instance: SecurePreferences? = null

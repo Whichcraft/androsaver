@@ -17,6 +17,8 @@ internal class SlideshowPlayback {
         fallbackInFlight = false
     }
 
+    fun empty() { state = State.IDLE; failures = 0 }
+
     fun loading() { state = State.LOADING }
     fun ready() { failures = 0; state = State.WAITING }
 

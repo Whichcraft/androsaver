@@ -9,6 +9,18 @@ import java.io.File
 class ScreensaverPostmortemTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun clearingReportsKeepsActiveSessionEvidenceAndOtherAppFiles() {
+        val file = File(temporary.root, "report.txt")
+        val active = File(temporary.root, "report.txt.active").apply { writeText("active") }
+        val unrelated = File(temporary.root, "settings.txt").apply { writeText("keep") }
+        ScreensaverPostmortem.write(file, "fatal")
+        ScreensaverPostmortem.writeRecoverable(file, "recoverable")
+        assertTrue(ScreensaverPostmortem.clearReports(file))
+        assertNull(ScreensaverPostmortem.readReports(file))
+        assertTrue(active.exists())
+        assertTrue(unrelated.exists())
+    }
+
     @Test fun recoverableStartupErrorsCannotOverwriteTheSavedCrash() {
         val file = File(temporary.root, "report.txt")
         ScreensaverPostmortem.write(file, "original fatal failure")

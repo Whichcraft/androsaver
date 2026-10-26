@@ -72,6 +72,7 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
                 com.androsaver.Prefs.get(this).edit()
                 .remove(Prefs.GOOGLE_ACCESS_TOKEN)
                 .remove(Prefs.GOOGLE_REFRESH_TOKEN)
+                .remove(com.androsaver.source.SourceIdentity.key("google"))
                 .commit()
             }
             if (!cleared) throw IllegalStateException("Credential storage failed")

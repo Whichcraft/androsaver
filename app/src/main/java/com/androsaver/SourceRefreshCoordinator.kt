@@ -13,6 +13,7 @@ internal class SourceRefreshCoordinator(
     private val onResult: (ImageSource, ImageSourceResult) -> Unit = { _, _ -> }
 ) {
     suspend fun fetch(source: ImageSource): List<ImageItem>? {
+        snapshots.bind(source.name, source.cacheScope)
         val result = try {
             withTimeout(60_000L) { source.enumerate() }
         } catch (e: TimeoutCancellationException) {
@@ -36,6 +37,7 @@ internal class SourceRefreshCoordinator(
         onItems: suspend (ImageSource, List<ImageItem>) -> Unit
     ) {
         snapshots.retain(sources.map { it.name }.toSet())
+        sources.forEach { snapshots.bind(it.name, it.cacheScope) }
         onUpdated(false)
         ProgressiveSources.load(sources, fetch = { source ->
             fetch(source).also { onUpdated(!it.isNullOrEmpty()) }

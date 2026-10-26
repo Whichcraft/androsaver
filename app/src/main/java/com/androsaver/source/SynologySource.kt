@@ -39,7 +39,7 @@ class SynologySource(private val context: Context) : ImageSource {
     }
 
     internal suspend fun probeConnection(config: ConnectionConfig): Boolean = withContext(Dispatchers.IO) {
-        val host = config.host
+        val host = com.androsaver.SourceSetupValidation.host(config.host) ?: throw java.io.IOException("Invalid configured host")
         val port = config.port
         val user = config.username
         val password = config.password
@@ -54,7 +54,8 @@ class SynologySource(private val context: Context) : ImageSource {
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
         val prefs = com.androsaver.Prefs.get(context)
-        val host = prefs.getString(Prefs.SYNOLOGY_HOST, null) ?: return@withContext emptyList()
+        val host = com.androsaver.SourceSetupValidation.host(prefs.getString(Prefs.SYNOLOGY_HOST, null).orEmpty())
+                ?: throw java.io.IOException("Invalid configured host; edit source settings")
         val port = prefs.getString(Prefs.SYNOLOGY_PORT, "5000") ?: "5000"
         val useHttps = prefs.getBoolean(Prefs.SYNOLOGY_USE_HTTPS, true)
         val allowInsecure = prefs.getBoolean(Prefs.SYNOLOGY_ALLOW_INSECURE, false)

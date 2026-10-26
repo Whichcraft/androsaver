@@ -101,6 +101,7 @@ class GoogleAuthManager(private val context: Context) {
                         prefs.edit()
                             .putString(Prefs.GOOGLE_ACCESS_TOKEN, accessToken)
                             .putString(Prefs.GOOGLE_REFRESH_TOKEN, refreshToken)
+                            .putString(com.androsaver.source.SourceIdentity.key("google"), java.util.UUID.randomUUID().toString())
                             .apply()
                     }) return@withContext AuthResult.Error("Account changed; please sign in again")
                     AuthResult.Success(accessToken, refreshToken)
@@ -129,6 +130,7 @@ class GoogleAuthManager(private val context: Context) {
             com.androsaver.Prefs.get(context).edit()
                 .remove(Prefs.GOOGLE_ACCESS_TOKEN)
                 .remove(Prefs.GOOGLE_REFRESH_TOKEN)
+                .remove(com.androsaver.source.SourceIdentity.key("google"))
                 .apply()
         }
     }

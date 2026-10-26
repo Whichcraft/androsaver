@@ -65,6 +65,7 @@ class DropboxAuthManager(private val context: Context) {
                 prefs.edit()
                     .putString(Prefs.DROPBOX_ACCESS_TOKEN, accessToken)
                     .putString(Prefs.DROPBOX_REFRESH_TOKEN, refreshToken)
+                            .putString(com.androsaver.source.SourceIdentity.key("dropbox"), java.util.UUID.randomUUID().toString())
                     .apply()
             }) return@withContext AuthResult.Error("Account changed; please sign in again")
             AuthResult.Success(accessToken, refreshToken)
@@ -78,7 +79,7 @@ class DropboxAuthManager(private val context: Context) {
     suspend fun getValidAccessToken(): String? = refreshMutex.withLock {
         withContext(Dispatchers.IO) {
             val prefs = com.androsaver.Prefs.get(context)
-            val account = OAuthAccounts.capture(prefs, "dropbox")
+            val account = OAuthAccounts.capture(prefs, "dropbox", replacement = false)
             val appKey = prefs.getString(Prefs.DROPBOX_APP_KEY, null)
                 ?: return@withContext null
             val appSecret = prefs.getString(Prefs.DROPBOX_APP_SECRET, null)
@@ -130,6 +131,7 @@ class DropboxAuthManager(private val context: Context) {
             com.androsaver.Prefs.get(context).edit()
                 .remove(Prefs.DROPBOX_ACCESS_TOKEN)
                 .remove(Prefs.DROPBOX_REFRESH_TOKEN)
+                .remove(com.androsaver.source.SourceIdentity.key("dropbox"))
                 .apply()
         }
     }

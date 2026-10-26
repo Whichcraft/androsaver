@@ -3,71 +3,45 @@ package com.androsaver
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.androsaver.auth.AuthResult
-import com.androsaver.auth.GoogleAuthManager
+import androidx.lifecycle.repeatOnLifecycle
+import com.androsaver.auth.DeviceAuthViewModel
+import com.androsaver.auth.DeviceAuthorization
 import com.androsaver.databinding.ActivityGoogleAuthBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 class GoogleAuthActivity : AppCompatActivity() {
-
     private lateinit var binding: ActivityGoogleAuthBinding
-    private val authManager by lazy { GoogleAuthManager(this) }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityGoogleAuthBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        startDeviceAuthFlow()
-    }
-
-    private fun startDeviceAuthFlow() {
+        val model = ViewModelProvider(this)[DeviceAuthViewModel::class.java]
+        model.start(google = true)
         lifecycleScope.launch {
-            binding.progressBar.visibility = View.VISIBLE
-            binding.statusText.text = getString(R.string.requesting_device_code)
-            binding.codeContainer.visibility = View.GONE
-
-            val deviceCode = authManager.requestDeviceCode()
-            if (deviceCode == null) {
-                binding.progressBar.visibility = View.GONE
-                binding.statusText.text = getString(R.string.auth_failed_check_client_id)
-                return@launch
-            }
-
-            binding.progressBar.visibility = View.GONE
-            binding.codeContainer.visibility = View.VISIBLE
-            binding.verificationUrlText.text = deviceCode.verificationUrl
-            binding.userCodeText.text = deviceCode.userCode
-            binding.statusText.text = getString(R.string.waiting_for_authorization)
-
-            val expiresAt = System.currentTimeMillis() + deviceCode.expiresIn * 1000L
-            var pollIntervalMs = (deviceCode.interval * 1000L).coerceAtLeast(5000L)
-
-            while (System.currentTimeMillis() < expiresAt) {
-                delay(pollIntervalMs)
-                when (val result = authManager.pollForToken(deviceCode.deviceCode)) {
-                    is AuthResult.Success -> {
-                        binding.statusText.text = getString(R.string.auth_success)
-                        binding.codeContainer.visibility = View.GONE
-                        delay(1500)
-                        finish()
-                        return@launch
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                model.state.collect { state ->
+                    binding.progressBar.visibility = if (state.stage == DeviceAuthorization.Stage.REQUESTING) View.VISIBLE else View.GONE
+                    binding.codeContainer.visibility = if (state.device != null) View.VISIBLE else View.GONE
+                    state.device?.let { code ->
+                        binding.verificationUrlText.text = code.verificationUrl
+                        binding.userCodeText.text = code.userCode
                     }
-                    is AuthResult.Pending -> { /* keep polling */ }
-                    is AuthResult.SlowDown -> { pollIntervalMs = (pollIntervalMs + 5000L).coerceAtMost(60_000L) }
-                    is AuthResult.Expired -> {
-                        binding.statusText.text = getString(R.string.auth_expired)
-                        return@launch
+                    binding.statusText.text = when (state.stage) {
+                        DeviceAuthorization.Stage.REQUESTING -> getString(R.string.requesting_device_code)
+                        DeviceAuthorization.Stage.WAITING -> getString(R.string.waiting_for_authorization)
+                        DeviceAuthorization.Stage.SUCCESS -> getString(R.string.auth_success)
+                        DeviceAuthorization.Stage.EXPIRED -> getString(R.string.auth_expired)
+                        DeviceAuthorization.Stage.ERROR -> state.error?.let { getString(R.string.auth_error, it) }
+                            ?: getString(R.string.auth_failed_check_client_id)
                     }
-                    is AuthResult.Error -> {
-                        binding.statusText.text = getString(R.string.auth_error, result.message)
-                        return@launch
-                    }
+                    if (state.stage == DeviceAuthorization.Stage.SUCCESS) { delay(1500); finish() }
                 }
             }
-
-            binding.statusText.text = getString(R.string.auth_expired)
         }
     }
 }
