@@ -69,6 +69,30 @@ class ImageCache internal constructor(
         }
     }
 
+    class Snapshot internal constructor(val items: List<ImageItem>, private val lease: java.io.Closeable) : java.io.Closeable {
+        override fun close() = lease.close()
+    }
+
+    /** Acquire before releasing the manifest lock; cancellation must not strand a lease. */
+    suspend fun acquireSnapshot(): Snapshot {
+        var acquired: Snapshot? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                mutex.withLock {
+                    val entries = reconcileManifest()
+                    val files = entries.map { File(dir, it.file) }
+                    Snapshot(entries.map { entry ->
+                        ImageItem(File(dir, entry.file).toURI().toString(), entry.file,
+                            stableId = requireNotNull(entry.key), contentVersion = entry.version)
+                    }, CacheFileLeases.acquire(files)).also { acquired = it }
+                }
+            }
+        } catch (error: Throwable) {
+            acquired?.close()
+            throw error
+        }
+    }
+
     data class SaveResult(val cached: Int = 0, val downloaded: Int = 0, val failed: Int = 0,
         val retryableFailed: Int = failed) {
         val needsRetry: Boolean get() = retryableFailed > 0
@@ -94,11 +118,17 @@ class ImageCache internal constructor(
                     cached++
                     continue
                 }
-                mutex.withLock {
+                val reserved = mutex.withLock {
                     val manifest = readManifest().toMutableList()
-                    // Reserve space before opening the incoming file.
-                    evict(manifest, MAX_BYTES - MAX_IMAGE_BYTES, protectedKey = item.stableId)
+                    val available = evict(manifest, MAX_BYTES - MAX_IMAGE_BYTES,
+                        protectedKey = item.stableId, entryLimit = MAX_ENTRIES - 1)
                     known.keys.retainAll(manifest.mapNotNull { it.key }.toSet())
+                    available
+                }
+                if (!reserved) {
+                    // Offline readers own this space; caching is optional and may wait.
+                    failed++
+                    continue
                 }
                 try {
                     val entry = download(item, sourceName)
@@ -167,24 +197,32 @@ class ImageCache internal constructor(
         }
     }
 
-    private fun evict(manifest: MutableList<Entry>, byteLimit: Long = MAX_BYTES, protectedKey: String? = null) {
+    private fun evict(
+        manifest: MutableList<Entry>, byteLimit: Long = MAX_BYTES,
+        protectedKey: String? = null, entryLimit: Int = MAX_ENTRIES
+    ): Boolean {
         manifest.sortByDescending { it.ts }
         manifest.forEachIndexed { index, entry ->
             val actual = File(dir, entry.file).length()
             if (actual != entry.size) manifest[index] = entry.copy(size = actual)
         }
-        var totalBytes = manifest.sumOf { it.size }
-        while (manifest.size > MAX_ENTRIES || totalBytes > byteLimit) {
-            val index = manifest.indexOfLast { it.key != protectedKey }
+        val referencedFiles = manifest.map { File(dir, it.file).absoluteFile }.toSet()
+        val leasedOrphans = CacheFileLeases.inDirectory(dir) - referencedFiles
+        var totalBytes = manifest.sumOf { it.size } + leasedOrphans.sumOf { it.length() }
+        while (manifest.size + leasedOrphans.size > entryLimit || totalBytes > byteLimit) {
+            val index = manifest.indexOfLast {
+                it.key != protectedKey && !CacheFileLeases.contains(File(dir, it.file))
+            }
             if (index < 0) break
             val removed = manifest.removeAt(index)
             totalBytes -= removed.size
         }
-        // Commit references before removing superseded files, so a failed
-        // manifest write leaves the previous usable cache intact.
         writeManifest(manifest)
         val referenced = manifest.map { it.file }.toHashSet()
-        dir.listFiles()?.filter { it.name != MANIFEST && it.name !in referenced }?.forEach { it.delete() }
+        dir.listFiles()?.filter {
+            it.name != MANIFEST && it.name !in referenced && !CacheFileLeases.contains(it)
+        }?.forEach { it.delete() }
+        return manifest.size + leasedOrphans.size <= entryLimit && totalBytes <= byteLimit
     }
 
     private fun readManifest(): List<Entry> = synchronized(this) {
@@ -216,7 +254,10 @@ class ImageCache internal constructor(
         }
         if (valid.size != manifest.size) {
             val validFiles = valid.map { it.file }.toHashSet()
-            manifest.filter { it.file !in validFiles }.forEach { File(dir, it.file).delete() }
+            manifest.filter { it.file !in validFiles }.forEach {
+                val file = File(dir, it.file)
+                if (!CacheFileLeases.contains(file)) file.delete()
+            }
             writeManifest(valid)
         }
         return valid

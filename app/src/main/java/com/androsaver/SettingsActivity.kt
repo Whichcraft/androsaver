@@ -165,6 +165,7 @@ class SettingsActivity : AppCompatActivity() {
         private val audioPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { granted ->
+            updateAudioPermissionSummary()
             if (!granted) android.widget.Toast.makeText(
                 requireContext(), R.string.audio_permission_denied, android.widget.Toast.LENGTH_LONG
             ).show()
@@ -194,11 +195,21 @@ class SettingsActivity : AppCompatActivity() {
 
                 findPreference<ListPreference>(Prefs.SCREENSAVER_MODE)?.setOnPreferenceChangeListener { _, newValue ->
                     updateModeVisibility(newValue as String)
-                    if (newValue == Prefs.MODE_VISUALIZER && !hasAudioPermission()) {
+                    true
+                }
+
+                findPreference<Preference>("visualizer_audio_access")?.setOnPreferenceClickListener {
+                    val requested = prefs.getBoolean("audio_permission_requested", false)
+                    if (hasAudioPermission() || (requested && !shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO))) {
+                        startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:${requireContext().packageName}")))
+                    } else {
+                        prefs.edit().putBoolean("audio_permission_requested", true).apply()
                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
                     true
                 }
+                updateAudioPermissionSummary()
 
                 findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.setOnPreferenceChangeListener { _, newValue ->
                     val selected = newValue as? Set<*> ?: emptySet<Any>()
@@ -241,6 +252,7 @@ class SettingsActivity : AppCompatActivity() {
                 updateStaticImageSummary()
                 updateWeatherSummary()
                 updateAboutVersion()
+                updateAudioPermissionSummary()
                 checkForUpdates()
             } catch (e: Throwable) {
                 if (BuildConfig.DEBUG_LOGGING) android.util.Log.e("SettingsActivity", "Settings fragment resume failed", e)
@@ -475,6 +487,13 @@ class SettingsActivity : AppCompatActivity() {
                     findPreference<Preference>("about_app")?.summary =
                         getString(R.string.update_available, update.versionName)
                 }
+            }
+        }
+
+        private fun updateAudioPermissionSummary() {
+            findPreference<Preference>("visualizer_audio_access")?.apply {
+                setTitle(if (hasAudioPermission()) R.string.audio_access_granted else R.string.audio_access_enable)
+                setSummary(if (hasAudioPermission()) R.string.audio_access_granted_summary else R.string.audio_access_enable_summary)
             }
         }
 

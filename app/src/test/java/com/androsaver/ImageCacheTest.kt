@@ -21,6 +21,50 @@ import java.net.URI
 class ImageCacheTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun leasedOfflinePlaylistsSurviveAnotherCacheInstanceWritingAndEvicting() = runBlocking {
+        val requests = AtomicInteger()
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            requests.incrementAndGet()
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(200).message("OK").body("image".toResponseBody()).build()
+        }.build()
+        try {
+            val directory = temporary.newFolder()
+            val first = ImageCache(directory, { it.length() > 0 }, { client })
+            val writer = ImageCache(directory, { it.length() > 0 }, { client })
+            first.saveImages((1..200).map { ImageItem("https://example.invalid/$it", stableId = "image-$it") }, "test")
+            val snapshot = first.acquireSnapshot()
+            try {
+                val before = requests.get()
+                assertEquals(0, writer.saveImages(listOf(ImageItem("https://example.invalid/new")), "test").downloaded)
+                assertEquals(before, requests.get())
+                assertTrue(snapshot.items.all { File(URI(it.url)).isFile })
+            } finally { snapshot.close(); snapshot.close() }
+            assertEquals(1, writer.saveImages(listOf(ImageItem("https://example.invalid/new")), "test").downloaded)
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
+    @Test fun aLeasedOldGenerationSurvivesAnImageRevisionReplacement() = runBlocking {
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(200).message("OK").body("image".toResponseBody()).build()
+        }.build()
+        try {
+            val cache = ImageCache(temporary.newFolder(), { it.length() > 0 }, { client })
+            val image = ImageItem("https://example.invalid/photo", stableId = "photo", contentVersion = "one")
+            cache.saveImages(listOf(image), "test")
+            val snapshot = cache.acquireSnapshot()
+            val oldFile = File(URI(snapshot.items.single().url))
+            try {
+                cache.saveImages(listOf(image.copy(contentVersion = "two")), "test")
+                assertTrue(oldFile.isFile)
+                assertNotEquals(oldFile, File(URI(cache.getCachedItems().single().url)))
+            } finally { snapshot.close() }
+            cache.saveImages(listOf(ImageItem("https://example.invalid/another")), "test")
+            assertFalse(oldFile.exists())
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
     @Test fun readingEmptyManifestDoesNotDeleteAnActiveDownload() = runBlocking {
         exercisePendingDownload(pendingIndex = 0)
     }

@@ -3,10 +3,7 @@ package com.androsaver.source
 import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
-import android.util.Log
-import com.androsaver.BuildConfig
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 class LocalStorageSource(private val context: Context) : ImageSource {
@@ -20,27 +17,21 @@ class LocalStorageSource(private val context: Context) : ImageSource {
             MediaStore.Images.Media.DISPLAY_NAME
         )
         val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
-        try {
+        localPhotoQuery {
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, sortOrder
             )?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                var count = 0
-                while (cursor.moveToNext() && count < 500) {
+                while (items.size < 500 && cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
                     val name = cursor.getString(nameCol) ?: ""
                     val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                    items.add(ImageItem(url = uri.toString(), name = name, stableId = "media:$id"))
-                    count++
+                    items.add(ImageItem(uri.toString(), name, stableId = "media:$id"))
                 }
+                items
             }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            if (e is SecurityException) throw ImageSourcePermissionException("Device photo permission is unavailable")
-            if (BuildConfig.DEBUG_LOGGING) Log.w("LocalStorageSource", "MediaStore query failed: ${e.message}")
         }
-        items
     }
 
 }

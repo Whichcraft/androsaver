@@ -17,6 +17,7 @@ internal object ImageModels {
             else -> {
                 val headers = LazyHeaders.Builder()
                 item.headers.forEach { (key, value) -> headers.addHeader(key, value) }
+                item.credentialEndpoint?.let { headers.addHeader(HttpClients.CREDENTIAL_ENDPOINT_HEADER, it) }
                 item.insecureEndpoint?.let {
                     headers.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
                 }

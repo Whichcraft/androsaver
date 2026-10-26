@@ -26,6 +26,8 @@ class AudioEngine {
     }
 
     private var visualizer: Visualizer? = null
+    private val captureMonitor = AudioCaptureMonitor()
+    internal val captureStatus get() = captureMonitor.status()
     private val smoothFft = FloatArray(FFT_BINS)
     private val waveScratch = FloatArray(FFT_BINS)
     private val fftScratch = FloatArray(FFT_BINS)
@@ -59,14 +61,16 @@ class AudioEngine {
     internal val genreDetectionEnabled: Boolean get() = detectionEnabled
 
     @Synchronized
-    fun start() {
+    fun start(permissionGranted: Boolean = true) {
         if (visualizer != null) return
+        if (!permissionGranted) { captureMonitor.permissionRequired(); return }
+        captureMonitor.starting()
         try {
             val maxCap = Visualizer.getCaptureSizeRange()[1].coerceAtMost(1024)
             val v = Visualizer(0)
             try {
                 v.captureSize = maxCap
-                v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
+                val listenerStatus = v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
                     override fun onWaveFormDataCapture(vis: Visualizer, bytes: ByteArray, rate: Int) {
                         synchronized(this@AudioEngine) {
                             if (!running) return
@@ -82,9 +86,11 @@ class AudioEngine {
                         }
                     }
                 }, Visualizer.getMaxCaptureRate(), true, true)
+                check(listenerStatus == Visualizer.SUCCESS) { "Audio capture listener unavailable" }
                 running = true
-                v.enabled = true
+                check(v.setEnabled(true) == Visualizer.SUCCESS) { "Audio capture could not be enabled" }
                 visualizer = v
+                captureMonitor.attached()
             } catch (e: Exception) {
                 running = false
                 try { v.release() } catch (_: Exception) {}
@@ -92,7 +98,8 @@ class AudioEngine {
             }
             if (BuildConfig.DEBUG_LOGGING) Log.d(TAG, "Visualizer started, captureSize=$maxCap")
         } catch (e: Exception) {
-            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Visualizer unavailable: ${e.message}")
+            if (e is SecurityException) captureMonitor.permissionRequired() else captureMonitor.unavailable()
+            if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Visualizer unavailable: ${e::class.java.simpleName}")
         }
     }
 
@@ -181,6 +188,7 @@ class AudioEngine {
 
     @Synchronized
     fun stop() {
+        captureMonitor.stopped()
         running = false
         // Preserve the configured genre setting across pause/resume.
         visualizer?.let { active ->
@@ -219,6 +227,7 @@ class AudioEngine {
             if (!running) return
             val wave = lastWave ?: return
             val rawFft = lastFft ?: return
+            captureMonitor.sample(wave.any { abs(it) > 0.015f } || rawFft.any { it > 0.015f })
 
             // Atomically clear buffers upon consumption to prevent desynchronization
             lastWave = null

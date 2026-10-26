@@ -69,38 +69,27 @@ class SecurePreferences private constructor(context: Context) : SharedPreference
 
     private fun migrateIfNeeded() {
         val enc = encryptedPrefs ?: return
-        val plainKeys = plainPrefs.all
-        var editor: SharedPreferences.Editor? = null
-        var encEditor: SharedPreferences.Editor? = null
-
-        for (key in SENSITIVE_KEYS) {
-            if (plainPrefs.contains(key)) {
-                val value = plainKeys[key]
-                if (value != null) {
-                    if (encEditor == null) encEditor = enc.edit()
-                    if (editor == null) editor = plainPrefs.edit()
-
+        val cleaned = CredentialMigration.migrate(plainPrefs.all, enc.all.keys, SENSITIVE_KEYS,
+            writeEncrypted = { values ->
+                val editor = enc.edit()
+                values.forEach { (key, value) ->
                     when (value) {
-                        is String -> encEditor?.putString(key, value)
-                        is Boolean -> encEditor?.putBoolean(key, value)
-                        is Int -> encEditor?.putInt(key, value)
-                        is Long -> encEditor?.putLong(key, value)
-                        is Float -> encEditor?.putFloat(key, value)
+                        is String -> editor.putString(key, value)
+                        is Boolean -> editor.putBoolean(key, value)
+                        is Int -> editor.putInt(key, value)
+                        is Long -> editor.putLong(key, value)
+                        is Float -> editor.putFloat(key, value)
+                        else -> throw IllegalStateException("Unsupported credential preference type")
                     }
-                    editor?.remove(key)
                 }
-            }
-        }
-
-        // Persist the encrypted copy before removing plaintext. Using two
-        // asynchronous apply() calls here could lose credentials if the process
-        // died after the plaintext removal but before the encrypted write.
-        if (encEditor != null && !encEditor.commit()) {
-            throw IllegalStateException("Could not persist encrypted preference migration")
-        }
-        if (editor != null && !editor.commit()) {
-            Log.w(TAG, "Encrypted migration succeeded but plaintext cleanup did not")
-        }
+                editor.commit()
+            },
+            removePlain = { keys ->
+                val editor = plainPrefs.edit()
+                keys.forEach { editor.remove(it) }
+                editor.commit()
+            })
+        if (!cleaned) Log.w(TAG, "Encrypted migration succeeded but plaintext cleanup did not")
     }
 
     private fun getPrefs(key: String): SharedPreferences {

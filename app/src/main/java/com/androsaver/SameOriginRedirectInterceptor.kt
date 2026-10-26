@@ -4,7 +4,7 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
 
-/** Redirect handling for the opt-in insecure client: no trust exception may leave its origin. */
+/** Credential-bearing self-hosted requests and TLS exceptions never leave their origin. */
 internal class SameOriginRedirectInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val origin = chain.request().url
@@ -18,7 +18,7 @@ internal class SameOriginRedirectInterceptor : Interceptor {
                 target.host != origin.host || target.port != origin.port ||
                 target.username.isNotEmpty() || target.password.isNotEmpty()) {
                 response.close()
-                throw IOException("Insecure endpoint redirect outside configured origin refused")
+                throw IOException("Endpoint redirect outside configured origin refused")
             }
             if (attempt == 20) {
                 response.close()

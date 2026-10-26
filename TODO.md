@@ -182,4 +182,18 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Fix the static-image resume blank exposed by the emulator suite: engine-owned requests use the application RequestManager, avoiding competing Activity lifecycle ownership.
 - [x] Gate APK publication on GitHub emulator tests on API 29 and 35.
 - [x] Verify this follow-up's JVM tests, device tests and signed APK build/publication on GitHub: [run 40344834235](https://github.com/Whichcraft/androsaver/actions/runs/40344834235), app commit `e553363bfbb5e85ebafcdb64f69b8e8bb89d7477`. All four Android integration tests passed on both API 29 and 35; downloaded release assets and `dev-channel` target were verified.
-- [ ] Run physical-TV checks for system dream activation, audio capture and external installer completion (see docs/module-reference.md).
+- [x] Verify automatic screensaver activation on the physical TV: user confirmed it works flawlessly (2026-10-26).
+- [ ] Run physical-TV checks for audio capture and external installer completion (see docs/module-reference.md).
+
+## Provider security and lifecycle follow-up (2026-10-26)
+
+- [x] Honour Synology transport/security consent without automatic certificate bypass or HTTP downgrade; show the actual connection transport.
+- [x] Confine authenticated self-hosted API/image redirects to the configured origin with validated TLS as well as explicit insecure TLS.
+- [x] Replace obsolete Immich library/album listing with authenticated metadata search, bounded page/cursor pagination, revisions and versioned contract fixtures.
+- [x] Lease offline-playlist files across cache instances, protect old generations during refresh, and account for leased files within storage/count limits.
+- [x] Preserve authoritative encrypted credentials when migration retries after failed plaintext cleanup.
+- [x] Keep MediaStore null/failed/partial queries distinct from successful empty libraries.
+- [x] Attempt every shutdown action, retain cleanup failure causes, and preserve unclean-session evidence across overlapping sessions.
+- [x] Show audio permission/backend/signal status; require an explicit Enable audio response action rather than prompting on mode changes.
+- [x] Split emulator lifecycle tests into independent mode cases and add provider/security/migration/cache/cleanup/audio regressions.
+- [ ] Verify this follow-up on GitHub: JVM suite, API 29/35 device cases, signed APK build and publication.

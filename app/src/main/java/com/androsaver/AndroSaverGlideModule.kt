@@ -23,6 +23,7 @@ class AndroSaverGlideModule : AppGlideModule() {
                 val client = HttpClients.forGlideRequest(context, request)
                 return client.newCall(request.newBuilder()
                     .removeHeader(HttpClients.INSECURE_ENDPOINT_HEADER)
+                    .removeHeader(HttpClients.CREDENTIAL_ENDPOINT_HEADER)
                     .build())
             }
         }

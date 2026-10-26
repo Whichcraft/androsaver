@@ -12,12 +12,20 @@
 
     <TextView android:id="@+id/statusText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:textColor="#FFFFFF" android:textSize="24sp" android:padding="24dp" android:gravity="center" android:shadowColor="#000000" android:shadowDx="2" android:shadowDy="2" android:shadowRadius="4" android:visibility="gone" />
 
-    <TextView android:id="@+id/sourceHealth"
+    <LinearLayout android:id="@+id/playbackNotices"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:layout_gravity="bottom|start" android:layout_margin="24dp"
-        android:padding="12dp" android:maxWidth="480dp" android:textSize="14sp"
-        android:background="#B0000000" android:textColor="#FFFFFF"
-        android:visibility="gone" android:importantForAccessibility="yes" />
+        android:orientation="vertical">
+        <TextView android:id="@+id/sourceHealth"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:padding="12dp" android:maxWidth="480dp" android:textSize="14sp"
+            android:background="#B0000000" android:textColor="#FFFFFF"
+            android:visibility="gone" android:importantForAccessibility="yes" />
+        <TextView android:id="@+id/audioCaptureStatus"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:maxWidth="480dp" android:padding="12dp" android:textSize="14sp"
+            android:background="#B0000000" android:textColor="#FFFFFF" android:visibility="gone" />
+    </LinearLayout>
 
     <!-- Clock overlay: bottom-right corner -->
     <TextView android:id="@+id/clockOverlay" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|end" android:layout_margin="32dp" android:textColor="#CCFFFFFF" android:textSize="28sp" android:gravity="end" android:fontFamily="sans-serif-light" android:shadowColor="#CC000000" android:shadowDx="1" android:shadowDy="1" android:shadowRadius="6" android:visibility="gone" />

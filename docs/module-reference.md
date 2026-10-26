@@ -396,5 +396,49 @@ Verification: [GitHub run 40344834235](https://github.com/Whichcraft/androsaver/
 passed the JVM suite, all four Android integration tests on each of API 29/35,
 and signed dev APK build/publication with downloaded-asset verification for
 `e553363bfbb5e85ebafcdb64f69b8e8bb89d7477`. The rolling `dev-channel` tag was
-confirmed to target that commit. Physical TV dream activation, system audio
-capture and external installer completion remain manual checks.
+confirmed to target that commit. The user confirmed on 2026-10-26 that automatic
+screensaver activation on the physical TV works flawlessly. System audio capture
+and external installer completion remain manual checks.
+
+### Provider transport, cache leases and audio status
+
+Self-hosted API requests use bounded same-origin redirects even with validated
+TLS. Immich, Nextcloud and Synology image items also carry credential-origin
+metadata through Glide, direct imports and the offline writer. Internal metadata
+headers are stripped before network transmission. Cloud transports retain their
+normal CDN redirects. Synology uses exactly the configured protocol/port and TLS
+policy: self-signed/expired certificates require explicit insecure consent, and
+HTTP requires both selecting HTTP and insecure consent. There is no automatic
+certificate bypass, protocol downgrade or port fallback.
+
+Immich uses `POST /api/search/metadata` for both library and album enumeration;
+connection probes verify this authenticated API rather than the public ping.
+The supported contract is metadata search in the Immich v2/v3 API family, with
+legacy numeric `nextPage` and v3.2 `nextCursor` pagination. Removed `GET /assets`
+and album-embedded asset arrays are not used. Requests are capped at 40 pages,
+20,000 scanned rows and 2,000 unique images; repeated cursors/pages stop progress.
+Synthetic v2/v3 response fixtures exercise the consumed API fields. Actual server
+compatibility remains a deployment check; no live personal server was accessed.
+
+Offline fallback acquires a process-wide lease under the cache manifest lock.
+Leased files, including retired generations, cannot be evicted by another cache
+instance. They count toward byte/entry limits; optional downloads are skipped
+when a full leased playlist leaves no reservation space. Leases are released on
+stop or after a fresh replacement image has loaded, including cancellation.
+
+Credential migration only fills missing encrypted keys; existing encrypted
+values remain authoritative after cleanup failure. Failed or null MediaStore
+queries produce source failures rather than an authoritative empty snapshot.
+Cleanup attempts every release and preserves failed phases/causes. A failed
+cleanup keeps a session marker even when an overlapping session stops cleanly.
+
+Audio response is enabled through an explicit Settings preference. It explains
+Android's saved “While using the app” grant and links to app settings when
+needed. Switching visualizer modes never opens a permission dialog. The live
+visualizer reports permission required, backend unavailable, no signal or active
+signal separately, in all builds; diagnostic reports include capture status.
+Permission alone is not proof of capture capability on a particular TV. Effects
+continue without audio. No microphone recording or new audio transport is added.
+
+The emulator suite now reports static, offline slideshow, blank and visualizer
+lifecycle/recreation independently so one failure cannot hide the other modes.

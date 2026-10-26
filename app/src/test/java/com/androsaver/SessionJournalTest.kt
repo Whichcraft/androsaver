@@ -8,6 +8,21 @@ import java.io.File
 
 class SessionJournalTest {
     @get:Rule val temporary = TemporaryFolder()
+    @Test fun failedCleanupCannotBeHiddenByAnotherSessionStoppingCleanly() {
+        val file = File(temporary.root, "report.txt")
+        val journal = SessionJournal()
+        val bad = journal.begin(file, "static")
+        val good = journal.begin(file, "visualizer")
+        journal.end(bad.id, clean = false)
+        journal.end(good.id)
+        assertTrue(File(file.parentFile, "report.txt.active").isFile)
+        assertTrue(ScreensaverPostmortem.readReports(file)!!.contains("CLEANUP DID NOT COMPLETE"))
+        val restarted = journal.begin(file, "slideshow")
+        assertTrue(restarted.previousInterruption!!.contains("static"))
+        journal.end(restarted.id)
+        assertFalse(File(file.parentFile, "report.txt.active").exists())
+    }
+
     @Test fun processRestartReportsAnUncleanSessionWithoutInventingACrashCause() {
         val file = File(temporary.root, "report.txt")
         SessionJournal().begin(file, "static")

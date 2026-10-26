@@ -23,7 +23,9 @@ data class ImageItem(
     /** Exact configured self-hosted endpoint allowed to use the insecure client. */
     val insecureEndpoint: String? = null,
     /** Non-secret provider revision or modification time, separate from identity. */
-    val contentVersion: String? = null
+    val contentVersion: String? = null,
+    /** Configured origin to which provider credentials are confined, even with valid TLS. */
+    val credentialEndpoint: String? = null
 )
 
 interface ImageSource {

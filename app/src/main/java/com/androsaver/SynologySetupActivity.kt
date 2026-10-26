@@ -92,7 +92,10 @@ class SynologySetupActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val ok = withTimeout(60_000L) { SynologySource(this@SynologySetupActivity).probeConnection(config) }
-                binding.testStatus.text = if (ok) getString(R.string.connection_success_no_images) else getString(R.string.connection_failed, "Server rejected the request")
+                binding.testStatus.text = if (ok) getString(R.string.connection_transport_success, getString(
+                    if (!config.useHttps) R.string.connection_http
+                    else if (config.allowInsecure) R.string.connection_https_unverified
+                    else R.string.connection_https_verified)) else getString(R.string.connection_failed, "Server rejected the request")
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 binding.testStatus.text = getString(R.string.connection_failed, e.message ?: "Unknown error")

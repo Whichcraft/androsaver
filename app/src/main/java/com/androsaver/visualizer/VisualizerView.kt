@@ -12,6 +12,7 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
     internal val audio   = AudioEngine()
     val renderer         = VisualizerRenderer(audio)
     private var started = false
+    internal val audioStatus get() = audio.captureStatus
 
     /** Called on the GL thread when a mode cannot render a frame. */
     var onRenderError: ((Throwable) -> Unit)?
@@ -47,15 +48,15 @@ class VisualizerView(context: Context) : GLSurfaceView(context) {
     fun startVisualizer() {
         if (started) return
         started = true
-        audio.start()
+        audio.start(androidx.core.content.ContextCompat.checkSelfPermission(context,
+            android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED)
         onResume()
     }
 
     fun stopVisualizer() {
         if (!started) return
         started = false
-        onPause()
-        audio.stop()
+        try { onPause() } finally { audio.stop() }
     }
 
     /** Switch to the next enabled mode (wraps around). */

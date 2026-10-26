@@ -146,7 +146,7 @@ class NextcloudSource(private val context: Context) : ImageSource {
                                 items.add(ImageItem(url = resolved.toString(), name = name,
                                     headers = mapOf("Authorization" to credential),
                                     stableId = "nextcloud:${resolved.encodedPath}",
-                                    insecureEndpoint = insecureEndpoint))
+                                    insecureEndpoint = insecureEndpoint, credentialEndpoint = baseUrl.toString()))
                             }
                         }
                     }

@@ -106,6 +106,7 @@ class ScreensaverEngine(
     }
     private val sourceSnapshots get() = sourceRefresh.snapshots
     private var usingCachedImages = false
+    private var cacheSnapshot: ImageCache.Snapshot? = null
     private var displayedIndex = -1
     private var pendingManualSkipIndex: Int? = null
     private var transitionSequence = 0L
@@ -117,6 +118,7 @@ class ScreensaverEngine(
     private val imageSourceNames = mutableMapOf<String, String>()
     private var blankMode = false
     private var visualizerView: VisualizerView? = null
+    private var audioStatusRunnable: Runnable? = null
     private var vizCycleRunnable: Runnable? = null
     private var vizCycleMs: Long = 0L
     private var genreDetectRunnable: Runnable? = null
@@ -215,27 +217,37 @@ class ScreensaverEngine(
     fun resumeVisualizer() { visualizerView?.startVisualizer() }
 
     fun stop() {
-        stopTimeMonitoring()
-        sessionWork.stop()
-        blankMode = false
-        try {
-            // The Handler belongs exclusively to this engine. This also removes
-            // one-shot callbacks (fallback notices and deferred Glide cleanup)
-            // that are intentionally not stored in dedicated fields.
-            handler.removeCallbacksAndMessages(null)
-            finishRunnable = null
-            scheduleFinishRunnable = null
-            stopSlideshow()
-            stopImageRefresh()
-            stopVisualizerMode()
-            stopClock()
-            stopWeather()
-            cancelAllKenBurns()
-        } finally {
-            diagnosticSession?.let { ScreensaverPostmortem.unregister(it) }
-            diagnosticSession = null
-            journalSession?.let { sessionJournal.end(it) }
-            journalSession = null
+        val failures = CleanupActions.run(
+            "time monitoring" to { stopTimeMonitoring() },
+            "session work" to { sessionWork.stop() },
+            "callbacks" to {
+                blankMode = false
+                handler.removeCallbacksAndMessages(null)
+                finishRunnable = null
+                scheduleFinishRunnable = null
+            },
+            "slideshow" to { stopSlideshow() },
+            "image refresh" to { stopImageRefresh() },
+            "visualizer" to { stopVisualizerMode() },
+            "clock" to { stopClock() },
+            "weather" to { stopWeather() },
+            "image motion" to { cancelAllKenBurns() }
+        ).toMutableList()
+        // Leases and recorder ownership must be retired even if a view cleanup failed.
+        failures += CleanupActions.run(
+            "cache lease" to { cacheSnapshot?.close(); cacheSnapshot = null },
+            "diagnostic handler" to {
+                try { diagnosticSession?.let { ScreensaverPostmortem.unregister(it) } }
+                finally { diagnosticSession = null }
+            }
+        )
+        try { journalSession?.let { sessionJournal.end(it, clean = failures.isEmpty()) } }
+        finally { journalSession = null }
+        if (failures.isNotEmpty()) {
+            val error = IllegalStateException("Screensaver cleanup failed: ${failures.joinToString { it.phase }}")
+            failures.forEach { error.addSuppressed(it.error) }
+            persistDiagnostic("SCREENSAVER CLEANUP FAILURE\nMode: $diagnosticMode\n${error.stackTraceToString()}")
+            throw error
         }
     }
 
@@ -558,6 +570,22 @@ class ScreensaverEngine(
         binding.imageView1.visibility = View.GONE
         binding.imageView2.visibility = View.GONE
         vv.startVisualizer()
+        audioStatusRunnable = object : Runnable {
+            override fun run() {
+                if (visualizerView !== vv || visualizerSession != sessionWork.generation) return
+                val message = when (vv.audioStatus) {
+                    com.androsaver.visualizer.AudioCaptureMonitor.Status.ACTIVE -> R.string.audio_status_active
+                    com.androsaver.visualizer.AudioCaptureMonitor.Status.PERMISSION_REQUIRED -> R.string.audio_status_permission
+                    com.androsaver.visualizer.AudioCaptureMonitor.Status.UNAVAILABLE -> R.string.audio_status_unavailable
+                    com.androsaver.visualizer.AudioCaptureMonitor.Status.NO_SIGNAL -> R.string.audio_status_no_signal
+                    com.androsaver.visualizer.AudioCaptureMonitor.Status.STARTING -> R.string.audio_status_starting
+                    else -> null
+                }
+                binding.audioCaptureStatus.text = message?.let { context.getString(it) }.orEmpty()
+                binding.audioCaptureStatus.visibility = if (message == null) View.GONE else View.VISIBLE
+                handler.postDelayed(this, 1000)
+            }
+        }.also { handler.post(it) }
 
         if (modePref == "auto" || modePref == "random") {
             vizCycleMs = prefs.getString(Prefs.VIZ_CYCLE_INTERVAL, "120000")?.toLongOrNull() ?: 120_000L
@@ -580,19 +608,25 @@ class ScreensaverEngine(
     }
 
     private fun stopVisualizerMode() {
+        audioStatusRunnable?.let { handler.removeCallbacks(it) }
+        audioStatusRunnable = null
+        binding.audioCaptureStatus.visibility = View.GONE
         vizCycleRunnable?.let { handler.removeCallbacks(it) }
         vizCycleRunnable = null
         genreDetectRunnable?.let { handler.removeCallbacks(it) }
         genreDetectRunnable = null
-        visualizerView?.let { vv ->
-            vv.onPerformanceUpdate = null
-            vv.stopVisualizer()
-            binding.visualizerContainer.removeView(vv)
-        }
+        val view = visualizerView
         visualizerView = null
-        binding.devPerformanceOverlay.visibility = View.GONE
-        binding.devPerformanceOverlay.text = ""
-        binding.visualizerContainer.visibility = View.GONE
+        try {
+            view?.onPerformanceUpdate = null
+            view?.onRenderError = null
+            view?.stopVisualizer()
+        } finally {
+            if (view != null) binding.visualizerContainer.removeView(view)
+            binding.devPerformanceOverlay.visibility = View.GONE
+            binding.devPerformanceOverlay.text = ""
+            binding.visualizerContainer.visibility = View.GONE
+        }
     }
 
     // ── Slideshow mode ────────────────────────────────────────────────────────
@@ -803,13 +837,17 @@ class ScreensaverEngine(
     private suspend fun tryFallbackCache(session: Long, requireStalled: Boolean = false) {
         try {
             if (session != slideshowSession) return
-            val cached = imageCache.getCachedItems()
-            if (session != slideshowSession) return
+            val snapshot = imageCache.acquireSnapshot()
+            if (session != slideshowSession) { snapshot.close(); return }
+            val cached = snapshot.items
             if (requireStalled && !playback.isStalled) {
+                snapshot.close()
                 playback.fallbackFinished(used = false)
                 return
             }
             playback.fallbackFinished(used = true)
+            cacheSnapshot?.close()
+            cacheSnapshot = snapshot
             if (cached.isNotEmpty()) {
                 usingCachedImages = true
                 renderSourceHealth()
@@ -879,6 +917,8 @@ class ScreensaverEngine(
         activeView = 1
         currentIndex = 0
         resetSlideshowViews()
+        cacheSnapshot?.close()
+        cacheSnapshot = null
     }
 
     // ── Periodic image refresh ────────────────────────────────────────────────
@@ -1020,6 +1060,12 @@ class ScreensaverEngine(
                         cancelKenBurns(incoming)
                         val prefs = com.androsaver.Prefs.get(context)
                         incoming.setImageDrawable(resource)
+                        // Keep the old file generation alive until a replacement has
+                        // actually loaded; source enumeration alone does not retire IO.
+                        if (!usingCachedImages && cacheSnapshot?.items?.none { it.url == item.url } == true) {
+                            cacheSnapshot?.close()
+                            cacheSnapshot = null
+                        }
                         incoming.scaleType = imageScaleTypeForDrawable(
                             prefs,
                             resource,
@@ -1414,6 +1460,7 @@ class ScreensaverEngine(
                 append("ANDROSAVER DEV ERROR — PERSISTENT\n\n")
                 append("Time: ").append(Date()).append('\n')
                 append("Mode: ").append(diagnosticMode).append('\n')
+                visualizerView?.let { append("Audio capture: ").append(it.audioStatus.name).append('\n') }
                 append("Stage/effect: ").append(effect).append('\n')
                 if (diagnosticMode == Prefs.MODE_STATIC) {
                     val prefs = com.androsaver.Prefs.get(context)
@@ -1578,7 +1625,7 @@ class ScreensaverEngine(
         binding.clockOverlay.bringToFront()
         binding.weatherWidget.bringToFront()
         binding.statusText.bringToFront()
-        binding.sourceHealth.bringToFront()
+        binding.playbackNotices.bringToFront()
         if (devTransitionErrorVisible) binding.devErrorOverlay.bringToFront()
     }
 

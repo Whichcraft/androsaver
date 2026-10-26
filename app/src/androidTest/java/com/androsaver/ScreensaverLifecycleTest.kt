@@ -13,7 +13,12 @@ import java.io.File
 
 /** Real Activity/engine starts, stop/restart and GL teardown on the GitHub emulator. */
 class ScreensaverLifecycleTest {
-    @Test fun everyModeSurvivesPreviewStopRestartAndRecreation() {
+    @Test fun staticSurvivesStopRestartAndRecreation() = exercise(Prefs.MODE_STATIC)
+    @Test fun offlineSlideshowSurvivesStopRestartAndRecreation() = exercise(Prefs.MODE_SLIDESHOW)
+    @Test fun blankSurvivesStopRestartAndRecreation() = exercise(Prefs.MODE_BLANK)
+    @Test fun visualizerSurvivesStopRestartAndRecreation() = exercise(Prefs.MODE_VISUALIZER)
+
+    private fun exercise(mode: String) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val prefs = Prefs.get(context)
         val sourceFlags = listOf(Prefs.ENABLE_GOOGLE_DRIVE, Prefs.ENABLE_ONEDRIVE, Prefs.ENABLE_DROPBOX,
@@ -41,23 +46,24 @@ class ScreensaverLifecycleTest {
                 putBoolean(Prefs.WEATHER_ENABLED, false)
                 putBoolean(Prefs.SHOW_CLOCK, false)
             }.commit()
-            for (mode in listOf(Prefs.MODE_STATIC, Prefs.MODE_SLIDESHOW, Prefs.MODE_BLANK, Prefs.MODE_VISUALIZER)) {
-                prefs.edit().putString(Prefs.SCREENSAVER_MODE, mode).commit()
-                ActivityScenario.launch(PreviewActivity::class.java).use { scenario ->
-                    scenario.onActivity { assertNotNull(it.findViewById<ImageView>(R.id.imageView1)) }
-                    awaitReady(scenario, mode)
-                    scenario.moveToState(Lifecycle.State.CREATED)
-                    scenario.moveToState(Lifecycle.State.RESUMED)
-                    awaitReady(scenario, mode)
-                    scenario.recreate()
-                    awaitReady(scenario, mode)
-                    if (mode == Prefs.MODE_SLIDESHOW) scenario.onActivity { activity ->
-                        assertTrue(activity.findViewById<android.widget.TextView>(R.id.sourceHealth)
-                            .text.contains(context.getString(R.string.source_health_cache)))
-                    }
+            prefs.edit().putString(Prefs.SCREENSAVER_MODE, mode).commit()
+            ActivityScenario.launch(PreviewActivity::class.java).use { scenario ->
+                scenario.onActivity { assertNotNull(it.findViewById<ImageView>(R.id.imageView1)) }
+                awaitReady(scenario, mode)
+                scenario.moveToState(Lifecycle.State.CREATED)
+                scenario.moveToState(Lifecycle.State.RESUMED)
+                awaitReady(scenario, mode)
+                scenario.recreate()
+                awaitReady(scenario, mode)
+                if (mode == Prefs.MODE_VISUALIZER) scenario.onActivity { activity ->
+                    assertTrue(activity.findViewById<android.widget.TextView>(R.id.audioCaptureStatus).text.isNotBlank())
                 }
-                assertFalse(File(context.noBackupFilesDir, "screensaver-postmortem.txt.active").exists())
+                if (mode == Prefs.MODE_SLIDESHOW) scenario.onActivity { activity ->
+                    assertTrue(activity.findViewById<android.widget.TextView>(R.id.sourceHealth)
+                        .text.contains(context.getString(R.string.source_health_cache)))
+                }
             }
+            assertFalse(File(context.noBackupFilesDir, "screensaver-postmortem.txt.active").exists())
         } finally {
             prefs.edit().clear().apply {
                 original.forEach { (key, value) -> when (value) {

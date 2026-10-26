@@ -161,4 +161,17 @@
     <string name="source_health_empty">%1$s: no images. Check the selected folder in Settings → Image sources.</string>
     <string name="source_health_cache">Playing saved images from the offline cache.</string>
     <string name="session_interrupted_notice">The previous screensaver session ended unexpectedly. The cause was not captured; Android may have stopped the app.</string>
+    <string name="connection_transport_success">Connected using %1$s.</string>
+    <string name="connection_http">HTTP (unencrypted, explicitly allowed)</string>
+    <string name="connection_https_unverified">HTTPS (certificate verification explicitly disabled)</string>
+    <string name="connection_https_verified">HTTPS (certificate verified)</string>
+    <string name="audio_access_enable">Enable audio response</string>
+    <string name="audio_access_granted">Audio permission granted</string>
+    <string name="audio_access_enable_summary">Tap to grant Android audio permission. Choose “While using the app” to keep the grant. Visual effects also work without audio.</string>
+    <string name="audio_access_granted_summary">Live capture status appears in the visualizer. Permission alone does not guarantee that this device supports system audio capture. Tap to manage permission.</string>
+    <string name="audio_status_active">Audio: receiving a signal</string>
+    <string name="audio_status_no_signal">Audio capture enabled; no signal detected. Start music on this device. Some TVs restrict system audio capture.</string>
+    <string name="audio_status_permission">Audio permission required. Select Enable audio response in Visualizer settings.</string>
+    <string name="audio_status_unavailable">System audio capture unavailable on this device. Visual effects continue without audio.</string>
+    <string name="audio_status_starting">Starting audio capture…</string>
 </resources>
