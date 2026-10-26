@@ -147,6 +147,7 @@ jobs:
         run: rm -f "$RUNNER_TEMP/androsaver.jks"
 
   bundle-playstore:
+    needs: [verify, device-tests]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     permissions:

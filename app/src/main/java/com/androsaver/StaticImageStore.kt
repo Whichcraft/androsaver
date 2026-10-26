@@ -17,9 +17,9 @@ object StaticImageStore {
         val url = item.url
         val uri = Uri.parse(url)
         return when (uri.scheme?.lowercase()) {
-            "content" -> copyStream(context, item.name) { context.contentResolver.openInputStream(Uri.parse(url)) }
+            "content" -> copyStream(context, item.name) { context.contentResolver.openInputStream(uri) }
             "file" -> {
-                val path = Uri.parse(url).path ?: return null
+                val path = uri.path ?: return null
                 copyStream(context, item.name) {
                     if (path.startsWith("/android_asset/")) context.assets.open(path.removePrefix("/android_asset/"))
                     else File(path).inputStream()
