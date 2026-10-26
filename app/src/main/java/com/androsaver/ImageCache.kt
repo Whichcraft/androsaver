@@ -228,8 +228,10 @@ class ImageCache internal constructor(
                 }
                 if (!possible) { failed++; break }
                 var capacityBlocked = false
+                var stagedFile: File? = null
                 try {
                     val entry = download(item, sourceName, remainingBytes) { count -> remainingBytes -= count }
+                    stagedFile = File(dir, entry.file)
                     if (!eligible(item)) { File(dir, entry.file).delete(); continue }
                     run {
                         // Commit even if cancellation arrives just after rename.
@@ -263,6 +265,14 @@ class ImageCache internal constructor(
                         retryableFailed++
                     }
                     logFailure("Cache miss (${e::class.java.simpleName})")
+                } finally {
+                    stagedFile?.let { file ->
+                        withContext(kotlinx.coroutines.NonCancellable) {
+                            mutex.withLock {
+                                if (readManifest().none { it.file == file.name } && !CacheFileLeases.contains(file)) file.delete()
+                            }
+                        }
+                    }
                 }
                 if (capacityBlocked) break
             }

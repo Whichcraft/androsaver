@@ -69,6 +69,22 @@ class ImageCacheTest {
         } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
     }
 
+    @Test fun failedManifestCommitRetiresTheStageWithoutDeletingTheWorkingPhoto() = runBlocking {
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK").body("image".toResponseBody()).build()
+        }.build()
+        try {
+            val dir = temporary.newFolder()
+            val cache = ImageCache(dir, { it.length() > 0 }, { client })
+            cache.saveImages(listOf(ImageItem("https://example.invalid/old")), "test")
+            val old = cache.getCachedItems().single().url
+            assertTrue(File(dir, "manifest.json.tmp").mkdir())
+            assertEquals(1, cache.saveImages(listOf(ImageItem("https://example.invalid/new")), "test").failed)
+            assertEquals(old, cache.getCachedItems().single().url)
+            assertEquals(1, dir.listFiles()!!.count { it.extension == "img" })
+        } finally { client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+    }
+
     @Test fun downloadBytesAreBoundedAcrossTheWholePlan() = runBlocking {
         val requests = AtomicInteger()
         val client = OkHttpClient.Builder().addInterceptor { chain ->
