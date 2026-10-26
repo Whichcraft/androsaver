@@ -891,7 +891,9 @@ class ScreensaverEngine(
                         val sources = getConfiguredSources(prefs)
                         if (sources.isEmpty()) return@launch
                         sourceRefresh.refresh(sources,
-                            onUpdated = { if (session == slideshowSession) applySourceSnapshots() },
+                            onUpdated = { freshItemsAvailable ->
+                                if (session == slideshowSession) applySourceSnapshots(freshItemsAvailable)
+                            },
                             onItems = { source, items ->
                                 workScope.launch {
                                     try { imageCache.saveImages(items, source.name) }
@@ -913,7 +915,8 @@ class ScreensaverEngine(
         handler.postDelayed(imageRefreshRunnable!!, IMAGE_REFRESH_INTERVAL_MS)
     }
 
-    private fun applySourceSnapshots() {
+    private fun applySourceSnapshots(allowLeavingCache: Boolean = true) {
+        if (usingCachedImages && !allowLeavingCache) return
         val fresh = sourceSnapshots.items()
         // A temporary outage must not replace an already active offline fallback.
         if (fresh.isEmpty() && usingCachedImages) return

@@ -223,6 +223,9 @@ jobs:
           TEST_API: ${{ matrix.api }}
         run: |
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/androsaver-android"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           sudo chmod a+rw /dev/kvm
           sdk_ready=false
           for attempt in 1 2 3; do
@@ -233,7 +236,9 @@ jobs:
             if [ "$attempt" -lt 3 ]; then sleep 20; fi
           done
           if [ "$sdk_ready" != true ]; then exit 1; fi
-          echo no | avdmanager create avd --force --name integration --package "system-images;android-${TEST_API};google_apis;x86_64"
+          avdmanager create avd --force --name integration --device pixel_2 --package "system-images;android-${TEST_API};google_apis;x86_64" --path "$ANDROID_AVD_HOME/integration.avd" < /dev/null
+          test -f "$ANDROID_AVD_HOME/integration.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
           "$ANDROID_HOME/emulator/emulator" -avd integration -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader > "$RUNNER_TEMP/emulator.log" 2>&1 &
           emulator_pid=$!
           trap 'result=$?; if [ "$result" -ne 0 ]; then cat "$RUNNER_TEMP/emulator.log"; fi; adb emu kill || kill "$emulator_pid" || true; exit "$result"' EXIT

@@ -13,6 +13,7 @@ class SourceRefreshCoordinatorTest {
             val state = SourceSnapshots()
             state.update("slow", ImageSourceResult.Success(listOf(ImageItem("old-slow"))))
             val coordinator = SourceRefreshCoordinator(state)
+            val freshSignals = mutableListOf<Boolean>()
             fun source(sourceName: String) = object : ImageSource {
                 override val name = sourceName
                 override fun isConfigured() = true
@@ -22,7 +23,8 @@ class SourceRefreshCoordinatorTest {
                 }
             }
             val refresh = launch {
-                coordinator.refresh(listOf(source("slow"), source("fast")), onUpdated = {
+                coordinator.refresh(listOf(source("slow"), source("fast")), onUpdated = { fresh ->
+                    freshSignals += fresh
                     if (state.items().any { it.url == "new-fast" }) fastApplied.complete(Unit)
                 }, onItems = { _, _ -> })
             }
@@ -31,6 +33,7 @@ class SourceRefreshCoordinatorTest {
             assertEquals(setOf("old-slow", "new-fast"), state.items().map { it.url }.toSet())
             slow.complete(Unit)
             refresh.join()
+            assertEquals(listOf(false, true, false), freshSignals)
             assertEquals(setOf("old-slow", "new-fast"), state.items().map { it.url }.toSet())
         }
     }

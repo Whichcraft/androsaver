@@ -32,13 +32,13 @@ internal class SourceRefreshCoordinator(
     }
 
     suspend fun refresh(
-        sources: List<ImageSource>, onUpdated: () -> Unit,
+        sources: List<ImageSource>, onUpdated: (freshItemsAvailable: Boolean) -> Unit,
         onItems: suspend (ImageSource, List<ImageItem>) -> Unit
     ) {
         snapshots.retain(sources.map { it.name }.toSet())
-        onUpdated()
+        onUpdated(false)
         ProgressiveSources.load(sources, fetch = { source ->
-            fetch(source).also { onUpdated() }
+            fetch(source).also { onUpdated(!it.isNullOrEmpty()) }
         }, onItems = onItems)
     }
 }
