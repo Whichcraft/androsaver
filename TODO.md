@@ -166,4 +166,5 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Validate every bearer-authenticated OneDrive page against HTTPS Graph origin, reject repeated URLs, preserve opaque cursors and disable listing redirects.
 - [x] Add regression cases for retention quotas/protection, timezone and wall-clock shifts, performance formatting/throttling, and untrusted/repeated Graph links.
 - [x] Validate changed XML resources and diff whitespace.
-- [ ] GitHub builder: compile/run the new JVM tests and signed APK build. Device: change time/timezone during a running schedule, observe dev performance samples and diagnostic priority, exercise update-storage-full UI, and enumerate a multi-page OneDrive folder.
+- [x] GitHub builder: new JVM tests, signed APK, publication and downloaded-asset verification passed for `aeec139` in [run 40335301941](https://github.com/Whichcraft/androsaver/actions/runs/40335301941).
+- [ ] Device: change time/timezone during a running schedule, observe dev performance samples and diagnostic priority, exercise update-storage-full UI, and enumerate a multi-page OneDrive folder.
