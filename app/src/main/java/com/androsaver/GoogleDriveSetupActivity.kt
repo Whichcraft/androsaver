@@ -1,5 +1,6 @@
 package com.androsaver
 
+import com.androsaver.auth.OAuthAccounts
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -49,11 +50,13 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
         }
 
         try {
-            val saved = com.androsaver.Prefs.get(this).edit()
+            val saved = OAuthAccounts.invalidate("google") {
+                com.androsaver.Prefs.get(this).edit()
                 .putString(Prefs.GOOGLE_CLIENT_ID, clientId)
                 .putString(Prefs.GOOGLE_CLIENT_SECRET, clientSecret)
                 .putString(Prefs.GOOGLE_FOLDER_ID, binding.folderIdEdit.text.toString().trim())
                 .commit()
+            }
             if (!saved) throw IllegalStateException("Credential storage failed")
         } catch (_: Throwable) {
             Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()
@@ -65,10 +68,12 @@ class GoogleDriveSetupActivity : AppCompatActivity() {
 
     private fun revokeAuth() {
         try {
-            val cleared = com.androsaver.Prefs.get(this).edit()
+            val cleared = OAuthAccounts.invalidate("google") {
+                com.androsaver.Prefs.get(this).edit()
                 .remove(Prefs.GOOGLE_ACCESS_TOKEN)
                 .remove(Prefs.GOOGLE_REFRESH_TOKEN)
                 .commit()
+            }
             if (!cleared) throw IllegalStateException("Credential storage failed")
         } catch (_: Throwable) {
             Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()

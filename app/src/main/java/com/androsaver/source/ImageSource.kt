@@ -7,7 +7,7 @@ class ImageSourceAuthenticationException(message: String) : java.io.IOException(
 class ImageSourcePermissionException(message: String) : java.io.IOException(message)
 
 sealed class ImageSourceResult {
-    data class Success(val items: List<ImageItem>) : ImageSourceResult()
+    data class Success(val items: List<ImageItem>, val retryableFailures: Boolean = false) : ImageSourceResult()
     object Empty : ImageSourceResult()
     data class Failure(val kind: FailureKind) : ImageSourceResult()
 
@@ -32,9 +32,14 @@ interface ImageSource {
     fun isConfigured(): Boolean
 
     /** Converts provider exceptions into a non-secret outcome for UI/worker callers. */
-    suspend fun enumerate(): ImageSourceResult = try {
+    suspend fun enumerate(): ImageSourceResult = imageSourceResult {
         val items = getImageUrls()
         if (items.isEmpty()) ImageSourceResult.Empty else ImageSourceResult.Success(items)
+    }
+}
+
+internal suspend fun imageSourceResult(block: suspend () -> ImageSourceResult): ImageSourceResult = try {
+        block()
     } catch (e: CancellationException) {
         throw e
     } catch (e: ImageSourceAuthenticationException) {
@@ -57,4 +62,3 @@ interface ImageSource {
     } catch (_: Exception) {
         ImageSourceResult.Failure(ImageSourceResult.FailureKind.UNKNOWN)
     }
-}

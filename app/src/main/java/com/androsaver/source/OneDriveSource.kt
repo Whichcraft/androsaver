@@ -1,5 +1,6 @@
 package com.androsaver.source
 
+import com.androsaver.auth.OAuthAccounts
 import android.content.Context
 import android.util.Log
 import com.androsaver.BuildConfig
@@ -34,7 +35,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
     }
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
-        if (!isConfigured()) return@withContext emptyList()
+        if (!isConfigured()) throw ImageSourceAuthenticationException("Account is disconnected")
         val accessToken = refreshAccessTokenSilently() ?: run {
             throw ImageSourceAuthenticationException("OneDrive authentication failed")
         }
@@ -65,6 +66,7 @@ class OneDriveSource(private val context: Context) : ImageSource {
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
         val prefs = com.androsaver.Prefs.get(context)
+        val account = OAuthAccounts.capture(prefs, "onedrive")
         val refreshToken = prefs.getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null)
             ?: return@withLock null
         val clientId = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null)
@@ -90,11 +92,11 @@ class OneDriveSource(private val context: Context) : ImageSource {
             }
 
             val token = json.get("access_token")?.asString
-            if (token != null) {
+            if (token != null && !OAuthAccounts.publish(prefs, account) {
                 val edit = prefs.edit().putString(Prefs.ONEDRIVE_ACCESS_TOKEN, token)
                 json.get("refresh_token")?.asString?.let { edit.putString(Prefs.ONEDRIVE_REFRESH_TOKEN, it) }
                 edit.apply()
-            }
+            }) return@withLock null
             token
         } catch (e: Exception) {
             if (e is CancellationException) throw e

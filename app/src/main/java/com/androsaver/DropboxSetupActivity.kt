@@ -1,5 +1,6 @@
 package com.androsaver
 
+import com.androsaver.auth.OAuthAccounts
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -49,11 +50,13 @@ class DropboxSetupActivity : AppCompatActivity() {
             return
         }
         try {
-            val saved = com.androsaver.Prefs.get(this).edit()
+            val saved = OAuthAccounts.invalidate("dropbox") {
+                com.androsaver.Prefs.get(this).edit()
                 .putString(Prefs.DROPBOX_APP_KEY,    appKey)
                 .putString(Prefs.DROPBOX_APP_SECRET, appSecret)
                 .putString(Prefs.DROPBOX_FOLDER,     binding.folderEdit.text.toString().trim())
                 .commit()
+            }
             if (!saved) throw IllegalStateException("Credential storage failed")
         } catch (_: Throwable) {
             Toast.makeText(this, R.string.credential_storage_failed, Toast.LENGTH_LONG).show()

@@ -35,6 +35,7 @@ android {
         applicationId "com.androsaver"
         minSdk 21
         targetSdk 35
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         versionCode gitVersionCode
         versionName "2.11.${gitVersionPatch}"
     }
@@ -106,4 +107,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
     testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:core:1.5.0'
+    androidTestImplementation 'junit:junit:4.13.2'
 }

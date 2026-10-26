@@ -168,3 +168,17 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Validate changed XML resources and diff whitespace.
 - [x] GitHub builder: new JVM tests, signed APK, publication and downloaded-asset verification passed for `aeec139` in [run 40335301941](https://github.com/Whichcraft/androsaver/actions/runs/40335301941).
 - [ ] Device: change time/timezone during a running schedule, observe dev performance samples and diagnostic priority, exercise update-storage-full UI, and enumerate a multi-page OneDrive folder.
+
+## Deep review follow-up (2026-10-26)
+
+- [x] Route cached Java file URIs by scheme through a shared Glide model boundary; import asset and local URIs correctly.
+- [x] Reject stale Google, OneDrive and Dropbox sign-in/refresh responses after disconnect, configuration changes or account replacement.
+- [x] Extract source refresh coordination and per-source snapshots; preserve last good images on failure and deliver healthy refreshes progressively.
+- [x] Preserve Dropbox partial/transient failures for prefetch retries and stop queued link requests after HTTP 429.
+- [x] Record metadata-only session markers in every build/mode and distinguish unclean shutdowns from captured fatal exceptions.
+- [x] Show persistent source health, recovery guidance and offline-cache playback status.
+- [x] Add JVM regressions for account races, snapshots, refresh ordering, partial links and session journals.
+- [x] Add Android integration tests for real cache/Glide loading, static imports, all-mode preview lifecycle/recreation, GL samples and APK FileProvider grants.
+- [x] Gate APK publication on GitHub emulator tests on API 29 and 35.
+- [ ] Verify this follow-up's JVM tests, device tests and APK build on GitHub.
+- [ ] Run physical-TV checks for system dream activation, audio capture and external installer completion (see docs/module-reference.md).

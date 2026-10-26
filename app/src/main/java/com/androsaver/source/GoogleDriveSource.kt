@@ -1,5 +1,6 @@
 package com.androsaver.source
 
+import com.androsaver.auth.OAuthAccounts
 import android.content.Context
 import android.util.Log
 import com.androsaver.BuildConfig
@@ -31,7 +32,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
     }
 
     override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
-        if (!isConfigured()) return@withContext emptyList()
+        if (!isConfigured()) throw ImageSourceAuthenticationException("Account is disconnected")
         val accessToken = refreshAccessTokenSilently() ?: run {
             throw ImageSourceAuthenticationException("Google Drive authentication failed")
         }
@@ -72,6 +73,7 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
 
     internal suspend fun refreshAccessTokenSilently(): String? = refreshMutex.withLock {
         val prefs = com.androsaver.Prefs.get(context)
+        val account = OAuthAccounts.capture(prefs, "google")
         val refreshToken = prefs.getString(Prefs.GOOGLE_REFRESH_TOKEN, null)
             ?: return@withLock null
         val clientId = prefs.getString(Prefs.GOOGLE_CLIENT_ID, null)
@@ -99,9 +101,9 @@ class GoogleDriveSource(private val context: Context) : ImageSource {
                 gson.fromJson(response.body?.stringLimited(MAX_TOKEN_RESPONSE_BYTES), JsonObject::class.java)
             }
             val token = json.get("access_token")?.asString
-            if (token != null) {
+            if (token != null && !OAuthAccounts.publish(prefs, account) {
                 prefs.edit().putString(Prefs.GOOGLE_ACCESS_TOKEN, token).apply()
-            }
+            }) return@withLock null
             token
         } catch (e: Exception) {
             if (e is CancellationException) throw e

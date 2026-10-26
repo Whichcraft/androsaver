@@ -1,8 +1,6 @@
 package com.androsaver.source
 
 import android.content.Context
-import android.util.Log
-import com.androsaver.BuildConfig
 import com.androsaver.awaitResponse
 import com.androsaver.stringLimited
 import com.androsaver.HttpClients
@@ -11,13 +9,7 @@ import com.androsaver.auth.DropboxAuthManager
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -36,8 +28,15 @@ class DropboxSource(private val context: Context) : ImageSource {
 
     override fun isConfigured(): Boolean = authManager.isAuthorized()
 
-    override suspend fun getImageUrls(): List<ImageItem> = withContext(Dispatchers.IO) {
-        if (!isConfigured()) return@withContext emptyList()
+    override suspend fun getImageUrls(): List<ImageItem> = loadImages().items
+
+    override suspend fun enumerate(): ImageSourceResult = imageSourceResult {
+        val result = loadImages()
+        if (result.items.isEmpty() && !result.retryableFailures) ImageSourceResult.Empty else result
+    }
+
+    private suspend fun loadImages(): ImageSourceResult.Success = withContext(Dispatchers.IO) {
+        if (!isConfigured()) throw ImageSourceAuthenticationException("Dropbox is disconnected")
         val accessToken = authManager.getValidAccessToken()
             ?: throw ImageSourceAuthenticationException("Dropbox authentication failed")
         val prefs = com.androsaver.Prefs.get(context)
@@ -134,33 +133,20 @@ class DropboxSource(private val context: Context) : ImageSource {
     private suspend fun fetchTempLinks(
         accessToken: String,
         files: List<Pair<String, String>>
-    ): List<ImageItem> = coroutineScope {
-        val semaphore = Semaphore(10)
-        files.map { (path, name) ->
-            async {
-                semaphore.withPermit {
-                    try {
-                        val payload = JsonObject().apply { addProperty("path", path) }
-                        val body = gson.toJson(payload)
-                            .toRequestBody("application/json".toMediaType())
-                        val request = Request.Builder()
-                            .url("https://api.dropboxapi.com/2/files/get_temporary_link")
-                            .header("Authorization", "Bearer $accessToken")
-                            .post(body).build()
-                        val json = client.newCall(request).awaitResponse().use { response ->
-                            if (!response.isSuccessful) return@withPermit null
-                            gson.fromJson(response.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
-                        }
-                        val link = json.get("link")?.asString ?: return@withPermit null
-                        ImageItem(url = link, name = name, stableId = "dropbox:${path.lowercase()}")
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        if (BuildConfig.DEBUG_LOGGING) Log.w(TAG, "Temp link failed for $path", e)
-                        null
-                    }
-                }
-            }
-        }.awaitAll().filterNotNull()
+    ): ImageSourceResult.Success = TemporaryLinks.load(files) { (path, name) ->
+        val payload = JsonObject().apply { addProperty("path", path) }
+        val body = gson.toJson(payload).toRequestBody("application/json".toMediaType())
+        val request = Request.Builder()
+            .url("https://api.dropboxapi.com/2/files/get_temporary_link")
+            .header("Authorization", "Bearer $accessToken")
+            .post(body).build()
+        val json = client.newCall(request).awaitResponse().use { response ->
+            if (!response.isSuccessful) throw ImageSourceHttpException(response.code)
+            gson.fromJson(response.body?.stringLimited(MAX_RESPONSE_BYTES), JsonObject::class.java)
+        }
+        val link = json.get("link")?.asString
+            ?: throw com.google.gson.JsonParseException("Missing temporary link")
+        ImageItem(url = link, name = name, stableId = "dropbox:${path.lowercase()}")
     }
 
     companion object {

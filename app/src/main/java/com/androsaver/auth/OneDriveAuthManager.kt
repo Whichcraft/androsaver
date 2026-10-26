@@ -15,9 +15,11 @@ class OneDriveAuthManager(private val context: Context) {
 
     private val client = HttpClients.standard
     private val gson = Gson()
+    private var deviceAccount: AccountTransactions.Ticket? = null
 
     suspend fun requestDeviceCode(): DeviceCodeResponse? = withContext(Dispatchers.IO) {
         val prefs = com.androsaver.Prefs.get(context)
+        deviceAccount = OAuthAccounts.capture(prefs, "onedrive")
         val clientId = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null) ?: return@withContext null
 
         val body = FormBody.Builder()
@@ -51,6 +53,8 @@ class OneDriveAuthManager(private val context: Context) {
 
     suspend fun pollForToken(deviceCode: String): AuthResult = withContext(Dispatchers.IO) {
         val prefs = com.androsaver.Prefs.get(context)
+        val account = deviceAccount
+            ?: return@withContext AuthResult.Error("Start sign-in again")
         val clientId = prefs.getString(Prefs.ONEDRIVE_CLIENT_ID, null)
             ?: return@withContext AuthResult.Error("No client ID configured")
 
@@ -71,10 +75,12 @@ class OneDriveAuthManager(private val context: Context) {
                 json.has("access_token") -> {
                     val accessToken  = json.get("access_token").asString
                     val refreshToken = json.get("refresh_token").asString
-                    prefs.edit()
-                        .putString(Prefs.ONEDRIVE_ACCESS_TOKEN, accessToken)
-                        .putString(Prefs.ONEDRIVE_REFRESH_TOKEN, refreshToken)
-                        .apply()
+                    if (!OAuthAccounts.publish(prefs, account) {
+                        prefs.edit()
+                            .putString(Prefs.ONEDRIVE_ACCESS_TOKEN, accessToken)
+                            .putString(Prefs.ONEDRIVE_REFRESH_TOKEN, refreshToken)
+                            .apply()
+                    }) return@withContext AuthResult.Error("Account changed; please sign in again")
                     AuthResult.Success(accessToken, refreshToken)
                 }
                 json.has("error") -> when (json.get("error").asString) {
@@ -96,9 +102,11 @@ class OneDriveAuthManager(private val context: Context) {
             .getString(Prefs.ONEDRIVE_REFRESH_TOKEN, null).isNullOrEmpty()
 
     fun clearAuth() {
-        com.androsaver.Prefs.get(context).edit()
-            .remove(Prefs.ONEDRIVE_ACCESS_TOKEN)
-            .remove(Prefs.ONEDRIVE_REFRESH_TOKEN)
-            .apply()
+        OAuthAccounts.invalidate("onedrive") {
+            com.androsaver.Prefs.get(context).edit()
+                .remove(Prefs.ONEDRIVE_ACCESS_TOKEN)
+                .remove(Prefs.ONEDRIVE_REFRESH_TOKEN)
+                .apply()
+        }
     }
 }

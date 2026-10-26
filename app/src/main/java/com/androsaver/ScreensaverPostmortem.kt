@@ -65,6 +65,7 @@ internal object ScreensaverPostmortem {
     @Synchronized
     fun readReports(file: File): String? {
         val reports = listOfNotNull(
+            read(File(file.parentFile, "${file.name}.interrupted"))?.let { it },
             read(file)?.let { "SAVED FATAL / LEGACY REPORT\n\n$it" },
             read(recoverableFile(file))?.let { "LATEST RECOVERABLE FAILURE\n\n$it" }
         )

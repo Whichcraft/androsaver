@@ -352,3 +352,35 @@ Listing requests disable automatic redirects, so a validated request cannot
 silently turn into a request to an unvalidated origin. Page, scanned-entry and
 image limits remain enforced, and pre-authenticated image download URLs receive
 no Graph Authorization header.
+
+### Deep review follow-up: source refresh and integration coverage
+
+`ImageModels` routes URI schemes before HTTP models. `SourceRefreshCoordinator`
+owns enumeration deadlines and progressive refresh; `SourceSnapshots` keeps the
+last successful result per provider. Temporary failures retain those images,
+explicit empty results clear them, and removed providers are pruned. Partial
+Dropbox results replace refreshed URLs while retaining missing previous items;
+the prefetch worker retries transient failures within its existing attempt limit.
+HTTP 429 stops queued temporary-link requests rather than continuing the burst.
+
+OAuth publication and disconnect/configuration changes share `AccountTransactions`.
+In-memory generation tickets and configuration comparisons reject stale responses;
+tickets and credential snapshots are never logged or persisted.
+
+Every build writes a metadata-only `screensaver-postmortem.txt.active` marker while
+an engine session is active. A leftover marker is recorded separately as
+`.interrupted`, with an explicitly unknown cause. This is evidence of an unclean
+shutdown, not proof of a crash, ANR, native fault or low-memory kill. Dev builds
+continue to show captured fatal and recoverable exception reports separately.
+Overlapping preview/dream sessions share marker ownership.
+
+Source health remains visible during playback with reconnect/permission/folder
+and connection guidance. Cache playback is identified independently of diagnostics.
+
+GitHub's API 29/35 emulator matrix runs `connectedDevStandardDebugAndroidTest`:
+real cache manifest to Glide decode, static import validation, all four Preview
+modes across stop/restart and recreation (including GL sample production), and
+APK sharing through the actual FileProvider. Publication depends on both jobs.
+No Android build is performed locally. These tests do not prove physical TV
+system-dream activation, system audio capture or completion of the external
+package installer; those remain explicit device checks.

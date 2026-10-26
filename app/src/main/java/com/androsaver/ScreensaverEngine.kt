@@ -27,8 +27,6 @@ import com.androsaver.visualizer.PerformanceOverlay
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.load.model.GlideUrl
-import com.bumptech.glide.load.model.LazyHeaders
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.target.Target
@@ -36,11 +34,7 @@ import com.bumptech.glide.request.transition.Transition
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.TimeoutCancellationException
 import java.io.File
 import android.text.format.DateFormat
 import java.text.SimpleDateFormat
@@ -67,6 +61,7 @@ class ScreensaverEngine(
             "rock"       to listOf("Branches", "TriFlux", "Nova"),
             "classical"  to listOf("Yantra", "Lissajous", "Spiral")
         )
+        private val sessionJournal = SessionJournal()
         private val RANDOM_EFFECTS = listOf("crossfade","fade_black","slide_left","slide_right","zoom_in","zoom_out")
         val INTENSITY_STEPS = floatArrayOf(0.0f, 0.5f, 1.0f, 1.5f, 2.0f)
         // [startScale, endScale, startTxFrac, startTyFrac, endTxFrac, endTyFrac]
@@ -84,6 +79,8 @@ class ScreensaverEngine(
     private val workScope get() = sessionWork.scope
     private var diagnosticMode = "unknown"
     private var diagnosticSession: Long? = null
+    private var journalSession: Long? = null
+    private var previousSessionInterrupted = false
     private val postmortemFile get() = File(context.noBackupFilesDir, "screensaver-postmortem.txt")
 
     private fun persistDiagnostic(details: String) {
@@ -101,6 +98,14 @@ class ScreensaverEngine(
     private var scheduleFinishRunnable: Runnable? = null
     private var timeChangeReceiver: BroadcastReceiver? = null
     private val playback = SlideshowPlayback()
+    private val sourceRefresh = SourceRefreshCoordinator { source, result ->
+        renderSourceHealth()
+        if (result is ImageSourceResult.Failure) {
+            reportImageSourceFailure("source enumeration", source, result.kind.name.lowercase(Locale.ROOT), null)
+        }
+    }
+    private val sourceSnapshots get() = sourceRefresh.snapshots
+    private var usingCachedImages = false
     private var displayedIndex = -1
     private var pendingManualSkipIndex: Int? = null
     private var transitionSequence = 0L
@@ -133,6 +138,9 @@ class ScreensaverEngine(
             ?.takeIf { it in setOf(Prefs.MODE_STATIC, Prefs.MODE_BLANK, Prefs.MODE_VISUALIZER) }
             ?: Prefs.MODE_SLIDESHOW
         sessionWork.start(diagnosticMode)
+        val journal = sessionJournal.begin(postmortemFile, diagnosticMode)
+        journalSession = journal.id
+        previousSessionInterrupted = journal.previousInterruption != null
         // Snapshot saved evidence before startup can report a new failure.
         val previousReport = if (BuildConfig.DEBUG_LOGGING) {
             diagnosticSession = ScreensaverPostmortem.register(postmortemFile, diagnosticMode)
@@ -150,6 +158,7 @@ class ScreensaverEngine(
         binding.devErrorOverlay.visibility = View.GONE
         try {
             startMode(prefs)
+            renderSourceHealth()
         } catch (error: Throwable) {
             if (!BuildConfig.DEBUG_LOGGING) throw error
             reportTransitionFailure("mode startup", error)
@@ -221,6 +230,8 @@ class ScreensaverEngine(
         } finally {
             diagnosticSession?.let { ScreensaverPostmortem.unregister(it) }
             diagnosticSession = null
+            journalSession?.let { sessionJournal.end(it) }
+            journalSession = null
         }
     }
 
@@ -683,25 +694,21 @@ class ScreensaverEngine(
         loadImages(prefs, slideshowSession)
     }
 
-    private suspend fun fetchSourceItems(source: ImageSource, phase: String): List<ImageItem>? {
-        return try {
-            when (val result = withTimeout(60_000L) { source.enumerate() }) {
-                is ImageSourceResult.Success -> result.items
-                ImageSourceResult.Empty -> emptyList()
-                is ImageSourceResult.Failure -> {
-                    reportImageSourceFailure(phase, source, result.kind.name.lowercase(Locale.ROOT), null)
-                    null
-                }
+    private fun renderSourceHealth() {
+        val lines = sourceSnapshots.health.mapNotNull { (name, health) ->
+            val message = when {
+                health.failure == ImageSourceResult.FailureKind.AUTHENTICATION -> R.string.source_health_auth
+                health.failure == ImageSourceResult.FailureKind.PERMISSION -> R.string.source_health_permission
+                health.failure != null || health.partial -> R.string.source_health_unavailable
+                health.empty -> R.string.source_health_empty
+                else -> null
             }
-        } catch (e: TimeoutCancellationException) {
-            reportImageSourceFailure(phase, source, "timeout", e)
-            null
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            reportImageSourceFailure(phase, source, "exception", e)
-            null
-        }
+            message?.let { context.getString(it, name) }
+        }.toMutableList()
+        if (previousSessionInterrupted) lines.add(0, context.getString(R.string.session_interrupted_notice))
+        if (usingCachedImages) lines.add(0, context.getString(R.string.source_health_cache))
+        binding.sourceHealth.text = lines.joinToString("\n")
+        binding.sourceHealth.visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
     }
 
     /** A configured source being offline is recoverable; it must not block fallback images. */
@@ -735,9 +742,19 @@ class ScreensaverEngine(
             try {
                 ProgressiveSources.load(
                     sources,
-                    fetch = { source -> fetchSourceItems(source, "image source load") },
+                    fetch = { source -> sourceRefresh.fetch(source) },
                     onItems = merge@ { source, items ->
                         if (session != slideshowSession) return@merge
+                        if (usingCachedImages) {
+                            // Prefer newly working URLs over paths that cache refresh may retire.
+                            applySourceSnapshots()
+                            workScope.launch {
+                                try { imageCache.saveImages(items, source.name) }
+                                catch (e: CancellationException) { throw e }
+                                catch (e: Exception) { reportTransitionFailure("image cache write", e) }
+                            }
+                            return@merge
+                        }
                         val known = imageItems.map(::imageKey).toHashSet()
                         val added = items.filter { known.add(imageKey(it)) }
                         if (added.isEmpty()) return@merge
@@ -790,6 +807,8 @@ class ScreensaverEngine(
             }
             playback.fallbackFinished(used = true)
             if (cached.isNotEmpty()) {
+                usingCachedImages = true
+                renderSourceHealth()
                 if (!devTransitionErrorVisible) {
                     binding.statusText.text = context.getString(R.string.cache_fallback_notice)
                 }
@@ -842,6 +861,9 @@ class ScreensaverEngine(
         imageItems.clear()
         imageSourceNames.clear()
         playback.reset()
+        sourceSnapshots.clear()
+        usingCachedImages = false
+        binding.sourceHealth.visibility = View.GONE
         slideshowRunnable?.let { handler.removeCallbacks(it) }
         slideshowRunnable = null
         retryRunnable?.let { handler.removeCallbacks(it) }
@@ -868,55 +890,16 @@ class ScreensaverEngine(
                         if (session != slideshowSession) return@launch
                         val sources = getConfiguredSources(prefs)
                         if (sources.isEmpty()) return@launch
-                        val fresh = mutableListOf<ImageItem>()
-                        val deferreds = sources.map { src ->
-                            async {
-                                val urls = fetchSourceItems(src, "image source refresh")
-                                src.name to urls
-                            }
-                        }
-                        val results = deferreds.awaitAll()
-                        if (session != slideshowSession) return@launch
-                        val freshSources = mutableMapOf<String, String>()
-                        for ((sourceName, res) in results) {
-                            if (res != null) {
-                                res.forEach { freshSources[imageKey(it)] = sourceName }
-                                fresh.addAll(res)
-                            }
-                        }
-
-                        if (fresh.isNotEmpty()) {
-                            if (session != slideshowSession) return@launch
-                            val currentDisplayed = displayedItem
-                            imageItems.clear()
-                            imageItems.addAll(fresh.shuffled())
-                            pendingManualSkipIndex = null
-                            imageSourceNames.clear()
-                            imageSourceNames.putAll(freshSources)
-                            displayedIndex = currentDisplayed?.let { current ->
-                            imageItems.indexOfFirst { it.stableId == current.stableId }
-                            } ?: -1
-                            displayedItem = displayedIndex.takeIf { it >= 0 }?.let { imageItems[it] }
-                            currentIndex = when {
-                                imageItems.isEmpty() -> 0
-                                displayedIndex >= 0 -> (displayedIndex + 1) % imageItems.size
-                                else -> 0
-                            }
-                            // ImageCache performs its own IO dispatch. Keeping this
-                            // coroutine on Main makes failure reporting UI-safe.
-                            workScope.launch {
-                                try {
-                                    imageCache.saveImages(fresh, "mixed")
-                                } catch (t: Throwable) {
-                                    if (t is CancellationException) throw t
-                                    reportTransitionFailure("refreshed image cache write", t)
+                        sourceRefresh.refresh(sources,
+                            onUpdated = { if (session == slideshowSession) applySourceSnapshots() },
+                            onItems = { source, items ->
+                                workScope.launch {
+                                    try { imageCache.saveImages(items, source.name) }
+                                    catch (e: CancellationException) { throw e }
+                                    catch (e: Exception) { reportTransitionFailure("refreshed image cache write", e) }
                                 }
                             }
-                            if (playback.resumeWithNewItems()) showNextImage()
-                            if (BuildConfig.DEBUG_LOGGING) {
-                                Log.d(TAG, "Image list refreshed: ${fresh.size} items")
-                            }
-                        }
+                        )
                     } catch (t: Throwable) {
                         if (t is CancellationException) throw t
                         reportTransitionFailure("image refresh pipeline", t)
@@ -928,6 +911,32 @@ class ScreensaverEngine(
             }
         }
         handler.postDelayed(imageRefreshRunnable!!, IMAGE_REFRESH_INTERVAL_MS)
+    }
+
+    private fun applySourceSnapshots() {
+        val fresh = sourceSnapshots.items()
+        // A temporary outage must not replace an already active offline fallback.
+        if (fresh.isEmpty() && usingCachedImages) return
+        val current = displayedItem
+        imageItems.clear()
+        imageItems.addAll(fresh.shuffled())
+        imageSourceNames.clear()
+        imageSourceNames.putAll(sourceSnapshots.sourceNames())
+        usingCachedImages = false
+        renderSourceHealth()
+        pendingManualSkipIndex = null
+        displayedIndex = current?.let { old -> imageItems.indexOfFirst { it.stableId == old.stableId } } ?: -1
+        displayedItem = imageItems.getOrNull(displayedIndex)
+        currentIndex = if (displayedIndex >= 0 && imageItems.isNotEmpty()) (displayedIndex + 1) % imageItems.size else 0
+        if (fresh.isEmpty()) {
+            slideshowRunnable?.let { handler.removeCallbacks(it) }
+            slideshowRunnable = null
+            binding.statusText.text = context.getString(R.string.no_images_found)
+            binding.statusText.visibility = View.VISIBLE
+        } else {
+            if (!devTransitionErrorVisible) binding.statusText.visibility = View.GONE
+            if (playback.resumeWithNewItems() || current == null) showNextImage()
+        }
     }
 
     private fun stopImageRefresh() {
@@ -957,31 +966,7 @@ class ScreensaverEngine(
         val requestSequence = ++transitionSequence
         clearImageTarget(incoming)
 
-        val glideModel: Any = when {
-            item.url.startsWith("content://") -> android.net.Uri.parse(item.url)
-            item.url.startsWith("file://") -> {
-                val uri = android.net.Uri.parse(item.url)
-                // Cached files must use Glide's local File loader. Passing a file URI
-                // through the String/GlideUrl path invokes the HTTP-only OkHttp loader.
-                if (uri.path?.startsWith("/android_asset/") == true) uri
-                else uri.path?.let(::File) ?: uri
-            }
-            item.headers.isNotEmpty() -> {
-                val b = LazyHeaders.Builder()
-                item.headers.forEach { (k, v) -> b.addHeader(k, v) }
-                item.insecureEndpoint?.let {
-                    b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
-                }
-                GlideUrl(item.url, b.build())
-            }
-            else -> {
-                val b = LazyHeaders.Builder()
-                item.insecureEndpoint?.let {
-                    b.addHeader(HttpClients.INSECURE_ENDPOINT_HEADER, HttpClients.insecureEndpointHeader(it))
-                }
-                GlideUrl(item.url, b.build())
-            }
-        }
+        val glideModel = ImageModels.forItem(item)
 
         val prefs = Prefs.get(context)
         val request = Glide.with(context).load(glideModel)
@@ -1586,6 +1571,7 @@ class ScreensaverEngine(
         binding.clockOverlay.bringToFront()
         binding.weatherWidget.bringToFront()
         binding.statusText.bringToFront()
+        binding.sourceHealth.bringToFront()
         if (devTransitionErrorVisible) binding.devErrorOverlay.bringToFront()
     }
 

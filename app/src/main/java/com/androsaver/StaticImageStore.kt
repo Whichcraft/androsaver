@@ -15,11 +15,15 @@ object StaticImageStore {
 
     suspend fun copyItem(context: Context, item: ImageItem): String? {
         val url = item.url
-        return when {
-            url.startsWith("content://") -> copyStream(context, item.name) { context.contentResolver.openInputStream(Uri.parse(url)) }
-            url.startsWith("file://") -> {
+        val uri = Uri.parse(url)
+        return when (uri.scheme?.lowercase()) {
+            "content" -> copyStream(context, item.name) { context.contentResolver.openInputStream(Uri.parse(url)) }
+            "file" -> {
                 val path = Uri.parse(url).path ?: return null
-                copyStream(context, item.name) { File(path).inputStream() }
+                copyStream(context, item.name) {
+                    if (path.startsWith("/android_asset/")) context.assets.open(path.removePrefix("/android_asset/"))
+                    else File(path).inputStream()
+                }
             }
             else -> {
                 val request = Request.Builder().url(url).apply {

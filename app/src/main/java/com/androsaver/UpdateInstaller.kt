@@ -36,13 +36,18 @@ object UpdateInstaller {
             )
         }
 
+        withContext(Dispatchers.Main) {
+            context.startActivity(installIntent(context, apkFile))
+        }
+    }
+
+    internal fun installIntent(context: Context, apkFile: File): Intent {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apkFile)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
+        return Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        withContext(Dispatchers.Main) {
-            context.startActivity(intent)
+            // Explicit ClipData also carries the grant on older Android releases.
+            clipData = android.content.ClipData.newRawUri("App update", uri)
         }
     }
 

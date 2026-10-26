@@ -55,6 +55,7 @@ jobs:
           exit 1
 
   build:
+    needs: device-tests
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:
@@ -203,3 +204,60 @@ jobs:
       - name: Remove decoded keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/androsaver.jks"
+
+  device-tests:
+    name: Device integration (API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [29, 35]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Set up JDK 21
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@41ad77ca97e46ee2e825d5e6b9a95d8169fcc44c # v4.4.2
+      - name: Run device integration tests
+        env:
+          TEST_API: ${{ matrix.api }}
+        run: |
+          sudo chmod a+rw /dev/kvm
+          sdkmanager "platform-tools" "emulator" "system-images;android-${TEST_API};google_apis;x86_64"
+          echo no | avdmanager create avd --force --name integration --package "system-images;android-${TEST_API};google_apis;x86_64"
+          "$ANDROID_HOME/emulator/emulator" -avd integration -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          emulator_pid=$!
+          trap 'adb emu kill || kill "$emulator_pid" || true' EXIT
+          adb wait-for-device
+          booted=false
+          for attempt in $(seq 1 180); do
+            if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then
+              booted=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$booted" != true ]; then
+            cat "$RUNNER_TEMP/emulator.log"
+            exit 1
+          fi
+          adb shell input keyevent 82
+          ./gradlew connectedDevStandardDebugAndroidTest
+      - name: Upload device test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: device-tests-api-${{ matrix.api }}
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/

@@ -18,9 +18,11 @@ class DropboxAuthManager(private val context: Context) {
 
     private val client = HttpClients.standard
     private val gson = Gson()
+    private var authorizationAccount: AccountTransactions.Ticket? = null
 
     /** Returns the URL the user must visit on another device to authorize. */
     fun buildAuthUrl(): String? {
+        authorizationAccount = OAuthAccounts.capture(Prefs.get(context), "dropbox")
         val appKey = com.androsaver.Prefs.get(context)
             .getString(Prefs.DROPBOX_APP_KEY, null) ?: return null
         return "https://www.dropbox.com/oauth2/authorize" +
@@ -30,6 +32,8 @@ class DropboxAuthManager(private val context: Context) {
     /** Exchanges the authorization code shown by Dropbox for access + refresh tokens. */
     suspend fun exchangeCode(code: String): AuthResult = withContext(Dispatchers.IO) {
         val prefs = com.androsaver.Prefs.get(context)
+        val account = authorizationAccount
+            ?: return@withContext AuthResult.Error("Start sign-in again")
         val appKey    = prefs.getString(Prefs.DROPBOX_APP_KEY, null)
             ?: return@withContext AuthResult.Error("No App Key configured")
         val appSecret = prefs.getString(Prefs.DROPBOX_APP_SECRET, null)
@@ -57,10 +61,12 @@ class DropboxAuthManager(private val context: Context) {
 
             val accessToken  = json.get("access_token").asString
             val refreshToken = json.get("refresh_token").asString
-            prefs.edit()
-                .putString(Prefs.DROPBOX_ACCESS_TOKEN, accessToken)
-                .putString(Prefs.DROPBOX_REFRESH_TOKEN, refreshToken)
-                .apply()
+            if (!OAuthAccounts.publish(prefs, account) {
+                prefs.edit()
+                    .putString(Prefs.DROPBOX_ACCESS_TOKEN, accessToken)
+                    .putString(Prefs.DROPBOX_REFRESH_TOKEN, refreshToken)
+                    .apply()
+            }) return@withContext AuthResult.Error("Account changed; please sign in again")
             AuthResult.Success(accessToken, refreshToken)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -72,6 +78,7 @@ class DropboxAuthManager(private val context: Context) {
     suspend fun getValidAccessToken(): String? = refreshMutex.withLock {
         withContext(Dispatchers.IO) {
             val prefs = com.androsaver.Prefs.get(context)
+            val account = OAuthAccounts.capture(prefs, "dropbox")
             val appKey = prefs.getString(Prefs.DROPBOX_APP_KEY, null)
                 ?: return@withContext null
             val appSecret = prefs.getString(Prefs.DROPBOX_APP_SECRET, null)
@@ -102,7 +109,9 @@ class DropboxAuthManager(private val context: Context) {
 
                 if (json.has("error")) return@withContext null
                 val newToken = json.get("access_token").asString
-                prefs.edit().putString(Prefs.DROPBOX_ACCESS_TOKEN, newToken).apply()
+                if (!OAuthAccounts.publish(prefs, account) {
+                    prefs.edit().putString(Prefs.DROPBOX_ACCESS_TOKEN, newToken).apply()
+                }) return@withContext null
                 newToken
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -117,10 +126,12 @@ class DropboxAuthManager(private val context: Context) {
             .getString(Prefs.DROPBOX_REFRESH_TOKEN, null).isNullOrEmpty()
 
     fun clearAuth() {
-        com.androsaver.Prefs.get(context).edit()
-            .remove(Prefs.DROPBOX_ACCESS_TOKEN)
-            .remove(Prefs.DROPBOX_REFRESH_TOKEN)
-            .apply()
+        OAuthAccounts.invalidate("dropbox") {
+            com.androsaver.Prefs.get(context).edit()
+                .remove(Prefs.DROPBOX_ACCESS_TOKEN)
+                .remove(Prefs.DROPBOX_REFRESH_TOKEN)
+                .apply()
+        }
     }
 
     companion object {

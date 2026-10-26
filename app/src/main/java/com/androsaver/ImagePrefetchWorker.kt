@@ -52,10 +52,7 @@ class ImagePrefetchWorker(
             }.awaitAll()
         }
 
-        val sourceNeedsRetry = results.any {
-            val failure = it.result as? ImageSourceResult.Failure
-            failure != null && PrefetchRetryPolicy.source(failure.kind)
-        }
+        val sourceNeedsRetry = results.any { PrefetchRetryPolicy.source(it.result) }
         if (results.all { it.result is ImageSourceResult.Failure }) {
             return if (PrefetchRetryPolicy.retry(runAttemptCount, sourceNeedsRetry)) Result.retry() else Result.success()
         }
