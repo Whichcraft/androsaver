@@ -4,6 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
+/** Fixed normalized simulation coordinates preserve phase/state across surface resizes. */
 class LiquidLightMode : PsysualsFieldMode() {
     override val name = "LiquidLight"
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {

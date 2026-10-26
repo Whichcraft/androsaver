@@ -33,7 +33,7 @@ Stream your personal photos from any combination of cloud services and local sto
 • Remote control: press ← / → to jump to the previous or next photo.
 
 MUSIC VISUALIZER
-Thirty-four real-time OpenGL ES 2.0 effects react to whatever is playing on the TV — music, games, or movies.
+Thirty-two real-time OpenGL ES 2.0 effects react to whatever is playing on the TV — music, games, or movies.
 
 • Yantra — sacred-geometry mandala with beat-driven ring pulses
 • Cube — dual wireframe cubes with spectrum colour cycling
@@ -45,7 +45,7 @@ Thirty-four real-time OpenGL ES 2.0 effects react to whatever is playing on the 
 • Bubbles — translucent rising bubbles driven by bass energy
 • Spectrum — log-spaced equalizer bars with peak markers
 • Waterfall — scrolling time-frequency spectrogram
-• Aurora, Lattice, Mycelium, Magnetar, SlimeMold, Mobius, Chromatic, Persistence, Synapse, Heartbeat, Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, Mandelbox, and more
+• Aurora, Lattice, Mycelium, Magnetar, SlimeMold, Mobius, Chromatic, Persistence, Synapse, Heartbeat, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, and more
 
 Remote control while visualizer is running:
 • ← / → — switch between effects

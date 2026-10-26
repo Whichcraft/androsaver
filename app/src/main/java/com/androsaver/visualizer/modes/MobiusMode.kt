@@ -4,20 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/**
- * Möbius — a 3-D Möbius strip rendered with perspective projection.
- *
- * Latitude lines (constant v, varying u) form a wireframe.
- * Rotates slowly in 3-D; beat fires a "shiver" that briefly widens the twist.
- *
- *   Bass   → rotation speed
- *   Mid    → roll (tilt) speed
- *   Beat   → shiver: twist amplitude spike
- *
- * Port of psysuals `effects/mobius.py` (v3.11.0).
- * Upstream TRAIL_ALPHA=15 is clamped by GLDraw to the shared 48/255 minimum.
- * 3-D rotation and perspective projection ported from numpy to Kotlin FloatArrays.
- */
+/** psysuals 3.20 projected strip with slow smoothed geometry, separate light shiver and whole-strip viewport fitting. */
 class MobiusMode : BaseMode() {
 
     override val name = "Mobius"
@@ -40,10 +27,12 @@ class MobiusMode : BaseMode() {
     private val vArr   = FloatArray(N_LAT)  { (it / (N_LAT - 1f)) - 0.5f }   // -0.5 .. 0.5
 
     // Scratch arrays for projected screen points (2 floats per point)
+    private var fit=1f
+    private val projected=Array(N_LAT){FloatArray((N_U+1)*2)}
     private val pts2d  = FloatArray((N_U + 1) * 2)
 
     override fun reset() {
-        ry = 0f; rx = 0f; rw = 0f; hue = 0.55f; shiver = 0f; beatPrev = 0f
+        fit=1f; ry = 0f; rx = 0f; rw = 0f; hue = 0.55f; shiver = 0f; beatPrev = 0f
     }
 
     /** Perspective-project a world point (wx, wy, wz) → screen (px, py). */
@@ -81,30 +70,30 @@ class MobiusMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
-        val bass = audio.beat
-        val mid  = audio.mid
-        val high = audio.treble
-
-        hue    = (hue  + 0.0012f + mid  * 0.002f) % 1f
-        ry    += 0.008f + bass * 0.025f + mid * 0.012f + high * 0.015f
-        rx    += 0.003f + bass * 0.008f
-        rw    += 0.004f + mid * 0.008f + high * 0.012f
-
-        if (bass > 0.75f && beatPrev <= 0.75f) shiver = 1f
-        beatPrev = bass
-        shiver   = maxOf(0f, shiver - 0.04f)
-
-        val twist = 1f + shiver * 0.30f + mid * 0.15f
-
-        draw.fadeBlack(15f / 255f)
+        val response=prepare(draw,audio);val step=response.step
+        val bass=response.motion[0];val mid=response.motion[1];val high=response.motion[2]
+        hue=(hue+(.0012f+mid*.002f)*step)%1f
+        ry+=(.008f+bass*.006f+mid*.003f+high*.003f)*step*response.motionScale
+        rx+=(.003f+bass*.002f)*step*response.motionScale
+        rw+=(.004f+mid*.002f+high*.003f)*step*response.motionScale
+        shiver=response.light[0]*response.accent*.4f
+        val twist=1f+bass*.06f+mid*.06f
+        draw.fadeBlackTimed(42f/255f,step)
 
         val cosy = cos(ry); val siny = sin(ry)
         val cosx = cos(rx); val sinx = sin(rx)
 
+        var ex=1f;var ey=1f
+        for(li in 0 until N_LAT) {
+            fillLatLine(vArr[li],twist,W,H,cosy,siny,cosx,sinx)
+            pts2d.copyInto(projected[li])
+            for(i in 0..N_U){ex=maxOf(ex,abs(pts2d[i*2]-W*.5f));ey=maxOf(ey,abs(pts2d[i*2+1]-H*.5f))}
+        }
+        fit=minOf(fit+.001f*step,1f,W*.46f/ex,H*.46f/ey)
         // Latitude lines
         for (li in 0 until N_LAT) {
             val v = vArr[li]
-            fillLatLine(v, twist, W, H, cosy, siny, cosx, sinx)
+            for(i in 0..N_U){pts2d[i*2]=W*.5f+(projected[li][i*2]-W*.5f)*fit;pts2d[i*2+1]=H*.5f+(projected[li][i*2+1]-H*.5f)*fit}
             val h      = (hue + (v + 0.5f)) % 1f
             val bright = 0.18f + abs(v) * 0.30f + bass * 0.20f + shiver * 0.25f
             val c = GLDraw.hsl(h, l = bright)

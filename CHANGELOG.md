@@ -2,6 +2,16 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-10-26 — psysuals v3.20 Android backport
+
+- Backported latest effect behaviour and the 32-mode registry; removed Morphogenesis and Mandelbox from Kotlin and settings.
+- Added elapsed-time dynamics, separate geometry/light smoothing and saved Auto/Laptop/TV visual profiles.
+- Ported connected Hyperbolic sphere facets, metallic Ferrofluid peaks, seven-wave Phason, gradual Synapse growth and weighted Cymatica nodes.
+- Retuned Cube/Tunnel/Plasma/Persistence/Lissajous/Mobius/Chromatic/Lattice/TriFlux; preserve live simulation state on viewport changes.
+- Clear scene, both bloom buffers and the presentation framebuffer on effect changes and resize; present black switch frames before the next effect.
+- Added JVM timing/geometry/resize/activation regressions and EGL device coverage for all 32 modes and framebuffer clearing.
+- Updated current README, store listing and all visualizer documentation; historical release entries remain historical.
+
 ## 2026-10-26 — psysuals v3.20.0 subtree update
 
 - Updated the squashed `psysuals/` subtree from `4dc8095` to upstream main

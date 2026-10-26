@@ -235,6 +235,27 @@ open class GLDraw(var W: Int, var H: Int) {
         setupBloomFbos(W, H)
     }
 
+    /** Discard every retained color buffer and pending primitive on an effect switch. GL thread only. */
+    fun clearAllBuffers() {
+        triCount=0;lineCount=0;batchType=0
+        GLES20.glDisable(GLES20.GL_SCISSOR_TEST)
+        GLES20.glColorMask(true,true,true,true)
+        GLES20.glClearColor(0f,0f,0f,1f)
+        for(fbo in intArrayOf(sceneFboId,bloomAFboId,bloomBFboId,0)) {
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER,fbo)
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        }
+        GLES20.glViewport(0,0,W,H)
+        GLES20.glEnable(GLES20.GL_BLEND)
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA,GLES20.GL_ONE_MINUS_SRC_ALPHA)
+    }
+
+    fun fadeBlackTimed(alpha:Float,step:Float) {
+        val base=alpha.coerceIn(VisualizerRenderTuning.MIN_TRAIL_FADE,1f)
+        val decay=1f-kotlin.math.exp(kotlin.math.ln((1f-base).coerceAtLeast(1e-8f))*step.coerceIn(0f,6f))
+        rect(0f,0f,W.toFloat(),H.toFloat(),0f,0f,0f,decay)
+    }
+
     fun beginFrame(clear: Boolean = true) {
         lastSubmittedVertices = 0
         // Render scene into the FBO texture when bloom is active
@@ -516,6 +537,19 @@ open class GLDraw(var W: Int, var H: Int) {
         addLine(x1, y1, x2, y2, r, g, b, a)
     }
 
+    /** Subpixel triangle strip with a one-pixel alpha fringe; portable GLES2 line antialiasing. */
+    open fun antiAliasedLine(x1:Float,y1:Float,x2:Float,y2:Float,r:Float,g:Float,b:Float,a:Float=1f,width:Float=1f) {
+        val len=kotlin.math.hypot(x2-x1,y2-y1);if(len<1e-5f)return
+        val nx=-(y2-y1)/len;val ny=(x2-x1)/len
+        val offsets=floatArrayOf(-width*.5f-1f,-width*.5f,width*.5f,width*.5f+1f)
+        val alphas=floatArrayOf(0f,a,a,0f)
+        for(i in 0..2) {
+            val lo=offsets[i];val hi=offsets[i+1]
+            addTri(x1+nx*lo,y1+ny*lo,r,g,b,alphas[i]);addTri(x2+nx*lo,y2+ny*lo,r,g,b,alphas[i]);addTri(x1+nx*hi,y1+ny*hi,r,g,b,alphas[i+1])
+            addTri(x2+nx*lo,y2+ny*lo,r,g,b,alphas[i]);addTri(x2+nx*hi,y2+ny*hi,r,g,b,alphas[i+1]);addTri(x1+nx*hi,y1+ny*hi,r,g,b,alphas[i+1])
+        }
+    }
+
     /** Open polyline through a flat [pts] array [x0,y0, x1,y1, ...]. */
     fun lineStrip(pts: FloatArray, r: Float, g: Float, b: Float, a: Float = 1f) {
         lineStrip(pts, pts.size / 2, r, g, b, a)
@@ -550,7 +584,7 @@ open class GLDraw(var W: Int, var H: Int) {
     }
 
     /** Closed polygon using only the first [pointCount] points of a reusable buffer. */
-    fun polygon(pts: FloatArray, pointCount: Int, r: Float, g: Float, b: Float,
+    open fun polygon(pts: FloatArray, pointCount: Int, r: Float, g: Float, b: Float,
                 a: Float = 1f, filled: Boolean = false) {
         val n = pointCount.coerceAtMost(pts.size / 2)
         if (n < 2) return

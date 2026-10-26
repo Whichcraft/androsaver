@@ -90,6 +90,7 @@ object Prefs {
 
     // Visualizer
     const val VISUALIZER_MODE      = "visualizer_mode"
+    const val VISUALIZER_PROFILE = "visualizer_profile"
     const val VISUALIZER_INTENSITY = "visualizer_intensity"
     const val VIZ_CYCLE_INTERVAL   = "viz_cycle_interval"
     const val VIZ_ENABLED_MODES    = "viz_enabled_modes"

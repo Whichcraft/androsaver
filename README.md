@@ -3,8 +3,17 @@
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage), a **static image**, a fullscreen **music visualizer**, or a **blank black screen**. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
 The vendored `psysuals/` reference source is **psysuals 3.20.0** (`0579390`).
-This subtree sync preserves the current Android Kotlin effects and 34-mode
-registry; upstream rendering changes require a separate Android backport.
+The native Kotlin/GLES backport follows its 32-mode registry, elapsed-time
+motion, visual profiles and effect refinements. Scene, bloom and presentation
+buffers are cleared on effect changes.
+
+## psysuals 3.20 Android backport
+
+- Removed Morphogenesis and Mandelbox; 32 active effects now match upstream.
+- Added elapsed-time motion, separate smooth geometry/light response, and saved visual profiles.
+- Reworked Hyperbolic sphere facets, metallic Ferrofluid, seven-wave Phason, gradual Synapse growth and stable Cymatica nodes.
+- Updated Cube, Tunnel, TriFlux, Persistence, Lissajous, Mobius, Chromatic, Plasma and Lattice; preserve simulation state on resize.
+- Clear every retained framebuffer and present black switch frames before the new effect; no outgoing crossfade.
 
 ## What's New in v2.12.0
 
@@ -89,7 +98,7 @@ choose a random provider image.
 ### Music Visualizer
 Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
 
-- Thirty-four audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Fireworks**, **Aurora**, **Lattice**, **Mycelium**, **Magnetar**, **SlimeMold**, **Mobius**, **Chromatic**, **Persistence**, **Synapse**, **Heartbeat**, **Morphogenesis**, **Hyperbolic**, **LiquidLight**, **Cymatica**, **Phason**, **Tesseract**, **Ferrofluid**, **Mandelbox**, **Spectrum**, **Waterfall**
+- Thirty-two audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Fireworks**, **Aurora**, **Lattice**, **Mycelium**, **Magnetar**, **SlimeMold**, **Mobius**, **Chromatic**, **Persistence**, **Synapse**, **Heartbeat**, **Hyperbolic**, **LiquidLight**, **Cymatica**, **Phason**, **Tesseract**, **Ferrofluid**, **Spectrum**, **Waterfall**
 - Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
@@ -369,7 +378,8 @@ The configured "Time per Image" is the dwell time for each displayed photo. Tran
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
 | **Visual Effect Cycle** | Off, On, Random | On | Off leaves the current effect until changed with the remote; On cycles through the enabled effects in registry order; Random chooses randomly |
-| **Active Effects** | Any combination of the 34 effects | All | Selects which effects are included when cycling is On or Random; at least one must remain selected |
+| **Visual Profile** | Auto / Laptop / TV | Auto | Motion/light response independently of render resolution |
+| **Active Effects** | Any combination of the 32 effects | All | Selects which effects are included when cycling is On or Random; at least one must remain selected |
 | **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
 | **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
 | **Music Genre** | Auto-detect, Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting; Auto-detect analyzes the spectrum every 30 seconds and can switch visualizer family when Visual Effect Cycle is On |
@@ -443,10 +453,10 @@ See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) f
 | Effect | Description |
 |--------|-------------|
 | **Yantra** | Psychedelic sacred-geometry mandala with 7 concentric polygon rings, web connections, and neon spokes; rings spin at graduated speeds and kick outward on every beat |
-| **Cube** | Dual wireframe cubes with slow rotation, motion trails, and spectrum colour-fade; two orbiting satellites leave additive-blend trails; size pulses on each beat |
+| **Cube** | Fitted dual cubes and satellites with smoothed angular motion and light accents |
 | **TriFlux** ✨ | A living mosaic of triangles covering the full screen — every edge pulses with a rolling rainbow sweep; on beats, tiles eject to the foreground, bounce off screen edges, and spring back |
-| **Lissajous** | 3D trefoil Lissajous knot with two-pass neon glow and hard beat spring burst |
-| **Tunnel** | Smooth first-person ride through a curving neon tube; bass punches spawn dense bursts of triangles with rotating star polygons at each ring centre |
+| **Lissajous** | Stable 3:2:5 knot with time-sampled trails and smooth bounded motion |
+| **Tunnel** | Gentle audio-independent camera curvature and stable ring stars |
 | **Corridor** ✨ | Infinite neon rainbow corridor — 28 luminous frames rush toward you; hue sweeps full spectrum far-to-near; bass drives speed; beats fire glowing spark particles that streak outward |
 | **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
 | **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |
@@ -457,23 +467,21 @@ See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) f
 | **FlowField** | 8 000+ rainbow particles surfing a continuously evolving field; bass pulls toward center, treble scatters, and beats reshape the flow |
 | **Fireworks** | Firework rockets arc upward, explode into glowing embers, and auto-launch in the background; beats fire extra rockets |
 | **Aurora** | Five layered Northern Lights curtains with additive glow; bass billows amplitude, treble drives shimmer speed, and beats trigger bloom flashes |
-| **Lattice** | Crystal grid of glowing nodes and double-stroke beams with center-out frequency mapping and beat shockwaves |
+| **Lattice** | Profile-based crystal grid with smoothed scale and elapsed-time decay |
 | **Mycelium** | Multi-colony fungal growth with bioluminescent filament trails, orbiting spores, and beat-driven bloom bursts |
 | **Magnetar** | 4 000 particles riding a rotating magnetic dipole field with equatorial shockwave bursts on beats |
 | **SlimeMold** | Physarum-style agent simulation with trail diffusion and a finer TV-size grid; beats teleport part of the colony back toward center |
 | **Mobius** | 3-D wireframe Mobius strip with perspective projection and beat-driven shiver/twist bursts |
 | **Chromatic** | Prismatic ripple rings with RGB-separated outlines and treble-controlled chromatic split |
-| **Persistence** | Viewport-filling rotating 3D Platonic-solid wireframes with perspective depth cueing and very long trail persistence |
-| **Synapse** | Living neural graph that grows, sheds, and wanders nodes while firing traveling signal cascades |
+| **Persistence** | Five rigid solids with smooth axis reversals, speed accents and colour drift |
+| **Synapse** | Gradual branch births and oldest-node retirement with surviving signals |
 | **Heartbeat** | Expanding morphing rings that swing between circular and polygonal forms and pulse in layered neon glows |
-| **Morphogenesis** | Bounded audio-reactive Gray–Scott reaction-diffusion field |
-| **Hyperbolic** | Bounded radial disk tiling with animated geodesic lines |
+| **Hyperbolic** | Connected sphere facets that lift, hinge and sink with shaded walls |
 | **LiquidLight** | Fluorescent dye-like interference waves |
-| **Cymatica** | Chladni-like nodal plate with drifting luminous particles |
-| **Phason** | Quasiperiodic wave interference field |
+| **Cymatica** | Smoothly weighted Chladni modes and gradient-following sand |
+| **Phason** | Seven-wave full-resolution GLES interference with slow bounded pulse |
 | **Tesseract** | Projected rotating 4-D hypercube wireframe |
-| **Ferrofluid** | Magnetic contour rings and pole-driven field geometry |
-| **Mandelbox** | Bounded Mandelbox-inspired escape-time field |
+| **Ferrofluid** | Metallic liquid envelope with sharp magnetic peaks and surface lighting |
 | **Spectrum** | Log-spaced spectrum analyser with peak markers and waveform overlay |
 | **Waterfall** | Scrolling time-frequency spectrogram; beat flashes the leading edge |
 
@@ -497,14 +505,14 @@ ScreensaverService (DreamService)
         │   ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
         │   └── VisualizerView (GLSurfaceView)
         │       └── VisualizerRenderer (OpenGL ES 2.0)
-        │           └── 34 × BaseMode  ← Yantra, Cube, TriFlux, Lissajous, Tunnel,
+        │           └── 32 × BaseMode  ← Yantra, Cube, TriFlux, Lissajous, Tunnel,
         │                                 Corridor, Nova, Spiral, Bubbles, Plasma,
         │                                 Branches, Butterflies, FlowField, Fireworks,
         │                                 Aurora, Lattice, Mycelium, Magnetar,
         │                                 SlimeMold, Mobius, Chromatic, Persistence,
-        │                                 Synapse, Heartbeat, Morphogenesis, Hyperbolic,
+        │                                 Synapse, Heartbeat, Hyperbolic,
         │                                 LiquidLight, Cymatica, Phason, Tesseract,
-        │                                 Ferrofluid, Mandelbox, Spectrum, Waterfall
+        │                                 Ferrofluid, Spectrum, Waterfall
         ├── Clock overlay            ← date/time updated every minute
         ├── WeatherFetcher           ← OpenWeatherMap, cached 30 min
         └── Schedule check          ← restricts active hours

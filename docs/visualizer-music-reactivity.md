@@ -1,5 +1,10 @@
 # Visualizer Music Reactivity
 
+Current native registry: psysuals 3.20, 32 effects. Fourteen effects use elapsed
+render time and separate motion/light smoothing. Saved Auto/Laptop/TV profiles
+control motion and light independently of resolution. Effect changes clear all
+retained framebuffers with no outgoing crossfade.
+
 How each effect responds to audio. All effects receive low-frequency onset,
 mid, treble, and beat-derived signals from the system audio:
 
@@ -47,23 +52,7 @@ raw `AudioData.bass` field. **High** in older descriptions means Android's
 
 ## Cube
 
-**What it looks like:** Two nested wireframe cubes (inner cube is 45% the size of the outer) rotating in 3D, with two small satellite cubes orbiting around them.
-
-**Music reactivity:**
-
-| Visual element | Reacts to |
-|----------------|-----------|
-| Rotation velocity (all three axes) | Mid drives X-axis, bass drives Y-axis, high drives Z-axis; beat adds a larger impulse to all three |
-| **Spin direction flip** | Every time bass crosses 0.4 on a rising edge the spin direction reverses — creates a sudden direction change on kick drums |
-| Overall scale (size) | Beat pumps a spring that inflates both cubes; scale decays back to 1× between beats |
-| Edge brightness | Proportional to current scale velocity (brighter when the cube is expanding) |
-| Satellite orbit speed | Beat adds angular velocity to the orbit |
-| Satellite orbit radius | Each satellite oscillates in and out with its own phase (bouncy radial motion) |
-| Echo trail length | Fixed 14-frame ring buffer; older frames drawn with lower alpha |
-
-**Silence behaviour:** Cubes coast at their current spin velocity which decays slowly (damping 0.86× per frame). No new impulses means gradual slowdown. Trails fade as the motion decreases.
-
----
+Two fitted wireframe cubes and two independent satellites. Smoothed audio drives gentle angular speeds and a small scale change; fast light accents change brightness. Projection scales with the viewport and trail samples use 60 Hz time units.
 
 ## Plasma
 
@@ -84,46 +73,11 @@ raw `AudioData.bass` field. **High** in older descriptions means Android's
 
 ## Tunnel
 
-**What it looks like:** First-person ride through a curved neon tube. The tube itself is geometry-only. Bass punches spawn rotating triangles that fly toward the viewer along the tunnel center line.
-
-**Music reactivity:**
-
-| Visual element | Reacts to |
-|----------------|-----------|
-| Triangle spawn | A per-frame count of `floor(bassM × 1.2)` plus `floor(midM × 1.5)` when `midM > 0.5`; `bassM`, `midM`, and `highM` include the viewport motion scale |
-| Spawn position | New triangles appear in the far third of the tube (`z = 0.80–0.98`) |
-| Triangle spin speed | Base random spin is multiplied by mid energy; higher mid produces faster rotation |
-| Triangle size | Spawn size grows with bass and treble energy, then grows in perspective toward the camera |
-| Triangle brightness | Triangles brighten toward the camera; beat/low energy affects their spawn size and tunnel motion |
-| Triangle trail | All triangles fade with the global fadeBlack (α 0.11) |
-
-**Tunnel walls:** Constant speed, no music reactivity. The smoothness of the ride is always the same regardless of what is playing.
-
-**Triangle tracking:** Each triangle records the tunnel path position at the moment of spawn. As it approaches the camera it stays locked to the tunnel's curving center line, so it always appears inside the tube. Cleanup removes triangles at the near plane and trims the live list to 30.
-
-**Silence behaviour:** No new triangles spawn. Existing ones continue flying toward the camera and eventually disappear. The tunnel ride itself never stops.
-
----
+A gently curved first-person tunnel. Camera curvature is independent of audio; smoothed audio adjusts slow travel. Rings retain stable star identities through depth sorting and triangles spawn using bounded elapsed-time credit.
 
 ## Lissajous
 
-**What it looks like:** A 3D trefoil Lissajous knot drawn with three-fold rotational symmetry and a two-pass neon glow (thin outer halo + bright inner line).
-
-**Music reactivity:**
-
-| Visual element | Reacts to |
-|----------------|-----------|
-| Knot shape (frequency ratios) | Bass slightly shifts the X-frequency (ax), mid shifts Y (ay), high shifts Z (az); all changes are small (×0.05) so the knot shape evolves slowly |
-| Phase drift | Bass and high continuously advance the phase offsets dx and dz |
-| Animation speed | Beat accelerates how fast the trace advances along the knot |
-| Scale (overall size) | Beat inflates a spring; the knot shrinks back between beats |
-| 3D rotation speed | Beat adds angular impulse to both X and Y rotation axes |
-| Hue advance speed | Beat nudges the hue slightly, so colours change faster on louder passages |
-| Trail / glow persistence | Controlled by fadeBlack (α 0.18); older parts of the knot fade to black fairly quickly |
-
-**Silence behaviour:** The knot continues tracing at its base speed (t += 0.010/frame) and rotates gently with its baseline angular velocity. The shape changes very slowly. Only dot trails visible — no circles or additional overlays.
-
----
+A stable 3:2:5 3-D knot with smoothed rotation/scale, 60 Hz trail sampling and bounded projection. Lines never bridge large discontinuities; light responds more quickly than geometry.
 
 ## Nova
 
@@ -256,22 +210,9 @@ The eight field/geometry effects added with the current upstream integration
 are documented individually below because their bounded scalar-field or
 projection parameters are more informative than a single matrix cell.
 
-## Morphogenesis
-
-**What it looks like:** A bounded Gray–Scott reaction-diffusion field rendered
-as a colored scalar grid. Treble nudges the feed rate, mid nudges the kill
-rate, and mid also advances the field phase. The Android port uses a reusable
-64×36 field and interpolated viewport geometry rather than a full-resolution
-CPU bitmap. The adaptive render grid is capped to the shared GL batch budget,
-so the field stays smooth on TV-sized displays without creating pixel blocks.
-Silence leaves the reaction evolving at its base rate.
-
 ## Hyperbolic
 
-**What it looks like:** Six alternating-direction radial rings with twelve
-rotating spokes. Mid increases angular phase speed; hue drifts continuously.
-It has no beat-triggered explosion, so silence produces a calm, persistent
-geometric animation.
+A connected dual-icosphere of 162 shared pentagon/hexagon tiles. Individual caps lift, hinge and sink with travelling colour waves and shaded walls. Horizon clipping hides rear faces; geometry and light use separate smooth responses.
 
 ## LiquidLight
 
@@ -283,16 +224,11 @@ resolution.
 
 ## Cymatica
 
-**What it looks like:** A Chladni-like nodal plate with a rotating mode pair
-and 80 additive particles. Beat advances phase and enlarges the particles;
-treble softens the nodal falloff. The spatial mode changes every 180 frames,
-so the pattern evolves even without a beat.
+A Chladni-like nodal plate with slowly smoothed weights across six FFT bands. Sand follows the actual analytic nodal gradient. There are no argmax mode jumps or sawtooth mixture resets.
 
 ## Phason
 
-**What it looks like:** A quasiperiodic three-wave interference field. Beat
-drives phase speed, mid offsets one interference component, and treble speeds
-the hue cycle. Silence leaves the field moving at its base phase rate.
+A full-resolution GLES seven-wave interference field. Phase/hue advance slowly with elapsed time and its pulse remains bounded. The number of waves is fixed rather than switching with audio energy.
 
 ## Tesseract
 
@@ -304,16 +240,4 @@ geometry off-screen.
 
 ## Ferrofluid
 
-**What it looks like:** Five moving magnetic poles, each surrounded by five
-elliptical contour rings. Beat advances pole phase and expands every contour;
-hue drifts independently. The contour geometry is viewport-scaled and remains
-visible during silence.
-
-## Mandelbox
-
-**What it looks like:** A bounded Mandelbox-inspired escape-time field. Beat
-advances the domain warp, while hue drifts continuously. Each field point is
-limited to 14 iterations and the shared 64×36 field keeps the render cost
-predictable on TV sticks. The interpolated render grid avoids large native
-rectangle pixels on high-resolution displays. Silence still animates the
-domain slowly.
+A GLES metallic liquid envelope with five moving magnetic poles and a triangular lattice of sharp peaks. Analytic surface gradients drive diffuse, specular and rim lighting; geometry is smoothed and rendered at framebuffer resolution.

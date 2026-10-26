@@ -94,10 +94,10 @@ class FlowFieldMode : BaseMode() {
         val mid  = audio.mid
         val high = audio.treble
 
-        // Seed particles on first frame and rebuild on viewport changes.
-        if (tick == 0 || px.isEmpty() || W != lastW || H != lastH ||
-            (px.size > 1 && px[0] == 0f && py[0] == 0f && px[1] == 0f)) {
-            initParticles(W, H, preserve = px.isNotEmpty())
+        if(px.isEmpty()) initParticles(W,H) else if(W!=lastW || H!=lastH) {
+            val sx=W/lastW.coerceAtLeast(1f);val sy=H/lastH.coerceAtLeast(1f)
+            for(i in px.indices){px[i]*=sx;py[i]*=sy}
+            lastW=W;lastH=H
         }
 
         hue  = (hue + 0.0013f + bass * 0.002f + high * 0.001f) % 1f

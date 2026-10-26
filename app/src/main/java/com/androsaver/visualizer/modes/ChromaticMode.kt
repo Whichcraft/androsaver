@@ -21,19 +21,20 @@ class ChromaticMode : BaseMode() {
     }
 
     // Ring: cx, cy, r, maxR, speed, intensity, phase
-    private data class Ring(val cx: Float, val cy: Float, var r: Float,
-                             val maxR: Float, val speed: Float, val intensity: Float, var phase: Float)
+    private data class Ring(var cx: Float, var cy: Float, var r: Float,
+                             var maxR: Float, val speed: Float, val intensity: Float, var phase: Float)
 
     private val rings    = ArrayList<Ring>(MAX_RINGS)
     private var hue      = 0f
     private var beatPrev = 0f
-    private var autoCd   = 45
+    private var autoCd   = 45f
+    private var lastW=0;private var lastH=0
 
     // Reusable buffer to hold 72 points (144 floats) for wavePoints drawing
     private val ptsScratch = FloatArray(144)
 
     override fun reset() {
-        rings.clear(); hue = 0f; beatPrev = 0f; autoCd = 45
+        rings.clear(); hue = 0f; beatPrev = 0f; autoCd = 45f
     }
 
     private fun spawn(bass: Float, W: Float, H: Float) {
@@ -62,28 +63,33 @@ class ChromaticMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W    = draw.W.toFloat(); val H = draw.H.toFloat()
-        val bass = audio.beat
-        val mid  = audio.mid
-        val high = audio.treble
+        val response=prepare(draw,audio);val step=response.step
+        val bass=response.motion[0];val mid=response.motion[1];val high=response.motion[2]
+        val displayScale=minOf(W,H)/720f
+        if(lastW>0 && (lastW!=draw.W || lastH!=draw.H)) {
+            val sx=W/lastW;val sy=H/lastH
+            for(ring in rings){ring.cx*=sx;ring.cy*=sy;ring.r*=minOf(sx,sy);ring.maxR*=minOf(sx,sy)}
+        }
+        lastW=draw.W;lastH=draw.H
 
-        hue = (hue + 0.004f + mid * 0.003f) % 1f
+        hue = (hue + (0.004f + mid * 0.003f)*step) % 1f
 
-        if (bass > 0.60f && beatPrev <= 0.60f) spawn(bass, W, H)
-        beatPrev = bass
+        if (audio.beat > 0.60f && beatPrev <= 0.60f) spawn(minOf(1.5f,audio.beat), W, H)
+        beatPrev = audio.beat
 
-        autoCd--
-        if (autoCd <= 0 && rings.size < 3) { spawn(mid * 0.5f, W, H); autoCd = 55 }
+        autoCd-=step
+        if (autoCd <= 0 && rings.size < 3) { spawn(mid * 0.5f, W, H); autoCd = 55f }
 
         // Trail decay
-        draw.fadeBlack(24f / 255f)
+        draw.fadeBlackTimed(45f/255f,step)
 
         // Chromatic split amount driven by treble
-        val split = 2.0f + high * 12.0f
+        val split = (2f+response.light[2]*12f*response.accent)*displayScale
 
         val dead = ArrayList<Ring>()
         for (ring in rings) {
-            ring.r += ring.speed + bass * 3f
-            ring.phase += 0.08f + high * 0.22f + mid * 0.05f
+            ring.r += (ring.speed+bass)*displayScale*step*response.motionScale
+            ring.phase += (.025f+high*.035f+mid*.015f)*step
             val radius = ring.r
             if (radius > ring.maxR) {
                 dead.add(ring)
@@ -91,9 +97,9 @@ class ChromaticMode : BaseMode() {
             }
 
             val fade  = maxOf(0f, 1f - radius / ring.maxR)
-            val bright = ring.intensity * fade
+            val bright = minOf(1f,ring.intensity*fade*(1f+response.light[0]*.35f*response.accent))
             if (bright < 0.04f) continue
-            val warp = (2.5f + high * 11.0f + bass * 5.0f) * (0.45f + fade * 0.9f)
+            val warp = displayScale*(2.5f + high * 11.0f + bass * 5.0f) * (0.45f + fade * 0.9f)
             val baseR = maxOf(1f, radius)
 
             val mult = bright * 1.6f

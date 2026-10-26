@@ -93,7 +93,7 @@ class CorridorMode : BaseMode() {
         val bass = beat
         val mid  = audio.mid
         val high = audio.treble
-        val motion = displayMotionScale(draw)
+        val motion = prepare(draw,audio).motionScale
         val bassM = bass * motion
         val midM = mid * motion
         val highM = high * motion

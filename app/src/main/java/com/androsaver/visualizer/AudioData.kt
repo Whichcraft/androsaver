@@ -13,7 +13,10 @@ data class AudioData(
     /** Normalized treble-band energy (bins 100–255, ~4300–11000 Hz), normalized by running average (~0..~1.5). */
     var treble: Float = 0f,
     /** Effect-gain multiplier applied to beat before this snapshot was created (default 1.0). */
-    var gain: Float = 1f
+    var gain: Float = 1f,
+    /** Render-owned elapsed time and saved display profile; not capture-thread state. */
+    var deltaSeconds: Float = 1f / 60f,
+    var visualProfile: String = "auto"
 )
 
 /** Allocation-free mean of a half-open FFT range for render-thread consumers. */

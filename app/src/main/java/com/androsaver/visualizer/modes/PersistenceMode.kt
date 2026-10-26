@@ -4,27 +4,14 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/**
- * Persistence of Vision — stroboscopic rotating geometric shapes.
- *
- * Multiple nested polygons rotate at subtly different speeds.  With long
- * trail persistence their ghost images accumulate and interfere, creating
- * wagon-wheel moiré illusions and mandala-like kaleidoscope patterns.
- *
- *   Bass   → rotation speed burst
- *   Mid    → number of shapes / polygon complexity
- *   Treble → fourth-coordinate rotation + foremost-shape brightness
- *   Beat   → speed spike + hue jump
- *
- * Port of psysuals `effects/persistence.py` (v3.18.0).
- * Upstream TRAIL_ALPHA=5 is retained as source documentation; GLDraw clamps
- * the effective Android fade to 48/255 to prevent grey residue.
-*/
+/** psysuals 3.20: five rigid solids with smooth axis reversals, bounded speed accents and colour drift; no fourth-coordinate deformation. */
 private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>>)
 
 class PersistenceMode : BaseMode() {
 
     override val name = "Persistence"
+    private val direction=FloatArray(3){1f};private val directionTarget=FloatArray(3){1f}
+    private var directionAxis=0;private var directionCd=0f;private var colourOffset=0f
     private val rng = kotlin.random.Random(0x513E)
 
     private companion object {
@@ -130,6 +117,7 @@ class PersistenceMode : BaseMode() {
     private val coreColor = FloatArray(4)
 
     override fun reset() {
+        direction.fill(1f);directionTarget.fill(1f);directionAxis=0;directionCd=0f;colourOffset=0f
         hue = 0f; boost = 0f; beatPrev = 0f
         for (i in 0 until MAX_SHAPES) {
             rotX[i] = rng.nextFloat() * TAU
@@ -159,30 +147,31 @@ class PersistenceMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
-        val bass = audio.beat
-        val mid  = audio.mid
-        val high = audio.treble
-
-        hue   = (hue + 0.003f + mid * 0.003f) % 1f
-        boost = maxOf(0f, boost - 0.04f)
-
-        if (bass > 0.75f && beatPrev <= 0.75f) boost = 1.5f + bass * 1.0f
-        beatPrev = bass
-
-        draw.fadeBlack(5f / 255f)
+        val response=prepare(draw,audio);val step=response.step
+        val bass=response.motion[0];val mid=response.motion[1];val high=response.motion[2]
+        directionCd=maxOf(0f,directionCd-step)
+        if(audio.beat>.65f && beatPrev<=.65f && directionCd<=0f) {
+            directionTarget[directionAxis]*=-1f;directionAxis=(directionAxis+1)%3;directionCd=120f;boost=.45f
+        }
+        beatPrev=audio.beat
+        for(i in 0..2) direction[i]=response.smooth(direction[i],directionTarget[i],.02f)
+        boost=response.smooth(boost,0f,.025f)
+        colourOffset=response.smooth(colourOffset,mid*.18f+high*.12f,.06f)
+        hue=(hue+(.0015f+mid*.003f+response.light[0]*.004f)*step)%1f
+        draw.fadeBlackTimed(65f/255f,step)
 
         val cx      = W / 2f; val cy = H / 2f
         // Camera focal scale: the old value left the perspective solids
         // undersized after depth projection.
-        val baseR   = H * 0.95f
+        val baseR   = minOf(W,H) * .95f
         val fov     = baseR
-        val spdMul  = 1f + bass * 2.5f + boost
-        val nShapes = maxOf(3, minOf(MAX_SHAPES, 3 + (mid * 5).toInt()))
+        val spdMul = minOf(1.8f,.35f+bass*.65f+mid*.25f+boost)*step*response.motionScale
+        val nShapes = 5
 
         for (i in 0 until nShapes) {
-            rotX[i] += speedsX[i] * spdMul
-            rotY[i] += speedsY[i] * spdMul
-            rotZ[i] += speedsZ[i] * spdMul
+            rotX[i] += speedsX[i] * spdMul * direction[0]
+            rotY[i] += speedsY[i] * spdMul * direction[1]
+            rotZ[i] += speedsZ[i] * spdMul * direction[2]
             rotW[i] += (0.006f + high * 0.004f) * spdMul
 
             val ax = rotX[i]
@@ -190,8 +179,8 @@ class PersistenceMode : BaseMode() {
             val az = rotZ[i]
 
             val rLocal = 0.2f + 0.8f * (i + 1) / nShapes
-            val h      = (hue + i.toFloat() / nShapes * 0.55f) % 1f
-            val bright = 0.28f + bass * 0.25f + if (i == nShapes - 1) high * 0.12f else 0f
+            val h      = (hue + colourOffset + i.toFloat() / nShapes * 0.55f) % 1f
+            val bright = minOf(.9f,.28f+response.light[0]*.25f*response.accent+if(i==nShapes-1)response.light[2]*.12f else 0f)
 
             val modelIdx = i % models.size
             val model = models[modelIdx]
@@ -205,15 +194,7 @@ class PersistenceMode : BaseMode() {
                 val szVal = uVert[2] * rLocal
 
                 rotate(sxVal, syVal, szVal, ax, ay, az, rotOut)
-                // Lightweight fourth-coordinate rotation adds an inside-out
-                // projection accent while retaining the existing 3-D solids.
-                val rw = rotW[i]
-                val w4 = rotOut[0] * sin(rw) + rotOut[2] * cos(rw)
-                val x4 = rotOut[0] * cos(rw) - rotOut[2] * sin(rw)
-                val depth4 = maxOf(0.35f, 2.8f - w4)
-                val rx = x4 / depth4
-                val ry = rotOut[1] / depth4
-                val rz = rotOut[2] / depth4
+                val rx=rotOut[0];val ry=rotOut[1];val rz=rotOut[2]
 
                 val camZ = 2.2f
                 var depth = camZ + rz
@@ -226,6 +207,10 @@ class PersistenceMode : BaseMode() {
                 depths[vIdx] = rz
             }
 
+            var ex=1f;var ey=1f
+            for(v in uVerts.indices){ex=maxOf(ex,abs(projX[v]-cx));ey=maxOf(ey,abs(projY[v]-cy))}
+            val fit=minOf(1f,W*.46f/ex,H*.46f/ey)
+            for(v in uVerts.indices){projX[v]=cx+(projX[v]-cx)*fit;projY[v]=cy+(projY[v]-cy)*fit}
             for (edge in edges) {
                 val a = edge.first
                 val b = edge.second

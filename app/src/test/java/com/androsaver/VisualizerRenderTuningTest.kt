@@ -4,12 +4,8 @@ import com.androsaver.visualizer.VisualizerRenderTuning
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import com.androsaver.visualizer.modes.CymaticaMode
-import com.androsaver.visualizer.modes.FerrofluidMode
 import com.androsaver.visualizer.modes.HyperbolicMode
 import com.androsaver.visualizer.modes.LiquidLightMode
-import com.androsaver.visualizer.modes.MandelboxMode
-import com.androsaver.visualizer.modes.MorphogenesisMode
-import com.androsaver.visualizer.modes.PhasonMode
 import com.androsaver.visualizer.modes.TesseractMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,8 +35,8 @@ class VisualizerRenderTuningTest {
                 AudioData(fft = FloatArray(0))
             ).forEach { audio ->
                 listOf(
-                    MorphogenesisMode(), PhasonMode(), CymaticaMode(), LiquidLightMode(),
-                    MandelboxMode(), HyperbolicMode(), TesseractMode(), FerrofluidMode()
+                    CymaticaMode(), LiquidLightMode(),
+                    HyperbolicMode(), TesseractMode()
                 ).forEach { mode ->
                     val draw = NoOpDraw(width, height)
                     mode.onSurfaceCreated()

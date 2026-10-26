@@ -529,8 +529,11 @@ class ScreensaverEngine(
             .putStringSet(Prefs.VIZ_ENABLED_MODES, enabledModes)
             .apply()
 
-        vv.selectInitialMode(modePref)
+        val selectedMode = modePref.takeIf { it == "off" || it == "auto" || it == "random" || it in allNames } ?: "auto"
+        if (selectedMode != modePref) prefs.edit().putString(Prefs.VISUALIZER_MODE, selectedMode).apply()
+        vv.selectInitialMode(selectedMode)
 
+        vv.renderer.visualProfile = prefs.getString(Prefs.VISUALIZER_PROFILE, "auto") ?: "auto"
         vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
         val genre = prefs.getString(Prefs.AUDIO_GENRE, "any") ?: "any"
         if (genre == "auto") {
@@ -1438,6 +1441,7 @@ class ScreensaverEngine(
     private fun resetIntensity() {
         val vv = visualizerView ?: return
         val prefs = com.androsaver.Prefs.get(context)
+        vv.renderer.visualProfile = prefs.getString(Prefs.VISUALIZER_PROFILE, "auto") ?: "auto"
         vv.renderer.beatGain = prefs.getString(Prefs.VISUALIZER_INTENSITY, "0.5")?.toFloatOrNull() ?: 0.5f
     }
 
@@ -1447,6 +1451,7 @@ class ScreensaverEngine(
         val idx = INTENSITY_STEPS.indexOfFirst { it >= current - 0.01f }.takeIf { it >= 0 } ?: 2
         val newIdx = (idx + delta).coerceIn(0, INTENSITY_STEPS.lastIndex)
         val newGain = INTENSITY_STEPS[newIdx]
+        vv.renderer.visualProfile = prefs.getString(Prefs.VISUALIZER_PROFILE, "auto") ?: "auto"
         vv.renderer.beatGain = newGain
         com.androsaver.Prefs.get(context).edit()
             .putString(Prefs.VISUALIZER_INTENSITY, newGain.toString()).apply()

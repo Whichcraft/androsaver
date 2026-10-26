@@ -55,8 +55,16 @@ class SlimeMoldMode : BaseMode() {
 
     private fun init(W: Float, H: Float) {
         val div = renderDiv(W, H)
-        gridW = maxOf(1, (W / div).toInt())
-        gridH = maxOf(1, (H / div).toInt())
+        val newW=maxOf(1,(W/div).toInt());val newH=maxOf(1,(H/div).toInt())
+        if(initialized && gridW>0 && gridH>0) {
+            val sx=newW.toFloat()/gridW;val sy=newH.toFloat()/gridH
+            for(i in 0 until N){px[i]=(px[i]*sx).coerceIn(0f,newW-1f);py[i]=(py[i]*sy).coerceIn(0f,newH-1f)}
+            trail=com.androsaver.visualizer.FieldResize.resize(trail,gridW,gridH,newW,newH)
+            gridW=newW;gridH=newH;diffuseTrail=FloatArray(gridW*gridH)
+            return
+        }
+        gridW = newW
+        gridH = newH
         trail = FloatArray(gridW * gridH)
         diffuseTrail = FloatArray(gridW * gridH)
         val cx = gridW / 2f; val cy = gridH / 2f

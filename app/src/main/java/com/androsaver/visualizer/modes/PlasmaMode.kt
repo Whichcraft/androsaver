@@ -58,7 +58,7 @@ class PlasmaMode : BaseMode() {
             const float PI = 3.14159265;
             vec2 uv = (vUV - 0.5) * (5.0 * PI);
             float R  = length(uv);
-            float fm = 1.0 + uMid * 0.7;
+            float fm = 1.0 + uMid * 0.15;
             float t  = uTime;
 
             vec2 q = uv + uWarp * vec2(sin(uv.y * 0.72 + t * 0.71),
@@ -71,7 +71,7 @@ class PlasmaMode : BaseMode() {
             }
             v = v / 7.0 + sin(length(q) * fm * 0.46 - t * 1.2) * 0.16;
 
-            float h = mod(v * 0.55 + 0.5 + uHue + uBass * 0.35, 1.0);
+            float h = mod(v * 0.55 + 0.5 + uHue + uBass * 0.08, 1.0);
             float l = clamp(0.28 + v * 0.22 + uBeat * 0.22 + uHigh * 0.08, 0.0, 0.95);
 
             gl_FragColor = vec4(hsl2rgb(h, 1.0, l), 1.0);
@@ -88,12 +88,13 @@ class PlasmaMode : BaseMode() {
 
     private var time = 0f
     private var hue  = 0f
+    private var warpState=.04f
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
 
     override fun reset() {
         time = 0f
-        hue = 0f
+        hue = 0f; warpState=.04f
     }
 
     override fun onSurfaceCreated() {
@@ -163,13 +164,13 @@ class PlasmaMode : BaseMode() {
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         if (!initGL()) return
 
-        val beat = audio.beat
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
-        hue  += 0.002f
-        time += 0.018f + bass * 0.05f + mid * 0.03f + high * 0.02f
-        val warp = (0.08f + bass * 0.12f + mid * 0.025f + high * 0.015f).coerceAtMost(0.42f)
+        val response=prepare(draw,audio);val step=response.step
+        val bass=response.motion[0];val mid=response.motion[1];val high=response.motion[2]
+        val beat=response.light[0]*.25f
+        hue+=.0005f*step
+        time+=(.005f+bass*.002f+mid*.001f+high*.0005f)*step
+        warpState=response.smooth(warpState,minOf(.14f,.04f+bass*.025f+mid*.01f+high*.005f),.025f)
+        val warp=warpState
 
         GLES20.glUseProgram(program)
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo)

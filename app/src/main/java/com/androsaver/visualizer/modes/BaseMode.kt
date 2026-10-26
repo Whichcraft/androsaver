@@ -6,6 +6,19 @@ import com.androsaver.visualizer.GLDraw
 /** Common interface for all visualizer modes. */
 abstract class BaseMode {
 
+    protected val dynamics = com.androsaver.visualizer.EffectDynamics()
+    internal fun resetDynamics() { dynamics.reset() }
+    protected fun prepare(draw: GLDraw, audio: AudioData): com.androsaver.visualizer.EffectDynamics {
+        dynamics.update(audio, draw.W)
+        return dynamics
+    }
+    protected fun fitViewport(points: FloatArray, width: Int, height: Int, count: Int = points.size / 2) {
+        var ex = 1f; var ey = 1f
+        for (i in 0 until count) { ex = maxOf(ex, kotlin.math.abs(points[i*2]-width*.5f)); ey = maxOf(ey, kotlin.math.abs(points[i*2+1]-height*.5f)) }
+        val fit = minOf(1f, width*.46f/ex, height*.46f/ey)
+        for (i in 0 until count) { points[i*2] = width*.5f+(points[i*2]-width*.5f)*fit; points[i*2+1] = height*.5f+(points[i*2+1]-height*.5f)*fit }
+    }
+
     /** Human-readable name shown in settings. */
     abstract val name: String
 
@@ -44,12 +57,4 @@ abstract class BaseMode {
         return sum / (hi - lo)
     }
 
-    /**
-     * Keep high-energy perspective motion comfortable on smaller displays.
-     * TV-sized surfaces retain full motion while smaller surfaces are damped.
-     */
-    protected fun displayMotionScale(draw: GLDraw): Float {
-        val shortest = minOf(draw.W.coerceAtLeast(1), draw.H.coerceAtLeast(1))
-        return (shortest / 1080f).coerceIn(0.55f, 1f)
-    }
 }

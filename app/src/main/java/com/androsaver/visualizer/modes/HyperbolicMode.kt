@@ -2,103 +2,48 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.HyperbolicMesh
+import com.androsaver.visualizer.HyperbolicMesh.V
 import kotlin.math.*
 
-/** Poincare-disk tiling port of psysuals `effects/hyperbolic.py`. */
+/** Connected sphere mesh with independently lifting, hinging and sinking caps. */
 class HyperbolicMode : BaseMode() {
-    override val name = "Hyperbolic"
-
-    private data class Tile(val x: Float, val y: Float, val radius: Float, val generation: Int)
-    private data class Point(val x: Float, val y: Float)
-
-    private val tiles = ArrayList<Tile>(126).apply {
-        for (generation in 0..5) {
-            val count = 6 * (generation + 1)
-            val radial = 0.10f + generation * 0.135f
-            val radius = 0.105f / (1f + generation * 0.62f)
-            for (index in 0 until count) {
-                val angle = 2f * PI.toFloat() * index / count + generation * 0.13f
-                add(Tile(cos(angle) * radial, sin(angle) * radial, radius, generation))
-            }
-        }
+    override val name="Hyperbolic"
+    private val tiles=HyperbolicMesh.tiles()
+    private val centers=tiles.map { tile -> tile.reduce { a,b -> a+b }*(1f/tile.size) }
+    private val heights=FloatArray(tiles.size)
+    private var time=0f;private var angle=0f;private var hue=0f
+    override fun reset() { time=0f;angle=0f;hue=0f;heights.fill(0f) }
+    private fun rotate(v:V):V { val x=v.x*cos(angle)+v.z*sin(angle);val z=-v.x*sin(angle)+v.z*cos(angle)
+        return V(x,v.y*cos(.35f)-z*sin(.35f),v.y*sin(.35f)+z*cos(.35f)) }
+    private fun paint(draw:GLDraw,vertices:List<V>,h:Float,l:Float,filled:Boolean) {
+        val clipped=HyperbolicMesh.clipFront(vertices);if(clipped.size<3)return
+        val p=FloatArray(clipped.size*2)
+        for(i in clipped.indices) { val v=clipped[i];val s=minOf(draw.W,draw.H)*.36f*3.2f/(3.2f-v.z)
+            p[i*2]=draw.W*.5f+v.x*s;p[i*2+1]=draw.H*.5f+v.y*s }
+        val c=GLDraw.hsl(((h%1f)+1f)%1f,.95f,l.coerceIn(0f,1f))
+        if(filled)draw.polygon(p,c[0],c[1],c[2],1f,true) else for(i in clipped.indices){val j=(i+1)%clipped.size;draw.antiAliasedLine(p[i*2],p[i*2+1],p[j*2],p[j*2+1],c[0],c[1],c[2])}
     }
-
-    private var hue = 0f
-    private var shock = 0f
-    private var beatPrevious = 0f
-
-    override fun reset() { hue = 0f; shock = 0f; beatPrevious = 0f }
-
-    override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        // The desktop effect paints a fresh dark disk each frame; it has no trail.
-        draw.rect(0f, 0f, draw.W.toFloat(), draw.H.toFloat(), 2f / 255f, 1f / 255f, 8f / 255f, 1f)
-        val bass = audio.beat.coerceIn(0f, 1.5f)
-        val mid = audio.mid.coerceIn(0f, 4f)
-        val high = audio.treble.coerceIn(0f, 4f)
-        if (bass > 0.7f && beatPrevious <= 0.7f) shock = minOf(1f, shock + 0.65f)
-        beatPrevious = bass
-        shock *= 0.93f
-        hue = (hue + 0.001f + mid * 0.0008f) % 1f
-
-        val offsetRadius = minOf(0.28f, 0.035f + mid * 0.025f + shock * 0.07f + 0.01f)
-        val offsetAngle = tick * 0.004f
-        val ox = cos(offsetAngle) * offsetRadius
-        val oy = sin(offsetAngle) * offsetRadius
-        val cx = draw.W * 0.5f
-        val cy = draw.H * 0.5f
-        val scale = minOf(draw.W, draw.H) * 0.47f
-
-        val disk = FloatArray(192)
-        for (i in 0 until 96) {
-            val a = i * (2f * PI.toFloat() / 96f)
-            disk[i * 2] = cx + cos(a) * scale
-            disk[i * 2 + 1] = cy + sin(a) * scale
+    override fun draw(draw:GLDraw,audio:AudioData,tick:Int) {
+        val r=prepare(draw,audio);val mid=r.motion[1]
+        time+=(.013f+mid*.002f)*r.step;angle+=(.008f+mid*.002f)*r.step*r.motionScale
+        hue=(hue+(.0025f+mid*.0008f)*r.step)%1f
+        draw.rect(0f,0f,draw.W.toFloat(),draw.H.toFloat(),2f/255f,1f/255f,8f/255f,1f)
+        draw.circle(draw.W*.5f,draw.H*.5f,minOf(draw.W,draw.H)*.36f*3.2f/sqrt(3.2f*3.2f-1f),.035f,.055f,.12f,1f,true,96)
+        val rotated=tiles.map { tile -> tile.map(::rotate) }
+        for(index in tiles.indices.sortedBy { i -> rotated[i].map { it.z }.average() }) {
+            val tile=tiles[index];val center=centers[index]
+            val phase=time+atan2(center.y,center.x)*3f+center.z*4f
+            val target=(.075f*sin(phase)+.035f*sin(time*1.4f+index*.52f)+r.motion[0]*.035f*(.5f+.5f*sin(phase+time*.3f))).coerceIn(-.10f,.18f)
+            heights[index]=r.smooth(heights[index],target,.08f)
+            val base=rotated[index];val visible=HyperbolicMesh.clipFront(base);if(visible.size<3)continue
+            val height=heights[index];val axis=(tile[1]-tile[0]).normal();val pivot=(tile[0]+tile[1])*.5f
+            val a=.30f*maxOf(0f,sin(phase));val ca=cos(a);val sa=sin(a)
+            val cap=tile.map { v -> val rel=v-pivot;rotate((rel*ca+axis.cross(rel)*sa+axis*(rel.dot(axis)*(1f-ca))+pivot)*(1f+height)) }
+            val depth=visible.map { it.z }.average().toFloat();val h=hue+index*.033f+.20f*sin(phase)+height*.8f
+            for(i in base.indices) { val j=(i+1)%base.size;paint(draw,listOf(base[i],base[j],cap[j],cap[i]),h+.10f,.04f+maxOf(0f,height)*.5f+(i%3)*.018f,true) }
+            paint(draw,cap,h,minOf(.48f,.13f+depth*.12f+maxOf(0f,height)*.65f+r.light[0]*.05f*r.accent),true)
+            paint(draw,cap,h+.08f,minOf(.90f,.42f+depth*.22f+r.light[2]*.10f+maxOf(0f,height)),false)
         }
-        draw.polygon(disk, 0.22f, 0.08f, 0.38f, 1f, filled = false)
-
-        for (tile in tiles) {
-            val phase = tick * (0.003f + tile.generation * 0.0007f) + tile.generation * 0.4f
-            val points = ArrayList<Point>(31)
-            var previous: Point? = null
-            for (side in 0..6) {
-                val angle = phase + 2f * PI.toFloat() * side / 6f
-                val vx = tile.x + tile.radius * cos(angle)
-                val vy = tile.y + tile.radius * sin(angle)
-                val transformed = mobius(vx, vy, ox, oy) ?: continue
-                if (side > 0 && previous != null) {
-                    for (segment in 0 until 4) {
-                        val t = segment / 4f
-                        val x = previous.x * (1f - t) + transformed.x * t
-                        val y = previous.y * (1f - t) + transformed.y * t
-                        if (x * x + y * y < 1.1025f) points.add(Point(x, y))
-                    }
-                }
-                previous = transformed
-            }
-            if (points.size < 2) continue
-            val brightness = (0.30f + high * 0.08f + shock * 0.35f - tile.generation * 0.025f)
-                .coerceIn(0.22f, 0.95f)
-            val color = GLDraw.hsl((hue + tile.generation * 0.075f) % 1f, 1f, brightness)
-            val pts = FloatArray(points.size * 2)
-            for (i in points.indices) {
-                pts[i * 2] = cx + points[i].x * scale
-                pts[i * 2 + 1] = cy + points[i].y * scale
-            }
-            draw.lineStrip(pts, color[0], color[1], color[2], 1f)
-        }
-    }
-
-    private fun mobius(x: Float, y: Float, ox: Float, oy: Float): Point? {
-        // (z - offset) / (1 - conjugate(offset) * z)
-        val numeratorX = x - ox
-        val numeratorY = y - oy
-        val denominatorX = 1f - (ox * x + oy * y)
-        val denominatorY = oy * x - ox * y
-        val denominator = denominatorX * denominatorX + denominatorY * denominatorY
-        if (denominator < 1e-8f) return null
-        return Point(
-            (numeratorX * denominatorX + numeratorY * denominatorY) / denominator,
-            (numeratorY * denominatorX - numeratorX * denominatorY) / denominator
-        )
     }
 }

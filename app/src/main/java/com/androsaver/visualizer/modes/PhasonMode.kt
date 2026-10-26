@@ -2,51 +2,47 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
-import kotlin.math.*
 
-class PhasonMode : PsysualsFieldMode() {
-    override val name = "Phason"
-    private val angles = FloatArray(11) { it * 2f * PI.toFloat() / 11f }
-    private val phases = FloatArray(11)
-    private var beatPrevious = 0f
-    private var pulse = 0f
-
-    override fun reset() {
-        super.reset()
-        for (i in angles.indices) angles[i] = i * 2f * PI.toFloat() / angles.size
-        phases.fill(0f)
-        beatPrevious = 0f
-        pulse = 0f
+/** Stable seven-wave field and slow bounded pulse, matching upstream 3.20. */
+class PhasonMode : FullscreenEffectMode() {
+    override val name="Phason"
+    private var time=0f
+    private var hue=0f
+    private var pulse=0f
+    override fun reset() { time=0f; hue=0f; pulse=0f }
+    override fun draw(draw: GLDraw,audio: AudioData,tick: Int) {
+        val r=prepare(draw,audio); val bass=r.motion[0]; val mid=r.motion[1]; val high=r.motion[2]
+        time+=(.004f+mid*.001f)*r.step
+        hue=(hue+(.00025f+mid*.0002f)*r.step)%1f
+        pulse=r.smooth(pulse,minOf(.12f,bass*.08f),.025f)
+        renderField(draw,mapOf("u_time" to floatArrayOf(time),"u_hue" to floatArrayOf(hue),
+            "u_bass" to floatArrayOf(bass),"u_mid" to floatArrayOf(mid),"u_high" to floatArrayOf(high),"u_pulse" to floatArrayOf(pulse)))
     }
+    override val fragmentShader="""
 
-    override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        clearTrail(draw)
-        val bass = audio.beat.coerceIn(0f, 1.5f)
-        val mid = audio.mid.coerceIn(0f, 4f)
-        val high = audio.treble.coerceIn(0f, 4f)
-        if (bass > 0.7f && beatPrevious <= 0.7f) pulse = minOf(1f, pulse + 0.75f)
-        beatPrevious = bass
-        pulse *= 0.94f
-        val waveCount = minOf(angles.size, 5 + 2 * mid.toInt())
-        val speed = 0.002f + high * 0.001f
-        for (i in 0 until waveCount) {
-            angles[i] += 0.0007f + speed
-            phases[i] += speed + pulse * 0.008f
-        }
-        hue = (hue + 0.001f + mid * 0.0007f) % 1f
-        val tau = 2f * PI.toFloat()
-        for (y in 0 until rows) for (x in 0 until cols) {
-            val nx = (x / (cols - 1f) - 0.5f) * 2f * tau
-            val ny = (y / (rows - 1f) - 0.5f) * 2f * tau
-            var field = 0f
-            for (i in 0 until waveCount) {
-                val a = angles[i]
-                field += cos(nx * cos(a) + ny * sin(a) + phases[i])
-            }
-            field /= waveCount.toFloat()
-            field = (field + pulse * cos(nx * 0.5f + ny * 0.5f)).coerceIn(-1f, 1f)
-            values[y * cols + x] = (field + 1f) * 0.5f
-        }
-        paint(draw, audio)
+
+
+uniform vec2 u_resolution;
+uniform float u_time, u_hue, u_bass, u_mid, u_high, u_pulse;
+
+vec3 palette(float h, float v) {
+    return clamp(0.5 + 0.5*cos(6.2831853*(h + vec3(0.0,0.3333,0.6667))),0.0,1.0)*v;
+}
+void main() {
+    vec2 p = (gl_FragCoord.xy / u_resolution - 0.5) * vec2(12.56637,12.56637);
+    float v = 0.0;
+    for (int i=0; i<7; ++i) {
+
+        float a = 6.2831853*float(i)/7.0 + sin(u_time*0.13+float(i))*0.16;
+        vec2 k = vec2(cos(a),sin(a));
+        v += cos(dot(p,k)*(0.82+u_mid*0.035) + u_time*(0.30+float(i)*0.047));
     }
+    v /= 7.0;
+    v += cos((p.x+p.y)*0.5-u_time*0.7)*(0.20+u_pulse*0.25);
+    float bands = 0.5+0.5*cos(v*11.0 + u_time*0.42);
+    float hue = u_hue + v*0.21 + bands*0.22 + u_high*0.025;
+    float light = clamp(0.12 + bands*0.62 + u_bass*0.10 + u_pulse*0.13,0.0,0.95);
+    gl_FragColor = vec4(palette(hue, light),1.0);
+}
+    """.trimIndent()
 }

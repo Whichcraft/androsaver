@@ -44,7 +44,7 @@ OpenGL ES 2.0 renderer and keep each goal in a separate commit.
   - Keep a safe lower bound for small devices and a strict upper bound for 4K
     TV performance.
   - Preserve the current aspect correction and black trail behavior.
-  - Verify that Morphogenesis, Phason, Cymatica, LiquidLight, and Mandelbox no
+  - Verify that Phason, Cymatica, and LiquidLight no
     longer appear as undifferentiated color blocks at 1920×1080 and 3840×2160.
 
 - [x] **Improve Android Tesseract detail and upstream parity.**
@@ -229,6 +229,15 @@ Device-only checks above remain open; CI success does not mark them complete.
 ## psysuals 3.20.0 source sync (2026-10-26)
 
 - [x] Update the squashed subtree from `4dc8095` to upstream main `0579390` and verify exact tree identity.
-- [x] Review upstream registry removals and document the intentional source-only boundary: Android keeps its existing Kotlin effects and 34-mode registry.
+- [x] Review upstream registry removals; the later Android backport below supersedes the initial source-only boundary.
 - [x] Pass 127 Python unit tests, headless smoke rendering of all 32 upstream effects, and whitespace checks without changing dependencies.
 - [ ] Verify the source sync on GitHub: JVM/device tests, signed APK publication and downloaded-asset verification.
+
+## psysuals 3.20 Android backport
+
+- [x] Remove Morphogenesis/Mandelbox implementations and settings entries; match upstream 32-mode registry and prune stored selections safely.
+- [x] Port elapsed-time motion, visual profiles, separate response envelopes, latest effect behaviour and resize-state preservation with documented mobile limits.
+- [x] Clear scene, bloom and display buffers on effect changes; present black switch frames and add EGL regression coverage.
+- [x] Update current visualizer, architecture, music-reactivity, store and release documentation.
+- [ ] Verify JVM/device tests and signed APK publication on GitHub.
+- [ ] Physically inspect all changed effects on the TV, including high-gain audio, profiles and mode switching.

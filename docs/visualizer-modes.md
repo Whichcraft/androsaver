@@ -1,9 +1,8 @@
 # Visualizer Modes Reference
 
-The vendored Python reference is psysuals v3.20.0 (`0579390`). This source-only
-sync does not alter the Android modes described here. Android retains 34 modes;
-upstream's 32-mode registry no longer includes Morphogenesis and Mandelbox.
-See `docs/psysuals-port-notes.md` for the intentional version/registry boundary.
+The vendored reference and Kotlin/GLES backport follow psysuals v3.20.0
+(`0579390`) with 32 active modes. Morphogenesis and Mandelbox are removed.
+See the port notes for mobile simulation limits and desktop-only differences.
 
 All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
 ```kotlin
@@ -46,21 +45,19 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 22 | `PersistenceMode` | Persistence | Nested rotating 3D Platonic-solid wireframes |
 | 23 | `SynapseMode` | Synapse | Living 28–90-node graph with safe rewiring and traveling signals |
 | 24 | `HeartbeatMode` | Heartbeat | Expanding morphing neon rings |
-| 25 | `MorphogenesisMode` | Morphogenesis | Audio-driven Gray–Scott reaction-diffusion field |
-| 26 | `HyperbolicMode` | Hyperbolic | Bounded radial disk tiling and geodesic lines |
-| 27 | `LiquidLightMode` | LiquidLight | Fluorescent semi-Lagrangian-like dye waves |
-| 28 | `CymaticaMode` | Cymatica | Chladni-like nodal plate with drifting particles |
-| 29 | `PhasonMode` | Phason | Quasiperiodic wave interference field |
-| 30 | `TesseractMode` | Tesseract | Music-reactive 4-D hypercube rotating across multiple axes |
-| 31 | `FerrofluidMode` | Ferrofluid | Animated magnetic contour rings |
-| 32 | `MandelboxMode` | Mandelbox | Bounded Mandelbox-inspired escape field |
-| 33 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 34 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 25 | `HyperbolicMode` | Hyperbolic | Bounded radial disk tiling and geodesic lines |
+| 26 | `LiquidLightMode` | LiquidLight | Fluorescent semi-Lagrangian-like dye waves |
+| 27 | `CymaticaMode` | Cymatica | Chladni-like nodal plate with drifting particles |
+| 28 | `PhasonMode` | Phason | Quasiperiodic wave interference field |
+| 29 | `TesseractMode` | Tesseract | Music-reactive 4-D hypercube rotating across multiple axes |
+| 30 | `FerrofluidMode` | Ferrofluid | Animated magnetic contour rings |
+| 31 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 32 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1 / 2 / 5 / 10 / 15 min). It rotates
 through the enabled subset in registry order; Random mode chooses randomly
-from that same subset. The current registry contains 34 active modes. The
+from that same subset. The current registry contains 32 active modes. The
 source file `CliffordMode.kt` is intentionally dormant and is not in the
 registry.
 
@@ -72,11 +69,11 @@ Seven concentric polygons (3→9 sides). Rings rotate at graduated per-ring spee
 
 ## CubeMode
 
-Two wireframe cubes (inner + outer), 3D rotation. Two orbiting satellite cubes (fixed 180° apart, independent rotation). Beat pulses cube scale; bass reinforces rotation velocity. Satellite trails drawn with additive blend for persistent glow. Silence: slow constant rotation.
+Two fitted wireframe cubes and two independent satellites. Smoothed audio drives gentle angular speeds and a small scale change; fast light accents change brightness. Projection scales with the viewport and trail samples use 60 Hz time units.
 
 ## TriFluxMode
 
-Triangle mosaic wall filling the screen. All triangles have animated rainbow edges. N_FILLED=5 tiles also receive a color fill. Two independent rainbow sweep bands glide diagonally across the grid. On bass beats, an interior tile pops to 4.5–8.5× size (up to 3 at once), bounces off screen edges, then springs back. Silence: gentle hue drift, sweeps still active.
+A triangle mosaic with two rainbow sweeps. One interior tile activates per rising beat edge with a cooldown; elapsed-time lifetimes and substepped springs return it to the grid. Active triangles fit inside the viewport and retain state on resize. All outlines use antialiased alpha-fringe geometry.
 
 ## PlasmaMode
 
@@ -84,17 +81,11 @@ Shader-based full-screen plasma (sine interference). Always animating — never 
 
 ## TunnelMode
 
-First-person tunnel perspective. Rings scroll toward the viewer. The Android
-port uses the intensity-scaled beat signal as its low-frequency/bass input:
-triangle bursts spawn only in the far third of the tube (z 0.80–0.98), with
-`floor(bass * 1.2)` spawns plus a mid-energy contribution when mid exceeds
-0.5; live triangles are capped at 30 after cleanup. Beat flashes ring
-brightness, and the path follows a centre curve. Silence: rings scroll slowly,
-with no triangle spawns.
+A gently curved first-person tunnel. Camera curvature is independent of audio; smoothed audio adjusts slow travel. Rings retain stable star identities through depth sorting and triangles spawn using bounded elapsed-time credit.
 
 ## LissajousMode
 
-3D parametric trefoil knot rendered as a neon glowing line with 3-fold symmetry. Two glow passes: thin outer halo + bright inner core. Treble energy brightens the inner pass (`l1Bright += high * 0.14`), so hi-hats make the knot shimmer whiter. Beat adds angular impulse and inflates a spring scale. Bass/mid/high slowly shift the knot's frequency ratios; phase offsets drift continuously. Silence: slow constant trace + gentle rotation.
+A stable 3:2:5 3-D knot with smoothed rotation/scale, 60 Hz trail sampling and bounded projection. Lines never bridge large discontinuities; light responds more quickly than geometry.
 
 ## CorridorMode
 
@@ -141,7 +132,7 @@ Five translucent sinusoidal ribbon curtains undulate horizontally across the scr
 
 ## LatticeMode
 
-A crystal grid of glowing nodes and connection beams (leftmost column cutout). Implements dynamic frequency peak normalization, center-out frequency mapping, and a noise gate for balanced column activity. Thin double-stroke beams connect adjacent nodes in horizontal and vertical directions; beam brightness scales with the local average of the two neighbouring node brightnesses. On every beat above 0.6, a shockwave ring fires from screen centre; nodes whose distance from centre falls within 22 px of the ring radius flare white-hot. Bass drives a subtle whole-grid scale breath (spring physics, scale 0.90–1.12). Hue rotates slowly; each node has a radial hue offset (0 at centre → +0.55 at corner). Trail fade: 25/255 ≈ 10 frames. Base faint structure remains visible during silence. Silence: dim grid with slow hue rotation, no shockwave.
+A profile-dependent crystal grid: 22×14 for Laptop, 14×9 for TV. Smoothed motion controls subtle scale changes, while peak decay and shock propagation follow elapsed time.
 
 ## MyceliumMode
 
@@ -161,15 +152,15 @@ Strange attractor (Clifford map). 7 000 walkers iterate `x' = sin(a·y) - cos(b�
 
 ## MobiusMode
 
-3-D wireframe Möbius strip rendered with perspective projection. 60 latitude lines (constant v) form the wireframe (sparse longitude wires removed). Rotates around Y+X axes; beat fires a "shiver" that temporarily widens the twist parameter. Recent parity cleanup also aligns the treble-driven rotation contribution with the later upstream behavior. Trail: fadeBlack(15/255).
+A slowly rotating projected strip with separate light shiver. The whole strip is fitted together with a glow margin rather than clipping individual points.
 
 ## ChromaticMode
 
-Prismatic raindrop ripples. Expanding waves split red, green, and blue channels outward, forming RGB-separated wavy aberration halos. Up to 14 rings; beat spawns new rings, treble controls the R/G/B split radius, and warp scales with bass/treble. The current backport also removes rings based on updated post-growth radius, matching the later upstream stale-radius fix. Trail: fadeBlack(24/255).
+Up to nine prismatic RGB-separated ripple rings. Radius, phase and decay follow elapsed time; split/warp scale with viewport size and existing rings survive resize.
 
 ## PersistenceMode
 
-Up to 8 nested Platonic-solid wireframes rotate in 3D with perspective projection. Non-coplanar orbital speeds generate holographic wagon-wheel moiré and mandala patterns. The v3.14 focal scale fills most of the viewport; the old treble flash ring was removed so it no longer obscures the geometry. Double-pass edges provide neon glow, with very long fadeBlack(5/255) persistence.
+Five rigid rotating solids with smoothed speed, colour drift and occasional axis reversals on beat edges with a cooldown. No fourth-coordinate deformation remains. Viewport fitting protects the outer shapes.
 
 ## SynapseMode
 
@@ -179,18 +170,9 @@ A living 28–90-node neural graph. Strong beats add nodes; periodic mutations a
 
 Expanding polygon rings that morph between circle (high bass) and polygon (low bass) as they grow. Up to 16 rings simultaneously; each ring drawn as a smooth 120-point polyline with polygon-modulated radius. Rings glow (dark wide + bright narrow). Beat spawns new rings; strong beat spawns two offset-hue rings. Recent parity cleanup now culls rings after per-frame growth is applied, matching the later upstream state handling. Trail: fadeBlack(20/255). Silence: auto-spawns at 50-frame intervals.
 
-## MorphogenesisMode
-
-Bounded Gray–Scott reaction-diffusion field. The reusable 64×36 scalar state
-is interpolated to the viewport. Treble nudges the feed rate, mid nudges the
-kill rate and phase, and the field continues evolving in silence. This is an
-Android field adaptation rather than a full-resolution CPU surface.
-
 ## HyperbolicMode
 
-Six alternating-direction radial rings and twelve spokes form a rotating disk
-tiling. Mid increases phase speed and hue drifts continuously. There is no
-beat explosion; silence leaves the baseline geometry moving.
+A connected dual-icosphere of 162 shared pentagon/hexagon tiles. Individual caps lift, hinge and sink with travelling colour waves and shaded walls. Horizon clipping hides rear faces; geometry and light use separate smooth responses.
 
 ## LiquidLightMode
 
@@ -200,14 +182,11 @@ shared field grid, independent of display resolution.
 
 ## CymaticaMode
 
-A Chladni-like nodal plate with a changing spatial mode and 80 additive
-particles. Beat advances phase and enlarges particles; treble broadens nodal
-regions. The mode pair changes every 180 frames even without audio.
+A Chladni-like nodal plate with slowly smoothed weights across six FFT bands. Sand follows the actual analytic nodal gradient. There are no argmax mode jumps or sawtooth mixture resets.
 
 ## PhasonMode
 
-Three quasiperiodic wave components form an interference field. Beat drives
-phase speed, mid offsets one component, and treble accelerates hue drift.
+A full-resolution GLES seven-wave interference field. Phase/hue advance slowly with elapsed time and its pulse remains bounded. The number of waves is fixed rather than switching with audio energy.
 
 ## TesseractMode
 
@@ -217,17 +196,7 @@ Beat onsets add a brief size and brightness pulse; treble also shifts hue.
 
 ## FerrofluidMode
 
-Five moving magnetic poles each carry five elliptical contour rings. Beat
-advances pole phase and expands the contours; hue drifts independently. The
-geometry is viewport-scaled and remains visible in silence.
-
-## MandelboxMode
-
-A bounded Mandelbox-inspired escape-time field. Beat advances the domain warp
-and hue drifts continuously. Each field point is limited to 14 iterations in
-the shared 64×36 field, keeping render cost predictable on TV sticks. The
-interpolated render grid avoids large native rectangle pixels on high-resolution
-displays.
+A GLES metallic liquid envelope with five moving magnetic poles and a triangular lattice of sharp peaks. Analytic surface gradients drive diffuse, specular and rim lighting; geometry is smoothed and rendered at framebuffer resolution.
 
 ## BarsMode (Spectrum)
 

@@ -23,12 +23,14 @@
 ### Upstream visualizer source
 
 `psysuals/` is a Git subtree imported from the upstream psysuals repository.
-The vendored source tracks upstream v3.20.0, main commit `0579390`.
-The Android Kotlin/GLES implementation remains an independent port with the
-lifecycle and tuning adaptations documented in `docs/psysuals-port-notes.md`.
-The v3.20.0 import updates Python reference code only: Android keeps its 34-mode
-registry (including Morphogenesis and Mandelbox), while upstream now has 32.
-New upstream visual behaviour requires a separate Android backport. To update it, add/fetch the upstream remote with
+The source and native Kotlin/GLES backport track v3.20.0, main `0579390`.
+Both registries contain 32 effects; Morphogenesis and Mandelbox are removed.
+`EffectDynamics` provides elapsed time, separate motion/light smoothing and
+saved profiles; `HyperbolicMesh` builds connected sphere geometry;
+`FullscreenEffectMode` hosts the Phason/Ferrofluid GLES shaders. Effect switches
+clear scene, bloom and presentation buffers before rendering the next effect.
+Standing mobile limits and desktop-only differences are documented in
+`docs/psysuals-port-notes.md`. To update it, add/fetch the upstream remote with
 `git remote add psysuals-upstream https://github.com/Whichcraft/psysuals.git`
 when it is not already configured, then run
 `git subtree pull --prefix=psysuals psysuals-upstream main --squash`, compare
@@ -74,7 +76,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `VisualizerRenderer.kt` | `GLSurfaceView.Renderer`; applies UI mode requests atomically on the GL thread, resets the selected mode, and exposes EMA-smoothed `frameTimeMs` |
 | `BaseMode.kt` | Abstract base: `draw(draw, audio, tick)` plus reset and EGL-context recreation hooks |
 
-### 34 active visualizer modes (`com.androsaver.visualizer.modes`)
+### 32 active visualizer modes (`com.androsaver.visualizer.modes`)
 
 | Class | Display name | Visual concept |
 |-------|-------------|----------------|
@@ -102,7 +104,10 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `PersistenceMode.kt` | Persistence | Nested rotating 3D Platonic solids wireframes with perspective and depth-fading |
 | `SynapseMode.kt` | Synapse | Living 28–90-node neural graph with safe nearest-neighbour rewiring |
 | `HeartbeatMode.kt` | Heartbeat | Expanding polygon rings with beat-driven morphing |
-| `PsysualsFieldMode.kt` and individual `*Mode.kt` files | Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract, Ferrofluid, Mandelbox | Bounded GLES 2.0 adaptations of the v3.15 field and geometry effects with shared field helpers |
+| `PsysualsFieldMode.kt` | LiquidLight, Cymatica, Tesseract | Bounded native scalar fields and viewport interpolation |
+| `HyperbolicMesh.kt`, `HyperbolicMode.kt` | Hyperbolic | Connected 162-tile sphere, hinged caps and horizon clipping |
+| `FullscreenEffectMode.kt`, `PhasonMode.kt`, `FerrofluidMode.kt` | Phason, Ferrofluid | Full-resolution GLES field shaders using current framebuffer dimensions |
+| `EffectDynamics.kt`, `FieldResize.kt` | Timing, response, profiles and resampling | Elapsed-time smoothing and range-preserving resize state |
 | `VisualizerRenderTuning.kt` | Shared viewport, field-grid, and trail tuning | Keeps TV scaling and trail policy consistent across Android effect ports |
 | `BarsMode.kt` | Spectrum | Log-spaced spectrum bars + waveform overlay |
 | `WaterfallMode.kt` | Waterfall | Scrolling time-frequency spectrogram |
@@ -132,7 +137,7 @@ DreamService.onAttachedToWindow()
        │    └─ next slide scheduled only after the current image is displayed; transition speed is added on top of image dwell time
        └─ [Visualizer] VisualizerView.start()
             ├─ AudioEngine: Visualizer API → FFT → AudioData (60 fps)
-            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [34 active modes]
+            └─ VisualizerRenderer.onDrawFrame() → BaseMode.draw()  [32 active modes]
 
 DreamService.onDreamingStarted() → resume visualizer
 DreamService.onDreamingStopped() → pause visualizer

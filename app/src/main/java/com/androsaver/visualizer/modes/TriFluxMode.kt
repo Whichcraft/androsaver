@@ -4,15 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/**
- * TriFluxMode — triangle mosaic wall.
- * All triangles are wireframe with rainbow edges. N_FILLED tiles are filled
- * at any time. On beats, a tile pops to the FRONT at 4-5× size, pulses with
- * bass, then after a fixed lifetime springs back into the grid. Active tiles
- * are drawn last (always on top) with a solid fill.
- * Two independent rainbow sweeps traverse the grid at all times.
- * Port of psysuals `Attractor` class (v2.0.0).
- */
+/** psysuals 3.20 triangle mosaic: beat-edge activation, elapsed-time lifetimes, substepped springs, stable resize and antialiased rainbow outlines. */
 class TriFluxMode : BaseMode() {
 
     override val name = "TriFlux"
@@ -39,7 +31,7 @@ class TriFluxMode : BaseMode() {
         var cx     = cx0; var cy = cy0
         var rot    = 0f;  var rotVel = 0f
         var scale  = 1f;  var svel   = 0f
-        var life   = 0          // frames remaining as active; 0 = not active
+        var life   = 0f          // frames remaining as active; 0 = not active
         var homeCx = cx0; var homeCy = cy0
         var cvx    = 0f;  var cvy    = 0f
     }
@@ -51,8 +43,9 @@ class TriFluxMode : BaseMode() {
     private val activeIds   = ArrayList<Int>(N_ACTIVE_MAX)
     private var hue         = 0f
     private var built       = false
-    private var swapCd      = 0
-    private var autoCd      = (180 + Math.random() * 120).toInt()
+    private var swapCd      = 0f
+    private var autoCd      = (180 + Math.random() * 120).toFloat()
+    private var beatPrev=0f;private var beatCd=0f
     private val sweeps      = arrayOf(
         Sweep(pos = 0f,   angle = (Math.random() * TAU).toFloat(), vel = 3.2f),
         Sweep(pos = 600f, angle = (Math.random() * TAU).toFloat(), vel = 4.1f)
@@ -148,7 +141,7 @@ class TriFluxMode : BaseMode() {
     }
 
     /** Draw each edge of a triangle with its own hue. */
-    private fun rainbowEdges(draw: GLDraw, pts: FloatArray, alpha: Float = 1f) {
+    private fun rainbowEdges(draw: GLDraw, pts: FloatArray, alpha: Float = 1f, width:Float=1f) {
         for (i in 0 until 3) {
             val ax = pts[i * 2]; val ay = pts[i * 2 + 1]
             val bi = (i + 1) % 3
@@ -156,7 +149,7 @@ class TriFluxMode : BaseMode() {
             val edgeAngle = atan2(by - ay, bx - ax)
             val h = (hue * 2f + edgeAngle / TAU + 0.5f) % 1f
             val c = GLDraw.hsl(h, 1f, 0.75f)
-            draw.line(ax, ay, bx, by, c[0], c[1], c[2], alpha)
+            draw.antiAliasedLine(ax, ay, bx, by, c[0], c[1], c[2], alpha,width)
         }
     }
 
@@ -164,8 +157,8 @@ class TriFluxMode : BaseMode() {
 
     override fun reset() {
         tiles.clear(); filledIds.clear(); activeIds.clear()
-        hue = 0f; built = false; swapCd = 0
-        autoCd = (180 + Math.random() * 120).toInt()
+        hue = 0f; built = false; swapCd = 0f;beatPrev=0f;beatCd=0f
+        autoCd = (180 + Math.random() * 120).toFloat()
         sweeps[0].pos = 0f;   sweeps[0].angle = (Math.random() * TAU).toFloat()
         sweeps[1].pos = 600f; sweeps[1].angle = (Math.random() * TAU).toFloat()
         sweepDiag = 0f
@@ -173,186 +166,64 @@ class TriFluxMode : BaseMode() {
         lastH = 0
     }
 
-    override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        val W = draw.W; val H = draw.H
-
-        if (!built || W != lastW || H != lastH) {
-            lastW = W
-            lastH = H
-            buildGrid(W, H)
+    private fun sweepRange(angle:Float,W:Int,H:Int):Pair<Float,Float> {
+        val c=cos(angle);val s=sin(angle);val values=floatArrayOf(0f,W*c,H*s,W*c+H*s)
+        return values.min() to values.max()
+    }
+    private fun activate(W:Int,H:Int) {
+        val candidates=interiorIndices(W,H).filter{it !in activeIds}
+        if(candidates.isEmpty() || activeIds.size>=N_ACTIVE_MAX)return
+        val i=candidates.random();val tile=tiles[i];activeIds+=i
+        tile.life=ACTIVE_LIFE_MIN+(Math.random().toFloat()*(ACTIVE_LIFE_MAX-ACTIVE_LIFE_MIN))
+        tile.rotVel=(if(Math.random()<.5)-1f else 1f)*(.008f+Math.random().toFloat()*.010f)
+    }
+    override fun draw(draw:GLDraw,audio:AudioData,tick:Int) {
+        val W=draw.W;val H=draw.H
+        val response=prepare(draw,audio);val step=response.step
+        val bass=response.motion[0];val mid=response.motion[1];val high=response.motion[2]
+        if(!built || W!=lastW || H!=lastH) {
+            val previous=activeIds.map{tiles[it] to (tiles[it].cx/lastW.coerceAtLeast(1) to tiles[it].cy/lastH.coerceAtLeast(1))}
+            activeIds.clear();buildGrid(W,H);lastW=W;lastH=H;sweepWidth=90f
+            for((old,pos) in previous){
+                val i=interiorIndices(W,H).filter{it !in activeIds}.minByOrNull{val t=tiles[it];(t.cx-pos.first*W).pow(2)+(t.cy-pos.second*H).pow(2)}?:continue
+                val t=tiles[i];t.hue=old.hue;t.rot=old.rot;t.rotVel=old.rotVel;t.scale=old.scale;t.svel=old.svel;t.life=old.life;activeIds+=i
+            }
+            for((i,sw) in sweeps.withIndex()){val range=sweepRange(sw.angle,W,H);sw.pos=range.first-sweepWidth+i*(range.second-range.first+sweepWidth)*.5f}
         }
-
-        draw.fadeBlack(28f / 255f)
-
-        val beat = audio.beat
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
-
-        hue += 0.003f
-
-        // ── Rotate filled set slowly ──────────────────────────────────────────
-        swapCd--
-        if (swapCd <= 0) {
-            swapCd = 70 + (Math.random() * 50).toInt()
-            val vis        = visibleIndices(W, H)
-            val candidates = vis.filter { it !in filledIds }
-            if (candidates.isNotEmpty() && filledIds.isNotEmpty()) {
-                val slot = (Math.random() * filledIds.size).toInt()
-                filledIds[slot] = candidates[(Math.random() * candidates.size).toInt()]
+        draw.fadeBlackTimed(48f/255f,step)
+        if(audio.beat>.25f && beatPrev<=.25f && beatCd<=0f){activate(W,H);beatCd=20f}
+        beatPrev=audio.beat;beatCd=maxOf(0f,beatCd-step)
+        hue+=.003f*step;swapCd-=step;autoCd-=step
+        if(swapCd<=0f){swapCd+=(70+Math.random()*50).toFloat();val choices=visibleIndices(W,H).filter{it !in filledIds};if(choices.isNotEmpty()&&filledIds.isNotEmpty())filledIds[(Math.random()*filledIds.size).toInt()]=choices.random()}
+        if(autoCd<=0f){autoCd+=(180+Math.random()*140).toFloat();activate(W,H)}
+        for(sw in sweeps){sw.pos+=sw.vel*(1f+mid*.35f)*step;if(sw.pos>sweepRange(sw.angle,W,H).second+sweepWidth){sw.angle=(Math.random()*TAU).toFloat();sw.pos=sweepRange(sw.angle,W,H).first-sweepWidth}}
+        val substeps=maxOf(1,ceil(step*2f).toInt());val dt=step/substeps
+        val finished=mutableListOf<Int>()
+        for((i,t) in tiles.withIndex()){
+            t.hue=(t.hue+(t.hvel+.00015f)*step)%1f
+            val active=i in activeIds;if(active)t.life=maxOf(0f,t.life-step)
+            val alive=active&&t.life>0f;val target=if(alive)4.5f+bass*1.2f+mid*.4f else 1f
+            repeat(substeps){
+                t.svel+=(target-t.scale)*.14f*dt;t.svel*=.74f.pow(dt);t.scale+=t.svel*dt
+                if(alive){val targetSpeed=(if(t.rotVel<0f)-1f else 1f)*(.010f+bass*.006f+high*.003f);t.rotVel+=(targetSpeed-t.rotVel)*(1f-.96f.pow(dt))}
+                else {t.rotVel+=-t.rot*.05f*dt;t.rotVel*=.85f.pow(dt)}
+                t.rot+=t.rotVel*dt
             }
+            if(active&&!alive&&abs(t.scale-1f)<.03f&&abs(t.rot)<.02f&&abs(t.rotVel)<.003f){t.scale=1f;t.rot=0f;t.rotVel=0f;t.svel=0f;finished+=i}
         }
-
-        // ── Bass beat: pop an interior tile to front ──────────────────────────
-        val bassBeat = beat > 0.25f
-        if (bassBeat) {
-            if (activeIds.size < N_ACTIVE_MAX) {
-                val candidates = interiorIndices(W, H).filter { it !in activeIds }
-                if (candidates.isNotEmpty()) {
-                    val idx = candidates[(Math.random() * candidates.size).toInt()]
-                    activeIds.add(idx)
-                    val t = tiles[idx]
-                    t.life   = ACTIVE_LIFE_MIN + (Math.random() * (ACTIVE_LIFE_MAX - ACTIVE_LIFE_MIN)).toInt()
-                    t.rotVel = (if (Math.random() < 0.5) -1f else 1f) *
-                               (0.015f + Math.random().toFloat() * 0.025f)
-                    t.cvx = 0f; t.cvy = 0f
-                }
-            } else {
-                for (idx in activeIds) {
-                    if (tiles[idx].life < MIN_LIFE) tiles[idx].life = MIN_LIFE
-                }
-            }
+        activeIds.removeAll(finished.toSet())
+        for((i,t) in tiles.withIndex()){
+            if(i in activeIds)continue
+            val points=screenVerts(t)
+            for(sw in sweeps){val distance=t.cx*cos(sw.angle)+t.cy*sin(sw.angle);val strength=maxOf(0f,1f-abs(distance-sw.pos)/sweepWidth)
+                if(strength>0f){val c=GLDraw.hsl((hue+distance/sweepDiag)%1f,1f,minOf(.85f,.2f+strength*.55f+mid*.1f));draw.polygon(points,c[0],c[1],c[2],1f,true)}}
+            if(i in filledIds){val c=GLDraw.hsl((t.hue+hue)%1f,1f,minOf(.75f,t.bright+response.light[0]*.2f));draw.polygon(points,c[0],c[1],c[2],1f,true)}
+            rainbowEdges(draw,points)
         }
-
-        // ── Periodic auto-activation ──────────────────────────────────────────
-        autoCd--
-        if (autoCd <= 0) {
-            autoCd = 180 + (Math.random() * 140).toInt()
-            val candidates = interiorIndices(W, H).filter { it !in activeIds }.shuffled()
-            val nNew = 1 + (Math.random() * 2).toInt()
-            for (idx in candidates.take(nNew)) {
-                if (activeIds.size < N_ACTIVE_MAX) {
-                    activeIds.add(idx)
-                    val t = tiles[idx]
-                    t.life   = ACTIVE_LIFE_MIN + (Math.random() * (ACTIVE_LIFE_MAX - ACTIVE_LIFE_MIN)).toInt()
-                    t.rotVel = (if (Math.random() < 0.5) -1f else 1f) *
-                               (0.012f + Math.random().toFloat() * 0.018f)
-                    t.cvx = 0f; t.cvy = 0f
-                }
-            }
+        for(i in activeIds){val t=tiles[i];val points=screenVerts(t);fitViewport(points,W,H)
+            val c=GLDraw.hsl((t.hue+hue)%1f,1f,minOf(.92f,t.bright+.25f+response.light[0]*.25f))
+            draw.polygon(points,0f,0f,0f,1f,true);draw.polygon(points,c[0],c[1],c[2],1f,true)
+            rainbowEdges(draw,points,width=maxOf(2f,3f+response.light[2]*1.5f))
         }
-
-        // ── Advance sweeps ────────────────────────────────────────────────────
-        for (sw in sweeps) {
-            sw.pos += sw.vel * (1f + mid * 1.5f)
-            if (sw.pos > sweepDiag + sweepWidth) {
-                sw.pos   = -sweepWidth
-                sw.angle = (Math.random() * TAU).toFloat()
-            }
-        }
-
-        // ── Pass 1: non-active tiles ──────────────────────────────────────────
-        for (i in tiles.indices) {
-            if (i in activeIds) continue
-            val tile = tiles[i]
-
-            tile.hue = (tile.hue + tile.hvel + 0.00015f) % 1f
-
-            // Spring back toward scale=1 and rot=0
-            tile.svel   += (1f - tile.scale) * 0.15f; tile.svel   *= 0.75f; tile.scale += tile.svel
-            tile.rotVel += (0f - tile.rot)   * 0.05f; tile.rotVel *= 0.88f; tile.rot   += tile.rotVel
-
-            val pts = screenVerts(tile)
-            val minX = minOf(pts[0], pts[2], pts[4])
-            val maxX = maxOf(pts[0], pts[2], pts[4])
-            val minY = minOf(pts[1], pts[3], pts[5])
-            val maxY = maxOf(pts[1], pts[3], pts[5])
-            if (maxX < 0 || minX >= W || maxY < 0 || minY >= H) continue
-
-            // Sweep glows — drawn first so tile fill + edges render on top
-            for (sw in sweeps) {
-                val swCos = cos(sw.angle); val swSin = sin(sw.angle)
-                val d     = tile.cx * swCos + tile.cy * swSin
-                val dist  = abs(d - sw.pos)
-                if (dist < sweepWidth) {
-                    val swT    = 1f - dist / sweepWidth
-                    val sweepH  = (hue + d / sweepDiag) % 1f
-                    val sweepBr = 0.20f + swT * 0.55f + mid * 0.15f
-                    val sc = GLDraw.hsl(sweepH, 1f, sweepBr)
-                    draw.polygon(pts, sc[0], sc[1], sc[2], (swT * 0.85f).coerceIn(0f, 1f), filled = true)
-                }
-            }
-
-            if (i in filledIds) {
-                val h      = (tile.hue + hue) % 1f
-                val bright = minOf(tile.bright + bass * 0.20f + mid * 0.10f, 0.75f)
-                val fc = GLDraw.hsl(h, 1f, bright)
-                draw.polygon(pts, fc[0], fc[1], fc[2], 0.85f, filled = true)
-            }
-
-            rainbowEdges(draw, pts)
-        }
-
-        // ── Pass 2: active tiles — on top, bass-pulsing ───────────────────────
-        val finished = ArrayList<Int>()
-        for (i in activeIds) {
-            val tile = tiles[i]
-            tile.hue = (tile.hue + tile.hvel + 0.00015f) % 1f
-
-            val alive = tile.life > 0
-            if (alive) {
-                tile.life--
-                val target    = 4.5f + bass * 4.0f + mid * 1.5f
-                tile.svel    += (target - tile.scale) * 0.22f; tile.svel *= 0.70f
-                tile.scale    = minOf(tile.scale + tile.svel, 12f)
-                tile.rot     += tile.rotVel
-                tile.rotVel  += (bass * 0.005f + high * 0.008f) * if (tile.rotVel >= 0) 1f else -1f
-                tile.rotVel  *= 0.94f
-                tile.cx += tile.cvx; tile.cy += tile.cvy
-                tile.cvx *= 0.97f;   tile.cvy *= 0.97f
-            } else {
-                // Spring back to rest
-                tile.svel    += (1f - tile.scale) * 0.12f; tile.svel *= 0.78f; tile.scale += tile.svel
-                tile.rotVel  += (0f - tile.rot)   * 0.06f; tile.rotVel *= 0.85f; tile.rot += tile.rotVel
-                tile.cvx *= 0.80f; tile.cvy *= 0.80f
-                tile.cx  += (tile.homeCx - tile.cx) * 0.10f
-                tile.cy  += (tile.homeCy - tile.cy) * 0.10f
-                if (abs(tile.scale - 1f) < 0.03f && abs(tile.rot) < 0.02f
-                        && abs(tile.rotVel) < 0.003f
-                        && abs(tile.cx - tile.homeCx) < 1f
-                        && abs(tile.cy - tile.homeCy) < 1f) {
-                    tile.scale = 1f; tile.rot = 0f; tile.rotVel = 0f; tile.svel = 0f
-                    tile.cx = tile.homeCx; tile.cy = tile.homeCy
-                    finished.add(i)
-                }
-            }
-
-            var pts = screenVerts(tile)
-
-            // Bounce off screen edges (active phase only)
-            if (alive) {
-                val minX = minOf(pts[0], pts[2], pts[4])
-                val maxX = maxOf(pts[0], pts[2], pts[4])
-                val minY = minOf(pts[1], pts[3], pts[5])
-                val maxY = maxOf(pts[1], pts[3], pts[5])
-                if (minX < 0)   { tile.cvx = abs(tile.cvx) * 0.8f + 1.5f; tile.cx -= minX;       pts = screenVerts(tile) }
-                else if (maxX > W) { tile.cvx = -(abs(tile.cvx) * 0.8f + 1.5f); tile.cx -= (maxX - W); pts = screenVerts(tile) }
-                if (minY < 0)   { tile.cvy = abs(tile.cvy) * 0.8f + 1.5f; tile.cy -= minY;       pts = screenVerts(tile) }
-                else if (maxY > H) { tile.cvy = -(abs(tile.cvy) * 0.8f + 1.5f); tile.cy -= (maxY - H); pts = screenVerts(tile) }
-            }
-
-            val h      = (tile.hue + hue) % 1f
-            val bright = minOf(tile.bright + bass * 0.40f + mid * 0.15f + 0.25f, 0.92f)
-
-            // Solid black backing so nothing bleeds through
-            draw.polygon(pts, 0f, 0f, 0f, 1f, filled = true)
-            // Colour fill
-            val fc = GLDraw.hsl(h, 1f, bright)
-            draw.polygon(pts, fc[0], fc[1], fc[2], 1f, filled = true)
-            // Bold rainbow edges
-            rainbowEdges(draw, pts)
-        }
-
-        for (i in finished) activeIds.remove(i)
     }
 }

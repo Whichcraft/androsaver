@@ -85,14 +85,12 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         PersistenceMode(),
         SynapseMode(),
         HeartbeatMode(),
-        MorphogenesisMode(),
         HyperbolicMode(),
         LiquidLightMode(),
         CymaticaMode(),
         PhasonMode(),
         TesseractMode(),
         FerrofluidMode(),
-        MandelboxMode(),
         BarsMode(),
         WaterfallMode()
     )
@@ -100,6 +98,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     val modeNames: List<String> get() = modes.map { it.name }
 
     /** Beat-response gain (0.0 = no reaction, 1.0 = normal, 2.0 = intense). Matches psysuals effect_gain. */
+    @Volatile var visualProfile = "auto"
     @Volatile var beatGain: Float = 1.0f
 
     // ── GLSurfaceView.Renderer ─────────────────────────────────────────────────
@@ -118,6 +117,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
             }
             for (mode in modes) {
                 try {
+                    mode.resetDynamics()
                     mode.onSurfaceCreated()
                 } catch (t: Throwable) {
                     failRender("mode reset: ${mode.name}", t)
@@ -140,6 +140,8 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         try {
             draw.onSurfaceChanged(width, height)
+            draw.clearAllBuffers()
+            clearFrameCount=2
         } catch (t: Throwable) {
             failRender("surface resize", t)
         }
@@ -152,11 +154,14 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
             val elapsed = (frameStart - lastFrameNs) / 1_000_000f
             frameTimeMs = frameTimeMs * 0.9f + elapsed * 0.1f
         }
+        val deltaSeconds = if (lastFrameNs > 0L) ((frameStart-lastFrameNs)/1_000_000_000f).coerceIn(0f,.1f) else 1f/60f
         lastFrameNs = frameStart
 
         val requested = pendingModeIndex.getAndSet(-1)
         if (requested >= 0) {
+            draw.clearAllBuffers()
             try {
+                modes[requested].resetDynamics()
                 modes[requested].reset()
                 renderError = null
                 renderErrorReported = false
@@ -168,6 +173,8 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
             tick = 0
         }
         audio.copyDataTo(frameAudio)
+        frameAudio.deltaSeconds = deltaSeconds
+        frameAudio.visualProfile = visualProfile
         run {
             val snapshot = frameAudio
             val mode  = modes[activeModeIndex]

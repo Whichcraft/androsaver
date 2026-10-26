@@ -11,7 +11,7 @@ settings UI.
 | [Module reference](module-reference.md) | Complete Android module, resource, test, and upstream-module inventory |
 | [Settings reference](settings-reference.md) | Preference keys, defaults, migrations, schedule semantics, and provider configuration |
 | [Image sources](image-sources.md) | Provider APIs, authentication, limits, cache guarantees, and adding a source |
-| [Visualizer modes](visualizer-modes.md) | The 34-mode registry, rotation order, effect contracts, and adding a mode |
+| [Visualizer modes](visualizer-modes.md) | The 32-mode registry, rotation order, effect contracts, and adding a mode |
 | [Visualizer reactivity](visualizer-music-reactivity.md) | Exact audio bands, intensity behavior, thresholds, and silence behavior |
 | [psysuals port notes](psysuals-port-notes.md) | Upstream parity, GLES 2.0 substitutions, and intentional Android differences |
 | [Play Store checklist](play-store-checklist.md) | Console declarations and release-time privacy/data-safety checks |

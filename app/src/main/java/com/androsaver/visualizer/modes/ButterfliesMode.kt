@@ -4,14 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/**
- * Butterflies — up to three pairs dancing to the music.
- * Each pair: a solo butterfly flutters in first; its partner joins after
- * 10–30 s and orbits it lovingly. After a random lifetime the pair wanders
- * off-screen and a new pair enters. Wing flapping syncs when partners are
- * close; sparkles fire on strong beats.
- * Port of psysuals Butterflies with v3.14 small-viewport safeguards.
- */
+/** psysuals 3.20 interior spawning, center-directed edge avoidance, bounded pair orbits and retained sprite state on resize. Android retains its paired-agent implementation. */
 class ButterfliesMode : BaseMode() {
 
     override val name = "Butterflies"
@@ -53,7 +46,7 @@ class ButterfliesMode : BaseMode() {
     private inner class Butterfly(
         var x: Float, var y: Float,
         var hue: Float,
-        val scale: Float
+        var scale: Float
     ) {
         var heading   = Math.random().toFloat() * TAU
         var wingPhase = Math.random().toFloat() * TAU
@@ -91,41 +84,14 @@ class ButterfliesMode : BaseMode() {
                 wanderDes
             }
 
-            // Boundary repulsion
-            val m = minOf((50f * scale).toInt(), screenW / 5, screenH / 5)
-            var rx = 0f; var ry = 0f
-            if (m > 0) {
-                if      (x < m)            rx = (m - x) / m
-                else if (x > screenW - m)  rx = (screenW - m - x) / m
-                if      (y < m)            ry = (m - y) / m
-                else if (y > screenH - m)  ry = (screenH - m - y) / m
-            }
-
-            if (rx != 0f || ry != 0f) {
-                val push = scale * maxOf(abs(rx), abs(ry)) * 2.5f
-                x += rx * push
-                y += ry * push
-                val repulseAng = atan2(ry, rx)
-                val diff = (repulseAng - heading + PI_F) % TAU - PI_F
-                heading += diff.coerceIn(-0.35f, 0.35f) * 0.50f
-                wanderDes = repulseAng
-                wanderCd  = (60 + Math.random() * 120).toInt()
-            } else {
-                val diff = (desired - heading + PI_F) % TAU - PI_F
-                heading += diff.coerceIn(-0.10f, 0.10f) * 0.14f
-            }
-
-            val spd = (1.5f + bass * 0.8f + beat * 0.4f) * scale
-            x += cos(heading) * spd; y += sin(heading) * spd
-
-            // During surface creation Android can briefly report a viewport
-            // smaller than the butterfly sprite. Keep the coerce range ordered;
-            // Float.coerceIn() throws when minimum > maximum.
-            val cl = 28f * scale
-            val marginX = minOf(cl, screenW.coerceAtLeast(1) / 2f)
-            val marginY = minOf(cl, screenH.coerceAtLeast(1) / 2f)
-            x = x.coerceIn(marginX, screenW - marginX)
-            y = y.coerceIn(marginY, screenH - marginY)
+            val margin=minOf(screenW,screenH)*.13f
+            val nearEdge=x<margin || x>screenW-margin || y<margin || y>screenH-margin
+            val target=if(nearEdge)atan2(screenH*.5f-y,screenW*.5f-x) else desired
+            val delta=atan2(sin(target-heading),cos(target-heading))
+            heading+=(delta*(if(chasePos==null).12f else .22f)).coerceIn(-.18f,.18f)
+            val speed=(1.1f+bass*.9f+beat*.5f)*scale/4.8f
+            x=(x+cos(heading)*speed).coerceIn(margin*.5f,screenW-margin*.5f)
+            y=(y+sin(heading)*speed).coerceIn(margin*.5f,screenH-margin*.5f)
         }
 
         fun draw(draw: GLDraw, outlineHue: Float) {
@@ -174,7 +140,7 @@ class ButterfliesMode : BaseMode() {
             age++
             if (solo == null && age >= 0) {
                 val (ex, ey) = edgeSpawn()
-                solo = Butterfly(ex, ey, hue = globalHue, scale = SOLO_SCALE)
+                solo = Butterfly(ex, ey, hue = globalHue, scale = maxOf(.35f,minOf(screenW,screenH)/360f*2.4f))
             }
             val sl = solo ?: return
             sl.hue = globalHue
@@ -182,7 +148,7 @@ class ButterfliesMode : BaseMode() {
 
             if (love == null && age >= joinDelay) {
                 val (ex, ey) = edgeSpawn()
-                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = LOVE_SCALE)
+                love = Butterfly(ex, ey, hue = (globalHue + 0.50f) % 1f, scale = maxOf(.35f,minOf(screenW,screenH)/360f*2.4f))
             }
             if (age >= lifetime && !departing) {
                 departing = true; sl.startDepart(); love?.startDepart()
@@ -210,9 +176,12 @@ class ButterfliesMode : BaseMode() {
                     if (orbitR > 40f) {
                         orbitR -= 0.06f
                     }
-                    val r = orbitR
-                    val soloTarget = Pair(lv.x + cos(orbitAng + PI_F) * r, lv.y + sin(orbitAng + PI_F) * r)
-                    val loveTarget = Pair(sl.x + cos(orbitAng) * r, sl.y + sin(orbitAng) * r)
+                    orbitR=minOf(orbitR,minOf(screenW,screenH)*.15f)
+                    val r=orbitR;val margin=r+minOf(screenW,screenH)*.15f
+                    val cx=((sl.x+lv.x)*.5f).coerceIn(margin,screenW-margin)
+                    val cy=((sl.y+lv.y)*.5f).coerceIn(margin,screenH-margin)
+                    val soloTarget = Pair(cx+cos(orbitAng+PI_F)*r,cy+sin(orbitAng+PI_F)*r)
+                    val loveTarget = Pair(cx+cos(orbitAng)*r,cy+sin(orbitAng)*r)
                     sl.update(bass, beat, chasePos = soloTarget)
                     lv.update(bass, beat, chasePos = loveTarget)
                 }
@@ -253,17 +222,9 @@ class ButterfliesMode : BaseMode() {
         }
     }
 
-    private fun edgeSpawn(): Pair<Float, Float> {
-        val mX = minOf(60f, screenW.coerceAtLeast(1) / 3f)
-        val mY = minOf(60f, screenH.coerceAtLeast(1) / 3f)
-        val spanX = maxOf(1f, screenW - 2f * mX)
-        val spanY = maxOf(1f, screenH - 2f * mY)
-        return when ((Math.random() * 4).toInt()) {
-            0    -> mX to (mY + Math.random().toFloat() * spanY)
-            1    -> (screenW - mX) to (mY + Math.random().toFloat() * spanY)
-            2    -> (mX + Math.random().toFloat() * spanX) to mY
-            else -> (mX + Math.random().toFloat() * spanX) to (screenH - mY)
-        }
+    private fun edgeSpawn():Pair<Float,Float> {
+        val margin=minOf(screenW,screenH)*.18f
+        return margin+Math.random().toFloat()*(screenW-2f*margin) to margin+Math.random().toFloat()*(screenH-2f*margin)
     }
 
     // ── Main effect ──────────────────────────────────────────────────────────
@@ -288,6 +249,10 @@ class ButterfliesMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         draw.fadeBlack(22f / 255f)
+        if(screenW!=draw.W || screenH!=draw.H) {
+            val sx=draw.W.toFloat()/screenW.coerceAtLeast(1);val sy=draw.H.toFloat()/screenH.coerceAtLeast(1)
+            for(pair in pairs){for(butterfly in listOfNotNull(pair.solo,pair.love)){butterfly.x*=sx;butterfly.y*=sy;butterfly.scale*=minOf(sx,sy)};pair.orbitR*=minOf(sx,sy)}
+        }
         screenW = draw.W; screenH = draw.H
 
         globalHue = (globalHue + 0.0014f) % 1f

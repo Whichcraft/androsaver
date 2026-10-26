@@ -4,10 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/**
- * 3-D Lissajous knot with trefoil symmetry and neon trail glow.
- * Beat explodes the scale, hue jumps on each kick.
- */
+/** psysuals 3.20 stable 3:2:5 knot with 60 Hz sampled trails, smooth rotation/scale and no bridges across discontinuities. */
 class LissajousMode : BaseMode() {
 
     override val name = "Lissajous"
@@ -30,9 +27,10 @@ class LissajousMode : BaseMode() {
     private var dx   = 0f; private var dz   = PI.toFloat() / 4f
     private val dy   = PI.toFloat() / 2f
     private var scale = 1f; private var svel = 0f
+    private var sampleCredit=0f
 
     override fun reset() {
-        histSize = 0
+        histSize = 0;sampleCredit=0f
         histHead = 0
         hue = 0f; t = 0f; rx = 0f; ry = 0f
         rvx = 0.006f; rvy = 0.009f
@@ -47,42 +45,24 @@ class LissajousMode : BaseMode() {
     private val color = FloatArray(4)
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.18f)
-
-        val beat = audio.beat
-        // Keep the stable FFT-driven shape; beat-only distortion collapses the
-        // knot into a bright blob on large TV surfaces.
-        val bass = audio.fft.meanSlice(0, 6)
-        val mid  = audio.fft.meanSlice(6, 30)
-        val high = audio.fft.meanSlice(30, audio.fft.size)
-        hue += 0.006f
-
-        val ax = 3.0f + bass * 1.3f
-        val ay = 2.0f + mid  * 1.3f
-        val az = 5.0f + high * 1.3f
-
-        val clampedBeat = minOf(1.5f, beat)
-        dx += 0.0006f + bass * 0.002f
-        dz += 0.0005f + high * 0.0013f
-        t  += 0.016f + clampedBeat * 0.04f
-
-        histX[histHead] = sin(ax * t + dx)
-        histY[histHead] = sin(ay * t + dy)
-        histZ[histHead] = sin(az * t + dz)
-        histHead = (histHead + 1) % TRAIL
-        histSize = minOf(TRAIL, histSize + 1)
-
-        // Spring scale burst
-        svel  += clampedBeat * 0.30f
-        svel  += (1f - scale) * 0.16f
-        svel  *= 0.72f
-        scale += svel
-        scale  = maxOf(0.35f, scale)
-
-        hue += clampedBeat * 0.06f
-
-        rvx += clampedBeat * 0.008f + 0.0001f; rvx *= 0.985f; rx += rvx
-        rvy += clampedBeat * 0.010f + 0.00015f; rvy *= 0.985f; ry += rvy
+        val response=prepare(draw,audio);val step=response.step
+        draw.fadeBlackTimed(.18f,step)
+        val bass=response.motion[0];val mid=response.motion[1];val high=response.motion[2]
+        val clampedBeat=response.light[0]*response.accent
+        hue+=(.006f+response.light[0]*.02f)*step
+        dx+=(.0003f+bass*.0002f)*step;dz+=(.0002f+high*.0002f)*step
+        val speed=(.010f+bass*.004f+mid*.002f)*response.motionScale
+        val previousT=t;t+=speed*step
+        val count=(sampleCredit+step+1e-6f).toInt();val first=1f-sampleCredit
+        repeat(count){ i -> val st=previousT+speed*(first+i)
+            histX[histHead]=sin(3f*st+dx);histY[histHead]=sin(2f*st+dy);histZ[histHead]=sin(5f*st+dz)
+            histHead=(histHead+1)%TRAIL;histSize=minOf(TRAIL,histSize+1)
+        }
+        sampleCredit=maxOf(0f,sampleCredit+step-count)
+        scale=response.smooth(scale,1f+bass*.18f,.08f)
+        rvx=response.smooth(rvx,.006f+bass*.008f+mid*.003f,.06f)
+        rvy=response.smooth(rvy,.009f+bass*.010f+mid*.004f,.06f)
+        rx+=rvx*step*response.motionScale;ry+=rvy*step*response.motionScale
 
         val n = histSize
         if (n < 2) return
@@ -91,7 +71,7 @@ class LissajousMode : BaseMode() {
         val s    = scale
         val cxR  = cos(rx);  val sxR = sin(rx)
         val cyR  = cos(ry);  val syR = sin(ry)
-        val fovL = minOf(draw.W, draw.H) * 0.34f
+        val fovL = minOf(draw.W, draw.H) * 0.52f
         if (rawBuf.size < n * 2) rawBuf = FloatArray(n * 2)
         val raw = rawBuf
         for (i in 0 until n) {
@@ -136,7 +116,11 @@ class LissajousMode : BaseMode() {
                     colorsBuf[j * 4 + 2] = color[2]
                     colorsBuf[j * 4 + 3] = if (lTail < 0.15f) 0.30f else 1f
                 }
-                draw.colorLineStrip(ptsBuf, colorsBuf)
+                for(j in 1 until n) {
+                    val a=(j-1)*2;val b=j*2
+                    if(hypot(ptsBuf[b]-ptsBuf[a],ptsBuf[b+1]-ptsBuf[a+1])<=minOf(draw.W,draw.H)*.10f)
+                        draw.line(ptsBuf[a],ptsBuf[a+1],ptsBuf[b],ptsBuf[b+1],colorsBuf[j*4],colorsBuf[j*4+1],colorsBuf[j*4+2],colorsBuf[j*4+3])
+                }
             }
 
             // Head dot at the tip of each arm (treble scales knot size and triggers outer ring)

@@ -38,12 +38,13 @@ class FireworksMode : BaseMode() {
     private data class Ember(
         var x: Float, var y: Float,
         var vx: Float, var vy: Float,
-        val hue: Float, val radius: Float,
+        val hue: Float, var radius: Float,
         var life: Int, val maxLife: Int
     )
 
     private val rockets = ArrayList<Rocket>(12)
     private val embers  = ArrayList<Ember>(200)
+    private var lastW=0f;private var lastH=0f
     private var hue     = 0f
     private var autoT   = 0
     private var beatPrev = 0f
@@ -56,8 +57,8 @@ class FireworksMode : BaseMode() {
     private fun launch(W: Float, H: Float) {
         if (rockets.size >= MAX_ROCKETS) return
         val x  = W * (0.10f + Math.random().toFloat() * 0.80f)
-        val vy = -15f + Math.random().toFloat() * 5f    // -15 to -10
-        val vx = (Math.random().toFloat() * 4f - 2f)
+        val vy = (-15f + Math.random().toFloat() * 5f)*(H/720f)    // -15 to -10
+        val vx = (Math.random().toFloat() * 4f - 2f)*(H/720f)
         val h  = (hue + Math.random().toFloat() * 0.5f - 0.25f + 1f) % 1f
         rockets.add(Rocket(x, H, vx, vy, h))
     }
@@ -82,6 +83,12 @@ class FireworksMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
+        if(lastW>0f && (W!=lastW || H!=lastH)) {
+            val sx=W/lastW;val sy=H/lastH
+            for(r in rockets){r.x*=sx;r.y*=sy;r.vx*=sx;r.vy*=sy;val trail=r.trail.map{it.first*sx to it.second*sy};r.trail.clear();r.trail.addAll(trail)}
+            for(e in embers){e.x*=sx;e.y*=sy;e.vx*=sx;e.vy*=sy;e.radius*=minOf(sx,sy)}
+        }
+        lastW=W;lastH=H
         val beat = audio.beat
         val bass = beat
         val high = audio.treble
@@ -105,7 +112,7 @@ class FireworksMode : BaseMode() {
         // ── Draw rocket trails + advance ──────────────────────────────────────
         val liveRockets = ArrayList<Rocket>(rockets.size)
         for (rk in rockets) {
-            rk.vy += GRAV
+            rk.vy += GRAV*(H/720f)
             rk.vx *= DRAG
             rk.x += rk.vx; rk.y += rk.vy
             rk.trail.addLast(rk.x to rk.y)
@@ -131,7 +138,7 @@ class FireworksMode : BaseMode() {
         draw.setAdditiveBlend()
         val liveEmbers = ArrayList<Ember>(embers.size)
         for (em in embers) {
-            em.vy += GRAV
+            em.vy += GRAV*(H/720f)
             em.vx *= DRAG; em.vy *= DRAG
             em.x += em.vx; em.y += em.vy
             em.life--

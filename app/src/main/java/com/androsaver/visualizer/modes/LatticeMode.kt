@@ -5,12 +5,7 @@ import com.androsaver.visualizer.GLDraw
 import com.androsaver.visualizer.fftMean
 import kotlin.math.*
 
-/**
- * LatticeMode — Crystal grid of glowing nodes and beam lines with feedback.
- * Dynamic grid (14×9 / 18×12 / 22×14) with center-out frequency mapping
- * (center columns = bass, edge columns = treble).
- * Port of psysuals Lattice (v3.11.0).
- */
+/** psysuals 3.20 profile-based crystal grid: Laptop 22x14, TV 14x9, smoothed motion and elapsed-time peak decay. Android retains bounded GLES feedback adaptation. */
 class LatticeMode : BaseMode() {
 
     override val name = "Lattice"
@@ -20,17 +15,6 @@ class LatticeMode : BaseMode() {
         const val SHOCK_W = 22f
         const val IDLE    = 0.08f
         const val FFT_START_BIN = 3
-    }
-
-    private fun gridCols(W: Int) = when {
-        W >= 2560 -> 22
-        W >= 1600 -> 18
-        else      -> 14
-    }
-    private fun gridRows(W: Int) = when {
-        W >= 2560 -> 14
-        W >= 1600 -> 12
-        else      -> 9
     }
 
     private data class Node(
@@ -84,9 +68,10 @@ class LatticeMode : BaseMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W; val H = draw.H
-        val nCols = gridCols(W)
-        val nRows = gridRows(W)
-        if (W != lastW || H != lastH) {
+        val response=prepare(draw,audio);val step=response.step
+        val nCols=if(response.profile=="laptop")22 else 14
+        val nRows=if(response.profile=="laptop")14 else 9
+        if (W != lastW || H != lastH || colPeaks.size!=nCols) {
             lastW = W; lastH = H
             cx = W / 2f; cy = H / 2f
             maxR = hypot(cx, cy)
@@ -117,23 +102,20 @@ class LatticeMode : BaseMode() {
 
         val fft = audio.fft
         val beat = audio.beat
-        val bass = audio.fftMean(0, 6)
-        val mid  = audio.fftMean(6, 30)
+        val bass = response.motion[0]
+        val mid = response.motion[1]
         val scaleFactor = minOf(W, H) / 640f
 
-        hue = (hue + 0.0025f + mid * 0.001f) % 1f
+        hue = (hue + (0.0025f + mid * 0.001f)*step) % 1f
 
         if (beat > 0.6f && beatPrev <= 0.6f) {
             shockR = 0f
         }
         beatPrev = beat
-        shockR += shockSpd * (1f + bass * 2f + beat * 0.8f)
+        shockR += shockSpd*(1f+bass*.4f)*step
 
-        svel += (1f + bass * 0.04f - scale) * 0.18f
-        svel *= 0.70f
-        scale = (scale + svel).coerceIn(0.90f, 1.12f)
-        // Trail decay approximates the pygame feedback fade.
-        draw.fadeBlack(48f / 255f)
+        scale=response.smooth(scale,1f+bass*.025f,.06f)
+        draw.fadeBlackTimed(48f/255f,step)
 
         // Guard against size mismatch after a grid resize
         if (colPeaks.size != nCols) colPeaks = FloatArray(nCols) { 0.2f }
@@ -143,7 +125,7 @@ class LatticeMode : BaseMode() {
             rawEnergies[col] = maxOf(fft[getBin(col, nCols, fft.size)] - 0.015f, 0f)
         }
         for (col in 0 until nCols) {
-            colPeaks[col] = maxOf(colPeaks[col] * 0.996f, rawEnergies[col])
+            colPeaks[col] = maxOf(colPeaks[col] * 0.996f.pow(step), rawEnergies[col])
             colPeaks[col] = maxOf(colPeaks[col], 0.08f)
         }
         // Node column brightness scaled by mids and raw energy

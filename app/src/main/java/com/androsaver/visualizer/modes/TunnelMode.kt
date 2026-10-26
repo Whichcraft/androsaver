@@ -4,12 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/**
- * First-person tunnel ride.
- * Rings scroll toward the camera with rotating star polygons at each ring centre.
- * Triangles are spawned continuously by bass/beat and fly toward the camera.
- * Port of psysuals Tunnel (v3.13.0).
- */
+/** psysuals 3.20 gentle tunnel curvature, stable ring identities and bounded elapsed-time triangle spawning. */
 class TunnelMode : BaseMode() {
 
     override val name = "Tunnel"
@@ -23,7 +18,7 @@ class TunnelMode : BaseMode() {
         const val TAU     = (Math.PI * 2).toFloat()
     }
 
-    private data class Ring(var z: Float, var pt: Float)
+    private data class Ring(var z: Float, var pt: Float, val id:Int)
     private data class Tri(
         var z: Float,
         var rot: Float, val rvel: Float,
@@ -42,21 +37,22 @@ class TunnelMode : BaseMode() {
     private val colorScratch = FloatArray(4)
     private var hue  = 0f
     private var time = 0f
+    private var spawnCredit=0f
 
     override fun reset() {
-        hue = 0f; time = 0f
+        hue = 0f; time = 0f; spawnCredit=0f
         rings.clear(); tris.clear()
         val spacing = (Z_FAR - Z_NEAR) / N_RINGS
         for (i in 0 until N_RINGS) {
             val z = Z_NEAR + i * spacing
-            rings.add(Ring(z, z))
+            rings.add(Ring(z, z, i))
         }
     }
 
     private fun path(t: Float, treble: Float = 0f, out: FloatArray = pathScratch) {
-        val scale = 1f + treble * 0.45f
-        out[0] = sin(t * 0.21f) * 0.8f * scale
-        out[1] = cos(t * 0.16f) * 0.6f * scale
+        val scale = 1f
+        out[0] = sin(t * 0.12f) * 0.35f * scale
+        out[1] = cos(t * 0.09f) * 0.25f * scale
     }
 
     private fun proj(wx: Float, wy: Float, wz: Float, W: Int, H: Int, out: FloatArray = projScratch) {
@@ -68,19 +64,17 @@ class TunnelMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.11f)
 
-        val beat = audio.beat
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
-        val motion = displayMotionScale(draw)
+        val response=prepare(draw,audio);val step=response.step
+        draw.fadeBlackTimed(.11f,step)
+        val bass=response.motion[0];val mid=response.motion[1];val high=response.motion[2]
+        val motion=response.motionScale
         val bassM = bass * motion
         val midM = mid * motion
         val highM = high * motion
-        hue += 0.006f
+        hue += 0.006f*step
 
-        val dt = 0.018f + bassM * 0.09f + midM * 0.04f + highM * 0.03f
+        val dt = (.008f+bassM*.0015f+midM*.0008f)*step
         time += dt
 
         // Keep the viewer centered while the tunnel path continues to curve.
@@ -89,11 +83,12 @@ class TunnelMode : BaseMode() {
         val cameraCy = pathScratch[1]
 
         // ── Spawn triangles ───────────────────────────────────────────────────
-        val spawnN = (bassM * 1.2f + if (midM > 0.5f) midM * 1.5f else 0f).toInt()
-        repeat(spawnN) {
+        spawnCredit+=(.025f+bassM*.08f+midM*.04f)*step
+        val spawnN=spawnCredit.toInt();spawnCredit-=spawnN
+        repeat(minOf(spawnN,(120-tris.size).coerceAtLeast(0))) {
             val spawnZ = Z_FAR * (0.80f + Math.random().toFloat() * 0.18f)
             val rvel   = (if (Math.random() < 0.5) 1f else -1f) *
-                         (0.04f + Math.random().toFloat() * 0.08f) * (1f + midM * 1.5f)
+                         (0.005f + Math.random().toFloat() * 0.010f) * (1f + midM * 1.5f)
             val size   = (0.45f + Math.random().toFloat() * 0.65f) * (1.0f + bassM * 1.5f + highM * 0.5f)
             tris.add(Tri(
                 z    = spawnZ,
@@ -136,7 +131,7 @@ class TunnelMode : BaseMode() {
 
             val nearT = maxOf(0f, 1f - r1.z / Z_FAR)
             val h     = (hue + nearT) % 1f
-            val bright = (0.06f + nearT * 0.60f + midM * 0.15f * nearT + bassM * nearT * 0.40f).coerceIn(0f, 1f)
+            val bright = (0.06f + nearT * 0.60f + midM * 0.15f * nearT + response.light[0]*response.accent*nearT*.12f).coerceIn(0f, 1f)
 
             val glowColor = hsl3(h, l = bright * 0.35f)
             val hr = glowColor[0]; val hg = glowColor[1]; val hb = glowColor[2]
@@ -156,9 +151,9 @@ class TunnelMode : BaseMode() {
             }
 
             // Interior rotating star polygon
-            val nStar  = 3 + (i % 4)
-            val sDir   = if (i % 2 == 0) 1f else -1f
-            val sRot   = time * 0.45f * sDir + i * 0.52f + midM * 0.15f
+            val nStar  = 3 + (r1.id % 4)
+            val sDir   = if (r1.id % 2 == 0) 1f else -1f
+            val sRot   = time * 0.12f * sDir + r1.id * 0.52f
             val sR     = maxOf(2f, sr1 * (0.24f + highM * 0.12f))
             val sH     = (h + 0.5f) % 1f
             val sL     = minOf(bright * 1.1f + midM * 0.25f + highM * 0.15f, 0.95f)
@@ -175,7 +170,7 @@ class TunnelMode : BaseMode() {
         for (readIndex in tris.indices) {
             val tri = tris[readIndex]
             tri.z   -= dt
-            tri.rot += tri.rvel * (1f + midM * 1.5f)
+            tri.rot += tri.rvel * (1f + midM * .3f)*step
             if (tri.z < Z_NEAR) continue
             path(tri.pt, highM)
             val tcx = pathScratch[0] - cameraCx; val tcy = pathScratch[1] - cameraCy

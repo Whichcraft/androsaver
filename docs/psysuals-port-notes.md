@@ -1,329 +1,110 @@
 # psysuals → AndroSaver Port Notes
 
-The repository vendors upstream psysuals as a Git subtree under `psysuals/`
-through upstream main commit `0579390b296530fe05fbccf1eebaa37e7aa22952` (v3.20.0). The subtree is the
-reference source; the Android implementation remains a Kotlin/OpenGL ES 2.0
-port. Keep the subtree update and any Android-applicable backport in the same
-change so the two sources remain auditable.
-
-The post-v3.19 source updates include Mycelium core wandering, stronger
-Tesseract audio rotation, and a Bubbles high-gain alpha clamp. The Mycelium and
-Tesseract behavior is already represented by their Kotlin ports. Android passes
-float alpha to GLES, so pygame's 8-bit Bubbles color-channel clamp has no direct
-Kotlin equivalent. The Kaleidoscope
-CPU blit correction in `core/postprocess.py` remains source-only because the
-Android renderer uses its GLES post-processing pipeline.
-
-The 2026-10 source sync adds optional Python ModernGL paths for Phason,
-Ferrofluid, and Mandelbox, plus CPU fallback tuning and a Mycelium visual/per-
-frame cost revision. These changes stay in the Python subtree; this update did
-not modify the native Android Kotlin effects. Continue to use the existing GLES
-implementations on Android and port future Android-applicable behavior from the
-psysuals source when requested.
-
-The 2026-10-26 v3.20.0 import is a **source-only subtree update**. It includes
-Python GL composition/feedback fixes, elapsed-time motion and visual profiles,
-resize preservation, and substantial Hyperbolic, Synapse, Ferrofluid and TriFlux
-changes. No Kotlin parameters, renderer logic or effect registry were changed.
-These upstream visual changes are not automatically enabled in the Android app.
-
-Upstream removes Morphogenesis and Mandelbox and now registers 32 effects.
-Android intentionally retains its existing 34-effect registry, including both
-modes, until a separately requested Android parity change. Likewise, the new
-Python elapsed-time/profile/composition implementations remain reference code;
-Android continues to use its existing GLES lifecycle, tuning and standing
-adaptations below. Do not remove Android effects or claim rendering parity just
-because the vendored Python source has been refreshed.
-
-The imported tree exactly matches upstream. Local headless verification passed
-127 Python unit tests and smoke rendering for all 32 registered upstream effects.
-Real ModernGL rendering was not exercised by these local checks. The existing
-psysuals virtual environment supplied dependencies; no dependency files changed.
-
-When importing a new psysuals release, always apply these Android-specific
-adaptations after porting each effect.  The differences exist because Android
-uses OpenGL ES 2.0 (no persistent surfaces, no per-surface alpha fade), while
-psysuals uses pygame surfaces.
-
----
-
-## Universal rules
-
-| psysuals pattern | Android equivalent |
-|------------------|--------------------|
-| Per-surface alpha fade (`surf.blit(fade, ...)`) | `draw.fadeBlack(alpha/255f)` once at top of `draw()`; GLDraw enforces a 48/255 minimum |
-| Separate persistent surface (e.g. `sat_surf`, `spark_surf`) | Ring-buffer replay or `draw.setAdditiveBlend()` pass |
-| `pygame.BLEND_ADD` blit | `draw.setAdditiveBlend()` / `draw.setNormalBlend()` |
-| `pygame.draw.polygon(pts, color, width=0)` | `draw.polygon(pts, r, g, b, alpha, filled=true)` |
-| `pygame.draw.polygon(pts, color, width=lw)` | `draw.polygon(pts, r, g, b, alpha, filled=false)` |
-| `pygame.draw.circle(surf, color, center, r)` | `draw.circle(cx, cy, r, r, g, b, alpha, filled=true)` |
-| `pygame.draw.line` | `draw.line(x1, y1, x2, y2, r, g, b, alpha)` |
-| `config.WIDTH / HEIGHT` | `draw.W / draw.H` |
-| `beat` (bass signal) | `audio.beat` |
-| `config.MID_ENERGY` | `audio.mid` (deviation above rolling avg, bins 20–99; 0 at steady state, positive on peaks) |
-| `config.TREBLE_ENERGY` | `audio.treble` (same for bins 100–255; 0 at steady state, positive on peaks) |
-| low FFT energy such as `np.mean(fft[:6])` | average of the corresponding `audio.fft` bins; use `audio.beat` only for onset response |
-| `hsl(h, l=x)` | `GLDraw.hsl(h, 1f, x)` → four-channel color array; use the reusable overload in hot loops |
-
-### v3.15–v3.17 shared runtime changes
-
-The subtree also adds desktop-only post-processing (`core/postprocess.py`),
-quality-tier selection (`core/quality.py`), audio envelopes, and cross-effect
-motion-field publication. Android keeps the existing GLDraw bloom pipeline and
-scalar `AudioData` bands; no full-resolution CPU surface or numpy array is
-introduced on the render thread. Effects that only use those services for
-feedback/halo compositing retain their Android geometry/trail implementation.
-This is an intentional platform boundary, not an unreviewed subtree omission.
-
-The v3.15 changes to Fireworks, Heartbeat, Magnetar, and Mycelium add pygame
-surface feedback or numpy contour/halo layers. Android preserves their existing
-bounded particle/ring/network behaviour and documents the surface replacement
-below. Mobius and Plasma receive the portable fourth-dimensional/domain-warp
-updates directly; Lattice receives the bounded hyperbolic warp.
-
-### v3.18 import and Android TV quality backport
-
-The v3.18 subtree adds `Effect.draw_frame(width, height, waveform, fft, beat,
-tick, renderer=None)` for Python/headless hosts. It is retained in the subtree
-for the external builder contract, but the Android TV application does not call
-Python effects: its native equivalent remains `BaseMode.draw(GLDraw, AudioData,
-tick)`. Adding an unused Kotlin wrapper would not affect the TV renderer.
-
-The Android-applicable visual changes are backported as follows:
-
-- **Chromatic** uses the upstream five-ring cap rather than the older fourteen-
-  ring Android budget.
-- **Spiral** now uses low FFT energy for depth-dependent radius, beat impulses
-  for travel/scale, and beat-only near-camera flashes, matching upstream v3.18.
-- **Persistence** adds the upstream treble-driven fourth-coordinate rotation
-  before perspective projection.
-- **Field effects** retain the native bounded simulation, but increase the
-  state from 24×16 to 64×36 and render through an adaptive interpolated grid
-  capped below the shared GL vertex budget. This is the GLES equivalent of the
-  upstream reduced-surface plus smoothscale path and prevents blocky pixels on
-  high-resolution Android TVs.
-
-Desktop-only v3.18 changes—PortAudio implicit-device removal, signal watchdogs,
-opt-in multi-monitor span startup, Python ModernGL shader cleanup, and quality
-governor bookkeeping—are intentionally not copied into the Android runtime.
-
-### v3.19 import and Android backport
-
-The v3.19 subtree restores stable effect tuning and changes genre
-classification to compare normalized spectral shares across sub-bass, bass,
-mids, and highs. Android applies the same four-band classifier and uses the
-upstream FFT-derived low/mid inputs in Aurora, Bubbles, Cube, and Lattice.
-The Android audio API has no desktop silence-state machine, so the upstream
-quiet-track silence-gate changes remain desktop-only.
-
-Tunnel now subtracts the current path position from ring and triangle geometry
-so the camera remains centered; this is ported directly. Aurora's polygon
-surface composition, Bubbles' cached pygame surfaces, and Cube's persistent
-satellite surface remain replaced by the existing GLES quad/circle, ring-buffer,
-and additive-pass implementations. Lattice keeps Android's adaptive grid and
-center-out mapping for TV vertex quality; its v3.19 audio response tuning is
-ported.
-
----
-
-## Per-effect standing adaptations
-
-### TunnelMode
-Port directly from psysuals `effects/tunnel.py`, including the v3.19
-path-relative camera offset.  Android keeps its existing bounded triangle
-list and GLES drawing path while matching parameters (TUBE_R, dt formula,
-spawn rate, triangle size).
-The v1.4.3 enhancements (bass-expanded tube, higher reactivity) were reverted
-upstream in v2.0.0; always track the canonical psysuals version.
-
-### CubeMode
-No persistent `sat_surf`; use a **15-frame ring-buffer** for the satellite
-trail (v2.0.2: `_SAT_FADE` doubled → half the persistence), drawn with
-`setAdditiveBlend()`.
-
-**Base rotation constants must stay at v1.4.x values** (`0.00025/0.00035/0.00018`)
-even when psysuals raises them.  The psysuals values (`0.00165/0.00248/0.00083`)
-are ~6× higher and cause the inner cube to spin erratically at default intensity
-on a full-screen TV display.  Keep only the audio-reactive multipliers
-(`mid*0.012`, `bass*0.015`, `high*0.008`, `beat*0.10/0.12/0.05`), damping
-(`×0.94`), and velocity clamp (`rvx/rvy ±0.08`, `rvz ±0.05`) from upstream.
-
-### CorridorMode
-No persistent `spark_surf`; draw frames first (normal blend), then draw sparks
-with `setAdditiveBlend()` so sparks are always on top.  Spark spawn rate from
-psysuals uses `bass * 1.2`; raise to `bass * 5f` in Android because beat
-signal tends to be lower and sparks were invisible at low intensity.
-
-**Spark trail ring buffer** — psysuals uses a dedicated `spark_surf` faded at
-`_SPARK_FADE=10` (≈0.039f), giving ~25 frames of persistence. Android replaces
-this with a 25-frame ring
-buffer of per-frame spark screen snapshots (sx, sy, r, h, bright) replayed with
-`setAdditiveBlend()` at linearly decreasing alpha.  Do not remove this ring
-buffer or merge it into the main fade — sparks must trail significantly longer
-than the corridor frames.
-
-### FlowFieldMode
-Port directly. The source `draw.fadeBlack(8f/255f)` is clamped by Android
-`GLDraw` to the shared 48/255 minimum. Particles are drawn with
-`setAdditiveBlend()` as tiny circles (radius 1.5f, segments=4). No numpy;
-particle positions are held in plain `FloatArray(N)`.
-
-Seed detection: particles are initialised on the first draw call when W/H are known. v3.14 reallocations preserve existing wrapped positions and use isolated per-effect random state.
-
-**Bass gravity + treble scatter** (added v2.8.0): per-particle, apply two extra forces each frame:
-- Bass attract: `(W*0.5 - px) * bass*0.0018` (toward centre)
-- Treble scatter: `Random(-1,1) * treble*3.2` (random direction per axis)
-
-Port these identically from psysuals `effects/flowfield.py`.  Both forces are additive to the normal field-angle displacement.
-
-### FireworksMode
-Port directly for the fireworks mechanics (rockets + embers with gravity/drag).  The pygame pixel-feedback zoom wormhole is **not ported** — replaced with `draw.fadeBlack(15f/255f)` giving ~17-frame persistence on the framebuffer.  Embers use `setAdditiveBlend()`.
-
-**Gain-aware interval** (added v2.7.0): `interval = (BASE_INTERVAL * audio.gain).toInt().coerceIn(20, 200)` where `BASE_INTERVAL = 40`.  `audio.gain` is the `beatGain` multiplier passed in via `AudioData`.  Do not port the psysuals version's fixed `LAUNCH_INTERVAL` — the Android version intentionally scales with gain.
-
-Note: `GLDraw` now has FBO bloom support, but the fireworks zoom feedback is still not ported — bloom is a post-processing effect applied to all modes, not a per-mode FBO blit.
-
-### v3.15 new effects
-
-The active Android registry follows upstream v3.15 order and includes
-Morphogenesis, Hyperbolic, LiquidLight, Cymatica, Phason, Tesseract,
-Ferrofluid, and Mandelbox. Their upstream numpy/surfarray fields are adapted
-to bounded 64×36 scalar fields or reusable GL line geometry. This preserves
-audio response, palette motion, bounded iteration counts, and resize safety
-without allocating a full-resolution bitmap on the render thread.
-
-Clifford was removed from the active registry because upstream removed it in
-v3.15. `CliffordMode.kt` remains as dormant source for history and is not
-reachable through settings or automatic rotation.
-
-### ButterfliesMode
-The Android port keeps the bounded mutual-pursuit implementation and now allows
-six pairs (within the upstream twelve-butterfly population ceiling). The
-upstream cocoon emergence and persistent trail are represented by the existing
-delayed edge spawns and `fadeBlack`; exact pygame surface compositing is not
-portable to the GLES 2.0 batch renderer.
-
-**Wander breaks**: `ButterflyPair` has two fields — `breakCd` (initial 800–1600) and `breakTimer` (initial 0). Each orbit frame: if `breakTimer > 0`, decrement it (free-wander phase); else decrement `breakCd`, and when it reaches 0 set `breakTimer = 200–500`, `breakCd = 900–1800`, `orbitR = min(orbitR + 80, 200)`. While `breakTimer > 0`, both butterflies call `update(bass, beat)` with no `chasePos` instead of the orbit code.
-
-
-### AuroraMode
-Port of `effects/aurora.py`.  Key differences:
-
-- **DEFS encoding** — Python uses a nested list of tuples; Android uses a list of `RibbonDef` / `Harmonic` data classes.
-- **Geometry caching** — Caches `xs` and `ks` arrays, rebuilt only when `draw.W` changes.
-- **Resize safety** — Full viewport changes rebuild cached geometry and the Android port now guards harmonic normalization so extreme aspect-ratio changes cannot leave stale or over-amplified ribbon state behind.
-- **No pygame surface** — Python draws all ribbons to a temporary `pygame.Surface` and blits additively to the main surface.  Android calls `draw.setAdditiveBlend()` once before the ribbon loop and `draw.setNormalBlend()` after.
-- **Edge lines NOT ported** — psysuals removed sharp top-edge line drawing in v3.5.x.  The Android port never drew them.  `savedTopPts`/`savedHues` fields removed in v3.7.0 backport (they were dead code).
-
-### LatticeMode
-Port of `effects/lattice.py`.  Key differences:
-
-- **Dynamic grid** (v3.7.0): grid density scales with display width — `14×9` (default), `18×12` (≥1600px), `22×14` (≥2560px).  Implemented as `gridCols(W)` / `gridRows(W)` helper functions.  Column count passed to `getBin()` so center-out mapping scales with grid size.
-- **Center-out frequency mapping** (v3.7.0): `getBin(col, nCols, fftLen)` maps center columns to low frequencies (bass) and edge columns to high frequencies (treble).  `normalized = abs(col - center) / center`.
-- **Grid data** — Python uses a list of dicts.  Android uses a `Node` data class list, rebuilt when `lastW/lastH` change.
-- **Per-frame scratch arrays** — `sxArr`, `syArr`, `bright` are allocated per-frame (size matches `nodes.size`).
-- **Double-stroke beams** — Python draws width-3 (dark) then width-1 (bright) `pygame.draw.line`.  Android calls `draw.line(...)` twice at the same coordinates with different lightness values.  The visual result is equivalent on a dark background.
-- **colPeaks guard** — A size mismatch check (`if colPeaks.size != nCols`) ensures peaks are reset after a grid resolution change without requiring a full mode reset.
-- **v3.17 Lattice geometry** — Tracks upstream removal of the hyperbolic outer
-  node warp; Android keeps the grid within the viewport on large and portrait
-  displays.
-- **v3.17 trail policy** — `GLDraw.fadeBlack` enforces a minimum 48/255 black
-  overlay so old pixels fade to black instead of accumulating as grey residue.
-- **Android field quality** — The bounded 64×36 simulation state is rendered
-  through a viewport-adaptive interpolated grid (64–224 columns, aspect-aware
-  rows), matching the upstream reduced-surface/smoothscale intent without
-  allocating a full-resolution field. The render grid is capped below the
-  shared 262K-vertex batch ceiling on portrait and unusually large displays.
-- **Android diagnostics** — Debug builds expose mode, viewport, frame time,
-  submitted vertex count, and bloom state through the developer overlay. The
-  callback is disabled in release builds.
-
-### TriFluxMode
-No `TRAIL_ALPHA` surface management needed — `draw.fadeBlack(28f/255f)` is
-clamped by Android to the shared 48/255 minimum and covers
-it.  Two-pass draw (non-active tiles first, then active on top) replaces the
-psysuals z-order that comes for free from direct surface drawing.  Current
-Android parity fixes also rebuild viewport-sensitive cached geometry correctly
-on render-size changes.
-
-### BranchesMode
-Port directly. `draw.fadeBlack(10f/255f)` records the source value; Android
-clamps the effective trail fade to 48/255.
-
-### MyceliumMode
-Port directly. The source `TRAIL_ALPHA=8` is clamped by Android to 48/255.
-Swirling growth pattern around 5 cores (colony centers). Segments use double
-`draw.line()` (dark + bright). Pre-allocated arrays and cores structure.
-Current parity notes: Android now follows the larger later-upstream growth
-budgets and clears stale resize state when the viewport changes.
-
-### MagnetarMode
-N reduced 6 000 → 4 000 for Android performance.  Particles drawn as `draw.circle(radius=1.5f, segments=4)` with `setAdditiveBlend()`.  `_FADE_ALPHA=24` trail decay mapped to `draw.fadeBlack(24f/255f)`.  The current Android port also rebuilds particles on resize and uses the later upstream dipole `r3` term.
-
-### SlimeMoldMode
-N reduced 10 000 → 2 500; the grid divisor is 8 on smaller displays and 6 at TV size. NumPy vectorised sensing and movement are scalar Kotlin loops. Deposit indices are clamped before writes, diffusion buffers are reused, and the grid rebuilds whenever either dimension changes.
-
-### CliffordMode
-N is 7 000 with six passes for Android performance and to remain below `GLDraw`'s 262k-vertex batch ceiling. NumPy map iterations are scalar Kotlin loops over preallocated arrays. Dynamic framing approximates the Python density framebuffer; v3.14's faster morphing, high-contrast emission, hot cores, and isolated seeded RNG are ported. `_FADE_ALPHA=18` maps to `draw.fadeBlack(18f/255f)`.
-
-### MobiusMode
-Port directly.  `TRAIL_ALPHA=15` → `draw.fadeBlack(15f/255f)`.  NumPy 3-D rotation and perspective projection replaced with Kotlin FloatArray loops; scratch `pts2d` array pre-allocated (longitude wires and scratch `pts2dV` removed in v3.9.0).  Treble-driven rotation contribution is aligned with the later upstream implementation.
-
-### ChromaticMode
-Port directly. Wavy raindrop ripples outline. `_FADE_ALPHA=24` → `draw.fadeBlack(24f/255f)` replaces `BLEND_RGB_MULT(232,228,236)`. Closed polygons drawn with RGB-separated offsets and custom sine-wave ripple function.  Rings are removed based on updated post-growth radius to match the later upstream stale-radius fix.
-
-### PersistenceMode
-Port directly where it fits the GL renderer. `TRAIL_ALPHA=5` → `draw.fadeBlack(5f/255f)`. Platonic solids are projected with v3.14's viewport-filling `0.95 * height` focal scale and depth fading; the obsolete treble flash ring is removed. Upstream's offscreen `RES_DIV=2` pygame path does not map 1:1 to direct Android GL batching.
-
-### SynapseMode
-Port directly. `TRAIL_ALPHA=18` → `draw.fadeBlack(18f/255f)`. v3.14 living topology ranges from 28–90 nodes; nodes wander around anchors, beats grow the graph, and periodic changes add or shed nodes. Every mutation rewires nearest neighbours and clears stale edge-index signals. Signals remain capped at `MAX_SIGNALS=240`.
-
-### HeartbeatMode
-Port directly.  `TRAIL_ALPHA=20` → `draw.fadeBlack(20f/255f)`.  Ring polygon drawn with 120-point `FloatArray` passed to `draw.polygon()` twice (glow + col).  Rings are culled after per-frame growth is applied, matching the later upstream state-handling fix.
-
----
-
-## Checklist after every psysuals import
-
-1. Read `psysuals/effects/__init__.py` — check MODES list order; update
-   `VisualizerRenderer.kt` and `arrays.xml` to match.
-2. For each changed / new effect file, diff against the current Kotlin port and
-   apply parameter changes using the table above.
-3. Apply per-effect standing adaptations from this document.
-4. Push the change and use the GitHub CI/CD pipeline to validate the Android build, then fix any compile errors reported there.
-5. Update `CHANGELOG.md`, `docs/visualizer-modes.md`, and `docs/architecture.md`.
-6. Run `qmd update && qmd embed`.
-7. Commit on `dev`.
-
-### Android audio snapshot and pause lifecycle
-
-The Android renderer copies capture data into a reusable, render-owned
-`AudioData` buffer under a short audio lock, then releases the lock before
-issuing any GL work. This follows upstream
-`psysuals/core/audio_engine.py::get_audio()`, which returns copies under its lock;
-the Android buffer is reused to avoid per-frame array allocation. The original
-long render lock was an Android-only integration issue, so no upstream effect
-change is needed. Android pauses clear accumulated audio and genre samples but
-preserve whether automatic genre detection is configured, allowing collection
-to resume when the host returns to the foreground.
-
-Android host startup now applies the enabled-effect selection even with cycling
-set to Off/manual. This is a native host preference/lifecycle correction; it
-does not change any vendored psysuals effect or its mathematical behaviour.
-
-### Android vertex staging memory
-
-The native GLDraw triangle/line staging arrays and direct upload buffers now
-share one lazy pair. Primitive changes already flush before emitting the next
-primitive type; an assertion enforces the single-live-batch invariant. The
-vertex limit and rendering order are unchanged, while full staging drops from
-24 MiB to 12 MiB. This is Android-only CPU/upload storage: upstream
-`psysuals/gl_renderer.py::_upload_surface()` stages surface pixels on demand,
-without these Kotlin vertex batches. No upstream effect change is required.
-
-The Android host now connects the existing performance-sample callback to a
-dev-only overlay, throttled to one update per second and guarded by the active
-visualizer session. It includes allocated vertex staging alongside effect,
-viewport, frame time/FPS, vertices and bloom; persistent crash details have
-priority. This is Android host instrumentation and does not alter upstream
-effect rendering or tuning.
+## Reference and active registry
+
+`psysuals/` exactly vendors upstream main `0579390b296530fe05fbccf1eebaa37e7aa22952`
+(psysuals 3.20.0). The Android Kotlin/GLES backport follows its 32-effect
+registry and latest effect changes. Morphogenesis and Mandelbox have been
+removed from implementations, rotation and settings. Spectrum and Waterfall
+remain last. Stored enabled-mode names are intersected with the new registry;
+removed selections fall back safely without shifting numeric preference IDs.
+
+The earlier source-only import is superseded by this Android backport. Desktop
+pygame/ModernGL integration code remains vendored reference code, not an Android
+runtime dependency. Native changes never edit the upstream subtree.
+
+## Elapsed time, response and profiles
+
+The fourteen upstream `TIME_BASED` effects use elapsed render seconds in 60 Hz
+units, clamped to 0–0.1 seconds to bound stalls. `EffectDynamics` applies the
+upstream exponential smoothing rates: 0.035 for geometry/motion and 0.25 for
+light accents. NaN/infinite audio is discarded and responses are bounded to 1.5.
+
+Settings offers Auto, Laptop and TV profiles independently of viewport size.
+Auto uses TV at widths of at least 2560 pixels, otherwise Laptop. Laptop uses
+motion 0.65/light 1.0; TV uses motion 0.85/light 1.3. Intensity remains the
+separate beat-gain control. Capture data is copied under its lock; timing and
+profile are render-owned and never mutate capture buffers.
+
+Time-based effects are Cube, TriFlux, Lissajous, Tunnel, Plasma, Lattice,
+Mobius, Chromatic, Persistence, Synapse, Hyperbolic, Cymatica, Phason and
+Ferrofluid. Other effects retain their upstream frame-based dynamics.
+Lissajous and Cube trail histories sample in 60 Hz units rather than tying
+trail duration to display FPS. Spring integration in TriFlux uses bounded
+substeps. The Android minimum trail decay (48/255 at 60 Hz) is retained and
+scaled exponentially for elapsed time.
+
+## Composition and effect changes
+
+Every pending effect change discards queued geometry and clears the scene FBO,
+both bloom FBOs and the display framebuffer to opaque black on the GL thread.
+Two blank presentation frames cover retained buffers before the next effect
+renders. There is no outgoing-effect crossfade. Surface resizing also clears
+new attachments while preserving CPU simulation state where applicable.
+
+GLES scene composition is already opaque and does not use pygame RGB-only
+surface alpha. Thus upstream's CPU alpha correction maps to the existing
+opaque final GLES composite. Fireworks never reads the framebuffer back to the
+CPU. Its Android fade/geometry trails remain the intentional alternative to
+pygame's CPU pixel-feedback zoom. No raw GPU/CPU framebuffer readback is used
+in normal playback; readbacks are confined to device regression tests.
+
+## Effect-specific backports
+
+| Effect | 3.20 behaviour |
+|---|---|
+| Cube | Smoothed angular speeds/scale, no random vertex jitter, viewport-scaled projection, fitted cubes/satellites and gentler independent orbits |
+| TriFlux | One activation per beat edge with cooldown, elapsed-time lifetimes, substepped springs, whole active-triangle fitting, retained active state on resize, and alpha-fringed antialiased outlines |
+| Lissajous | Stable 3:2:5 knot, 60 Hz trail sampling, smoothed rotation/scale, wider bounded projection and no lines across discontinuities |
+| Tunnel | Slow audio-independent camera curvature, bounded accumulated triangle spawning, stable ring IDs/star shapes, gentle travel and rotation |
+| Plasma | Slow phase/hue, smoothed bounded domain warp, reduced audio frequency/hue modulation and separate light accents |
+| Butterflies | Interior spawns, center-directed edge avoidance, bounded pair orbit centers, viewport-scaled sprites and retained positions on resize |
+| FlowField | Scale existing particle coordinates on resize without reseeding or changing population |
+| Fireworks | Height-relative launch/gravity, rescaled live rockets/embers/trails on resize, no GPU readback |
+| Aurora | Rebuild viewport-dependent coordinates without resetting phases; empty/short FFT inputs remain safe |
+| Lattice | Profile-based 22×14 Laptop / 14×9 TV grids, smooth scale and motion, elapsed-time peak decay |
+| SlimeMold | Preserve agents and bilinearly resample the chemical field on resize |
+| Mobius | Slow smoothed geometry, light shiver, whole-strip fitting with a glow margin |
+| Chromatic | Slow radius/phase, elapsed-time decay, display-scaled RGB separation/warp and resize preservation; keep the user-requested nine-ring cap |
+| Persistence | Five rigid solids, smooth axis reversals with cooldown, bounded speed accents, colour drift and no fourth-coordinate deformation |
+| Synapse | Gradual oldest-node retirement and branch births near active parents, retained signals on surviving edges, elapsed-time motion and resize preservation |
+| Hyperbolic | Connected dual-icosphere mesh (162 shared pentagon/hexagon tiles), independently lifting/hinging caps, shaded walls, travelling colours and front-horizon clipping |
+| Cymatica | Smoothed six-band spatial weights, no argmax jumps, actual nodal-gradient particle descent and bounded sand |
+| Phason | Full-resolution GLES seven-wave interference, slow phase and bounded pulse; no audio-driven wave-count jumps |
+| Ferrofluid | Full-resolution GLES metallic droplets, connected liquid envelope, triangular magnetic peaks, analytic gradients and specular/rim lighting |
+
+## Intentional Android differences
+
+- Python's ModernGL shaders are adapted to GLSL ES 1.00 with guarded fragment
+  precision. Phason/Ferrofluid use the actual scene framebuffer dimensions and
+  rebuild GL handles after context recreation without reading pixels back.
+- Bounded native simulation/draw budgets remain in place: SlimeMold uses 2,500
+  agents and a reduced chemical grid; FlowField/Fireworks retain their population
+  limits; scalar fields interpolate to a capped GLES grid. Desktop's near-full-
+  resolution CPU SlimeMold field would be too expensive on TV sticks.
+- LiquidLight retains its bounded normalized analytic-field adaptation instead
+  of desktop's full CPU fluid solver. Its field/phase do not reset on viewport
+  changes, so the upstream resize-preservation intent applies without allocating
+  a new full-resolution fluid grid.
+- Kotlin random generators are deterministic where already seeded, but their
+  sequences need not match numpy. GLES bloom and line rendering differ from
+  pygame rasterization; TriFlux uses triangle geometry with alpha fringes for
+  portable antialiasing.
+- Android omits desktop window/monitor controls, pygame overlays, recipes and
+  external audio adapters. The existing Android audio-permission and lifecycle
+  diagnostics remain authoritative.
+
+## Verification and future imports
+
+The vendored tree passed 127 Python unit tests, headless smoke rendering of all
+32 upstream effects and parsing of all 67 Python files. Android checks run only
+on GitHub. Added JVM checks cover time invariance, stall/NaN bounds, sphere mesh
+connectivity/horizon clipping, field resampling and sustained-beat activation.
+Added EGL device checks exercise all 32 native effects, resize, shader visibility,
+black switch frames, and scene/bloom/display clearing with bloom on and off.
+Physical TV/audio/GPU combinations remain manual validation.
+
+For future updates, compare each changed upstream effect with its Kotlin port,
+apply the standing Android limits above, update both registry/resource arrays
+and current documentation, and use GitHub for Android builds. If a bug exists
+upstream, fix/test it in psysuals first and import that commit before backporting.
