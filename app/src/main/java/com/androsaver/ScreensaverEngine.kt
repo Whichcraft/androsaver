@@ -127,6 +127,10 @@ class ScreensaverEngine(
     private var weatherRequestGeneration = 0L
     private val kenBurnsAnimators = mutableMapOf<ImageView, ValueAnimator>()
     private val imageTargets = mutableMapOf<ImageView, Target<Drawable>>()
+    // The engine explicitly clears every target on stop. An Activity-scoped
+    // RequestManager would also pause/resume requests through its hidden Fragment,
+    // racing engine restart and invalidating the newly installed target ownership.
+    private val imageRequests by lazy { Glide.with(context.applicationContext) }
     private val imageCache by lazy { ImageCache(context) }
     private val weatherFetcher by lazy { WeatherFetcher(context) }
     private val timeFmt  = DateFormat.getTimeFormat(context)
@@ -662,7 +666,7 @@ class ScreensaverEngine(
             }
         }
         imageTargets[imageView] = target
-        val staticRequest = Glide.with(context).load(imageSource)
+        val staticRequest = imageRequests.load(imageSource)
             .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
             .disallowHardwareConfig()
         staticRequest.listener(object : RequestListener<Drawable> {
@@ -972,7 +976,7 @@ class ScreensaverEngine(
         val glideModel = ImageModels.forItem(item)
 
         val prefs = Prefs.get(context)
-        val request = Glide.with(context).load(glideModel)
+        val request = imageRequests.load(glideModel)
             .downsample(com.bumptech.glide.load.resource.bitmap.DownsampleStrategy.AT_MOST)
             .disallowHardwareConfig()
             .apply {
@@ -1184,7 +1188,7 @@ class ScreensaverEngine(
     private fun clearImageTarget(view: ImageView) {
         val target = imageTargets[view] ?: return
         try {
-            Glide.with(context).clear(target)
+            imageRequests.clear(target)
         } catch (e: Throwable) {
             reportTransitionFailure("image target clear", e)
         }

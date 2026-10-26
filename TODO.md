@@ -179,6 +179,7 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Show persistent source health, recovery guidance and offline-cache playback status.
 - [x] Add JVM regressions for account races, snapshots, refresh ordering, partial links and session journals.
 - [x] Add Android integration tests for real cache/Glide loading, static imports, all-mode preview lifecycle/recreation, GL samples and APK FileProvider grants.
+- [x] Fix the static-image resume blank exposed by the emulator suite: engine-owned requests use the application RequestManager, avoiding competing Activity lifecycle ownership.
 - [x] Gate APK publication on GitHub emulator tests on API 29 and 35.
 - [ ] Verify this follow-up's JVM tests, device tests and APK build on GitHub.
 - [ ] Run physical-TV checks for system dream activation, audio capture and external installer completion (see docs/module-reference.md).

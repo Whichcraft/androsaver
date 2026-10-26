@@ -384,3 +384,10 @@ APK sharing through the actual FileProvider. Publication depends on both jobs.
 No Android build is performed locally. These tests do not prove physical TV
 system-dream activation, system audio capture or completion of the external
 package installer; those remain explicit device checks.
+
+Image requests use an application-scoped Glide RequestManager because the engine
+owns their complete lifecycle and clears all targets at stop. An Activity-scoped
+manager also pauses/resumes through Glide's hidden Fragment; that competing
+lifecycle could discard target ownership and leave static Preview blank after
+stop/resume. The emulator lifecycle regression verifies visible images before
+and after stop/resume and recreation, rather than merely checking for crashes.
