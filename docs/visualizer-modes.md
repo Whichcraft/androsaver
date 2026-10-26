@@ -1,5 +1,10 @@
 # Visualizer Modes Reference
 
+The vendored Python reference is psysuals v3.20.0 (`0579390`). This source-only
+sync does not alter the Android modes described here. Android retains 34 modes;
+upstream's 32-mode registry no longer includes Morphogenesis and Mandelbox.
+See `docs/psysuals-port-notes.md` for the intentional version/registry boundary.
+
 All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
 ```kotlin
 abstract fun draw(draw: GLDraw, audio: AudioData, tick: Int)

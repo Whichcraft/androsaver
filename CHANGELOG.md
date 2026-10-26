@@ -2,6 +2,17 @@
 
 All notable changes to AndroSaver are documented here.
 
+## 2026-10-26 — psysuals v3.20.0 subtree update
+
+- Updated the squashed `psysuals/` subtree from `4dc8095` to upstream main
+  `0579390b296530fe05fbccf1eebaa37e7aa22952`; the imported tree matches exactly.
+- Imported upstream GL composition/feedback, elapsed-time/profile, resize and
+  effect refinements, plus upstream's removal of Morphogenesis and Mandelbox.
+- Kept Android Kotlin effects, tuning and its 34-mode registry intact. This is
+  a Python reference-source sync, with the boundary documented in the port notes.
+- Passed 127 Python unit tests and the headless smoke test for all 32 upstream
+  effects; local checks did not exercise a real ModernGL context.
+
 ## 2026-10-11 — v2.11.2: psysuals effect rendering update
 
 - Updated the squashed `psysuals/` subtree through upstream main commit

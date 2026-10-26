@@ -2,6 +2,10 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage), a **static image**, a fullscreen **music visualizer**, or a **blank black screen**. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
+The vendored `psysuals/` reference source is **psysuals 3.20.0** (`0579390`).
+This subtree sync preserves the current Android Kotlin effects and 34-mode
+registry; upstream rendering changes require a separate Android backport.
+
 ## What's New in v2.12.0
 
 - Isolated photo identities across accounts and removed Glide's separate persistent photo cache.

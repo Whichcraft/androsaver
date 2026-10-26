@@ -1,7 +1,7 @@
 # psysuals → AndroSaver Port Notes
 
 The repository vendors upstream psysuals as a Git subtree under `psysuals/`
-through upstream main commit `4dc8095` (after v3.19.0). The subtree is the
+through upstream main commit `0579390b296530fe05fbccf1eebaa37e7aa22952` (v3.20.0). The subtree is the
 reference source; the Android implementation remains a Kotlin/OpenGL ES 2.0
 port. Keep the subtree update and any Android-applicable backport in the same
 change so the two sources remain auditable.
@@ -20,6 +20,25 @@ frame cost revision. These changes stay in the Python subtree; this update did
 not modify the native Android Kotlin effects. Continue to use the existing GLES
 implementations on Android and port future Android-applicable behavior from the
 psysuals source when requested.
+
+The 2026-10-26 v3.20.0 import is a **source-only subtree update**. It includes
+Python GL composition/feedback fixes, elapsed-time motion and visual profiles,
+resize preservation, and substantial Hyperbolic, Synapse, Ferrofluid and TriFlux
+changes. No Kotlin parameters, renderer logic or effect registry were changed.
+These upstream visual changes are not automatically enabled in the Android app.
+
+Upstream removes Morphogenesis and Mandelbox and now registers 32 effects.
+Android intentionally retains its existing 34-effect registry, including both
+modes, until a separately requested Android parity change. Likewise, the new
+Python elapsed-time/profile/composition implementations remain reference code;
+Android continues to use its existing GLES lifecycle, tuning and standing
+adaptations below. Do not remove Android effects or claim rendering parity just
+because the vendored Python source has been refreshed.
+
+The imported tree exactly matches upstream. Local headless verification passed
+127 Python unit tests and smoke rendering for all 32 registered upstream effects.
+Real ModernGL rendering was not exercised by these local checks. The existing
+psysuals virtual environment supplied dependencies; no dependency files changed.
 
 When importing a new psysuals release, always apply these Android-specific
 adaptations after porting each effect.  The differences exist because Android

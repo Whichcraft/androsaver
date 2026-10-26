@@ -225,3 +225,10 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Bump the minor version to 2.12.0 and add cache/auth/diagnostic/provider regression coverage.
 - [x] Verify the JVM suite across all eight variants, all 14 integration tests on each API 29/35 emulator, signed APK publication and downloaded-asset integrity: [run 40402500712](https://github.com/Whichcraft/androsaver/actions/runs/40402500712), app commit `479075d8c094866818cb5e37e84febe9ee012d5e`. Published manifest confirms version `2.12.0`, code `377`; `dev-channel` target confirmed.
 - [ ] Physical TV: verify real certificate failures, connectivity restoration, cache cleanup and system exit evidence with real providers.
+
+## psysuals 3.20.0 source sync (2026-10-26)
+
+- [x] Update the squashed subtree from `4dc8095` to upstream main `0579390` and verify exact tree identity.
+- [x] Review upstream registry removals and document the intentional source-only boundary: Android keeps its existing Kotlin effects and 34-mode registry.
+- [x] Pass 127 Python unit tests, headless smoke rendering of all 32 upstream effects, and whitespace checks without changing dependencies.
+- [ ] Verify the source sync on GitHub: JVM/device tests, signed APK publication and downloaded-asset verification.
