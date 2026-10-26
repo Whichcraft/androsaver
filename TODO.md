@@ -223,5 +223,5 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Collect Android process-exit metadata and available ANR stack frames; retain the journal fallback on older Android versions.
 - [x] Add persistent source status, Retry now, active-playback notification, connectivity recovery, explicit report-read errors and cache-clearing progress.
 - [x] Bump the minor version to 2.12.0 and add cache/auth/diagnostic/provider regression coverage.
-- [ ] Verify the JVM suite, API 29/35 emulator tests, signed APK publication and downloaded-asset integrity on GitHub.
+- [x] Verify the JVM suite across all eight variants, all 14 integration tests on each API 29/35 emulator, signed APK publication and downloaded-asset integrity: [run 40402500712](https://github.com/Whichcraft/androsaver/actions/runs/40402500712), app commit `479075d8c094866818cb5e37e84febe9ee012d5e`. Published manifest confirms version `2.12.0`, code `377`; `dev-channel` target confirmed.
 - [ ] Physical TV: verify real certificate failures, connectivity restoration, cache cleanup and system exit evidence with real providers.
