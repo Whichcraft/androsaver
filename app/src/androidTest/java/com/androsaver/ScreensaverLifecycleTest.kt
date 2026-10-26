@@ -20,10 +20,19 @@ class ScreensaverLifecycleTest {
             Prefs.ENABLE_IMMICH, Prefs.ENABLE_NEXTCLOUD, Prefs.ENABLE_SYNOLOGY, Prefs.ENABLE_LOCAL_STORAGE)
         val original = prefs.all.toMap()
         val image = File(context.cacheDir, "lifecycle-image.png")
+        val cacheDirectory = File(context.cacheDir, "image_cache").apply { mkdirs() }
+        val cacheImage = File(cacheDirectory, "lifecycle-fixture.img")
+        val manifest = File(cacheDirectory, "manifest.json")
+        val originalManifest = manifest.takeIf { it.isFile }?.readBytes()
         try {
             val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(android.graphics.Color.BLUE)
             image.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
+            image.copyTo(cacheImage, overwrite = true)
+            manifest.writeText(com.google.gson.Gson().toJson(listOf(ImageCache.Entry(
+                "lifecycle-offline-image", cacheImage.name, "test", System.currentTimeMillis(), cacheImage.length()
+            ))))
             runBlocking(Dispatchers.IO) { StaticImageStore.copyItem(context,
                 com.androsaver.source.ImageItem(image.toURI().toString())) }
             prefs.edit().apply {
@@ -42,6 +51,10 @@ class ScreensaverLifecycleTest {
                     awaitReady(scenario, mode)
                     scenario.recreate()
                     awaitReady(scenario, mode)
+                    if (mode == Prefs.MODE_SLIDESHOW) scenario.onActivity { activity ->
+                        assertTrue(activity.findViewById<android.widget.TextView>(R.id.sourceHealth)
+                            .text.contains(context.getString(R.string.source_health_cache)))
+                    }
                 }
                 assertFalse(File(context.noBackupFilesDir, "screensaver-postmortem.txt.active").exists())
             }
@@ -57,6 +70,8 @@ class ScreensaverLifecycleTest {
                 } }
             }.commit()
             image.delete()
+            cacheImage.delete()
+            if (originalManifest == null) manifest.delete() else manifest.writeBytes(originalManifest)
         }
     }
     private fun awaitReady(scenario: ActivityScenario<PreviewActivity>, mode: String) {
@@ -69,8 +84,10 @@ class ScreensaverLifecycleTest {
                 assertTrue("Unexpected diagnostic in $mode: ${error.text}", error.visibility != android.view.View.VISIBLE)
                 ready = if (mode == Prefs.MODE_VISUALIZER)
                     activity.findViewById<android.widget.TextView>(R.id.devPerformanceOverlay).text.isNotEmpty()
-                else activity.findViewById<ImageView>(R.id.imageView1).drawable != null ||
-                    activity.findViewById<ImageView>(R.id.imageView2).drawable != null
+                else listOf(R.id.imageView1, R.id.imageView2).any { id ->
+                    val imageView = activity.findViewById<ImageView>(id)
+                    imageView.drawable != null && imageView.alpha > 0.01f && imageView.isShown
+                }
             }
             if (!ready) Thread.sleep(100)
         }
