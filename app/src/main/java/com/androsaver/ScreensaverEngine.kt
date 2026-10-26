@@ -519,10 +519,7 @@ class ScreensaverEngine(
         val allNames = vv.renderer.modeNames.toSet()
         val storedModes = prefs.getStringSet(Prefs.VIZ_ENABLED_MODES, null)
         val knownModes = prefs.getStringSet(Prefs.VIZ_KNOWN_MODES, null)
-        val enabledModes = when {
-            storedModes == null || storedModes.isEmpty() -> allNames
-            else -> (storedModes + (allNames - (knownModes ?: allNames))).intersect(allNames)
-        }
+        val enabledModes = com.androsaver.visualizer.VisualizerSelection.enabled(storedModes,knownModes,allNames)
         vv.enabledModeNames = enabledModes
         prefs.edit()
             .putStringSet(Prefs.VIZ_KNOWN_MODES, allNames)

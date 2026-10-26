@@ -97,8 +97,9 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
 
     val modeNames: List<String> get() = modes.map { it.name }
 
-    /** Beat-response gain (0.0 = no reaction, 1.0 = normal, 2.0 = intense). Matches psysuals effect_gain. */
+    /** Saved display profile, independent of framebuffer resolution. */
     @Volatile var visualProfile = "auto"
+    /** Beat-response gain (0.0 = no reaction, 1.0 = normal, 2.0 = intense). */
     @Volatile var beatGain: Float = 1.0f
 
     // ── GLSurfaceView.Renderer ─────────────────────────────────────────────────

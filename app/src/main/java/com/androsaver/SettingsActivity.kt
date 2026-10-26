@@ -183,6 +183,12 @@ class SettingsActivity : AppCompatActivity() {
                 setPreferencesFromResource(R.xml.screensaver_preferences, rootKey)
 
                 val prefs = Prefs.get(requireContext())
+                val availableEffects = resources.getStringArray(R.array.viz_effect_values).toSet()
+                val selectedEffects = com.androsaver.visualizer.VisualizerSelection.enabled(
+                    prefs.getStringSet(Prefs.VIZ_ENABLED_MODES, null), prefs.getStringSet(Prefs.VIZ_KNOWN_MODES, null), availableEffects)
+                prefs.edit().putStringSet(Prefs.VIZ_ENABLED_MODES, selectedEffects)
+                    .putStringSet(Prefs.VIZ_KNOWN_MODES, availableEffects).apply()
+                findPreference<MultiSelectListPreference>(Prefs.VIZ_ENABLED_MODES)?.values = selectedEffects
                 val currentMode = prefs.getString(Prefs.SCREENSAVER_MODE, Prefs.MODE_SLIDESHOW) ?: Prefs.MODE_SLIDESHOW
                 updateModeVisibility(currentMode)
                 cleanupLegacyStaticImageUrl()
