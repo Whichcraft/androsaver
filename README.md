@@ -454,14 +454,14 @@ See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) f
 |--------|-------------|
 | **Yantra** | Psychedelic sacred-geometry mandala with 7 concentric polygon rings, web connections, and neon spokes; rings spin at graduated speeds and kick outward on every beat |
 | **Cube** | Fitted dual cubes and satellites with smoothed angular motion and light accents |
-| **TriFlux** ✨ | A living mosaic of triangles covering the full screen — every edge pulses with a rolling rainbow sweep; on beats, tiles eject to the foreground, bounce off screen edges, and spring back |
+| **TriFlux** ✨ | Antialiased triangle mosaic with two rainbow sweeps; a beat edge activates a fitted foreground tile, which returns through elapsed-time spring motion |
 | **Lissajous** | Stable 3:2:5 knot with time-sampled trails and smooth bounded motion |
 | **Tunnel** | Gentle audio-independent camera curvature and stable ring stars |
 | **Corridor** ✨ | Infinite neon rainbow corridor — 28 luminous frames rush toward you; hue sweeps full spectrum far-to-near; bass drives speed; beats fire glowing spark particles that streak outward |
 | **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
 | **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |
 | **Bubbles** | Translucent full-screen rising bubbles driven by bass energy; synchronised beat pulse |
-| **Plasma** | Full-screen sine-interference plasma with four overlapping wave fields |
+| **Plasma** | Seven-wave full-screen plasma with slow phase, smoothed bounded domain warp and separate light accents |
 | **Branches** ✨ | Psychedelic fractal lightning tree — nine neon arms split recursively to depth 7 with glowing halos and bright cores; mid frequencies twist branch angles live; beats fire extra arms |
 | **Butterflies** | Neon butterfly pairs in mutual-pursuit spirals with periodic wander breaks, synchronized wing phases, and beat-fired sparkles |
 | **FlowField** | 8 000+ rainbow particles surfing a continuously evolving field; bass pulls toward center, treble scatters, and beats reshape the flow |
@@ -471,7 +471,7 @@ See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) f
 | **Mycelium** | Multi-colony fungal growth with bioluminescent filament trails, orbiting spores, and beat-driven bloom bursts |
 | **Magnetar** | 4 000 particles riding a rotating magnetic dipole field with equatorial shockwave bursts on beats |
 | **SlimeMold** | Physarum-style agent simulation with trail diffusion and a finer TV-size grid; beats teleport part of the colony back toward center |
-| **Mobius** | 3-D wireframe Mobius strip with perspective projection and beat-driven shiver/twist bursts |
+| **Mobius** | Whole-viewport-fitted Mobius strip with slow smoothed geometry and light shiver |
 | **Chromatic** | Prismatic ripple rings with RGB-separated outlines and treble-controlled chromatic split |
 | **Persistence** | Five rigid solids with smooth axis reversals, speed accents and colour drift |
 | **Synapse** | Gradual branch births and oldest-node retirement with surviving signals |

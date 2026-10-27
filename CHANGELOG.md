@@ -11,6 +11,7 @@ All notable changes to AndroSaver are documented here.
 - Clear scene, both bloom buffers and the presentation framebuffer on effect changes and resize; present black switch frames before the next effect.
 - Added JVM timing/geometry/resize/activation regressions and EGL device coverage for all 32 modes and framebuffer clearing.
 - Updated current README, store listing and all visualizer documentation; historical release entries remain historical.
+- Verified native backport `18661a1` as dev `2.12.5` (code `384`): all eight JVM variants, 16 integration tests on each API 29/35 emulator, signed APK publication and downloaded-asset integrity passed in [run 40414215709](https://github.com/Whichcraft/androsaver/actions/runs/40414215709).
 
 ## 2026-10-26 — psysuals v3.20.0 subtree update
 

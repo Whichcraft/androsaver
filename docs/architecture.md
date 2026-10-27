@@ -82,9 +82,9 @@ See `docs/image-sources.md` for detailed auth patterns.
 |-------|-------------|----------------|
 | `YantraMode.kt` | Yantra | 7 concentric rotating polygons + web/spoke connections |
 | `CubeMode.kt` | Cube | Nested wireframe cubes + 2 orbiting satellite cubes (additive-blend trails) |
-| `TriFluxMode.kt` | TriFlux | Triangle mosaic wall — tiles eject on beat |
+| `TriFluxMode.kt` | TriFlux | Antialiased triangle mosaic with beat-edge activation and substepped springs |
 | `LissajousMode.kt` | Lissajous | 3D trefoil knot with neon glow; treble brightens glow |
-| `TunnelMode.kt` | Tunnel | First-person tunnel; motion-scaled triangle spawns in the far third, cap 30 |
+| `TunnelMode.kt` | Tunnel | First-person tunnel; slow camera curvature, stable ring stars and bounded elapsed-time triangle spawning |
 | `CorridorMode.kt` | Corridor | First-person neon rainbow corridor + spark particles |
 | `NovaMode.kt` | Nova | 7-fold mirror kaleidoscope waveform |
 | `SpiralMode.kt` | Spiral | 6-arm neon helix vortex |
@@ -95,7 +95,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `FlowFieldMode.kt` | FlowField | 8 000–40 000 particles on sine/cosine noise field; bass gravity + treble scatter |
 | `FireworksMode.kt` | Fireworks | Firework rockets arcing under gravity, exploding into embers; gain-aware interval |
 | `AuroraMode.kt` | Aurora | Five horizontally undulating Northern Lights curtains |
-| `LatticeMode.kt` | Lattice | Dynamic 14x9 / 18x12 / 22x14 crystal grid with peak normalization and shockwave ring |
+| `LatticeMode.kt` | Lattice | Profile-based 22x14 Laptop / 14x9 TV grid with smoothed scale and peak decay |
 | `MyceliumMode.kt` | Mycelium | Swirling fungal network with multi-colony cores |
 | `MagnetarMode.kt` | Magnetar | 4 000 particles riding a rotating magnetic dipole field |
 | `SlimeMoldMode.kt` | SlimeMold | Physarum 2 500-agent trail simulation with adaptive-grid diffusion |

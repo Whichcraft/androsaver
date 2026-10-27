@@ -231,7 +231,7 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Update the squashed subtree from `4dc8095` to upstream main `0579390` and verify exact tree identity.
 - [x] Review upstream registry removals; the later Android backport below supersedes the initial source-only boundary.
 - [x] Pass 127 Python unit tests, headless smoke rendering of all 32 upstream effects, and whitespace checks without changing dependencies.
-- [ ] Verify the source sync on GitHub: JVM/device tests, signed APK publication and downloaded-asset verification.
+- [x] Verify the source-only sync on GitHub: JVM/device tests, signed APK publication and downloaded-asset verification passed in [run 40410593752](https://github.com/Whichcraft/androsaver/actions/runs/40410593752) for `a93b4cc`; native-backport verification is tracked below.
 
 ## psysuals 3.20 Android backport
 
@@ -239,5 +239,5 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Port elapsed-time motion, visual profiles, separate response envelopes, latest effect behaviour and resize-state preservation with documented mobile limits.
 - [x] Clear scene, bloom and display buffers on effect changes; present black switch frames and add EGL regression coverage.
 - [x] Update current visualizer, architecture, music-reactivity, store and release documentation.
-- [ ] Verify JVM/device tests and signed APK publication on GitHub.
+- [x] Verify the native backport: JVM tests across all eight variants, all 16 device tests on each API 29/35 emulator, signed APK build/publication and downloaded-asset integrity passed in [run 40414215709](https://github.com/Whichcraft/androsaver/actions/runs/40414215709) for `18661a1d4153d4c9ceec0591e98f31afa7fe8e8c`. Published version `2.12.5`, code `384`; `dev-channel` target and immutable APK manifest confirmed.
 - [ ] Physically inspect all changed effects on the TV, including high-gain audio, profiles and mode switching.

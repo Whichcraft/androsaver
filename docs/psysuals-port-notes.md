@@ -7,7 +7,7 @@
 registry and latest effect changes. Morphogenesis and Mandelbox have been
 removed from implementations, rotation and settings. Spectrum and Waterfall
 remain last. Stored enabled-mode names are intersected with the new registry;
-removed selections fall back safely without shifting numeric preference IDs.
+removed selections fall back to the current registry. Effect preferences remain name-based.
 
 The earlier source-only import is superseded by this Android backport. Desktop
 pygame/ModernGL integration code remains vendored reference code, not an Android
@@ -90,6 +90,8 @@ in normal playback; readbacks are confined to device regression tests.
   sequences need not match numpy. GLES bloom and line rendering differ from
   pygame rasterization; TriFlux uses triangle geometry with alpha fringes for
   portable antialiasing.
+- Desktop BPM metadata is not available in the native audio snapshot; Lissajous
+  uses the existing unit-tempo fallback instead of desktop tempo scaling.
 - Android omits desktop window/monitor controls, pygame overlays, recipes and
   external audio adapters. The existing Android audio-permission and lifecycle
   diagnostics remain authoritative.
@@ -129,3 +131,11 @@ For future updates, compare each changed upstream effect with its Kotlin port,
 apply the standing Android limits above, update both registry/resource arrays
 and current documentation, and use GitHub for Android builds. If a bug exists
 upstream, fix/test it in psysuals first and import that commit before backporting.
+
+Verified native app commit `18661a1d4153d4c9ceec0591e98f31afa7fe8e8c` in
+[GitHub run 40414215709](https://github.com/Whichcraft/androsaver/actions/runs/40414215709):
+JVM tests across all eight variants and all 16 device tests on each API 29/35
+emulator passed, including all-mode EGL rendering, resize and framebuffer clears.
+Signed dev APK publication and downloaded-asset integrity passed. The manifest
+confirms version `2.12.5`, code `384`, and its immutable APK URL and `dev-channel`
+tag both target that app commit. No Android build was run locally.

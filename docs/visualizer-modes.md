@@ -25,7 +25,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 2 | `CubeMode` | Cube | Nested wireframe cubes + 2 orbiting satellite cubes |
 | 3 | `TriFluxMode` | TriFlux | Triangle mosaic wall — tiles pop to foreground on beat |
 | 4 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
-| 5 | `TunnelMode` | Tunnel | First-person tunnel with triangle bursts |
+| 5 | `TunnelMode` | Tunnel | Gentle curved tunnel with stable ring stars and bounded triangle spawning |
 | 6 | `CorridorMode` | Corridor | First-person neon rounded-rectangle corridor + sparks |
 | 7 | `NovaMode` | Nova | 7-fold mirror kaleidoscope waveform |
 | 8 | `SpiralMode` | Spiral | 6-arm neon helix |
@@ -36,21 +36,21 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 13 | `FlowFieldMode` | FlowField | 8 000–40 000 particles riding a sine/cosine noise field with bass gravity + treble scatter |
 | 14 | `FireworksMode` | Fireworks | Firework rockets exploding into glowing embers |
 | 15 | `AuroraMode` | Aurora | Northern Lights curtains — 5 sinusoidal ribbons, additive blend |
-| 16 | `LatticeMode` | Lattice | Dynamic 14×9 / 18×12 / 22×14 FFT-mapped crystal grid with shockwave ring on beat |
+| 16 | `LatticeMode` | Lattice | Profile-based 22×14 Laptop / 14×9 TV crystal grid |
 | 17 | `MyceliumMode` | Mycelium | Wandering multi-colony fungal network with spores and rotating satellite rings |
 | 18 | `MagnetarMode` | Magnetar | Rotating magnetic dipole field with 4 000 particles |
 | 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with adaptive-grid trail diffusion |
 | 20 | `MobiusMode` | Mobius | 3-D wireframe Mobius strip |
 | 21 | `ChromaticMode` | Chromatic | RGB-split ripple rings |
-| 22 | `PersistenceMode` | Persistence | Nested rotating 3D Platonic-solid wireframes |
+| 22 | `PersistenceMode` | Persistence | Five rigid solids with smooth axis reversals and colour drift |
 | 23 | `SynapseMode` | Synapse | Living 28–90-node graph with safe rewiring and traveling signals |
 | 24 | `HeartbeatMode` | Heartbeat | Expanding morphing neon rings |
-| 25 | `HyperbolicMode` | Hyperbolic | Bounded radial disk tiling and geodesic lines |
+| 25 | `HyperbolicMode` | Hyperbolic | Connected sphere facets with hinged caps and shaded walls |
 | 26 | `LiquidLightMode` | LiquidLight | Fluorescent semi-Lagrangian-like dye waves |
 | 27 | `CymaticaMode` | Cymatica | Chladni-like nodal plate with drifting particles |
 | 28 | `PhasonMode` | Phason | Quasiperiodic wave interference field |
 | 29 | `TesseractMode` | Tesseract | Music-reactive 4-D hypercube rotating across multiple axes |
-| 30 | `FerrofluidMode` | Ferrofluid | Animated magnetic contour rings |
+| 30 | `FerrofluidMode` | Ferrofluid | Metallic liquid envelope and sharp magnetic peaks |
 | 31 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
 | 32 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
