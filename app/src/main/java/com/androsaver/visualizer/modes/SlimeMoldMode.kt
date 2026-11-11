@@ -1,174 +1,178 @@
 package com.androsaver.visualizer.modes
 
+import android.opengl.GLES20
 import com.androsaver.visualizer.AudioData
+import com.androsaver.visualizer.FieldResize
 import com.androsaver.visualizer.GLDraw
+import java.nio.ByteBuffer
+import java.nio.Buffer
+import java.util.Random
 import kotlin.math.*
 
-/**
- * SlimeMold — Physarum-style multi-agent slime simulation.
- *
- * Agents deposit chemical trails, sense ahead-left / ahead / ahead-right,
- * and steer toward the strongest signal.  The result is a self-organising
- * vein network that pulses and reforms with the music.
- *
- *   Bass   → agent speed + trail deposit strength
- *   Mid    → sensor sensitivity (sharper gradient response)
- *   Treble → sensor angle (wider = more meandering)
- *   Beat   → teleport burst + trail strength spike
- *
- * Port of psysuals `effects/slimemold.py` (v3.13.0).
- * Agent count reduced from 10 000 to 2 500 for Android performance.
- * Trail grid uses a finer divisor on TV-sized displays.
- * NumPy vectorised ops replaced with scalar Kotlin loops over FloatArrays.
+/** Desktop-reference chemical trails, uploaded once and coloured by GLES2.
+ * The simulation keeps up to 1080p detail; linear texture filtering replaces
+ * enlarged rectangle cells. No framebuffer readback occurs during playback.
  */
-class SlimeMoldMode : BaseMode() {
-
+class SlimeMoldMode : FullscreenEffectMode() {
     override val name = "SlimeMold"
-
     private companion object {
-        const val N       = 2_500
-        const val RES_DIV_SMALL = 8
-        const val RES_DIV_TV = 6
-        const val BASE_SA = 0.5236f   // 30 degrees
-        const val BASE_SD = 7
-        val TAU = (2.0 * PI).toFloat()
+        const val MAX_AGENTS = 26_000
+        const val BASE_SD = 7f
+        val BASE_SA = (PI / 6).toFloat()
+        val TAU = (PI * 2).toFloat()
     }
-
-    private val px    = FloatArray(N)
-    private val py    = FloatArray(N)
-    private val ang   = FloatArray(N)
-
-    private var gridW = 0; private var gridH = 0
-    private var trail = FloatArray(0)   // [gridW × gridH], indexed trail[ix + iy * gridW]
+    private val rng = Random(7)
+    private val px = FloatArray(MAX_AGENTS)
+    private val py = FloatArray(MAX_AGENTS)
+    private val ang = FloatArray(MAX_AGENTS)
+    private var agentCount = 0
+    private var gridW = 0
+    private var gridH = 0
+    private var trail = FloatArray(0)
     private var diffuseTrail = FloatArray(0)
-    private var hue   = 0.30f
+    private var left = IntArray(0)
+    private var right = IntArray(0)
+    private var upload = ByteBuffer.allocateDirect(1)
+    private var texture = 0
+    private var textureW = 0
+    private var textureH = 0
+    private var hue = .30f
     private var initialized = false
+    private val hueUniform = FloatArray(1)
+    private val uniforms = mapOf("u_hue" to hueUniform)
 
     override fun reset() {
-        initialized = false; hue = 0.30f
-        if (trail.isNotEmpty()) trail.fill(0f)
-        if (diffuseTrail.isNotEmpty()) diffuseTrail.fill(0f)
+        initialized = false
+        hue = .30f
+        trail.fill(0f)
+        diffuseTrail.fill(0f)
     }
-
-    private fun renderDiv(W: Float, H: Float): Int =
-        if (minOf(W, H) >= 900f) RES_DIV_TV else RES_DIV_SMALL
-
-    private fun init(W: Float, H: Float) {
-        val div = renderDiv(W, H)
-        val newW=maxOf(1,(W/div).toInt());val newH=maxOf(1,(H/div).toInt())
-        if(initialized && gridW>0 && gridH>0) {
-            val sx=newW.toFloat()/gridW;val sy=newH.toFloat()/gridH
-            for(i in 0 until N){px[i]=(px[i]*sx).coerceIn(0f,newW-1f);py[i]=(py[i]*sy).coerceIn(0f,newH-1f)}
-            trail=com.androsaver.visualizer.FieldResize.resize(trail,gridW,gridH,newW,newH)
-            gridW=newW;gridH=newH;diffuseTrail=FloatArray(gridW*gridH)
-            return
+    override fun onSurfaceCreated() {
+        super.onSurfaceCreated()
+        texture = 0; textureW = 0; textureH = 0
+        reset()
+    }
+    private fun init(width: Int, height: Int) {
+        // At 4K each sample spans only two physical pixels, not six-pixel tiles.
+        val scale = minOf(1f, 1920f / width, 1080f / height)
+        val newW = maxOf(1, (width * scale).roundToInt())
+        val newH = maxOf(1, (height * scale).roundToInt())
+        if (initialized && newW == gridW && newH == gridH) return
+        if (initialized) {
+            val sx = newW.toFloat() / gridW; val sy = newH.toFloat() / gridH
+            for (i in 0 until agentCount) {
+                px[i] = (px[i] * sx).coerceIn(0f, newW - 1f)
+                py[i] = (py[i] * sy).coerceIn(0f, newH - 1f)
+            }
+            trail = FieldResize.resize(trail, gridW, gridH, newW, newH)
+        } else {
+            agentCount = (13_000L * newW * newH / (640 * 360)).toInt().coerceIn(5_000, MAX_AGENTS)
+            trail = FloatArray(newW * newH)
+            val spread = minOf(newW, newH) * .25f * .3f
+            for (i in 0 until agentCount) {
+                px[i] = (newW * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, newW - 1f)
+                py[i] = (newH * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, newH - 1f)
+                ang[i] = rng.nextFloat() * TAU
+            }
         }
-        gridW = newW
-        gridH = newH
-        trail = FloatArray(gridW * gridH)
+        gridW = newW; gridH = newH
         diffuseTrail = FloatArray(gridW * gridH)
-        val cx = gridW / 2f; val cy = gridH / 2f
-        val rSpread = minOf(gridW, gridH) * 0.25f
-        for (i in 0 until N) {
-            px[i]  = (cx + (Math.random().toFloat() * 2f - 1f) * rSpread * 0.3f)
-                     .coerceIn(0f, gridW - 1f)
-            py[i]  = (cy + (Math.random().toFloat() * 2f - 1f) * rSpread * 0.3f)
-                     .coerceIn(0f, gridH - 1f)
-            ang[i] = Math.random().toFloat() * TAU
-        }
+        left = IntArray(gridW) { if (it == 0) gridW - 1 else it - 1 }
+        right = IntArray(gridW) { if (it == gridW - 1) 0 else it + 1 }
+        upload = ByteBuffer.allocateDirect(gridW * gridH)
         initialized = true
     }
-
-    private fun sense(i: Int, offsetAng: Float, dist: Float): Float {
-        val sx = ((px[i] + cos(ang[i] + offsetAng) * dist).toInt())
-                 .coerceIn(0, gridW - 1)
-        val sy = ((py[i] + sin(ang[i] + offsetAng) * dist).toInt())
-                 .coerceIn(0, gridH - 1)
-        return trail[sx + sy * gridW]
-    }
+    private fun sense(x: Float, y: Float): Float =
+        trail[x.toInt().coerceIn(0, gridW - 1) + y.toInt().coerceIn(0, gridH - 1) * gridW]
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        val W = draw.W.toFloat(); val H = draw.H.toFloat()
-        val bass = audio.beat
-        val mid  = audio.mid
-        val high = audio.treble
-
-        val div = renderDiv(W, H)
-        val targetGridW = maxOf(1, (W / div).toInt())
-        val targetGridH = maxOf(1, (H / div).toInt())
-        if (!initialized || gridW != targetGridW || gridH != targetGridH) init(W, H)
-
-        hue = (hue + 0.002f + mid * 0.003f) % 1f
-
-        val sa  = BASE_SA + high * 0.40f
-        val sd  = BASE_SD + bass * 5f
-        val spd = 0.7f + bass * 1.5f
-        val rot = 0.18f + high * 0.15f
-        val dep = 0.8f + bass * 0.6f
-
-        // Beat: teleport 5% of agents toward center
-        if (bass > 0.7f) {
-            val nTp = N / 20
-            val cx = gridW / 2f; val cy = gridH / 2f
-            val rSpread = minOf(gridW, gridH) * 0.20f
-            repeat(nTp) {
-                val idx = (Math.random() * N).toInt().coerceIn(0, N - 1)
-                px[idx]  = (cx + (Math.random().toFloat() * 2f - 1f) * rSpread).coerceIn(0f, gridW - 1f)
-                py[idx]  = (cy + (Math.random().toFloat() * 2f - 1f) * rSpread).coerceIn(0f, gridH - 1f)
-                ang[idx] = Math.random().toFloat() * TAU
+        init(draw.W, draw.H)
+        val bass = audio.beat; val mid = audio.mid; val high = audio.treble
+        hue = (hue + .002f + mid * .003f) % 1f
+        val sa = BASE_SA + high * .40f
+        val cs = cos(sa); val ss = sin(sa)
+        val physicalScale = gridW.toFloat() / draw.W
+        val sd = (BASE_SD + bass * 5f) * physicalScale
+        val speed = (.7f + bass * 1.5f) * physicalScale
+        val turn = .18f + high * .15f
+        val deposit = .8f + bass * .6f
+        if (bass > .7f) {
+            val spread = minOf(gridW, gridH) * .20f
+            repeat(agentCount / 20) {
+                val i = rng.nextInt(agentCount)
+                px[i] = (gridW * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, gridW - 1f)
+                py[i] = (gridH * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, gridH - 1f)
+                ang[i] = rng.nextFloat() * TAU
             }
         }
-
-        // Agent update
-        for (i in 0 until N) {
-            val fwd   = sense(i, 0f,  sd)
-            val left  = sense(i, -sa, sd)
-            val right = sense(i, +sa, sd)
-
-            ang[i] += when {
-                left  > fwd && left  >= right -> -rot
-                right > fwd && right >  left  -> +rot
-                Math.random() < 0.05          -> (Math.random().toFloat() * 2f - 1f) * rot
+        for (i in 0 until agentCount) {
+            val c = cos(ang[i]); val s = sin(ang[i])
+            val forward = sense(px[i] + c * sd, py[i] + s * sd)
+            val a = sense(px[i] + (c * cs + s * ss) * sd, py[i] + (s * cs - c * ss) * sd)
+            val b = sense(px[i] + (c * cs - s * ss) * sd, py[i] + (s * cs + c * ss) * sd)
+            val delta = when {
+                a > forward && a >= b -> -turn
+                b > forward && b > a -> turn
+                rng.nextFloat() < .05f -> (rng.nextFloat() * 2f - 1f) * turn
                 else -> 0f
             }
-
-            px[i] = ((px[i] + cos(ang[i]) * spd) % gridW + gridW) % gridW
-            py[i] = ((py[i] + sin(ang[i]) * spd) % gridH + gridH) % gridH
-
-            // Deposit trail
-            // Clamp against the actual trail shape: floating-point modulo can
-            // still round a coordinate to the upper edge.
-            val ix = px[i].toInt().coerceIn(0, gridW - 1)
-            val iy = py[i].toInt().coerceIn(0, gridH - 1)
-            trail[ix + iy * gridW] += dep
+            ang[i] += delta
+            px[i] = ((px[i] + (if (delta == 0f) c else cos(ang[i])) * speed) % gridW + gridW) % gridW
+            py[i] = ((py[i] + (if (delta == 0f) s else sin(ang[i])) * speed) % gridH + gridH) % gridH
         }
-
-        // Diffuse + decay
-        val decay = 0.94f - bass * 0.01f
-        for (iy in 0 until gridH) {
-            for (ix in 0 until gridW) {
-                val ixm = maxOf(0, ix - 1); val ixp = minOf(gridW - 1, ix + 1)
-                val iym = maxOf(0, iy - 1); val iyp = minOf(gridH - 1, iy + 1)
-                val diffused = (trail[ixm + iy  * gridW] + trail[ixp + iy  * gridW] +
-                                trail[ix  + iym * gridW] + trail[ix  + iyp * gridW] +
-                                trail[ix  + iy  * gridW] * 4f) / 8f
-                diffuseTrail[ix + iy * gridW] = diffused * decay
+        // All sensors read the same pre-deposit field, as in desktop NumPy.
+        for (i in 0 until agentCount) {
+            val x = px[i].toInt().coerceIn(0, gridW - 1)
+            val y = py[i].toInt().coerceIn(0, gridH - 1)
+            trail[y * gridW + x] += deposit
+        }
+        val decay = .94f - bass * .01f
+        for (y in 0 until gridH) {
+            val row = y * gridW
+            val up = (if (y == 0) gridH - 1 else y - 1) * gridW
+            val down = (if (y == gridH - 1) 0 else y + 1) * gridW
+            for (x in 0 until gridW) {
+                diffuseTrail[row + x] = (trail[up + x] + trail[down + x] +
+                    trail[row + left[x]] + trail[row + right[x]] + trail[row + x] * 4f) / 8f * decay
             }
         }
-        val previous = trail
-        trail = diffuseTrail
-        diffuseTrail = previous
-
-        // Render trail grid
-        val cellW = W / gridW; val cellH = H / gridH
-        for (iy in 0 until gridH) {
-            for (ix in 0 until gridW) {
-                val tNorm = (trail[ix + iy * gridW] / 5f).coerceIn(0f, 1f)
-                if (tNorm < 0.02f) continue
-                val h = ((hue + tNorm * 0.5f) % 1f + 1f) % 1f
-                val c = GLDraw.hsl(h, s = 0.9f, l = tNorm * 0.5f)
-                draw.rect(ix * cellW, iy * cellH, cellW + 1f, cellH + 1f, c[0], c[1], c[2], 1f)
-            }
-        }
+        val old = trail; trail = diffuseTrail; diffuseTrail = old
+        (upload as Buffer).clear()
+        for (value in trail) upload.put(((value / 5f).coerceIn(0f, 1f) * 255f).toInt().toByte())
+        (upload as Buffer).flip()
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        if (texture == 0) {
+            val ids = IntArray(1); GLES20.glGenTextures(1, ids, 0); texture = ids[0]
+            check(texture != 0) { "Cannot allocate SlimeMold field texture" }
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        } else GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture)
+        GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1)
+        if (gridW != textureW || gridH != textureH) {
+            GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE, gridW, gridH,
+                0, GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, upload)
+            textureW = gridW; textureH = gridH
+        } else GLES20.glTexSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, gridW, gridH,
+            GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, upload)
+        GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 4)
+        hueUniform[0] = hue
+        draw.setNormalBlend()
+        // GLES2 samplers default to texture unit zero, bound above.
+        renderField(draw, uniforms)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
     }
+    override val fragmentShader = """
+        varying vec2 vUV;
+        uniform sampler2D u_trail;
+        uniform float u_hue;
+        void main() {
+            float intensity = texture2D(u_trail, vec2(vUV.x, 1.0-vUV.y)).r;
+            float hue = fract(u_hue + intensity * 0.5);
+            vec3 colour = (sin(6.2831853*(hue + vec3(0.0,0.333,0.667)))*127.0+128.0)/255.0;
+            gl_FragColor = vec4(clamp(colour * intensity * 2.0, 0.0, 1.0), 1.0);
+        }
+    """.trimIndent()
 }

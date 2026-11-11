@@ -91,6 +91,7 @@ class VisualizerRenderer(private val audio: AudioEngine) : GLSurfaceView.Rendere
         PhasonMode(),
         TesseractMode(),
         FerrofluidMode(),
+        ChromaWeaveMode(),
         BarsMode(),
         WaterfallMode()
     )

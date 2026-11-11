@@ -23,6 +23,9 @@ class BranchesMode : BaseMode() {
         const val TAU = (Math.PI * 2).toFloat()
     }
 
+    private val depthSway = FloatArray(MAX_DEPTH + 1)
+    private val glowColours = Array(MAX_DEPTH + 1) { FloatArray(4) }
+    private val coreColours = Array(MAX_DEPTH + 1) { FloatArray(4) }
     private var hue       = 0f
     private var time      = 0f
     private var beatFlash = 0f
@@ -36,14 +39,13 @@ class BranchesMode : BaseMode() {
         x: Float, y: Float,
         angle: Float, length: Float,
         depth: Int,
-        hue: Float, time: Float,
-        mid: Float, high: Float, beatFlash: Float
+        time: Float, mid: Float, high: Float
     ) {
         if (depth == 0 || length < 1.5f) return
 
         // Mids drive medium sway, treble drives high-frequency shiver
         val jitter = (sin(time * 2.3f + depth * 1.7f + angle) * mid * 0.45f
-                    + cos(time * 1.1f + depth * 2.9f)         * mid * 0.22f
+                    + depthSway[depth]
                     + sin(time * 6.5f + angle * 3.3f)         * high * 0.18f)
 
         // Trunk segment drawn very short; children still get full length
@@ -51,28 +53,24 @@ class BranchesMode : BaseMode() {
         val ex = x + cos(angle + jitter) * drawLen
         val ey = y + sin(angle + jitter) * drawLen
 
-        val depthT = depth.toFloat() / MAX_DEPTH
-        val h      = (hue + (1f - depthT) * 0.80f) % 1f
-        val bright = (0.28f + depthT * 0.52f + high * 0.22f + beatFlash * 0.35f).coerceIn(0f, 1f)
-
         // Neon glow: wide dim halo first, then bright core on top
-        val glowC = GLDraw.hsl(h, 1f, bright * 0.30f)
+        val glowC = glowColours[depth]
         draw.line(x, y, ex, ey, glowC[0], glowC[1], glowC[2], 0.55f)
-        val coreC = GLDraw.hsl(h, 1f, bright)
+        val coreC = coreColours[depth]
         draw.line(x, y, ex, ey, coreC[0], coreC[1], coreC[2], 1f)
 
         // Mids and treble increase branch spread angle and branch decay ratio
         val spread = PI.toFloat() / 2.6f + mid * 0.28f + high * 0.10f
         val ratio  = 0.62f + high * 0.06f
         branch(draw, ex, ey, angle - spread / 2f, length * ratio, depth - 1,
-               hue, time, mid, high, beatFlash)
+               time, mid, high)
         branch(draw, ex, ey, angle + spread / 2f, length * ratio, depth - 1,
-               hue, time, mid, high, beatFlash)
+               time, mid, high)
 
         // Triple-fork at trunk AND first split level — dense inner canopy
         if (depth >= MAX_DEPTH - 1) {
             branch(draw, ex, ey, angle, length * ratio * 0.72f, depth - 1,
-                   hue, time, mid, high, beatFlash)
+                   time, mid, high)
         }
     }
 
@@ -98,10 +96,21 @@ class BranchesMode : BaseMode() {
 
         val baseRot = time * 0.06f
 
+        for (depth in 1..MAX_DEPTH) {
+            depthSway[depth] = cos(time * 1.1f + depth * 2.9f) * mid * 0.22f
+        }
         for (i in 0 until nArms) {
             val angle  = baseRot + i.toFloat() / nArms * TAU
             val armHue = (hue + i.toFloat() / nArms * 0.75f) % 1f
-            branch(draw, cx, cy, angle, trunk, MAX_DEPTH, armHue, time, mid, high, beatFlash)
+            // Sibling segments at the same depth share colour; fill once per arm.
+            for (depth in 1..MAX_DEPTH) {
+                val depthT = depth.toFloat() / MAX_DEPTH
+                val h = (armHue + (1f - depthT) * 0.80f) % 1f
+                val bright = (0.28f + depthT * 0.52f + high * 0.22f + beatFlash * 0.35f).coerceIn(0f, 1f)
+                GLDraw.hsl(h, 1f, bright * 0.30f, 1f, glowColours[depth])
+                GLDraw.hsl(h, 1f, bright, 1f, coreColours[depth])
+            }
+            branch(draw, cx, cy, angle, trunk, MAX_DEPTH, time, mid, high)
         }
     }
 }

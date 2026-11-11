@@ -43,12 +43,81 @@ class VisualizerBackportIntegrationTest {
             assertEquals(GLES20.GL_NO_ERROR,GLES20.glGetError())
         }
     }
+    @Test fun chromaWeaveRetainsColourAndMotionAcrossResizeAndContextRecreation() {
+        val mode=com.androsaver.visualizer.modes.ChromaWeaveMode()
+        repeat(2) {
+            withGl {
+                val draw=GLDraw(320,240);draw.onSurfaceCreated();draw.onSurfaceChanged(320,240)
+                draw.bloomEnabled=false;mode.onSurfaceCreated();mode.reset()
+                val audio=AudioData(mid=.4f,treble=.6f,visualProfile="tv")
+                fun frame(tick:Int):ByteArray {
+                    draw.beginFrame(true);mode.draw(draw,audio,tick);draw.endFrame()
+                    val bytes=ByteBuffer.allocateDirect(draw.W*draw.H*4)
+                    GLES20.glReadPixels(0,0,draw.W,draw.H,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,bytes)
+                    return ByteArray(bytes.capacity()).also{bytes.position(0);bytes.get(it)}
+                }
+                val quiet=frame(0)
+                audio.beat=1.2f
+                var loud=quiet
+                repeat(5){tick->loud=frame(tick+1)}
+                assertFalse("Weave must respond to a kick",quiet.contentEquals(loud))
+                var saturated=0
+                for(i in 0 until loud.size/4) {
+                    val rgb=(0..2).map{loud[i*4+it].toInt() and 255}
+                    if(rgb.max()-rgb.min()>35)saturated++
+                }
+                assertTrue("Weave must retain coloured midtones",saturated>320*240/5)
+                draw.onSurfaceChanged(240,180)
+                assertEquals(240*180*4,frame(6).size)
+                assertEquals(GLES20.GL_NO_ERROR,GLES20.glGetError())
+            }
+        }
+    }
+
+    @Test fun magnetarRendersAColouredFieldBeyondItsParticles() {
+        val mode=com.androsaver.visualizer.modes.MagnetarMode()
+        // Reuse the mode through two EGL contexts to catch stale shader handles.
+        repeat(2) {
+            withGl {
+                val draw=GLDraw(320,240)
+                draw.onSurfaceCreated();mode.onSurfaceCreated()
+                for((width,height) in listOf(320 to 240,240 to 180)) {
+                    draw.onSurfaceChanged(width,height);draw.bloomEnabled=false
+                    draw.clearAllBuffers();mode.reset()
+                    // First silent frame: require coverage beyond the absolute
+                    // particle-only maximum (4,000 rectangles of 3x3 pixels).
+                    draw.beginFrame(true);mode.draw(draw,AudioData(),0);draw.endFrame()
+                    val pixels=ByteBuffer.allocateDirect(width*height*4)
+                    GLES20.glReadPixels(0,0,width,height,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,pixels)
+                    var covered=0
+                    var minimum=255
+                    var maximum=0
+                    for(index in 0 until width*height) {
+                        val r=pixels.get(index*4).toInt() and 255
+                        val g=pixels.get(index*4+1).toInt() and 255
+                        val b=pixels.get(index*4+2).toInt() and 255
+                        val light=maxOf(r,g,b)
+                        if(light>2)covered++
+                        minimum=minOf(minimum,light);maximum=maxOf(maximum,light)
+                    }
+                    assertTrue("Magnetar's field is missing at ${width}x$height",covered>maxOf(width*height*.60,4_000*9.0))
+                    assertTrue("Magnetar's field must have visible contrast",maximum-minimum>8)
+                    repeat(12){tick->
+                        draw.beginFrame(false)
+                        mode.draw(draw,AudioData(beat=1f,mid=.5f,treble=.7f),tick+1)
+                        draw.endFrame()
+                    }
+                    assertEquals(GLES20.GL_NO_ERROR,GLES20.glGetError())
+                }
+            }
+        }
+    }
     @Test fun allThirtyTwoEffectsCompileRenderResizeAndSwitchThroughBlackFrames() = withGl {
         val renderer=VisualizerRenderer(AudioEngine())
         var failure:Throwable?=null
         renderer.onRenderError={failure=it}
         renderer.onSurfaceCreated(null,null);renderer.onSurfaceChanged(null,320,240)
-        assertEquals(32,renderer.modes.size)
+        assertEquals(33,renderer.modes.size)
         val expected=InstrumentationRegistry.getInstrumentation().targetContext.resources.getStringArray(R.array.viz_effect_values).toList()
         assertEquals(expected,renderer.modeNames)
         for((index,mode) in renderer.modes.withIndex()) {
@@ -59,7 +128,7 @@ class VisualizerBackportIntegrationTest {
             repeat(3){renderer.onDrawFrame(null)}
             assertNull("${mode.name} failed",failure)
             assertEquals("${mode.name} GL error",GLES20.GL_NO_ERROR,GLES20.glGetError())
-            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic"))assertTrue("${mode.name} invisible",pixel().any{it>0})
+            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic","ChromaWeave"))assertTrue("${mode.name} invisible",pixel().any{it>0})
             renderer.onSurfaceChanged(null,240,180);repeat(4){renderer.onDrawFrame(null)}
             assertNull("${mode.name} resize failed",failure)
             renderer.onSurfaceChanged(null,320,240)

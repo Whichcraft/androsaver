@@ -241,3 +241,118 @@ Device-only checks above remain open; CI success does not mark them complete.
 - [x] Update current visualizer, architecture, music-reactivity, store and release documentation.
 - [x] Verify the native backport: JVM tests across all eight variants, all 16 device tests on each API 29/35 emulator, signed APK build/publication and downloaded-asset integrity passed in [run 40414215709](https://github.com/Whichcraft/androsaver/actions/runs/40414215709) for `18661a1d4153d4c9ceec0591e98f31afa7fe8e8c`. Published version `2.12.5`, code `384`; `dev-channel` target and immutable APK manifest confirmed.
 - [ ] Physically inspect all changed effects on the TV, including high-gain audio, profiles and mode switching.
+
+
+## Magnetar magnetic-field contour backport
+
+- [x] Confirm Android-only omission against the vendored upstream contour renderer.
+- [x] Restore coloured dipole bands using the existing GLES2 full-screen helper;
+  preserve 4,000 particles, motion and beat shockwave, with coloured trail decay.
+- [x] Add device regression coverage for field visibility, resize, sustained audio
+  and EGL context recreation; document native composition differences.
+- [ ] Verify JVM/device/build checks on GitHub for the exact fix commit. No local
+  Android build. Physical TV acceptance remains separate.
+- User requested combined verification/publication at the end of all changes:
+  leave this fix uncommitted; do not commit, push, trigger CI or publish yet.
+- Local source review confirmed particle motion/drawing blocks are unchanged;
+  git diff --check passed. Android JVM/device/build checks have not been run.
+
+
+## Slowest-four performance and SlimeMold detail — pending combined verification
+
+- [x] Compare the four slowest desktop-GL effects with native counterparts:
+  SlimeMold, Lattice, Hyperbolic and LiquidLight. Desktop timings are in the
+  psysuals worktree TODO; Android's bottom-four ranking is not yet measured.
+- [x] Prepare native finer SlimeMold texture/detail/colour parity, merged Lattice
+  beams, cached Hyperbolic transforms/hinges/sort depths and LiquidLight waves.
+- [x] Add JVM work/detail invariants, SlimeMold GLES palette/filter/resize/context
+  checks, and an opt-in all-mode 1080p GPU-completion timing survey.
+- [x] Document intentional native SlimeMold quantization, population/RNG and
+  1080p field cap in docs/psysuals-port-notes.md.
+- [ ] Run Android JVM/device checks and the opt-in fpsSurvey on the GitHub
+  builder or target device at the final batch; no local Android build.
+- [ ] Verify SlimeMold's fine veins and smooth colour on the actual Android TV;
+  compare with desktop GL and record physical-device frame-time results.
+- User instruction: keep all changes uncommitted; do not push, trigger CI or
+  publish before the combined batch. Upstream subtree sync is also deferred.
+
+
+Performance pass local audit: native source/whitespace review passed; all Android
+JVM/device/build/FPS checks remain unrun pending the combined batch. Desktop's
+corresponding four effects passed 207 Python tests, all 32 smoke checks and
+sampled exact CPU/EGL output comparisons. Desktop GL render rates improved from
+12.1 to 22.3 FPS (SlimeMold), 21.8 to 42.9 (Lattice), 23.0 to 40.1 (Hyperbolic),
+and 29.0 to 39.9 (LiquidLight). These are not Android FPS claims. SlimeMold's
+higher native simulation detail/population must be measured on the actual TV;
+draw-call reduction alone does not prove a net speedup. Nothing was committed,
+pushed, built or published. Pending Magnetar changes remain intact.
+
+
+## Goal 1, 3, 4 — all remaining effects
+
+- [x] Prepare stronger native Hyperbolic pulse/lift/lighting and common viewport
+  fit; add short-kick recovery and loud-input viewport tests.
+- [x] Review all native counterparts alongside the upstream all-32 CPU/EGL
+  survey; preserve effect detail and existing bounded work budgets.
+- [x] Prepare bounded shared circle-direction caching with exact-vertex JVM
+  coverage, Cymatica static-basis caching/energy reuse, and particle/field HSL
+  scratch reuse in FlowField, Magnetar and PsysualsFieldMode.
+- [x] Cache Branches per-arm/depth colours and per-frame depth sway without
+  reducing recursive geometry; prepare a full-tree line-count JVM test.
+- [ ] Run the prepared JVM/device checks and all-mode opt-in FPS survey in the
+  combined GitHub batch, then compare SlimeMold/Hyperbolic/Magnetar on the TV.
+- Native changes are uncompiled/unverified locally under AGENTS.md. Source
+  import, commits, pushes, CI and publication remain deferred by the user.
+- Backups/patches for this continuation are outside the checkout under
+  /tmp/androsaver-goal134-remaining and /tmp/androsaver-goal134-final.
+
+
+Final survey-readiness review (source-only): fixed the opt-in instrumentation
+survey's incorrectly labelled p95 (previously the maximum), using the same
+linear percentile convention as desktop; log maximum separately. Record actual
+bloom status rather than hard-coded true, profile/dt/audio fixture metadata,
+and require 32 unique registry modes with finite positive samples. Optional
+fpsProfile=tv selects the physical-TV fixture; default laptop preserves the
+existing desktop-comparison fixture. Documentation includes the runner flag.
+No workflow changed or triggered. These Android test edits remain uncompiled
+and unrun under the local-build prohibition and final-batch instruction.
+
+
+## ChromaWeave — new psychedelic mode
+
+- [x] Prepare full-resolution GLES2 weave shader and bounded audio/phase state,
+  matching upstream's new ChromaWeave equations without per-frame scalar arrays.
+- [x] Register mode and settings entries before Spectrum/Waterfall (33 total);
+  update all-mode survey and registry integration expectation.
+- [x] Prepare pulse/release/profile JVM coverage and GLES colour/motion/resize/
+  context-recreation checks; update README and backport notes.
+- [ ] Verify native compilation, JVM/device rendering and target-TV appearance/
+  FPS in the combined GitHub batch. These native checks have not run locally.
+- Source subtree import, commit/push, CI and publication remain deferred.
+
+
+ChromaWeave local desktop checks: all 221 Python tests (eight new focused weave
+checks), all 33 smoke effects, real AMD EGL versus CPU field comparisons,
+resize/context rebind, normal/TV pulse-release and bounded CPU sampling passed.
+Existing visual-baseline entries/tolerances were preserved; only the new mode's
+baseline was added. Native registry/label/value arrays match all 33 upstream
+names, and the native fragment source matches the GLES2-adapted desktop field.
+Those source checks do not replace the pending native compile/device checks.
+The native test/README/backport changes remain uncommitted and unbuilt.
+
+
+## Authorized combined commit/push/dev batch — 2026-11-11
+
+The user has authorized commit, push and merge to dev, superseding earlier
+hold notes. Upstream 2080070 is pushed and merged to dev; Python 3.10/3.12 CI
+passed (run 43042966999). Imported psysuals/ tree exactly equals that commit;
+restored all 21 native files byte-for-byte from the reviewed external backup.
+
+- [x] Upstream committed/pushed, Python CI passed and merged to dev.
+- [x] Import reviewed upstream source as an exact psysuals subtree.
+- [ ] Commit/push native backports and fast-forward dev; observe JVM/device CI
+  and dev APK build/publication for the exact source commit.
+- [ ] Optional 33-mode FPS survey and actual TV visual/FPS acceptance remain
+  separate; existing default CI skips the optional survey.
+- No local Android build. Recovery stash and pre-import files are retained
+  outside the source batch; no main/master changes are authorized.

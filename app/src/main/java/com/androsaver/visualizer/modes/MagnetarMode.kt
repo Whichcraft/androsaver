@@ -2,6 +2,7 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.VisualizerRenderTuning
 import kotlin.math.*
 
 /**
@@ -16,12 +17,12 @@ import kotlin.math.*
  *   Treble → particle colour saturation burst
  *   Beat   → equatorial shockwave
  *
- * Port of psysuals `effects/magnetar.py` (v3.11.0).
+ * Particle port with the psysuals 3.20 dipole-contour layer restored.
  * surfarray replaced: each particle drawn as a tiny circle with additive blend.
  * Particle count reduced from 6 000 to 4 000 for Android performance.
  * The upstream 24/255 trail value is clamped by GLDraw to 48/255 on Android.
  */
-class MagnetarMode : BaseMode() {
+class MagnetarMode : FullscreenEffectMode() {
 
     override val name = "Magnetar"
 
@@ -37,6 +38,26 @@ class MagnetarMode : BaseMode() {
     private var initialized = false
     private var lastW = 0f
     private var lastH = 0f
+
+    private val particleColour = FloatArray(4)
+    private val contourAxis = FloatArray(2)
+    private val contourRotation = FloatArray(1)
+    private val contourHue = FloatArray(1)
+    private val contourBass = FloatArray(1)
+    private val contourHigh = FloatArray(1)
+    private val contourUniforms = mapOf(
+        "u_axis" to contourAxis,
+        "u_rotation" to contourRotation,
+        "u_hue" to contourHue,
+        "u_bass" to contourBass,
+        "u_high" to contourHigh,
+        "u_decay" to floatArrayOf(VisualizerRenderTuning.MIN_TRAIL_FADE)
+    )
+
+    override fun onSurfaceCreated() {
+        super.onSurfaceCreated()
+        reset()
+    }
 
     override fun reset() {
         hue = 0.62f; rot = 0f; boost = 0f; initialized = false
@@ -100,7 +121,16 @@ class MagnetarMode : BaseMode() {
             py[i] = ((py[i] + vy) % H + H) % H
         }
 
-        draw.fadeBlack(24f / 255f)
+        // Replace the black trail fade with a fade toward the magnetic field.
+        // Normal alpha blending keeps the contours coloured instead of adding
+        // the same field until it clips to white; particle trails still decay.
+        contourAxis[0] = mx; contourAxis[1] = my
+        contourRotation[0] = rot
+        contourHue[0] = hue
+        contourBass[0] = bass
+        contourHigh[0] = high
+        draw.setNormalBlend()
+        renderField(draw, contourUniforms)
 
         draw.setAdditiveBlend()
         for (i in 0 until N) {
@@ -110,9 +140,32 @@ class MagnetarMode : BaseMode() {
             val angToAxis = (atan2(ry, rx) - rot) / (2f * PI.toFloat())
             val h      = ((hue + angToAxis) % 1f + 1f) % 1f
             val bright = 0.35f + bass * 0.25f + high * 0.12f
-            val c = GLDraw.hsl(h, l = bright)
+            GLDraw.hsl(h, 1f, bright, 1f, particleColour)
+            val c = particleColour
             draw.particle(px[i], py[i], 1.5f, c[0], c[1], c[2], 0.7f)
         }
         draw.setNormalBlend()
     }
+
+    override val fragmentShader = """
+        uniform vec2 u_resolution, u_axis;
+        uniform float u_rotation, u_hue, u_bass, u_high, u_decay;
+
+        void main() {
+            // Match upstream's independent [-1,1] contour grid on each axis.
+            vec2 p = gl_FragCoord.xy / u_resolution * 2.0 - 1.0;
+            p.y = -p.y;
+            float r2 = dot(p, p) + 0.04;
+            float r3 = r2 * sqrt(r2) + 0.1;
+            vec2 field = (3.0 * dot(p, u_axis) * p / r2 - u_axis) / r3;
+            // tanh(0.20 * |B|), expressed in GLES2 without positive exp overflow.
+            float e = exp(-0.40 * length(field));
+            float contour = (1.0 - e) / (1.0 + e);
+            float bands = abs(sin(contour * 6.0 + u_rotation * 0.2));
+            float h = fract(u_hue + contour * 0.18 + u_high * 0.03);
+            float glow = clamp(bands * (0.20 + u_bass * 0.10), 0.0, 1.0);
+            vec3 colour = (sin(6.2831853 * (h + vec3(0.0, 0.333, 0.667))) * 127.0 + 128.0) / 255.0;
+            gl_FragColor = vec4(clamp(colour * glow, 0.0, 1.0), u_decay);
+        }
+    """.trimIndent()
 }

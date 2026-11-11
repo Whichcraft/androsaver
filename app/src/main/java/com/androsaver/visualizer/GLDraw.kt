@@ -496,26 +496,33 @@ open class GLDraw(var W: Int, var H: Int) {
         addTri(x, y2, r, g, b, a)
     }
 
+    // Bounded, renderer-owned geometry cache. Keep each segment's two angles
+    // separately: (i * step) + step can round differently from (i + 1) * step.
+    private val circleDirections = arrayOfNulls<FloatArray>(129)
+
     /** Filled or wireframe circle approximated with [segments] vertices. */
     open fun circle(cx: Float, cy: Float, radius: Float,
                r: Float, g: Float, b: Float, a: Float = 1f,
                filled: Boolean = true, segments: Int = 20) {
         val step = (2.0 * PI / segments).toFloat()
-        if (filled) {
-            for (i in 0 until segments) {
-                val a0 = i * step; val a1 = a0 + step
-                addTri(cx, cy,
-                       cx + cos(a0) * radius, cy + sin(a0) * radius,
-                       cx + cos(a1) * radius, cy + sin(a1) * radius,
-                       r, g, b, a)
+        val directions = if (segments in 1..128) {
+            circleDirections[segments] ?: FloatArray(segments * 4).also { values ->
+                for (i in 0 until segments) {
+                    val a0 = i * step; val a1 = a0 + step
+                    values[i * 4] = cos(a0); values[i * 4 + 1] = sin(a0)
+                    values[i * 4 + 2] = cos(a1); values[i * 4 + 3] = sin(a1)
+                }
+                circleDirections[segments] = values
             }
-        } else {
-            for (i in 0 until segments) {
-                val a0 = i * step; val a1 = a0 + step
-                addLine(cx + cos(a0) * radius, cy + sin(a0) * radius,
-                        cx + cos(a1) * radius, cy + sin(a1) * radius,
-                        r, g, b, a)
-            }
+        } else null
+        for (i in 0 until segments) {
+            val a0 = i * step; val a1 = a0 + step
+            val x0 = cx + (if (directions != null) directions[i * 4] else cos(a0)) * radius
+            val y0 = cy + (if (directions != null) directions[i * 4 + 1] else sin(a0)) * radius
+            val x1 = cx + (if (directions != null) directions[i * 4 + 2] else cos(a1)) * radius
+            val y1 = cy + (if (directions != null) directions[i * 4 + 3] else sin(a1)) * radius
+            if (filled) addTri(cx, cy, x0, y0, x1, y1, r, g, b, a)
+            else addLine(x0, y0, x1, y1, r, g, b, a)
         }
     }
 

@@ -17,6 +17,7 @@ abstract class PsysualsFieldMode : BaseMode() {
     protected val cols = 64
     protected val rows = 36
     protected val values = FloatArray(cols * rows)
+    private val fieldColour = FloatArray(4)
     protected var phase = 0f
     protected var hue = 0f
 
@@ -47,8 +48,9 @@ abstract class PsysualsFieldMode : BaseMode() {
             val top = values[y0 * cols + x0] * (1f - tx) + values[y0 * cols + x1] * tx
             val bottom = values[y1 * cols + x0] * (1f - tx) + values[y1 * cols + x1] * tx
             val v = (top * (1f - ty) + bottom * ty).coerceIn(0f, 1f)
-            val c = GLDraw.hsl((hue + v * 0.62f) % 1f, 1f,
-                (0.12f + v * 0.48f + audio.beat * 0.12f).coerceIn(0f, 0.92f))
+            GLDraw.hsl((hue + v * 0.62f) % 1f, 1f,
+                (0.12f + v * 0.48f + audio.beat * 0.12f).coerceIn(0f, 0.92f), 1f, fieldColour)
+            val c = fieldColour
             draw.rect(x * cw, y * ch, cw + 1f, ch + 1f,
                 c[0] * gain, c[1] * gain, c[2] * gain, 0.92f)
         }

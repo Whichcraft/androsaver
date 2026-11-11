@@ -29,6 +29,7 @@ class FlowFieldMode : BaseMode() {
 
     private var px    = FloatArray(0)
     private var py    = FloatArray(0)
+    private val particleColour = FloatArray(4)
     private var n     = 0
     private var hue   = 0f
     private var t     = 0f
@@ -150,7 +151,8 @@ class FlowFieldMode : BaseMode() {
             py[i] = ((ny % H) + H) % H
 
             val h = (hue + px[i] / W * 0.30f + py[i] / H * 0.18f) % 1f
-            val c = GLDraw.hsl(h, s = 0.90f, l = 0.62f)
+            GLDraw.hsl(h, 0.90f, 0.62f, 1f, particleColour)
+            val c = particleColour
             draw.particle(px[i], py[i], 1.5f, c[0], c[1], c[2], 0.85f)
         }
         draw.setNormalBlend()
