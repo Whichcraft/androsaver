@@ -8,6 +8,33 @@ import java.io.File
 
 class SessionJournalTest {
     @get:Rule val temporary = TemporaryFolder()
+
+    @Test fun cleanRestartDoesNotReplayAnOlderInterruptionInTheStartupOverlay() {
+        val file = File(temporary.root, "report.txt")
+        SessionJournal().begin(file, "static")
+        val journal = SessionJournal()
+        val interrupted = journal.begin(file, "slideshow")
+        assertNotNull(ScreensaverPostmortem.readReports(file, includeSourceFailures = false,
+            includeInterruptedSession = interrupted.previousInterruption != null))
+        journal.end(interrupted.id)
+
+        repeat(2) {
+            val clean = journal.begin(file, "visualizer")
+            assertNull(clean.previousInterruption)
+            assertNull(ScreensaverPostmortem.readReports(file, includeSourceFailures = false,
+                includeInterruptedSession = clean.previousInterruption != null))
+            // The diagnostic history remains available on explicit inspection.
+            assertTrue(ScreensaverPostmortem.readReports(file)!!.contains("CLEAN SHUTDOWN"))
+            journal.end(clean.id)
+        }
+
+        ScreensaverPostmortem.write(file, "saved fatal")
+        ScreensaverPostmortem.writeRecoverable(file, "saved recoverable")
+        val failures = ScreensaverPostmortem.readReports(file, includeInterruptedSession = false)!!
+        assertTrue(failures.contains("saved fatal"))
+        assertTrue(failures.contains("saved recoverable"))
+        assertFalse(failures.contains("CLEAN SHUTDOWN"))
+    }
     @Test fun failedCleanupCannotBeHiddenByAnotherSessionStoppingCleanly() {
         val file = File(temporary.root, "report.txt")
         val journal = SessionJournal()

@@ -1,5 +1,16 @@
 # TODO
 
+## Subtree and repeated interruption notice — 2026-11-11
+
+- [x] Fetch psysuals upstream and verify the vendored `2080070` tree exactly
+  matches main/dev merge `4be8a7c`; no content changes require Android backports.
+- [x] Gate the startup interruption report on the immediately preceding session's
+  marker, retaining saved history and fatal/recoverable diagnostics.
+- [x] Add regression coverage for repeated clean restarts after an interruption
+  and preserved diagnostic history/fatal/recoverable reports.
+- [ ] Run the new JVM regression in the GitHub builder; no local Android build
+  or JVM verification performed.
+
 These items were reviewed and implemented in the current change. Android builds
 and device verification must run in GitHub CI; do not build the Android project
 locally.

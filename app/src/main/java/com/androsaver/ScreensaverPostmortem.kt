@@ -63,11 +63,15 @@ internal object ScreensaverPostmortem {
     fun writeRecoverable(file: File, details: String) = write(recoverableFile(file), details)
 
     @Synchronized
-    fun readReports(file: File, includeSourceFailures: Boolean = true): String? {
+    fun readReports(
+        file: File,
+        includeSourceFailures: Boolean = true,
+        includeInterruptedSession: Boolean = true
+    ): String? {
         val reports = listOfNotNull(
             read(File(file.parentFile, "${file.name}.exit")),
             if (includeSourceFailures) read(File(file.parentFile, "${file.name}.sources")) else null,
-            read(File(file.parentFile, "${file.name}.interrupted"))?.let { it },
+            if (includeInterruptedSession) read(File(file.parentFile, "${file.name}.interrupted")) else null,
             read(file)?.let { "SAVED FATAL / LEGACY REPORT\n\n$it" },
             read(recoverableFile(file))?.let { "LATEST RECOVERABLE FAILURE\n\n$it" }
         )

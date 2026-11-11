@@ -172,7 +172,10 @@ class ScreensaverEngine(
         workScope.launch(kotlinx.coroutines.Dispatchers.IO) { ProcessExitDiagnostics.collect(context.applicationContext) }
         val previousReport = if (BuildConfig.DEBUG_LOGGING) {
             try {
-                ScreensaverPostmortem.readReports(postmortemFile, includeSourceFailures = false)
+                // Saved interruption history is not evidence that the immediately
+                // preceding session failed. Only show it when this start found a marker.
+                ScreensaverPostmortem.readReports(postmortemFile, includeSourceFailures = false,
+                    includeInterruptedSession = previousSessionInterrupted)
             } catch (error: Exception) {
                 Log.w(TAG, "Could not read screensaver postmortem", error)
                 null
