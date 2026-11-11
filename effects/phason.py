@@ -5,7 +5,6 @@ import numpy as np
 import pygame
 import pygame.surfarray as surfarray
 
-import config
 from .base import Effect
 from .gl_field import FullscreenField
 
@@ -78,19 +77,25 @@ class Phason(Effect):
         self._projection = np.empty_like(self._field)
         self._wave_work = np.empty_like(self._field)
         self._surface = pygame.Surface((W, H))
-        self._scaled = pygame.Surface((max(1, config.WIDTH), max(1, config.HEIGHT)))
+        self._scaled = pygame.Surface((max(1, self.frame.width), max(1, self.frame.height)))
 
-    def _render(self, surf, high):
-        field = np.clip(self._field, -self.MAX_FIELD, self.MAX_FIELD)
+    def _cpu_colours(self, region, high):
+        field = np.clip(self._field[region], -self.MAX_FIELD, self.MAX_FIELD)
         intensity = np.clip((field + 1.0) * 0.5, 0.0, 1.0)
         hue = (self._hue + intensity * 0.72 + high * 0.03) % 1.0
         red = np.clip((np.sin(hue * math.tau) * 127 + 128) * intensity, 0, 255)
         green = np.clip((np.sin((hue + 0.333) * math.tau) * 127 + 128) * intensity, 0, 255)
         blue = np.clip((np.sin((hue + 0.667) * math.tau) * 127 + 128) * intensity, 0, 255)
         colors = np.stack((red, green, blue), axis=-1).astype(np.uint8)
+        return colors
+
+    def _render(self, surf, high):
         pixels = surfarray.pixels3d(self._surface)
         try:
-            pixels[:] = colors.transpose(1, 0, 2)
+            for first in range(0, self._H, 64):
+                last = min(first+64, self._H)
+                colors = self._cpu_colours(np.s_[first:last], high)
+                pixels[:, first:last] = colors.transpose(1, 0, 2)
         finally:
             del pixels
         if self._surface.get_size() != surf.get_size():
@@ -101,7 +106,7 @@ class Phason(Effect):
         else:
             surf.blit(self._surface, (0, 0), special_flags=pygame.BLEND_RGB_MAX)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, _ = self._render_size()
         if (W, H) != (self._W, self._H):
             self._reset_state()
@@ -113,27 +118,37 @@ class Phason(Effect):
         indices = np.arange(self.MAX_WAVES)
         self._angles[:] = indices * (math.tau / wave_count) + np.sin(self._time*.13 + indices)*.16
         self._phases[:] = self._time*(.30 + indices*.047)
-        field = self._field_work
-        field.fill(0.0)
-        for index in range(wave_count):
-            angle = self._angles[index]
-            np.multiply(self._x, math.cos(float(angle)), out=self._wave_work)
-            np.multiply(self._y, math.sin(float(angle)), out=self._projection)
-            np.add(self._wave_work, self._projection, out=self._wave_work)
-            self._wave_work *= .82 + mid*.035
-            self._wave_work += self._phases[index]
-            np.cos(self._wave_work, out=self._wave_work)
-            np.add(field, self._wave_work, out=field)
-        field /= float(wave_count)
-        np.multiply(self._x, 0.5, out=self._wave_work)
-        np.multiply(self._y, 0.5, out=self._projection)
-        np.add(self._wave_work, self._projection, out=self._wave_work)
-        self._wave_work -= self._time * .7
-        np.cos(self._wave_work, out=self._wave_work)
-        self._wave_work *= .20 + self._pulse*.25
-        np.add(field, self._wave_work, out=field)
-        np.clip(field, -1.0, 1.0, out=self._field)
+        directions = [(math.cos(float(angle)), math.sin(float(angle)))
+                      for angle in self._angles[:wave_count]]
+        for first in range(0, self._H, 64):
+            self._compute_cpu_rows(np.s_[first:min(first+64, self._H)], mid, directions)
         self._render(surf, high)
+
+    def _compute_cpu_rows(self, region, mid, directions):
+        # Keep all seven waves for each pixel together in cache. Each pixel
+        # retains the same float32 operations and summation order.
+        field = self._field_work[region]
+        wave = self._wave_work[region]
+        projection = self._projection[region]
+        x, y = self._x[region], self._y[region]
+        field.fill(0.0)
+        for index, (cos_angle, sin_angle) in enumerate(directions):
+            np.multiply(x, cos_angle, out=wave)
+            np.multiply(y, sin_angle, out=projection)
+            np.add(wave, projection, out=wave)
+            wave *= .82 + mid*.035
+            wave += self._phases[index]
+            np.cos(wave, out=wave)
+            np.add(field, wave, out=field)
+        field /= float(len(directions))
+        np.multiply(x, 0.5, out=wave)
+        np.multiply(y, 0.5, out=projection)
+        np.add(wave, projection, out=wave)
+        wave -= self._time * .7
+        np.cos(wave, out=wave)
+        wave *= .20 + self._pulse*.25
+        np.add(field, wave, out=field)
+        np.clip(field, -1.0, 1.0, out=self._field[region])
 
     def _advance_state(self, beat):
         motion, light = self._audio_response(beat)
@@ -156,17 +171,12 @@ class Phason(Effect):
             "u_waves": 7,
         }
 
-    def draw_frame(self, width, height, waveform, fft, beat, tick, renderer=None):
+    def _draw_frame(self, width, height, waveform, fft, beat, tick, renderer=None):
         if not self._gl_field.available(renderer or self.renderer):
-            return super().draw_frame(width, height, waveform, fft, beat, tick, renderer)
-        old_size = (config.WIDTH, config.HEIGHT)
-        config.WIDTH, config.HEIGHT = int(width), int(height)
-        try:
-            bass, mid, high = self._advance_state(beat)
-            uniforms = self._gl_uniforms((width, height), bass, mid, high, tick)
-            return self._gl_field.draw_frame(renderer or self.renderer, int(width), int(height), uniforms)
-        finally:
-            config.WIDTH, config.HEIGHT = old_size
+            return super()._draw_frame(width, height, waveform, fft, beat, tick, renderer)
+        bass, mid, high = self._advance_state(beat)
+        uniforms = self._gl_uniforms((width, height), bass, mid, high, tick)
+        return self._gl_field.draw_frame(renderer or self.renderer, int(width), int(height), uniforms)
 
     def release(self):
         self._gl_field.release()

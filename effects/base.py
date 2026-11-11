@@ -1,9 +1,10 @@
-from typing import ClassVar
 import math
 
 import numpy as np
 import pygame
-import config
+from dataclasses import replace
+import random
+from core.context import EffectOptions, FrameContext
 
 class Effect:
     """Base class for all visualization effects."""
@@ -20,13 +21,44 @@ class Effect:
     TIME_BASED = False
     CONTINUOUS_QUALITY = False
 
-    # Cache for display info, invalidated when config dimensions change
-    _cached_info: ClassVar[tuple[int, int, pygame.Surface | None]] = (0, 0, None)
-
-    def __init__(self, renderer=None, **kwargs):
-        """One-time setup. Stores optional GLRenderer."""
-        config.assert_initialized()
+    def __init__(self, renderer=None, *, options: EffectOptions, rng=None, frame: FrameContext | None = None, **kwargs):
+        """Construct with explicit physical size and per-instance randomness."""
+        self.options = options
+        self.rng = rng if rng is not None else np.random.default_rng(options.seed)
+        self._random = random.Random(options.seed)
+        self._frame = frame if frame is not None else FrameContext(
+            options.width, options.height,
+            waveform=np.zeros(options.audio.block_size, dtype=np.float32),
+            fft=np.zeros(options.audio.block_size // 2, dtype=np.float32))
         self.renderer = renderer
+
+    @property
+    def frame(self):
+        return self._frame
+
+    def set_frame_context(self, frame: FrameContext):
+        """Bind supplemental frame inputs for the legacy draw adapters."""
+        self._frame = frame
+
+    def render(self, surface, frame: FrameContext):
+        """Retain frame on success; restore only the binding on hook failure.
+
+        Pixels, simulation state and randomness are not rolled back. Instances
+        require serialized host access; this method is not a transaction.
+        """
+        previous = self._frame
+        self._frame = frame
+        try:
+            self._draw(surface, frame.waveform, frame.fft, frame.beat, frame.tick)
+        except BaseException:
+            self._frame = previous
+            raise
+
+    def draw(self, surf, waveform, fft, beat, tick):
+        """Legacy arguments with render() success/error binding semantics."""
+        width, height = surf.get_size() if surf is not None else (self.frame.width, self.frame.height)
+        self.render(surf, replace(self.frame, width=width, height=height,
+                                 waveform=waveform, fft=fft, beat=beat, tick=tick))
 
     def detach_renderer(self):
         """Release context-owned resources without discarding CPU simulation state."""
@@ -41,6 +73,15 @@ class Effect:
         if hasattr(self, "_feedback_fbo"):
             self._feedback_fbo = None
         self.renderer = None
+
+    def release(self):
+        """Release inherited context resources; safe to call repeatedly.
+
+        Overrides own any additional buffers and simulation state. They should
+        call this method when they also use the inherited context resources.
+        Display changes use detach_renderer() to retain CPU simulation state.
+        """
+        self.detach_renderer()
 
     @staticmethod
     def _opaque_canvas(surface):
@@ -77,7 +118,7 @@ class Effect:
 
     def _frame_step(self):
         """Elapsed time in 60 Hz units; cap stalls to avoid simulation jumps."""
-        dt = float(config.FRAME_DT)
+        dt = float(self.frame.dt)
         return max(0.0, min(0.1, dt)) * 60.0 if math.isfinite(dt) else 1.0
 
     def _smooth(self, current, target, rate):
@@ -85,15 +126,15 @@ class Effect:
 
     def _audio_response(self, beat):
         """Separate quick light accents from slowly changing geometry/motion."""
-        target = np.nan_to_num(np.clip([beat, config.MID_ENERGY, config.TREBLE_ENERGY], 0, 1.5))
+        target = np.nan_to_num(np.clip([beat, self.frame.mid, self.frame.treble], 0, 1.5))
         self._motion_audio = self._smooth(getattr(self, "_motion_audio", np.zeros(3)), target, 0.035)
         self._light_audio = self._smooth(getattr(self, "_light_audio", np.zeros(3)), target, 0.25)
         return self._motion_audio, self._light_audio
 
     def _visual_profile(self):
-        profile = config.VISUAL_PROFILE
+        profile = self.frame.profile
         if profile == "auto":
-            profile = "tv" if config.WIDTH >= 2560 else "laptop"
+            profile = "tv" if self.frame.width >= 2560 else "laptop"
         return profile
 
     def _profile_response(self):
@@ -106,18 +147,8 @@ class Effect:
         Higher resolutions get finer internal rendering so the effect does
         not look blocky on HiDPI or TV-sized screens.
         """
-        w = max(1, config.WIDTH)
-        h = max(1, config.HEIGHT)
-        cached_w, cached_h, cached_info = self._cached_info
-        if w != cached_w or h != cached_h or cached_info is None:
-            try:
-                cached_info = pygame.display.Info()
-            except Exception:
-                cached_info = None
-            self._cached_info = (w, h, cached_info)
-        if cached_info is not None:
-            w = max(w, int(getattr(cached_info, "current_w", 0) or 0))
-            h = max(h, int(getattr(cached_info, "current_h", 0) or 0))
+        w = max(1, self.frame.width)
+        h = max(1, self.frame.height)
 
         area = w * h
         if w >= 3200 or h >= 1800 or area >= 5_500_000:
@@ -129,7 +160,7 @@ class Effect:
     def _render_div(self) -> int:
         """Return the effect's effective internal render divisor."""
         base = max(1, min(int(getattr(self, "RES_DIV", 1)), self._auto_res_div()))
-        quality_scale = max(0.5, min(1.0, float(getattr(config, "QUALITY_SCALE", 1.0))))
+        quality_scale = max(0.5, min(1.0, float(self.frame.quality_scale)))
         return max(base, min(8, int(math.ceil(base / quality_scale))))
 
     def _render_size(self) -> tuple[int, int, float]:
@@ -137,19 +168,19 @@ class Effect:
         div = self._render_div()
         if self.CONTINUOUS_QUALITY:
             base = max(1, min(self.RES_DIV, self._auto_res_div()))
-            scale = max(0.5, min(1.0, float(config.QUALITY_SCALE)))
-            width, height = max(1, round(config.WIDTH * scale / base)), max(1, round(config.HEIGHT * scale / base))
-            return width, height, config.WIDTH / width
-        return max(1, config.WIDTH // div), max(1, config.HEIGHT // div), div
+            scale = max(0.5, min(1.0, float(self.frame.quality_scale)))
+            width, height = max(1, round(self.frame.width * scale / base)), max(1, round(self.frame.height * scale / base))
+            return width, height, self.frame.width / width
+        return max(1, self.frame.width // div), max(1, self.frame.height // div), div
 
     def _display_motion_scale(self) -> float:
         """Return gentle camera motion appropriate for the chosen display profile."""
         return self._profile_response()[0]
     
-    def draw(self, surf: pygame.Surface | None, waveform: np.ndarray,
+    def _draw(self, surf: pygame.Surface | None, waveform: np.ndarray,
              fft: np.ndarray, beat: float, tick: int) -> None:
         """Called once per frame. Draw directly onto surf."""
-        raise NotImplementedError("Each effect must implement the draw method.")
+        raise NotImplementedError("Each effect must implement the _draw hook.")
 
     def draw_frame(self, width: int, height: int,
                    waveform: np.ndarray, fft: np.ndarray,
@@ -162,29 +193,35 @@ class Effect:
         dimensions for this frame, so reduced-resolution effects do not use
         stale desktop or logical-display dimensions.
 
-        Direct-GL effects may override this method with a GPU implementation.
+        Direct-GL effects implement _draw_frame() for GPU output. A supplied
+        renderer becomes this instance's active renderer until detached.
+        Frame binding is restored on either outcome. A hook failure does not
+        undo renderer replacement, resource release or simulation advancement.
         """
         width = int(width)
         height = int(height)
         if width <= 0 or height <= 0:
             raise ValueError("draw_frame() requires positive dimensions")
 
-        old_width, old_height = config.WIDTH, config.HEIGHT
-        old_initialized = config._INITIALIZED
-        config.WIDTH, config.HEIGHT = width, height
-        config._INITIALIZED = True
+        previous = self._frame
+        self._frame = replace(previous, width=width, height=height,
+                              waveform=waveform, fft=fft, beat=beat, tick=tick)
         try:
-            surface = pygame.Surface((width, height), pygame.SRCALPHA)
-            surface.fill((0, 0, 0, 0))
-            self.draw(surface, waveform, fft, beat, tick)
-            self._opaque_canvas(surface)
-
-            rgb = pygame.surfarray.array3d(surface).transpose(1, 0, 2)
-            alpha = pygame.surfarray.array_alpha(surface).transpose(1, 0)
-            return np.dstack((rgb, alpha)).copy()
+            if renderer is not None and renderer is not self.renderer:
+                self.detach_renderer()
+                self.renderer = renderer
+            return self._draw_frame(width, height, waveform, fft, beat, tick, renderer)
         finally:
-            config.WIDTH, config.HEIGHT = old_width, old_height
-            config._INITIALIZED = old_initialized
+            self._frame = previous
+
+    def _draw_frame(self, width, height, waveform, fft, beat, tick, renderer=None):
+        surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        surface.fill((0, 0, 0, 0))
+        self.render(surface, self.frame)
+        self._opaque_canvas(surface)
+        rgb = pygame.surfarray.array3d(surface).transpose(1, 0, 2)
+        alpha = pygame.surfarray.array_alpha(surface).transpose(1, 0)
+        return np.dstack((rgb, alpha)).copy()
 
     def get_motion_field(self):
         """Return an optional read-only ``(vx, vy)`` field for a consumer."""

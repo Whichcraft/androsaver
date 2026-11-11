@@ -1,7 +1,6 @@
 import math
 import numpy as np
 import pygame
-import config
 from .utils import hsl
 from .base import Effect
 
@@ -39,7 +38,7 @@ class Cube(Effect):
         self._sat_fade  = None
 
     def _target_size(self):
-        return getattr(self, "_canvas_size", (config.WIDTH, config.HEIGHT))
+        return getattr(self, "_canvas_size", (self.frame.width, self.frame.height))
 
     def _project(self, v, fov=None):
         W, H = self._target_size()
@@ -88,7 +87,7 @@ class Cube(Effect):
         c, s = math.cos(a), math.sin(a)
         return np.array([[c,-s,0],[s,c,0],[0,0,1]])
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         self._canvas_size = surf.get_size()
         if self.sat_surf is None or self.sat_surf.get_size() != self._target_size():
             self._init_sat_surf()

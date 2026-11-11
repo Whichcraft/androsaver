@@ -15,7 +15,6 @@ import numpy as np
 import pygame
 import pygame.surfarray as surfarray
 
-import config
 from .base import Effect
 
 _BASE_SA = math.radians(30)   # sensor angle offset from heading
@@ -29,22 +28,22 @@ class SlimeMold(Effect):
     def _render_div(self) -> int:
         # Keep trails crisp on larger displays while retaining the compact
         # simulation grid on small screens.  The quality governor can lower it.
-        preferred = 1 if min(config.WIDTH, config.HEIGHT) >= 900 else 3
+        preferred = 1 if min(self.frame.width, self.frame.height) >= 900 else 3
         auto = self._auto_res_div()
         base = max(1, min(preferred, auto))
-        quality_scale = max(0.5, min(1.0, float(config.QUALITY_SCALE)))
+        quality_scale = max(0.5, min(1.0, float(self.frame.quality_scale)))
         return max(base, min(8, int(math.ceil(base / quality_scale))))
 
     def _render_size(self):
-        if min(config.WIDTH, config.HEIGHT) >= 900 or self._visual_profile() == "tv":
-            scale = max(.85, min(1., float(config.QUALITY_SCALE)))
-            w,h = max(1,round(config.WIDTH*scale)), max(1,round(config.HEIGHT*scale))
-            return w,h,config.WIDTH/w
+        if min(self.frame.width, self.frame.height) >= 900 or self._visual_profile() == "tv":
+            scale = max(.85, min(1., float(self.frame.quality_scale)))
+            w,h = max(1,round(self.frame.width*scale)), max(1,round(self.frame.height*scale))
+            return w,h,self.frame.width/w
         return super()._render_size()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._W, self._H = 1, 1
         self._n = 0
         self._trail = np.zeros((1, 1), dtype=np.float32)
@@ -61,12 +60,13 @@ class SlimeMold(Effect):
             self._trail = self._resize_field(self._trail,W,H)
             self._W,self._H = W,H
             self._surf = pygame.Surface((W,H))
-            self._scaled = pygame.Surface((config.WIDTH,config.HEIGHT))
+            self._scaled = pygame.Surface((self.frame.width,self.frame.height))
+            self._reset_workspaces()
             return
         self._W, self._H = W, H
         area = W * H
         self._n = max(5000, min(26000, int(13000 * area / (640 * 360))))
-        if getattr(config, "LOW_SPEC", False):
+        if self.options.low_spec:
             self._n = max(2500, self._n // 2)
         cx, cy   = W / 2.0, H / 2.0
         r_spread = min(W, H) * 0.25
@@ -79,7 +79,17 @@ class SlimeMold(Effect):
         self._ang = self._rng.uniform(0, math.tau, self._n).astype(np.float32)
         self._trail = np.zeros((H, W), dtype=np.float32)
         self._surf  = pygame.Surface((W, H))
-        self._scaled = pygame.Surface((config.WIDTH, config.HEIGHT))
+        self._scaled = pygame.Surface((self.frame.width, self.frame.height))
+        self._reset_workspaces()
+
+    def _reset_workspaces(self):
+        self._diffuse = np.empty_like(self._trail)
+        self._intensity = np.empty_like(self._trail)
+        self._phase = np.empty_like(self._trail)
+        self._channel = np.empty_like(self._trail)
+        self._visible = np.empty(self._trail.shape, dtype=bool)
+        self._packed = np.empty(self._trail.size, dtype=np.uint32)
+        self._bits = np.empty(self._trail.size, dtype=np.uint32)
 
     def _sense(self, offset_ang, dist):
         W, H = self._W, self._H
@@ -91,7 +101,82 @@ class SlimeMold(Effect):
             0, H - 1)
         return self._trail[sy, sx]
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _diffuse_trail(self, decay):
+        # Diffuse (approximate 3×3 box blur)
+        t = self._trail
+        # Preserve the original wrapped stencil and addition order without
+        # allocating four rolled copies of a full-size chemical field.
+        diffused = self._diffuse
+        diffused[1:] = t[:-1]
+        diffused[0] = t[-1]
+        diffused[:-1] += t[1:]
+        diffused[-1] += t[0]
+        diffused[:, 1:] += t[:, :-1]
+        diffused[:, 0] += t[:, -1]
+        diffused[:, :-1] += t[:, 1:]
+        diffused[:, -1] += t[:, 0]
+        np.multiply(t, 4., out=self._channel)
+        diffused += self._channel
+        diffused /= 8.
+        diffused *= decay
+        self._trail, self._diffuse = diffused, t
+
+    def _palette_channels(self, intensity, phase, work):
+        """Yield the original sine palette without allocating channel fields."""
+        np.multiply(intensity, .5, out=phase)
+        phase += self._hue
+        np.remainder(phase, 1., out=phase)
+        for offset in (0., .333, .667):
+            np.add(phase, offset, out=work)
+            work *= math.tau
+            np.sin(work, out=work)
+            work *= 127
+            work += 128
+            work *= intensity
+            work *= 2
+            np.clip(work, 0, 255, out=work)
+            yield work
+
+    def _paint_trail(self):
+        # Below 1/128 chemical strength, even the brightest channel is < 1
+        # after scaling (255 * 2 / 5 / 128 < 1), so uint8 output is exactly black.
+        # Skip only that invisible colour work; keep the full chemical simulation.
+        np.greater_equal(self._trail, 1/128, out=self._visible)
+        count = np.count_nonzero(self._visible)
+        if count < self._trail.size * .65:
+            indices = np.flatnonzero(self._visible)
+            intensity = self._intensity.ravel()[:count]
+            phase = self._phase.ravel()[:count]
+            work = self._channel.ravel()[:count]
+            np.take(self._trail, indices, out=intensity, mode='clip')
+            intensity /= 5.
+            np.clip(intensity, 0., 1., out=intensity)
+            packed, bits = self._packed[:count], self._bits[:count]
+            packed.fill(0)
+            for channel, values in enumerate(self._palette_channels(intensity, phase, work)):
+                np.copyto(bits, values, casting='unsafe')
+                np.left_shift(bits, (2-channel)*8, out=bits)
+                np.bitwise_or(packed, bits, out=packed)
+            pix = surfarray.pixels2d(self._surf)
+            try:
+                pix.fill(0)
+                # flat writes through even when a surface has padded row pitch.
+                pix.T.flat[indices] = packed
+            finally:
+                del pix
+        else:
+            # Dense fields avoid the index-gather/scatter overhead entirely.
+            np.divide(self._trail, 5., out=self._intensity)
+            np.clip(self._intensity, 0., 1., out=self._intensity)
+            pix = surfarray.pixels3d(self._surf)
+            try:
+                channels = self._palette_channels(self._intensity, self._phase, self._channel)
+                for channel, values in enumerate(channels):
+                    pix[:, :, channel] = values.T
+            finally:
+                del pix
+
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, RD = self._render_size()
         if self._W != W or self._H != H:
             self._reset_or_resize_sim()
@@ -100,8 +185,8 @@ class SlimeMold(Effect):
         if self._scaled.get_width() != surf.get_width() or self._scaled.get_height() != surf.get_height():
             self._scaled = pygame.Surface(surf.get_size())
         bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        mid  = self.frame.mid
+        high = self.frame.treble
 
         self._hue = (self._hue + 0.002 + mid * 0.003) % 1.0
 
@@ -152,32 +237,9 @@ class SlimeMold(Effect):
         iy = np.clip(self._py.astype(np.int32), 0, trail_h - 1)
         np.add.at(self._trail, (iy, ix), 0.8 + bass * 0.6)
 
-        # Diffuse (approximate 3×3 box blur)
-        t = self._trail
-        diffused = (np.roll(t, 1, 0) + np.roll(t, -1, 0)
-                    + np.roll(t, 1, 1) + np.roll(t, -1, 1)
-                    + t * 4.0) / 8.0
-        self._trail = diffused * (0.94 - bass * 0.01)
+        self._diffuse_trail(.94 - bass * .01)
 
-        # Render: map trail intensity to hue
-        t_norm = np.clip(self._trail / 5.0, 0.0, 1.0)
-        h_val  = (self._hue + t_norm * 0.5) % 1.0
-        r_arr  = np.clip(
-            (np.sin(h_val * math.tau) * 127 + 128) * t_norm * 2, 0, 255
-        ).astype(np.uint32)
-        g_arr  = np.clip(
-            (np.sin((h_val + 0.333) * math.tau) * 127 + 128) * t_norm * 2, 0, 255
-        ).astype(np.uint32)
-        b_arr  = np.clip(
-            (np.sin((h_val + 0.667) * math.tau) * 127 + 128) * t_norm * 2, 0, 255
-        ).astype(np.uint32)
-        colors = (r_arr << 16) | (g_arr << 8) | b_arr
-
-        pix = surfarray.pixels2d(self._surf)
-        try:
-            pix[:] = colors.T
-        finally:
-            del pix
+        self._paint_trail()
 
         if surf.get_size() != self._surf.get_size():
             pygame.transform.smoothscale(self._surf, surf.get_size(), self._scaled)

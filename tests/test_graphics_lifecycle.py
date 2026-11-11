@@ -33,7 +33,7 @@ except Exception as exc:  # pragma: no cover - dependency-specific environment
     sys.modules["pygame"] = pygame
 
 try:
-    import config
+    from tests.render_host import RenderHost
     import gl_renderer
     from effects.flowfield import FlowField
     from core.display_manager import DisplayManager
@@ -43,7 +43,7 @@ try:
         VisualizerApp = None
     GRAPHICS_IMPORT_ERROR = None
 except Exception as exc:  # pragma: no cover - dependency-specific environment
-    config = None
+    self.host = None
     gl_renderer = None
     DisplayManager = None
     VisualizerApp = None
@@ -51,6 +51,120 @@ except Exception as exc:  # pragma: no cover - dependency-specific environment
 
 
 class GraphicsLifecycleTests(unittest.TestCase):
+    def setUp(self):
+        self.host = RenderHost()
+    def test_offscreen_failure_retains_cache_and_releases_new_texture(self):
+        renderer = gl_renderer.GLRenderer.__new__(gl_renderer.GLRenderer)
+        renderer.width, renderer.height = 32, 24
+        renderer._offscreen_cache = {(i, i): (mock.Mock(), mock.Mock()) for i in range(1, 9)}
+        original_cache = dict(renderer._offscreen_cache)
+        texture, fbo = mock.Mock(), mock.Mock()
+        renderer.ctx = mock.Mock()
+        renderer.ctx.texture.return_value = texture
+        renderer.ctx.framebuffer.side_effect = RuntimeError('framebuffer failed')
+        with self.assertRaisesRegex(RuntimeError, 'framebuffer failed'):
+            renderer.offscreen(99, 99)
+        texture.release.assert_called_once_with()
+        self.assertEqual(renderer._offscreen_cache, original_cache)
+        for old_tex, old_fbo in original_cache.values():
+            old_tex.release.assert_not_called()
+            old_fbo.release.assert_not_called()
+        renderer.ctx.texture.return_value = mock.Mock()
+        renderer.ctx.framebuffer.side_effect = None
+        renderer.ctx.framebuffer.return_value = fbo
+        self.assertIs(renderer.offscreen(99, 99), fbo)
+        self.assertEqual(len(renderer._offscreen_cache), 8)
+        original_cache[(1, 1)][0].release.assert_called_once_with()
+        original_cache[(1, 1)][1].release.assert_called_once_with()
+
+    def test_failed_replacement_upload_retains_previous_texture_and_buffer(self):
+        import numpy as np
+        renderer = gl_renderer.GLRenderer.__new__(gl_renderer.GLRenderer)
+        old_texture = mock.Mock(size=(16, 12))
+        old_buffer = np.empty(16 * 12 * 4, dtype=np.uint8)
+        renderer._blit_upload_buf = old_buffer
+        renderer.ctx = mock.Mock()
+        replacement = renderer.ctx.texture.return_value
+        replacement.write.side_effect = RuntimeError('upload failed')
+        surface = pygame.Surface((32, 24), depth=24)  # exercise staged fallback
+        with self.assertRaisesRegex(RuntimeError, 'upload failed'):
+            renderer._upload_surface(surface, old_texture, '_blit_upload_buf')
+        replacement.release.assert_called_once_with()
+        old_texture.release.assert_not_called()
+        self.assertIs(renderer._blit_upload_buf, old_buffer)
+        self.assertFalse(surface.get_locked())
+        renderer.ctx.texture.return_value = mock.Mock()
+        new_texture = renderer._upload_surface(surface, old_texture, '_blit_upload_buf')
+        self.assertIs(new_texture, renderer.ctx.texture.return_value)
+        old_texture.release.assert_called_once_with()
+        self.assertEqual(renderer._blit_upload_buf.size, 32 * 24 * 4)
+
+    def test_composition_keeps_ui_and_postprocess_order_on_both_paths(self):
+        from effects.base import Effect
+        for direct_gl in (False, True):
+            with self.subTest(direct_gl=direct_gl):
+                calls = []
+                app = self.host.app()
+                app.args = types.SimpleNamespace(gl=True)
+                target = pygame.Surface((32, 24), pygame.SRCALPHA)
+                renderer = mock.Mock()
+                renderer.blit.side_effect = lambda surface: calls.append('upload')
+                renderer.postprocess_screen.side_effect = lambda *args: calls.append('gpu-post')
+                app.display = types.SimpleNamespace(target=target, screen=target, renderer=renderer)
+                field = object()
+                app.vis = types.SimpleNamespace(
+                    IS_GL=direct_gl, TRAIL_ALPHA=0, _opaque_canvas=Effect._opaque_canvas,
+                    draw=lambda *args: calls.append('foreground'),
+                    render=lambda *args: calls.append('foreground'), set_frame_context=mock.Mock(),
+                    set_motion_field=mock.Mock())
+                app.bg_vis = types.SimpleNamespace(
+                    draw=lambda *args: calls.append('background'), render=lambda *args: calls.append('background'), get_motion_field=lambda: field)
+                app.bg_surf = pygame.Surface((32, 24))
+                app.bg_on, app.bg_alpha = True, 102
+                app.current_genre = 'detecting...'
+                app.waveform = app.fft = []
+                app.draw_beat, app.tick, app.effect_gain, app.cf_frames = 0., 0, .7, 45
+                app.postfx_mode = 1
+                app.postfx = types.SimpleNamespace(apply=lambda *args: calls.append('cpu-post'))
+                app.tap_bpm, app.show_hud = 0., False
+                app.ui = types.SimpleNamespace(pane_open=True, picking=False,
+                                               draw_pane=lambda *args: calls.append('ui'))
+                app._render()
+                app._frames.present_gl(app.display, True, app.vis, app.postfx, 1, .7, 0)
+                if direct_gl:
+                    self.assertEqual(calls, ['foreground', 'ui', 'upload', 'gpu-post'])
+                    self.assertEqual(pygame.surfarray.array_alpha(target).max(), 0)
+                    app.vis.set_motion_field.assert_called_once_with(None)
+                else:
+                    self.assertEqual(calls, ['background', 'foreground', 'cpu-post', 'ui', 'upload'])
+                    app.vis.set_motion_field.assert_called_once_with(field)
+
+    def test_base_effect_release_is_idempotent_without_resources(self):
+        from effects.base import Effect
+        with mock.patch.object(self.host, 'initialized', True):
+            effect = self.host.create(Effect)
+        effect.release()
+        effect.release()
+        self.assertIsNone(effect.renderer)
+
+    def test_base_detach_rebind_retains_cpu_state(self):
+        from effects.base import Effect
+        with mock.patch.object(self.host, 'initialized', True):
+            effect = self.host.create(Effect, renderer=object())
+        effect.particles = [1, 2, 3]
+        program, vao = mock.Mock(), mock.Mock()
+        effect._prog, effect._vao = program, vao
+        particles = effect.particles
+        effect.detach_renderer()
+        replacement = object()
+        effect.renderer = replacement
+        self.assertIs(effect.particles, particles)
+        self.assertIs(effect.renderer, replacement)
+        effect.release()
+        effect.release()
+        program.release.assert_called_once_with()
+        vao.release.assert_called_once_with()
+
     @classmethod
     def setUpClass(cls):
         if REAL_PYGAME:
@@ -124,7 +238,7 @@ class GraphicsLifecycleTests(unittest.TestCase):
     def test_fade_surface_reallocates_on_target_resize(self):
         if not REAL_PYGAME:
             self.skipTest("real Pygame is required for Surface resize coverage")
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.display = types.SimpleNamespace(target=pygame.Surface((32, 24), pygame.SRCALPHA))
         app._fade_surf = None
 
@@ -139,7 +253,7 @@ class GraphicsLifecycleTests(unittest.TestCase):
     def test_reduced_gl_target_gets_full_resolution_ui_surface(self):
         if not REAL_PYGAME:
             self.skipTest("real Pygame is required for UI compositing coverage")
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.args = types.SimpleNamespace(gl=True)
         app.display = types.SimpleNamespace(
             target=pygame.Surface((640, 360), pygame.SRCALPHA),
@@ -159,15 +273,18 @@ class GraphicsLifecycleTests(unittest.TestCase):
         class FakeEffect:
             IS_GL = False
 
-            def __init__(self, renderer=None):
+            def __init__(self, renderer=None, **kwargs):
                 self.renderer = renderer
                 self.released = False
+
+            def set_frame_context(self, frame):
+                self.frame = frame
 
             def release(self):
                 self.released = True
 
         target = pygame.Surface((32, 24))
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.vis = FakeEffect()
         app.bg_vis = FakeEffect()
         app.VisCls = FakeEffect
@@ -175,7 +292,7 @@ class GraphicsLifecycleTests(unittest.TestCase):
         app.display = types.SimpleNamespace(
             renderer=object(), screen=target, target=target,
         )
-        app.args = types.SimpleNamespace(gl=False)
+        app.args = types.SimpleNamespace(gl=False, low_spec=False)
         app.prev_surf_scaled = None
         app._last_rebuild_size = (32, 24)
 
@@ -210,6 +327,9 @@ class GraphicsLifecycleTests(unittest.TestCase):
         class Resource:
             def __init__(self):
                 self.released = False
+
+            def set_frame_context(self, frame):
+                self.frame = frame
 
             def release(self):
                 self.released = True
@@ -252,7 +372,7 @@ class GraphicsLifecycleTests(unittest.TestCase):
                 pass
 
             def write(self, data):
-                self.writes.append(data.copy())
+                self.writes.append(bytes(data))
 
         class Context:
             def texture(self, size, components):
@@ -286,20 +406,20 @@ class GraphicsLifecycleTests(unittest.TestCase):
     def test_flowfield_adjusts_particles_in_2000_steps(self):
         if not REAL_PYGAME:
             self.skipTest("real Pygame is required for FlowField surface coverage")
-        old_size = (config.WIDTH, config.HEIGHT)
-        old_initialized = config._INITIALIZED
+        old_size = (self.host.width, self.host.height)
+        old_initialized = self.host.initialized
         try:
-            config.WIDTH, config.HEIGHT = 320, 240
-            config._INITIALIZED = True
-            effect = FlowField()
+            self.host.width, self.host.height = 320, 240
+            self.host.initialized = True
+            effect = self.host.create(FlowField)
             initial = effect._n
             effect.adjust_particles(2000)
             self.assertEqual(effect._n, initial + 2000)
             effect.adjust_particles(-2000)
             self.assertEqual(effect._n, initial)
         finally:
-            config.WIDTH, config.HEIGHT = old_size
-            config._INITIALIZED = old_initialized
+            self.host.width, self.host.height = old_size
+            self.host.initialized = old_initialized
 
     def test_display_child_cleanup_waits_and_clears_registry(self):
         manager = DisplayManager.__new__(DisplayManager)
@@ -316,7 +436,7 @@ class GraphicsLifecycleTests(unittest.TestCase):
     def test_quit_is_reentrant_and_does_not_raise_system_exit(self):
         if VisualizerApp is None:
             self.skipTest("VisualizerApp dependencies unavailable")
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app._quit_requested = False
         app.args = types.SimpleNamespace(span_child=False)
         app.display = types.SimpleNamespace(

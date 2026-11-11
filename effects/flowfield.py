@@ -7,7 +7,6 @@ import math
 import numpy as np
 import pygame
 import pygame.surfarray as surfarray
-import config
 from .base import Effect
 
 _FS = 0.0022
@@ -19,14 +18,14 @@ class FlowField(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         W, H, RD = self._render_size()
-        self._scaled = pygame.Surface((config.WIDTH, config.HEIGHT))
+        self._scaled = pygame.Surface((self.frame.width, self.frame.height))
         # Scale particle count dynamically based on screen area.
         # Baseline: 25000 particles for a 1920x1080 (1080p) screen.
-        area = config.WIDTH * config.HEIGHT
+        area = self.frame.width * self.frame.height
         self._n = int(max(8000, min(100000, 25000 * area / (1920 * 1080))))
-        if getattr(config, "LOW_SPEC", False):
+        if self.options.low_spec:
             self._n = max(4000, self._n // 2)
         self._allocate_particles(self._n, W, H)
         self._hue = float(self._rng.random())
@@ -56,7 +55,7 @@ class FlowField(Effect):
 
     def adjust_particles(self, delta=2000):
         """Add or remove particles in fixed steps for interactive tuning."""
-        minimum = 4000 if getattr(config, "LOW_SPEC", False) else 8000
+        minimum = 4000 if self.options.low_spec else 8000
         target = max(minimum, min(100000, self._n + int(delta)))
         if target != self._n:
             W, H, _ = self._render_size()
@@ -72,7 +71,7 @@ class FlowField(Effect):
                   np.cos(y * _FS * f * 0.75 + t * (0.21 - i * 0.06)))
         return a * (math.pi * (2.2 + bass * 1.8))
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, RD = self._render_size()
         if self._trail.get_width() != W or self._trail.get_height() != H:
             old_w,old_h = self._trail.get_size()
@@ -84,8 +83,8 @@ class FlowField(Effect):
             self._scaled = pygame.Surface((sw, sh))
 
         bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        mid  = self.frame.mid
+        high = self.frame.treble
         
         self._hue = (self._hue + 0.0013 + bass * 0.002 + high * 0.001) % 1.0
         self._t += 0.007 + mid * 0.010 + high * 0.005

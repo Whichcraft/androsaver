@@ -3,7 +3,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl, _hsl_batch
 
 
@@ -42,13 +41,13 @@ class Spiral(Effect):
         return (math.sin(t * 0.18) * 0.25, math.cos(t * 0.13) * 0.20)
 
     def _proj(self, wx, wy, wz):
-        fov = min(config.WIDTH, config.HEIGHT) * 0.72
+        fov = min(self.frame.width, self.frame.height) * 0.72
         z   = max(wz, 0.01)
-        return (int(wx * fov / z + config.WIDTH  // 2),
-                int(wy * fov / z + config.HEIGHT // 2),
+        return (int(wx * fov / z + self.frame.width  // 2),
+                int(wy * fov / z + self.frame.height // 2),
                 fov / z)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         self.hue  += 0.007 + beat * 0.04
         bass       = float(np.mean(fft[:6]))
         dt         = 0.038 + bass * 0.10 + beat * 0.18
@@ -69,7 +68,7 @@ class Spiral(Effect):
         for p in self.pts:
             by_arm[p["arm"]].append(p)
 
-        cx0, cy0 = config.WIDTH // 2, config.HEIGHT // 2
+        cx0, cy0 = self.frame.width // 2, self.frame.height // 2
 
         arm_segs = []
         for arm_idx, arm_pts in enumerate(by_arm):

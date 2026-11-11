@@ -6,7 +6,6 @@ import numpy as np
 import pygame
 import pygame.surfarray as surfarray
 
-import config
 from .base import Effect
 from .utils import hsl
 
@@ -27,7 +26,7 @@ class Mycelium(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._hue = self._rng.random()
         self._phase = 0.0
         self._pulse = 0.0
@@ -36,7 +35,7 @@ class Mycelium(Effect):
         self._spores: list = []
         self._cores: list[tuple[float, float, float]] = []
         self._core_anchors: list[tuple[float, float]] = []
-        self._W, self._H = config.WIDTH, config.HEIGHT
+        self._W, self._H = self.frame.width, self.frame.height
         self._halo_w = self._halo_h = 0
         self._halo = None
         self._halo_surface = None
@@ -45,13 +44,13 @@ class Mycelium(Effect):
         self.max_segs = _MAX_SEGS
         self.max_tips = _MAX_TIPS
         self.max_spores = _MAX_SPORES
-        if getattr(config, "LOW_SPEC", False):
+        if self.options.low_spec:
             self.max_segs //= 2
             self.max_tips //= 2
             self.max_spores //= 2
             
         self._build_cores()
-        self._seed_tips(14 if getattr(config, "LOW_SPEC", False) else 28)
+        self._seed_tips(14 if self.options.low_spec else 28)
 
     def _reset_halo(self, W, H):
         self._halo_w = max(32, W // 4)
@@ -136,14 +135,14 @@ class Mycelium(Effect):
                 int(idx),
             ])
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         if W != self._W or H != self._H:
             self._W, self._H = W, H
             self._cores = []
         bass = beat
-        mid = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        mid = self.frame.mid
+        high = self.frame.treble
 
         if not self._cores:
             self._build_cores()
@@ -253,7 +252,7 @@ class Mycelium(Effect):
 
         if not self._tips:
             self._build_cores()
-            self._seed_tips(14 if getattr(config, "LOW_SPEC", False) else 28)
+            self._seed_tips(14 if self.options.low_spec else 28)
 
         self._segs = [s for s in self._segs if s[4] < s[5]]
         for s in self._segs:
@@ -305,6 +304,10 @@ class Mycelium(Effect):
                 new_spores.append([sx, sy, svx, svy, shue, slife, smax_life, ssize])
         self._spores = new_spores[:self.max_spores]
 
+        self._draw_colony(surf, bass, high)
+
+    def _draw_colony(self, surf, bass, high):
+        """Present existing colony state without advancing its simulation."""
         # Draw Cores
         for i, (cx, cy, h_off) in enumerate(self._cores):
             phase = self._phase * (0.7 + i * 0.08)

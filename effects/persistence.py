@@ -14,7 +14,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .base import Effect
 from .utils import hsl
 
@@ -44,7 +43,7 @@ class Persistence(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._hue = 0.0
         # Initialize 3D rotation angles for each shape
         self._rot_x = self._rng.uniform(0, math.tau, _MAX_SHAPES).tolist()
@@ -130,7 +129,7 @@ class Persistence(Effect):
                     edges.append((i, j))
             self._models.append((verts, edges))
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, RD = self._render_size()
         step = self._frame_step()
         motion, light = self._audio_response(beat)

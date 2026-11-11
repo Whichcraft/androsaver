@@ -12,7 +12,7 @@ class ConfigSeedTests(unittest.TestCase):
         else:
             env["PSYSUALS_SEED"] = value
         result = subprocess.run(
-            [sys.executable, "-c", "import config; print(config.RNG_SEED)"],
+            [sys.executable, "-c", "from core.context import parse_seed; import os; print(parse_seed(os.environ.get(\"PSYSUALS_SEED\")))"],
             env=env,
             capture_output=True,
             text=True,

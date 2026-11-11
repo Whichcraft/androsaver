@@ -3,7 +3,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl
 
 
@@ -27,7 +26,7 @@ class Tunnel(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self.hue  = 0.0
         self.time = 0.0
         self._audio = np.zeros(3)
@@ -58,7 +57,7 @@ class Tunnel(Effect):
                 int(wy * fov / z + H / 2),
                 fov / z)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         step = self._frame_step()
         self.hue += 0.006 * step
         W, H = surf.get_size()

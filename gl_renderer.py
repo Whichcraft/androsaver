@@ -13,6 +13,7 @@ Android / headless path:
 from __future__ import annotations
 
 import numpy as np
+import sys
 import pygame
 
 try:
@@ -140,6 +141,24 @@ class GLRenderer:
         # self.ctx.clear(0.0, 0.0, 0.0, 1.0) # Removed clear to allow layering
         vao.render(moderngl.TRIANGLE_STRIP)
 
+    @staticmethod
+    def _surface_swizzle(surface):
+        """Describe tightly packed 32-bit source bytes; None requires staging."""
+        width, _ = surface.get_size()
+        if surface.get_bytesize() != 4 or surface.get_pitch() != width * 4:
+            return None
+        masks, shifts, losses = surface.get_masks(), surface.get_shifts(), surface.get_losses()
+        has_alpha = bool(surface.get_flags() & pygame.SRCALPHA)
+        channels = range(4 if has_alpha else 3)
+        if any(not masks[c] or losses[c] or shifts[c] % 8 for c in channels):
+            return None
+        order = [shifts[c] // 8 if sys.byteorder == 'little' else 3-shifts[c] // 8
+                 for c in channels]
+        if len(set(order)) != len(order):
+            return None
+        swizzle = ''.join('RGBA'[index] for index in order)
+        return swizzle if has_alpha else swizzle + '1'
+
     def _upload_surface(
         self,
         surface: "pygame.Surface",
@@ -147,35 +166,55 @@ class GLRenderer:
         buffer_attr: str,
     ) -> "moderngl.Texture":
         size = surface.get_size()
+        swizzle = self._surface_swizzle(surface)
         upload_buf = getattr(self, buffer_attr, None)
         required = size[0] * size[1] * 4
-        if tex is None or tex.size != size or upload_buf is None or upload_buf.size != required:
-            if tex:
-                tex.release()
+        replace_texture = (tex is None or tex.size != size or
+                           (swizzle is None and (upload_buf is None or upload_buf.size != required)))
+        old_tex = tex
+        if replace_texture:
             tex = self.ctx.texture(size, 4)
-            upload_buf = np.empty(required, dtype=np.uint8)
-            setattr(self, buffer_attr, upload_buf)
-
-        w, h = size
-        has_alpha = bool(surface.get_flags() & pygame.SRCALPHA)
-        buf = upload_buf.reshape(h, w, 4)
-
-        rgb = pygame.surfarray.pixels3d(surface)
         try:
-            buf[:, :, :3] = np.transpose(rgb, (1, 0, 2))
-            if has_alpha:
-                alpha = pygame.surfarray.pixels_alpha(surface)
+            if swizzle is not None:
+                # ModernGL consumes the buffer synchronously. GPU swizzling
+                # replaces a full-frame channel shuffle; no staging copy.
+                view = surface.get_view('0')
                 try:
-                    buf[:, :, 3] = np.transpose(alpha)
+                    tex.write(view)
                 finally:
-                    del alpha
+                    del view  # release the surface lock even if upload fails
+                tex.swizzle = swizzle
+                candidate_buffer = None
             else:
-                buf[:, :, 3] = 255
-        finally:
-            del rgb
-
-        tex.write(upload_buf)
-        tex.use(0)
+                if upload_buf is None or upload_buf.size != required:
+                    upload_buf = np.empty(required, dtype=np.uint8)
+                w, h = size
+                buf = upload_buf.reshape(h, w, 4)
+                rgb = (pygame.surfarray.pixels3d(surface) if surface.get_bytesize() in (3, 4)
+                       else pygame.surfarray.array3d(surface))
+                try:
+                    buf[:, :, :3] = np.transpose(rgb, (1, 0, 2))
+                    if surface.get_flags() & pygame.SRCALPHA:
+                        alpha = pygame.surfarray.pixels_alpha(surface)
+                        try:
+                            buf[:, :, 3] = np.transpose(alpha)
+                        finally:
+                            del alpha
+                    else:
+                        buf[:, :, 3] = 255
+                finally:
+                    del rgb
+                tex.write(upload_buf)
+                tex.swizzle = 'RGBA'
+                candidate_buffer = upload_buf
+            tex.use(0)
+        except Exception:
+            if replace_texture:
+                tex.release()
+            raise
+        setattr(self, buffer_attr, candidate_buffer)
+        if replace_texture and old_tex is not None:
+            old_tex.release()
         return tex
 
     def blit(self, surface: "pygame.Surface") -> None:
@@ -269,13 +308,17 @@ class GLRenderer:
         h = height or self.height
         key = (w, h)
         if key not in self._offscreen_cache:
+            tex = self.ctx.texture((w, h), 4)
+            try:
+                fbo = self.ctx.framebuffer(color_attachments=[tex])
+            except Exception:
+                tex.release()
+                raise
             if len(self._offscreen_cache) >= 8:
                 old_key = next(iter(self._offscreen_cache))
                 old_tex, old_fbo = self._offscreen_cache.pop(old_key)
-                old_tex.release()
                 old_fbo.release()
-            tex = self.ctx.texture((w, h), 4)
-            fbo = self.ctx.framebuffer(color_attachments=[tex])
+                old_tex.release()
             self._offscreen_cache[key] = (tex, fbo)
         return self._offscreen_cache[key][1]
 

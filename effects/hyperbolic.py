@@ -4,7 +4,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .base import Effect
 from .utils import hsl
 
@@ -17,7 +16,7 @@ class Hyperbolic(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._size = (0, 0)
         self._tiles = []
         self._hue = float(self._rng.random())
@@ -25,7 +24,7 @@ class Hyperbolic(Effect):
         self._morph_warp = 0.5
         self._time = 0.0
         self._tile_heights = None
-        self._reset_geometry(max(1, config.WIDTH), max(1, config.HEIGHT))
+        self._reset_geometry(max(1, self.frame.width), max(1, self.frame.height))
 
     def _reset_geometry(self, W, H):
         self._size = (W, H)
@@ -67,6 +66,14 @@ class Hyperbolic(Effect):
                 self._tiles.append(centers[adjacent])
             self._tile_centers = np.array([tile.mean(axis=0) for tile in self._tiles])
             self._tile_heights = np.zeros(len(self._tiles))
+            self._hinges = []
+            for tile in self._tiles:
+                axis = tile[1] - tile[0]
+                axis /= np.linalg.norm(axis)
+                pivot = (tile[0] + tile[1]) * .5
+                relative = tile - pivot
+                self._hinges.append((pivot, relative, np.cross(axis, relative),
+                                     np.outer(relative @ axis, axis)))
         # Cache a faint shaded sphere behind the rotating surface mesh.
         radius = max(1, int(min(W, H) * .36 * 3.2 / math.sqrt(3.2 ** 2 - 1)))
         axis = np.linspace(-1, 1, radius * 2 + 1, dtype=np.float32)
@@ -77,7 +84,11 @@ class Hyperbolic(Effect):
         rgba = np.zeros((*x.shape, 4), dtype=np.uint8)
         rgba[..., :3] = (np.array([6, 10, 24]) + light[..., None] * np.array([8, 13, 28])).astype(np.uint8)
         rgba[..., 3] = mask * 255
-        self._body = pygame.image.frombuffer(rgba.tobytes(), (len(axis), len(axis)), "RGBA").copy()
+        shaded = pygame.image.frombuffer(rgba.tobytes(), (len(axis), len(axis)), "RGBA")
+        # Composite the fixed alpha mask once, rather than blending it every frame.
+        self._body = pygame.Surface(shaded.get_size())
+        self._body.fill((2, 1, 8))
+        self._body.blit(shaded, (0, 0))
 
     def _sphere_point(self, z):
         # Inverse stereographic map gives a real sphere, then rotate in 3-D.
@@ -94,19 +105,28 @@ class Hyperbolic(Effect):
         return int(W * 0.5 + x * scale), int(H * 0.5 + y * scale)
 
     def _rotate_mesh(self, vertices):
-        c, s = math.cos(self._angle), math.sin(self._angle)
-        tilt = 0.35
-        rotation_y = np.array([[c,0,s],[0,1,0],[-s,0,c]])
-        rotation_x = np.array([[1,0,0],[0,math.cos(tilt),-math.sin(tilt)],
-                               [0,math.sin(tilt),math.cos(tilt)]])
-        return vertices @ (rotation_x @ rotation_y).T
+        if getattr(self, '_rotation_angle', None) != self._angle:
+            c, s = math.cos(self._angle), math.sin(self._angle)
+            tilt = 0.35
+            rotation_y = np.array([[c,0,s],[0,1,0],[-s,0,c]])
+            rotation_x = np.array([[1,0,0],[0,math.cos(tilt),-math.sin(tilt)],
+                                   [0,math.sin(tilt),math.cos(tilt)]])
+            self._rotation_matrix = (rotation_x @ rotation_y).T
+            self._rotation_angle = self._angle
+        return vertices @ self._rotation_matrix
 
     @staticmethod
     def _clip_front(vertices):
         # The perspective horizon of the unit sphere is z = 1 / camera_distance.
         horizon = 1 / 3.2
+        inside = vertices[:, 2] >= horizon
+        if inside.all():
+            return vertices
+        if not inside.any():
+            return np.array([])
         result = []
-        for a, b in zip(vertices, np.roll(vertices, -1, axis=0)):
+        for i, a in enumerate(vertices):
+            b = vertices[(i + 1) % len(vertices)]
             inside_a, inside_b = a[2] >= horizon, b[2] >= horizon
             if inside_a:
                 result.append(a)
@@ -115,7 +135,7 @@ class Hyperbolic(Effect):
                 result.append(a + (b - a) * t)
         return np.array(result)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         if (W, H) != self._size:
             self._reset_geometry(W, H)
@@ -129,16 +149,19 @@ class Hyperbolic(Effect):
         longitude = np.arctan2(self._tile_centers[:,1],self._tile_centers[:,0])
         phase = self._time + longitude*3 + self._tile_centers[:,2]*4
         target = .075*np.sin(phase) + .035*np.sin(self._time*1.4+indices*.52)
-        target += motion[0]*.035*(.5+.5*np.sin(phase+self._time*.3))
-        self._tile_heights = self._smooth(self._tile_heights,np.clip(target,-.10,.18),.08)
+        # Fast bass accents expose the beat; slow response retains the swell.
+        # Spatial weighting keeps the tiles moving independently. Height stays
+        # bounded before the assembled geometry is fitted to the viewport.
+        bass_pulse = float(light[0])
+        target += (motion[0]*.055 + bass_pulse*.11)*(.5+.5*np.sin(phase+self._time*.3))
+        tile_response = .08 + .16*min(bass_pulse, 1.)
+        self._tile_heights = self._smooth(self._tile_heights,np.clip(target,-.10,.18),tile_response)
         surf.fill((2,1,8))
         surf.blit(self._body,((W-self._body.get_width())//2,(H-self._body.get_height())//2))
         self._visible_tiles=[]
         rotated=[self._rotate_mesh(tile) for tile in self._tiles]
         self._projected_caps=[]
-        def project(vertices):
-            scale=min(W,H)*.36*3.2/(3.2-vertices[:,2])
-            return list(zip((W/2+vertices[:,0]*scale).tolist(),(H/2+vertices[:,1]*scale).tolist()))
+        segments = []
         for index in sorted(range(len(rotated)),key=lambda i: rotated[i][:,2].mean()):
             base=rotated[index]
             visible=self._clip_front(base)
@@ -146,15 +169,32 @@ class Hyperbolic(Effect):
                 continue
             self._visible_tiles.append(visible)
             height=float(self._tile_heights[index])
-            tile=self._tiles[index]
-            # Tilt around one tile edge, so caps can stand up as well as lift.
-            axis=tile[1]-tile[0]; axis/=np.linalg.norm(axis)
-            pivot=(tile[0]+tile[1])*.5
-            angle=.30*max(0.,math.sin(float(phase[index])))
-            relative=tile-pivot
-            tilted=(relative*math.cos(angle)+np.cross(axis,relative)*math.sin(angle)
-                    + np.outer(relative@axis,axis)*(1-math.cos(angle)))+pivot
+            # Hinge geometry is fixed; only the tilt angle changes per frame.
+            pivot, relative, crossed, axial = self._hinges[index]
+            angle=(.30 + bass_pulse*.04)*max(0.,math.sin(float(phase[index])))
+            tilted=(relative*math.cos(angle)+crossed*math.sin(angle)
+                    + axial*(1-math.cos(angle)))+pivot
             cap=self._rotate_mesh(tilted*(1+height))
+            segments.append((index, base, visible, cap))
+
+        # Fit the assembled geometry once, so a sustained loud passage cannot
+        # crop raised caps. Walls and caps must use the same projection scale.
+        projection_scale = min(W,H)*.36
+        if segments:
+            vertices = np.concatenate([cap for _, _, _, cap in segments])
+            offsets = vertices[:, :2] * (projection_scale*3.2/(3.2-vertices[:,2]))[:, None]
+            extent = np.maximum(np.max(np.abs(offsets), axis=0), 1.)
+            # Keep round-off just inside the four-pixel presentation margin.
+            margin = min(4.001, min(W,H)*.04)
+            available = np.maximum(np.array([W,H])*.5-margin, 1.)
+            projection_scale *= min(1., float(np.min(available/extent)))
+
+        def project(vertices):
+            scale=projection_scale*3.2/(3.2-vertices[:,2])
+            return list(zip((W/2+vertices[:,0]*scale).tolist(),(H/2+vertices[:,1]*scale).tolist()))
+
+        for index, base, visible, cap in segments:
+            height=float(self._tile_heights[index])
             depth=float(visible[:,2].mean())
             hue=(self._hue+index*.033+.20*math.sin(float(phase[index]))+height*.8)%1
             # Exposed walls and dark recesses provide depth cues for each segment.
@@ -169,11 +209,14 @@ class Hyperbolic(Effect):
                 continue
             points=project(clipped_cap)
             self._projected_caps.append(np.array(points))
-            lightness=min(.48,.13+depth*.12+max(0.,height)*.65+light[0]*.05*accent)
+            lightness=min(.62,.13+depth*.12+max(0.,height)*.65+bass_pulse*.18*accent)
             pygame.draw.polygon(surf,hsl(hue,s=.95,l=lightness),points)
-            edge_brightness=min(.90,.42+depth*.22+light[2]*.10+max(0.,height))
+            edge_brightness=min(.90,.42+depth*.22+light[2]*.20+max(0.,height))
             pygame.draw.aalines(surf,hsl((hue+.08)%1,l=edge_brightness),True,points)
 
     def release(self):
         self._tiles = []
+        self._hinges = []
+        self._rotation_matrix = None
+        self._rotation_angle = None
         self._body = None

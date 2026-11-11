@@ -1,7 +1,6 @@
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl
 
 
@@ -13,18 +12,18 @@ class Bars(Effect):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hue = 0.0
-        n_bins     = config.BLOCK_SIZE // 2
+        n_bins     = self.options.audio.block_size // 2
         raw        = np.geomspace(2, int(n_bins * 0.85), 81).astype(int)
         self.edges = np.unique(np.clip(raw, 1, n_bins - 1))
         self.n     = len(self.edges) - 1
         self.peaks   = np.zeros(self.n)
         self.display = np.zeros(self.n)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        mid  = self.frame.mid
+        high = self.frame.treble
 
         self.hue += 0.003 + mid * 0.005
         bar_w   = W // self.n

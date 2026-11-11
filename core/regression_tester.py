@@ -4,7 +4,6 @@ import glob
 import importlib
 import inspect
 import pygame
-import config
 from effects.base import Effect
 from effects import MODES
 
@@ -58,24 +57,27 @@ def test_all_files_registered():
     print("  ✅ Scan complete")
 
 def run_all_tests():
-    # Setup pygame for instantiation tests
-    os.environ['SDL_VIDEODRIVER'] = 'dummy'
-    pygame.init()
-    pygame.display.set_mode((1, 1))
-    config.WIDTH, config.HEIGHT = 800, 600
-    config._INITIALIZED = True
-    
+    old_driver = os.environ.get("SDL_VIDEODRIVER")
     try:
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
+        pygame.init()
+        pygame.display.set_mode((1, 1))
         test_registry_order()
         test_all_effects_inherit_base()
         test_all_files_registered()
         print("\n✅ All regression checks PASSED")
     except AssertionError as e:
         print(f"\n❌ REGRESSION FAILURE: {e}")
-        exit(1)
+        raise SystemExit(1)
     except Exception as e:
         print(f"\n❌ ERROR during testing: {e}")
-        exit(1)
+        raise SystemExit(1)
+    finally:
+        if old_driver is None:
+            os.environ.pop("SDL_VIDEODRIVER", None)
+        else:
+            os.environ["SDL_VIDEODRIVER"] = old_driver
+        pygame.quit()
 
 if __name__ == "__main__":
     run_all_tests()

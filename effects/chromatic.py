@@ -4,7 +4,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .base import Effect
 
 _MAX_RINGS = 5
@@ -17,9 +16,9 @@ class Chromatic(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
-        W = config.WIDTH
-        H = config.HEIGHT
+        self._rng = self.rng
+        W = self.frame.width
+        H = self.frame.height
         self._trail = pygame.Surface((W, H))
         self._trail.fill((0, 0, 0))
         # Ring: [cx, cy, r, max_r, speed, intensity, phase]
@@ -28,7 +27,7 @@ class Chromatic(Effect):
         self._beat_prev = 0.0
         self._auto_cd = 45
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         display_scale = max(1.0, min(W, H) / 1080.0)
         step = self._frame_step()

@@ -1,9 +1,15 @@
 import unittest
 from collections import deque
+from types import SimpleNamespace
+from unittest import mock
+from core.audio_engine import AudioSnapshot
+from core.audio_response import AudioResponse
+from core.silence import SilenceGate, SilenceThresholds
+from effects.palette import ColorPalette
 
 import numpy as np
 
-import config
+from tests.render_host import RenderHost
 from psysualizer import VisualizerApp
 
 
@@ -21,13 +27,54 @@ class _GenreAudio:
 
 
 class AppLogicTests(unittest.TestCase):
+    def setUp(self):
+        self.host = RenderHost()
+
+    def test_update_consumes_only_one_audio_snapshot(self):
+        app = self.host.app()
+        snapshot = AudioSnapshot(np.zeros(1024), np.zeros(512), 1., .4, .6,
+                                 120., 10., 7, (.1, .2, .3), 9.5)
+        app.audio = SimpleNamespace(
+            get_snapshot=mock.Mock(return_value=snapshot),
+            beat_tracker=SimpleNamespace(enabled=False),
+            stream=object(),
+        )
+        app._advance_preset_morph = mock.Mock()
+        app._advance_parameter_morph = mock.Mock()
+        app._update_genre = mock.Mock()
+        gate = SilenceGate(SilenceThresholds(.0035, .006, .0015, .003, .14, 2),
+                           1024 / 44100, False)
+        app.response = AudioResponse(gate)
+        app.response.update = mock.Mock(wraps=app.response.update)
+        app.tap_bpm_expiry = 0.
+        app._phase_anchor_tick = 0
+        app.display = SimpleNamespace(reposition_window_fix=mock.Mock(), screen=__import__("pygame").Surface((320,240)))
+        app.is_silent = False
+        app.tap_bpm = 0.
+        app.energy_hist = deque(maxlen=40)
+        app.energy_sum = app.beat_decay = 0.
+        app.effect_gain = 1.
+        app.auto_gain = False
+        app.rms_buf = deque(maxlen=30)
+        app.tick = 1
+        app.span_mode = False
+        # Isolate all self.host publication and palette state from other tests.
+        with mock.patch.object(app.palette, "update"):
+            app._update()
+        app.audio.get_snapshot.assert_called_once_with()
+        app.response.update.assert_called_once()
+        self.assertIs(app.response.update.call_args.args[0], snapshot)
+        self.assertEqual(app.response.gate.last_generation, 7)
+        self.assertEqual(app.response._phase_last_onset, 9.5)
+        self.assertIs(app.waveform, snapshot.waveform)
+        self.assertIs(app.fft, snapshot.fft)
+
     def _silence_app(self, is_silent):
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.is_silent = is_silent
-        app._silence_last_generation = None
-        app._silence_last_audio_time = None
-        app._silence_quiet_seconds = 0.0
-        app._silence_loud_blocks = 0
+        app.silence_gate = SilenceGate(
+            SilenceThresholds(.0035, .006, .0015, .003, .14, 2),
+            1024 / 44100, is_silent)
         return app
 
     def test_silence_entry_uses_audio_blocks_not_render_frames(self):
@@ -53,7 +100,7 @@ class AppLogicTests(unittest.TestCase):
         app._update_silence_state(float("nan"), 0.0, 1.0, 1)
         app._update_silence_state(0.01, 0.01, 1.02, 2)
         self.assertTrue(app.is_silent)
-        self.assertTrue(np.isfinite(app._silence_quiet_seconds))
+        self.assertTrue(np.isfinite(app.silence_gate.quiet_seconds))
 
     def test_render_rate_does_not_change_silence_timing(self):
         outcomes = []
@@ -69,34 +116,34 @@ class AppLogicTests(unittest.TestCase):
         self.assertEqual(outcomes, [True, True, True])
 
     def _phase_app(self, silent=False):
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.tick = 0
         app.is_silent = silent
         app.using_tap = False
         app._phase_anchor_tick = 0
-        app._phase_last_onset = 0.0
-        app._phase_anchor_time = 0.0
+        app.response = AudioResponse(SilenceGate(
+            SilenceThresholds(.0035, .006, .0015, .003, .14, 2), 1024 / 44100))
         return app
 
     def test_beat_phase_is_zero_at_onset_and_bounded(self):
         app = self._phase_app()
         app._update_beat_phase(10.0, 120.0, 10.0)
-        self.assertAlmostEqual(config.BEAT_PHASE, 0.0)
+        self.assertAlmostEqual(app.frame.phase, 0.0)
         app.tick = 15
         app._update_beat_phase(10.25, 120.0, 10.0)
-        self.assertAlmostEqual(config.BEAT_PHASE, 0.5)
-        self.assertGreaterEqual(config.BEAT_PHASE, 0.0)
-        self.assertLess(config.BEAT_PHASE, 1.0)
+        self.assertAlmostEqual(app.frame.phase, 0.5)
+        self.assertGreaterEqual(app.frame.phase, 0.0)
+        self.assertLess(app.frame.phase, 1.0)
 
     def test_beat_phase_uses_idle_fallback_without_timing(self):
         app = self._phase_app()
         app.tick = 12
         app._update_beat_phase(float("nan"), 0.0, 0.0)
-        self.assertGreaterEqual(config.BEAT_PHASE, 0.0)
-        self.assertLess(config.BEAT_PHASE, 1.0)
+        self.assertGreaterEqual(app.frame.phase, 0.0)
+        self.assertLess(app.frame.phase, 1.0)
 
     def test_preset_morph_interpolates_and_switches_at_midpoint(self):
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.tick = 0
         app.bpm = 120.0
         app.mode_idx = 0
@@ -111,7 +158,7 @@ class AppLogicTests(unittest.TestCase):
         app._set_background_mode = lambda index: switches.append(("bg", index))
         app._start_preset_morph({"mode_idx": 2, "bg_mode_i": 3, "bg_on": True,
                                  "intensity": 1.5, "bg_alpha": 180, "cf_frames": 80})
-        duration = app._preset_morph["duration"]
+        duration = app._preset_morph.duration
         app.tick = duration // 2
         app._advance_preset_morph()
         self.assertTrue(switches)
@@ -123,7 +170,7 @@ class AppLogicTests(unittest.TestCase):
         self.assertAlmostEqual(app.effect_gain, 1.5)
         self.assertEqual(app.bg_alpha, 180)
     def test_genre_polling_continues_after_silence(self):
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.audio = _GenreAudio()
         app._genre_check_cd = 1
         app.is_silent = False
@@ -137,11 +184,12 @@ class AppLogicTests(unittest.TestCase):
         self.assertEqual(app.current_genre, "rock")
 
     def test_auto_gain_keeps_effect_intensity(self):
-        app = VisualizerApp.__new__(VisualizerApp)
+        app = self.host.app()
         app.beat = 1.0
         app.effect_gain = 1.5
-        app.target_rms = 0.05
-        app.rms_buf = deque([0.10])
+        app.response = AudioResponse(SilenceGate(
+            SilenceThresholds(.0035, .006, .0015, .003, .14, 2), 1024 / 44100))
+        app.response.rms_buf = deque([0.10])
         app.auto_gain = True
 
         self.assertAlmostEqual(app._compute_draw_beat(), 0.75)

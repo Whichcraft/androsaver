@@ -5,7 +5,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .base import Effect
 from .utils import hsl
 
@@ -19,7 +18,7 @@ class Tesseract(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._preset = 0
         self._vertices = np.empty((1, 4), dtype=np.float32)
         self._edges = np.empty((0, 2), dtype=np.int32)
@@ -94,10 +93,10 @@ class Tesseract(Effect):
         self._rotated[:, 1] = y * cy - z * sy
         self._rotated[:, 2] = y * sy + z * cy
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         bass = min(max(float(beat), 0.0), 1.5)
-        mid = min(max(float(config.MID_ENERGY), 0.0), 4.0)
-        high = min(max(float(config.TREBLE_ENERGY), 0.0), 4.0)
+        mid = min(max(float(self.frame.mid), 0.0), 4.0)
+        high = min(max(float(self.frame.treble), 0.0), 4.0)
         if bass > 0.7 and self._beat_prev <= 0.7:
             self._preset = (self._preset + 1) % 3
             self._build_preset(self._preset)

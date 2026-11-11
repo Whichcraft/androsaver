@@ -1,6 +1,7 @@
+<!-- Frame/options inputs replace ambient config; effect formulas are unchanged. -->
 # psysuals — Effects Reference (3.20.0)
 
-There are 32 registered modes. Mandelbox and Morphogenesis are removed in 3.20.0.
+There are 33 registered modes. Mandelbox and Morphogenesis are removed in 3.20.0.
 
 All effects consume the same shared audio signals. They differ only in how they interpret those signals visually.
 
@@ -9,7 +10,7 @@ All effects consume the same shared audio signals. They differ only in how they 
 ## Global audio signals
 
 In addition to the raw normalized bands below, effects may read
-`config.BASS_ENVELOPE`, `config.MID_ENVELOPE`, and `config.TREBLE_ENVELOPE`.
+`frame.envelopes[0]`, `frame.envelopes[1]`, and `frame.envelopes[2]`.
 These values stay within `0.0 .. 6.0` and use separate attack/release time
 constants for responsive transients and smooth sustained decay.
 
@@ -18,10 +19,10 @@ constants for responsive transients and smooth sustained decay.
 | `waveform` | Latest raw mono PCM block (`1024` samples) | `sounddevice` callback |
 | `fft` | Smoothed, log-scaled spectrum (`512` bins) | Blackman-windowed FFT + EMA |
 | `beat` | Normalised raw beat impulse (`0.0 .. 3.0`); active effects receive this multiplied by the selected gain (up to `6.0`) | Spectral flux, optional tracker refinement, main-loop decay |
-| `config.MID_ENERGY` | Normalised mid-band energy | Smoothed relative mid-band slice |
-| `config.TREBLE_ENERGY` | Normalised treble energy | Smoothed relative treble-band slice |
-| `config.BPM` | Live BPM estimate or tap-tempo override | Callback onset timing + optional `librosa` refinement |
-| `config.IS_SILENT` | True while silence gate is active | RMS + FFT hysteresis in main loop |
+| `frame.mid` | Normalised mid-band energy | Smoothed relative mid-band slice |
+| `frame.treble` | Normalised treble energy | Smoothed relative treble-band slice |
+| `frame.bpm` | Live BPM estimate or tap-tempo override | Callback onset timing + optional `librosa` refinement |
+| `frame.is_silent` | True while silence gate is active | RMS + FFT hysteresis in main loop |
 
 `effect_gain` scales the beat response passed to the active foreground effect
 and, when enabled, the background effect. Its current default is `0.7`, and
@@ -37,15 +38,15 @@ The app supports hardware acceleration via the `--gl` flag. When enabled:
 
 If no audio input stream is available, the app stays up and the effects simply run against silence until a device is selected.
 
-When `config.IS_SILENT` is true, the runtime suppresses beat spikes and feeds effects low idle motion floors instead of hard zero. That keeps visuals alive during gaps before and after tracks without amplifying the noise floor into fake hits.
+When `frame.is_silent` is true, the runtime suppresses beat spikes and feeds effects low idle motion floors instead of hard zero. That keeps visuals alive during gaps before and after tracks without amplifying the noise floor into fake hits.
 
 Standardized audio energy parameters used across all effects:
 
 | Signal | Source | Typical role |
 |--------|--------|--------------|
 | `beat` / `bass` | `beat` parameter | kick, sub, pulse, large-scale motion |
-| `mid` | `config.MID_ENERGY` | synth body, geometry drift, colour motion, flight speed |
-| `high` / `treble` | `config.TREBLE_ENERGY` | shimmer, edges, sparkles, fine detail, high-frequency jitter |
+| `mid` | `frame.mid` | synth body, geometry drift, colour motion, flight speed |
+| `high` / `treble` | `frame.treble` | shimmer, edges, sparkles, fine detail, high-frequency jitter |
 
 ---
 
@@ -56,7 +57,7 @@ and the selection persists. Profiles control motion, light accents and Lattice
 density separately from internal render resolution. Auto guesses from output
 width; explicit Laptop/TV overrides work at any resolution.
 
-The fourteen retuned effects use `config.FRAME_DT` (seconds, default 1/60) for motion,
+The fourteen retuned effects use `frame.dt` (seconds, default 1/60) for motion,
 exponential audio smoothing and trail decay. Brightness follows faster audio
 accents while cameras and geometry follow a slower envelope. Frames longer than
 0.1 seconds are capped to avoid jumps after a pause. Other effects retain their
@@ -67,7 +68,7 @@ framebuffer size, including HiDPI outputs.
 ## Mode list
 
 The `#` column is the human-readable ordinal. The `--mode` command-line
-option uses the zero-based registry index instead (`0` for Yantra through `31`
+option uses the zero-based registry index instead (`0` for Yantra through `32`
 for Waterfall); the number keys directly select only modes 1–9.
 
 | # | Key | Mode | Summary |
@@ -102,8 +103,9 @@ for Waterfall); the number keys directly select only modes 1–9.
 | 28 | `←` / `→` | Phason | Quasiperiodic interference bloom with 5–11 waves |
 | 29 | `←` / `→` | Tesseract | Rotating 4-D crystal projections |
 | 30 | `←` / `→` | Ferrofluid | Metallic magnetic droplets |
-| 31 | `←` / `→` | Spectrum | Log-spaced analyser bars with waveform overlay |
-| 32 | `←` / `→` | Waterfall | Scrolling time-frequency spectrogram |
+| 31 | `←` / `→` | ChromaWeave | Iridescent eightfold ribbons and breathing neon petals |
+| 32 | `←` / `→` | Spectrum | Log-spaced analyser bars with waveform overlay |
+| 33 | `←` / `→` | Waterfall | Scrolling time-frequency spectrogram |
 
 `Spectrum` and `Waterfall` are intentionally the final two registry entries.
 
@@ -209,7 +211,7 @@ Eight thousand+ particles surf a continuously changing multi-layer vector field 
 The previous frame is zoomed and darkened into a tunnel while fireworks launch upward and explode into glowing embers. A small semi-Lagrangian velocity field advects the feedback trail into smoke-like curls without changing the rocket or ember population caps.
 
 - Audio: beat (bass) launches rockets and drives zoom scaling; bass injects stronger trail vortices; MID_ENERGY steers the curl; TREBLE_ENERGY increases rocket explosion ember counts, launch-trail widths, velocities, and dye separation; beat bursts briefly increase vorticity.
-- Visual notes: auto-launch timing is also tied to `config.EFFECT_GAIN`, so quieter gain settings create more background rockets between beats. Beat bursts trigger on rising edges, while rocket and ember populations remain explicitly capped.
+- Visual notes: auto-launch timing is also tied to `frame.gain`, so quieter gain settings create more background rockets between beats. Beat bursts trigger on rising edges, while rocket and ember populations remain explicitly capped.
 - Performance: trail advection is one fixed, clamped step on the existing reduced-resolution surface, keeping the CPU path within the normal frame budget without per-particle field allocations. Feedback remains on the CPU, avoiding GPU readback stalls during GL composition; rocket/ember coordinates and the feedback trail survive resizing.
 
 ## 15. Aurora
@@ -285,14 +287,14 @@ An evolving neural graph fades its oldest point over one second and grows two ne
 
 Rhythmic pressure waves expand from the screen centre. Each beat spawns concentric rings whose outline morphs between a circle (gentle bass) and a polygon (heavy bass). Multiple overlapping rings create moiré interference patterns.
 
-- Audio: bass drives wave speed and polygon morphing (low bass = circle, high bass = triangle) and excites the plate overlay; mid modulates propagation speed and nodal-mode morphing; treble adds shimmer; beat spawns new ring(s).
-- Visual notes: strong beats at high bass produce stark polygonal shockwaves over a fading Chladni-like cymatics pattern; gentle beats produce soft circular ripples. The analytic plate is cached at reduced resolution and uses no runtime eigensolver.
+- Audio: bass drives wave speed and polygon morphing (low bass = circle, high bass = triangle); mid modulates propagation speed and hue drift; treble adds shimmer; beat spawns new ring(s).
+- Visual notes: strong beats produce polygonal shockwaves; gentle beats produce soft circular ripples. Heartbeat draws only its rings and their glow, leaving the background to composition. Standing-wave patterns belong to Cymatica.
 
 ## 25. Hyperbolic
 
 Connected pentagon and hexagon tiles form the dual of a subdivided icosahedron. The sphere rotates in true 3-D before perspective projection, over a faint shaded body. Each segment independently rises, tilts around an edge and sinks into the surface; shaded side walls and moving neon colour waves reveal the depth.
 
-- Audio: smoothed mids accelerate rotation and travelling displacement waves; bass lifts selected segments and faster treble accents brighten edges. Segment heights are bounded and eased over elapsed time.
+- Audio: smoothed mids accelerate rotation and travelling displacement waves. Bass hits quickly lift and hinge selected segments and brighten their faces; sustained bass keeps a slower swell beneath the pulse. Treble adds stronger edge accents. Segment heights remain bounded and ease back after hits; the assembled mesh fits the viewport even under sustained loud input.
 - Visual notes: topology is cached and adjacent cells share their edges. Back faces are hidden and polygons crossing the perspective horizon are clipped before drawing.
 
 ## 26. LiquidLight
@@ -331,14 +333,33 @@ A connected magnetic liquid surface supports a triangular lattice of sharp peaks
 - Visual notes: CPU and optional fullscreen GL paths use the same Gaussian liquid envelope, magnetic peak lattice and lighting model, with no beat inversion.
 
 
-## 31. Spectrum
+## 31. ChromaWeave
+
+An eightfold kaleidoscope of woven iridescent ribbons and nested petals. Three
+warped interference layers slide through one another around a dark central
+rosette, with hue travelling along radius and field phase. Violet and magenta
+bodies meet cyan, green and gold seams; small sparkles accent crossings.
+
+- Audio: fast bass pulses open and brighten the weave; slower bass swells add
+  weight. Mids change interference travel; treble lights fine cyan glints.
+  Separate motion/light envelopes bound loud input and let accents release.
+- Silence: gentle rotation and phase drift continue without requiring music.
+- Rendering: full-frame GL shader. The row-tiled NumPy fallback uses at most
+  640x360-equivalent samples, preserves aspect ratio, and smoothly scales to
+  the output; the shared quality governor can reduce this further. GPU/Android
+  preserve full output detail. TV strengthens light accents.
+- Selection: `--mode 30`, or `←` / `→`. This insertion leaves prior visual modes
+  in place, and moves Spectrum/Waterfall to zero-based indices 31/32. Reselect
+  and re-save numeric presets targeting those two diagnostic modes.
+
+## 32. Spectrum
 
 Classic analyser bars are spaced logarithmically, with peak markers and a waveform line layered over the centre of the screen.
 
 - Audio: log-spaced FFT bands control bar height; beat drives bar smoothing decay; MID_ENERGY shifts base hue; TREBLE_ENERGY modulates waveform overlay line thickness and vertical amplitude.
 - Visual notes: this is the plainest diagnostic mode and is useful for checking input levels quickly.
 
-## 32. Waterfall
+## 33. Waterfall
 
 A scrolling spectrogram stores recent history as rows, with hue encoding frequency and brightness encoding energy.
 
@@ -352,7 +373,7 @@ A scrolling spectrogram stores recent history as rows, with hue encoding frequen
 | Key | Action |
 |-----|--------|
 | `1` – `9` | Jump directly to modes 1–9 |
-| `←` / `→` | Previous / next mode across all 32 modes |
+| `←` / `→` | Previous / next mode across all 33 modes |
 | `Space` or mouse click | Next mode |
 | `↑` / `↓` | Adjust intensity for the current mode (`0.0 .. 2.0`), or adjust FlowField particles by 2,000 |
 | `Tab` | Open the settings pane |

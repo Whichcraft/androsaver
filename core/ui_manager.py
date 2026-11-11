@@ -1,11 +1,31 @@
 from __future__ import annotations
+from dataclasses import dataclass
+
 import pygame
-import config
+
+@dataclass(frozen=True)
+class HUDState:
+    version: str
+    fps: float
+    use_gl: bool
+    profile: str
+    mode_idx: int
+    name: str
+    gain: float
+    bg_name: str | None
+    level: int
+    bpm: float
+    genre: str
+    using_tap: bool
+    auto_gain: bool
+    device_name: str
+    preset_name: str | None
+
 
 class UIManager:
-    def __init__(self):
+    def __init__(self, width=1280):
         self._last_width = 0
-        self.recalculate_fonts()
+        self.recalculate_fonts(width)
         self.pane_open = False
         self.pane_sel = 0
         self.picking = False
@@ -17,22 +37,22 @@ class UIManager:
         self._flash_surf: pygame.Surface | None = None
         self._hud_bg: pygame.Surface | None = None
 
-    def recalculate_fonts(self):
-        self._last_width = config.WIDTH
-        fs = max(20, min(48, int(config.WIDTH / 80)))
-        fs_s = max(16, min(36, int(config.WIDTH / 100)))
+    def recalculate_fonts(self, width):
+        self._last_width = width
+        fs = max(20, min(48, int(width / 80)))
+        fs_s = max(16, min(36, int(width / 100)))
         
         families = ["monospace", "Courier New", "DejaVu Sans Mono", "Liberation Mono", "Consolas"]
         self.font = pygame.font.SysFont(families, fs)
         self.font_s = pygame.font.SysFont(families, fs_s)
-        self.font_big = pygame.font.SysFont(families, max(72, int(config.WIDTH / 25)), bold=True)
+        self.font_big = pygame.font.SysFont(families, max(72, int(width / 25)), bold=True)
 
-    def _check_resize(self):
-        if config.WIDTH != self._last_width:
-            self.recalculate_fonts()
+    def _check_resize(self, target):
+        if target.get_width() != self._last_width:
+            self.recalculate_fonts(target.get_width())
 
     def draw_device_picker(self, target: pygame.Surface, devices: list[tuple[int, str]], active_idx: int | None) -> None:
-        self._check_resize()
+        self._check_resize(target)
         if self._picker_overlay is None or self._picker_overlay.get_size() != target.get_size():
             self._picker_overlay = pygame.Surface(target.get_size(), pygame.SRCALPHA)
             self._picker_overlay.fill((0, 0, 0, 210))
@@ -69,7 +89,7 @@ class UIManager:
             target.blit(self.font.render(label, True, color), (40, y))
 
     def draw_pane(self, target: pygame.Surface, effect_gain: float, bg_alpha: int, cf_frames: float) -> None:
-        self._check_resize()
+        self._check_resize(target)
         panel_w, panel_h = 240, 160
         px = target.get_width() - panel_w - 12
         py = 50
@@ -101,7 +121,7 @@ class UIManager:
                 pygame.draw.rect(target, color, (px + 10, y + 16, bar_w, 6))
 
     def draw_multiband_bars(self, target: pygame.Surface, beat_val: float, mid_val: float, treble_val: float) -> None:
-        self._check_resize()
+        self._check_resize(target)
         bar_w = 8
         bar_max = 120
         gap = 3
@@ -129,6 +149,43 @@ class UIManager:
                 pygame.draw.rect(self._bar_surf, color, (x, pad_y + bar_max - h, bar_w, h))
         target.blit(self._bar_surf, (6, target.get_height() - surf_h - 6))
 
+    def draw_hud(self, target: pygame.Surface, data: HUDState) -> None:
+        """Render supplied status only; never query devices or app state."""
+        self._check_resize(target)
+        fps = data.fps
+        gl_tag = " | GL" if data.use_gl else ""
+        gl_tag += f" | {data.profile}"
+        title = f"psysuals v{data.version}  [{fps:.0f} fps{gl_tag}]"
+
+        # Build text lines
+        lines = []
+        lines.append(self.font.render(title, True, (220, 220, 220)))
+
+        mode_text = f"Mode {data.mode_idx+1}: {data.name} ({data.gain:.1f})"
+        if data.bg_name is not None:
+            mode_text += f" + BG: {data.bg_name}"
+        lines.append(self.font.render(mode_text, True, (200, 200, 100)))
+
+        if data.level > 1:
+            info = f"BPM: {data.bpm:.1f} ({data.genre})"
+            if data.using_tap: info += " [TAP]"
+            if data.auto_gain: info += " [AUTO]"
+            lines.append(self.font_s.render(info, True, (160, 160, 160)))
+            lines.append(self.font_s.render(f"Input: {data.device_name}", True, (130, 130, 130)))
+
+            if data.preset_name is not None:
+                pname = data.preset_name
+                lines.append(self.font_s.render(f"Preset: {pname}", True, (100, 200, 255)))
+
+        self.draw_hud_background(target, lines)
+
+        # Render text lines onto target
+        y = 10
+        spacing = 3
+        for line in lines:
+            target.blit(line, (12, y))
+            y += line.get_height() + spacing
+
     def draw_hud_background(self, target: pygame.Surface, lines: list[pygame.Surface]) -> None:
         """Draw semi-transparent panel behind HUD text."""
         if not lines:
@@ -143,7 +200,7 @@ class UIManager:
         target.blit(self._hud_bg, (4, 4))
 
     def draw_tap_flash(self, target: pygame.Surface, tap_bpm: float, alpha: int) -> None:
-        self._check_resize()
+        self._check_resize(target)
         if self._flash_surf is None or self._flash_surf.get_size() != target.get_size():
             self._flash_surf = pygame.Surface(target.get_size(), pygame.SRCALPHA)
             

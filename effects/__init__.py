@@ -28,6 +28,7 @@ from .cymatica import Cymatica
 from .phason import Phason
 from .tesseract import Tesseract
 from .ferrofluid import Ferrofluid
+from .chromaweave import ChromaWeave
 from .spectrum           import Bars
 from .waterfall   import GlowSquares
 
@@ -62,6 +63,7 @@ MODES = [
     ("Phason",       Phason),         # ←/→ only
     ("Tesseract",    Tesseract),      # ←/→ only
     ("Ferrofluid",   Ferrofluid),     # ←/→ only
+    ("ChromaWeave",  ChromaWeave),    # ←/→ only
     # ── Spectrum and Waterfall must always be the final two entries ──
     ("Spectrum",    Bars),        # ←/→ only — always second-to-last
     ("Waterfall",   GlowSquares), # ←/→ only — always last
