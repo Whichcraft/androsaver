@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pygame
 
-import config
+from tests.render_host import RenderHost
 from effects import MODES
 
 
@@ -27,16 +27,20 @@ BASELINE = {
     "LiquidLight": (19200, 172183), "Cymatica": (10988, 229039),
     "Phason": (17096, 449507), "Tesseract": (921, 43391),
     "Ferrofluid": (19200, 110168),
+    "ChromaWeave": (19200, 428073),
     "Spectrum": (3299, 210051), "Waterfall": (2592, 57384),
 }
 
-_WAVEFORM = np.sin(np.linspace(0, np.pi * 8, config.BLOCK_SIZE)).astype(np.float32)
-_FFT = np.linspace(0.0, 1.0, config.BLOCK_SIZE // 2, dtype=np.float32)
+_WAVEFORM = np.sin(np.linspace(0, np.pi * 8, 1024)).astype(np.float32)
+_FFT = np.linspace(0.0, 1.0, 1024 // 2, dtype=np.float32)
 _BEATS = (0.0, 1.2, 0.0, 2.0, 0.0, 1.2, 0.0, 0.0)
 _WARMUP_FRAMES = {"Butterflies": 24}
 
 
 class VisualRegressionTests(unittest.TestCase):
+    def setUp(self):
+        self.host = RenderHost()
+
     @classmethod
     def setUpClass(cls):
         pygame.init()
@@ -47,16 +51,16 @@ class VisualRegressionTests(unittest.TestCase):
         pygame.quit()
 
     def test_all_registered_effects_match_compact_fixture_metrics(self):
-        old = (config.WIDTH, config.HEIGHT, config._INITIALIZED,
-               config.MID_ENERGY, config.TREBLE_ENERGY)
-        config.WIDTH, config.HEIGHT = 160, 120
-        config._INITIALIZED = True
-        config.MID_ENERGY, config.TREBLE_ENERGY = 0.4, 0.6
+        old = (self.host.width, self.host.height, self.host.initialized,
+               self.host.mid, self.host.treble)
+        self.host.width, self.host.height = 160, 120
+        self.host.initialized = True
+        self.host.mid, self.host.treble = 0.4, 0.6
         try:
             self.assertEqual({name for name, _ in MODES}, set(BASELINE))
             for name, effect_cls in MODES:
                 surface = pygame.Surface((160, 120))
-                effect = effect_cls()
+                effect = self.host.create(effect_cls)
                 try:
                     warmup = _WARMUP_FRAMES.get(name, 0)
                     for tick in range(warmup):
@@ -78,8 +82,8 @@ class VisualRegressionTests(unittest.TestCase):
                     if callable(release):
                         release()
         finally:
-            (config.WIDTH, config.HEIGHT, config._INITIALIZED,
-             config.MID_ENERGY, config.TREBLE_ENERGY) = old
+            (self.host.width, self.host.height, self.host.initialized,
+             self.host.mid, self.host.treble) = old
 
 
 if __name__ == "__main__":

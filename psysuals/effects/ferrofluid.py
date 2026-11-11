@@ -5,7 +5,6 @@ import numpy as np
 import pygame
 import pygame.surfarray as surfarray
 
-import config
 from .base import Effect
 from .gl_field import FullscreenField
 
@@ -69,7 +68,7 @@ class Ferrofluid(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._W = self._H = 1
         self._x = self._y = None
         self._field = None
@@ -92,13 +91,14 @@ class Ferrofluid(Effect):
         self._field = np.zeros((H, W), dtype=np.float32)
         self._field_dx = np.zeros_like(self._field)
         self._field_dy = np.zeros_like(self._field)
+        self._mask = np.empty_like(self._field)
         if self._poles is None:
             self._poles = self._rng.uniform(-0.65, 0.65, (self.MAX_POLES, 2)).astype(np.float32)
         self._surface = pygame.Surface((W, H))
-        self._scaled = pygame.Surface((max(1, config.WIDTH), max(1, config.HEIGHT)))
+        self._scaled = pygame.Surface((max(1, self.frame.width), max(1, self.frame.height)))
 
-    def _render(self, surf, high):
-        nx, ny = -self._field_dx, -self._field_dy
+    def _cpu_colours(self, region, high):
+        nx, ny = -self._field_dx[region], -self._field_dy[region]
         nz = 1.0 / np.sqrt(nx * nx + ny * ny + 1.0)
         nx, ny = nx * nz, ny * nz
         light = np.array([-0.5, -0.7, 1.0], dtype=np.float32)
@@ -106,16 +106,22 @@ class Ferrofluid(Effect):
         diffuse = np.maximum(nx * light[0] + ny * light[1] + nz * light[2], 0.0)
         spec = np.maximum(2 * diffuse * nz - light[2], 0.0) ** 40
         rim = (1 - nz) ** 3
-        hue = self._hue + self._field * 0.08
+        hue = self._hue + self._field[region] * 0.08
         tint = np.stack([0.5 + 0.5 * np.cos(math.tau * (hue + offset))
                          for offset in (0, 0.3333, 0.6667)], axis=-1)
-        colors = (np.array([0.008, 0.01, 0.018]) + self._mask[..., None] *
+        colors = (np.array([0.008, 0.01, 0.018]) + self._mask[region][..., None] *
                   (tint * (0.035 + diffuse * 0.18 + rim * 0.4)[..., None] +
                    spec[..., None] * (0.8 + high * 0.08)))
         colors = (np.clip(colors, 0, 1) * 255).astype(np.uint8)
+        return colors
+
+    def _render(self, surf, high):
         pixels = surfarray.pixels3d(self._surface)
         try:
-            pixels[:] = colors.transpose(1, 0, 2)
+            for first in range(0, self._H, 64):
+                last = min(first+64, self._H)
+                colors = self._cpu_colours(np.s_[first:last], high)
+                pixels[:, first:last] = colors.transpose(1, 0, 2)
         finally:
             del pixels
         if self._surface.get_size() != surf.get_size():
@@ -126,7 +132,7 @@ class Ferrofluid(Effect):
         else:
             surf.blit(self._surface, (0, 0), special_flags=pygame.BLEND_RGB_MAX)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, _ = self._render_size()
         if (W, H) != (self._W, self._H):
             self._reset_state()
@@ -138,23 +144,31 @@ class Ferrofluid(Effect):
         cos_a, sin_a = math.cos(angle), math.sin(angle)
         px = self._poles[:, 0] * cos_a - self._poles[:, 1] * sin_a
         py = self._poles[:, 0] * sin_a + self._poles[:, 1] * cos_a
-        self._field.fill(0)
-        self._field_dx.fill(0)
-        self._field_dy.fill(0)
+        for first in range(0, self._H, 64):
+            self._compute_cpu_rows(np.s_[first:min(first+64, self._H)], bass, px, py)
+        self._render(surf, high)
+
+    def _compute_cpu_rows(self, region, bass, px, py):
+        grid_x, grid_y = self._x[region], self._y[region]
+        field = self._field[region]
+        dx_field, dy_field = self._field_dx[region], self._field_dy[region]
+        field.fill(0)
+        dx_field.fill(0)
+        dy_field.fill(0)
         width = 0.12 + bass * 0.018
         for x, y in zip(px, py):
-            dx, dy = self._x - x, self._y - y
+            dx, dy = grid_x - x, grid_y - y
             peak = np.exp(-(dx * dx + dy * dy) / width)
-            self._field += peak
-            self._field_dx += -2 * dx / width * peak
-            self._field_dy += -2 * dy / width * peak
-        pool = self._field.copy()
+            field += peak
+            dx_field += -2 * dx / width * peak
+            dy_field += -2 * dy / width * peak
+        pool = field.copy()
         exp_pool = np.exp(-pool * 1.4)
         envelope = 1.0 - exp_pool
-        ex = 1.4 * exp_pool * self._field_dx
-        ey = 1.4 * exp_pool * self._field_dy
+        ex = 1.4 * exp_pool * dx_field
+        ey = 1.4 * exp_pool * dy_field
         ca, sa = math.cos(self._time * .12), math.sin(self._time * .12)
-        x, y = ca * self._x - sa * self._y, sa * self._x + ca * self._y
+        x, y = ca * grid_x - sa * grid_y, sa * grid_x + ca * grid_y
         k = 20.0
         a, b, c = k*x, k*(.5*x + .8660254*y), k*(.5*x - .8660254*y)
         lattice = (np.cos(a) + np.cos(b) + np.cos(c)) / 3
@@ -163,12 +177,11 @@ class Ferrofluid(Effect):
         gx, gy = ca*gx + sa*gy, -sa*gx + ca*gy
         peak = np.exp((lattice - 1) * 8)
         amplitude = .18 + bass * .04
-        self._field_dx[:] = self._field_dx*.15 + amplitude*(ex*peak + envelope*peak*8*gx)
-        self._field_dy[:] = self._field_dy*.15 + amplitude*(ey*peak + envelope*peak*8*gy)
-        self._field[:] = pool*.15 + amplitude*envelope*peak
+        dx_field[:] = dx_field*.15 + amplitude*(ex*peak + envelope*peak*8*gx)
+        dy_field[:] = dy_field*.15 + amplitude*(ey*peak + envelope*peak*8*gy)
+        field[:] = pool*.15 + amplitude*envelope*peak
         mask = np.clip((pool - .06) / .34, 0, 1)
-        self._mask = mask*mask*(3 - 2*mask)
-        self._render(surf, high)
+        self._mask[region] = mask*mask*(3 - 2*mask)
 
     def _advance_state(self, beat):
         self._audio, light = self._audio_response(beat)
@@ -190,17 +203,12 @@ class Ferrofluid(Effect):
             result[f"u_p{index}"] = (float(x*c-y*s), float(x*s+y*c))
         return result
 
-    def draw_frame(self, width, height, waveform, fft, beat, tick, renderer=None):
+    def _draw_frame(self, width, height, waveform, fft, beat, tick, renderer=None):
         renderer = renderer or self.renderer
         if not self._gl_field.available(renderer):
-            return super().draw_frame(width, height, waveform, fft, beat, tick, renderer)
-        old_size = (config.WIDTH, config.HEIGHT)
-        config.WIDTH, config.HEIGHT = int(width), int(height)
-        try:
-            bass, mid, high = self._advance_state(beat)
-            return self._gl_field.draw_frame(renderer, int(width), int(height), self._gl_uniforms((width, height), bass, high, tick))
-        finally:
-            config.WIDTH, config.HEIGHT = old_size
+            return super()._draw_frame(width, height, waveform, fft, beat, tick, renderer)
+        bass, mid, high = self._advance_state(beat)
+        return self._gl_field.draw_frame(renderer, int(width), int(height), self._gl_uniforms((width, height), bass, high, tick))
 
     def get_motion_field(self):
         return self._field_dx, self._field_dy

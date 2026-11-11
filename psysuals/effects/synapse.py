@@ -14,7 +14,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .base import Effect
 from .utils import hsl
 
@@ -31,12 +30,12 @@ class Synapse(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._hue = self._rng.random()
 
         self.n_nodes = _N_NODES
         self.max_signals = _MAX_SIGNALS
-        if getattr(config, "LOW_SPEC", False):
+        if self.options.low_spec:
             self.n_nodes = max(20, self.n_nodes // 2)
             self.max_signals = max(50, self.max_signals // 2)
 
@@ -92,8 +91,8 @@ class Synapse(Effect):
 
     def _mutate_topology(self, W, H, add):
         """Add or remove one live connection point and rewire the graph."""
-        low = max(20, _MIN_NODES // 2) if getattr(config, "LOW_SPEC", False) else _MIN_NODES
-        high = max(low + 1, _MAX_NODES // 2) if getattr(config, "LOW_SPEC", False) else _MAX_NODES
+        low = max(20, _MIN_NODES // 2) if self.options.low_spec else _MIN_NODES
+        high = max(low + 1, _MAX_NODES // 2) if self.options.low_spec else _MAX_NODES
         if add and self.n_nodes < high:
             mature = [i for i, visibility in enumerate(self._visibility) if visibility >= 0.9]
             candidates = mature or list(range(self.n_nodes))
@@ -185,7 +184,7 @@ class Synapse(Effect):
 
     # ------------------------------------------------------------------
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         self._ensure_nodes(W, H)
         step = self._frame_step()

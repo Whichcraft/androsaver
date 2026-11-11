@@ -21,6 +21,7 @@ _DEFAULTS = {
     "cf_frames": 45,
     "effect_gain": 0.7,
     "visual_profile": "auto",
+    "postfx_mode": 0,
 }
 
 
@@ -43,6 +44,7 @@ def _normalise(data: object) -> dict:
         "mode_idx": (0, 10_000), "display_idx": (0, 10_000),
         "hud_level": (0, 2), "bg_mode_i": (0, 10_000),
         "bg_alpha": (0, 255), "cf_frames": (0, 300),
+        "postfx_mode": (0, 4),
     }
     for key, (low, high) in int_ranges.items():
         value = result[key]

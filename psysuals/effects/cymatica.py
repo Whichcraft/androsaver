@@ -5,7 +5,6 @@ import numpy as np
 import pygame
 import pygame.surfarray as surfarray
 
-import config
 from .base import Effect
 
 
@@ -21,11 +20,12 @@ class Cymatica(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._W = self._H = 1
         self._x = self._y = None
         self._field = None
         self._mode_a = self._mode_b = None
+        self._mode_cache = {}
         self._px = self._py = None
         self._surface = pygame.Surface((1, 1))
         self._scaled = pygame.Surface((1, 1))
@@ -45,8 +45,11 @@ class Cymatica(Effect):
         self._field = np.zeros((H, W), dtype=np.float32)
         self._mode_a = np.zeros_like(self._field)
         self._mode_b = np.zeros_like(self._field)
+        # The six spatial basis fields depend only on this grid, not the audio.
+        self._mode_cache = {mode: np.cos(math.pi*mode[0]*self._x) *
+                            np.cos(math.pi*mode[1]*self._y) for mode in self._MODES}
         self._surface = pygame.Surface((W, H))
-        self._scaled = pygame.Surface((max(1, config.WIDTH), max(1, config.HEIGHT)))
+        self._scaled = pygame.Surface((max(1, self.frame.width), max(1, self.frame.height)))
         self._px = self._rng.uniform(-1.0, 1.0, self.MAX_PARTICLES).astype(np.float32)
         self._py = self._rng.uniform(-1.0, 1.0, self.MAX_PARTICLES).astype(np.float32)
         self._hue = float(self._rng.random())
@@ -54,7 +57,9 @@ class Cymatica(Effect):
 
     def _mode_field(self, mode, out):
         m, n = mode
-        out[:] = np.cos(math.pi * m * self._x) * np.cos(math.pi * n * self._y)
+        cached = self._mode_cache.get(mode)
+        out[:] = (cached if cached is not None else
+                  np.cos(math.pi * m * self._x) * np.cos(math.pi * n * self._y))
 
     def _update_particles(self, mix, bass, high):
         # Descend the actual plate amplitude, independent of pixel resolution.
@@ -63,9 +68,10 @@ class Cymatica(Effect):
         gy = np.zeros_like(field)
         for weight, (m, n) in zip(self._mode_weights, self._MODES):
             x, y = math.pi * m * self._px, math.pi * n * self._py
-            field += weight * np.cos(x) * np.cos(y)
-            gx -= weight * math.pi * m * np.sin(x) * np.cos(y)
-            gy -= weight * math.pi * n * np.cos(x) * np.sin(y)
+            cx, cy, sx, sy = np.cos(x), np.cos(y), np.sin(x), np.sin(y)
+            field += weight * cx * cy
+            gx -= weight * math.pi * m * sx * cy
+            gy -= weight * math.pi * n * cx * sy
         self._px -= np.clip(field * gx * 0.0008 * self._frame_step(), -0.002 * self._frame_step(), 0.002 * self._frame_step())
         self._py -= np.clip(field * gy * 0.0008 * self._frame_step(), -0.002 * self._frame_step(), 0.002 * self._frame_step())
         np.clip(self._px, -0.995, 0.995, out=self._px)
@@ -96,7 +102,7 @@ class Cymatica(Effect):
                 (int((x + 1.0) * surf.get_width() * 0.5),
                  int((y + 1.0) * surf.get_height() * 0.5)), 1)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, _ = self._render_size()
         if (W, H) != (self._W, self._H):
             self._reset_state()
@@ -123,4 +129,5 @@ class Cymatica(Effect):
         self._scaled = None
         self._x = self._y = self._field = None
         self._mode_a = self._mode_b = None
+        self._mode_cache = {}
         self._px = self._py = None

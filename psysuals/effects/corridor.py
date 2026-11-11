@@ -3,7 +3,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl
 
 
@@ -36,7 +35,7 @@ class Corridor(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng  = np.random.default_rng(config.RNG_SEED)
+        self._rng  = self.rng
         self.hue    = 0.0
         self.time   = 0.0
         spacing     = (self.Z_FAR - self.Z_NEAR) / self.N_FRAMES
@@ -67,15 +66,15 @@ class Corridor(Effect):
         self._sfade.set_alpha(self._SPARK_FADE)
         self._sfade.fill((0, 0, 0))
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         if self.corridor_surf is None or self.corridor_surf.get_size() != (W, H):
             self._init_surfs(W, H)
 
         self.hue  += 0.005
         bass       = beat
-        mid        = config.MID_ENERGY
-        high       = config.TREBLE_ENERGY
+        mid        = self.frame.mid
+        high       = self.frame.treble
         motion     = self._display_motion_scale()
         bass_m     = bass * motion
         mid_m      = mid * motion

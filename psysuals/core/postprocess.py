@@ -18,6 +18,7 @@ class PostProcessChain:
         self._source = None
         self._result = None
         self._fbo = None
+        self._fbo_renderer = None
 
     def _ensure(self, size):
         if self._scratch is not None and self._scratch.get_size() == size:
@@ -26,6 +27,7 @@ class PostProcessChain:
         self._source = np.empty((size[0], size[1], 3), dtype=np.uint8)
         self._result = np.empty_like(self._source)
         self._fbo = None
+        self._fbo_renderer = None
 
     def _cpu_chromatic(self, surface, amount):
         self._source[:] = surfarray.array3d(surface)
@@ -71,8 +73,12 @@ class PostProcessChain:
         elif mode == 3:
             if self.renderer is not None:
                 width, height = surface.get_size()
-                if self._fbo is None or self._fbo.width != width or self._fbo.height != height:
+                current = getattr(self.renderer, "is_offscreen_current", lambda *_: True)
+                if (self._fbo is None or self._fbo_renderer is not self.renderer
+                        or self._fbo.width != width or self._fbo.height != height
+                        or not current(self._fbo, width, height)):
                     self._fbo = self.renderer.offscreen(width, height)
+                    self._fbo_renderer = self.renderer
                 self.renderer.feedback_transform(surface, self._fbo, 1.0 + intensity * 0.04, math.sin(tick * 0.02) * intensity * 0.08)
                 pixels = self.renderer.read_pixels(self._fbo)
                 surfarray.blit_array(surface, pixels[:, :, :3].transpose(1, 0, 2))
@@ -86,3 +92,4 @@ class PostProcessChain:
         self._source = None
         self._result = None
         self._fbo = None
+        self._fbo_renderer = None

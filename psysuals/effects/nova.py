@@ -3,7 +3,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl
 
 
@@ -29,12 +28,12 @@ class Nova(Effect):
         self.poff  = [0.0] * self.N_LAYERS
         self.pvel  = [0.0] * self.N_LAYERS
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         self.hue  += 0.007
         W, H = surf.get_size()
         bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        mid  = self.frame.mid
+        high = self.frame.treble
         
         self.time += 0.018 + bass * 0.025 + mid * 0.015
         

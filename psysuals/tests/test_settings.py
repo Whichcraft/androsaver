@@ -41,6 +41,21 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(loaded["effect_gain"], 2.0)
         self.assertTrue(loaded["show_hud"])
 
+    def test_postfx_mode_is_normalized_when_loading_files(self):
+        cases = [({}, 0)] + [
+            ({"postfx_mode": value}, expected)
+            for value, expected in (
+                (None, 0), (True, 0), (False, 0), ("2", 0), (2.5, 0),
+                (-1, 0), (99, 4), *((i, i) for i in range(5)),
+            )
+        ]
+        for data, expected in cases:
+            with self.subTest(data=data):
+                settings.save({**data, "future_setting": "preserved"})
+                loaded = settings.load()
+                self.assertEqual(loaded["postfx_mode"], expected)
+                self.assertEqual(loaded["future_setting"], "preserved")
+
     def test_load_handles_non_object_json(self):
         with open(settings._SETTINGS_FILE, "w") as fh:
             json.dump(["wrong", "root", "type"], fh)

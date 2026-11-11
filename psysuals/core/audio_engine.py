@@ -3,8 +3,9 @@ import sys
 import threading
 import importlib
 from collections import deque
+from dataclasses import dataclass
 import numpy as np
-import config
+from core.context import AudioConfig
 from beat_tracking import LibrosaBeatTracker
 
 sd = None
@@ -35,10 +36,27 @@ def _get_sounddevice():
             thread.start()
     return sd
 
+@dataclass(frozen=True)
+class AudioSnapshot:
+    """One callback publication; array copies are owned by the reader."""
+
+    waveform: np.ndarray
+    fft: np.ndarray
+    raw_beat: float
+    mid_energy: float
+    treble_energy: float
+    bpm: float
+    audio_time: float
+    generation: int
+    envelopes: tuple[float, float, float]
+    onset_time: float
+
+
 class AudioEngine:
-    def __init__(self):
+    def __init__(self, audio_config: AudioConfig | None = None):
+        self.audio_config = audio_config or AudioConfig()
         self._lock = threading.RLock()
-        self._waveform = np.zeros(config.BLOCK_SIZE, dtype=np.float32)
+        self._waveform = np.zeros(self.audio_config.block_size, dtype=np.float32)
         self._smooth_fft = None
         self._raw_beat_energy = 0.0
         self._mid_energy = 0.0
@@ -50,9 +68,9 @@ class AudioEngine:
         self._envelope_time = 0.0
         self._audio_time = 0.0
         self._audio_generation = 0
-        self._blackman_window = np.blackman(config.BLOCK_SIZE).astype(np.float32)
+        self._blackman_window = np.blackman(self.audio_config.block_size).astype(np.float32)
 
-        self._prev_spectrum = np.zeros(config.BLOCK_SIZE // 2, dtype=np.float32)
+        self._prev_spectrum = np.zeros(self.audio_config.block_size // 2, dtype=np.float32)
         self._flux_avg = 0.01
         self._mid_avg = 0.1
         self._treble_avg = 0.1
@@ -63,15 +81,15 @@ class AudioEngine:
         self._last_onset_time = 0.0
         self._bpm = 0.0
 
-        self._n_fft_bins = config.BLOCK_SIZE // 2
+        self._n_fft_bins = self.audio_config.block_size // 2
         self._genre_weights = np.ones(self._n_fft_bins, dtype=np.float32)
-        self._detect_accum = np.zeros(config.BLOCK_SIZE // 2, dtype=np.float32)
+        self._detect_accum = np.zeros(self.audio_config.block_size // 2, dtype=np.float32)
         self._detect_frames = 0
         self._DETECT_MIN = 300
 
         self.beat_tracker = LibrosaBeatTracker(
-            sample_rate=config.SAMPLE_RATE,
-            block_size=config.BLOCK_SIZE,
+            sample_rate=self.audio_config.sample_rate,
+            block_size=self.audio_config.block_size,
         )
         self.stream = None
         self.active_dev = None
@@ -93,10 +111,9 @@ class AudioEngine:
         start, end = self._band_bounds(arr.size, start_frac, end_frac)
         return float(arr[start:end].mean()) if end > start else 0.0
 
-    @staticmethod
-    def _follow_envelope(current, target, elapsed):
-        tau = (config.ENVELOPE_ATTACK_SECONDS
-               if target > current else config.ENVELOPE_RELEASE_SECONDS)
+    def _follow_envelope(self, current, target, elapsed):
+        tau = (self.audio_config.envelope_attack_seconds
+               if target > current else self.audio_config.envelope_release_seconds)
         coefficient = 1.0 - np.exp(-elapsed / max(tau, 1e-4))
         return float(current + coefficient * (target - current))
 
@@ -166,16 +183,16 @@ class AudioEngine:
             if adc_start is None:
                 block_end_time = float(time_info.currentTime)
             else:
-                block_end_time = float(adc_start) + float(captured_frames) / config.SAMPLE_RATE
-            tracker_block = captured[-config.BLOCK_SIZE:] if captured.size > config.BLOCK_SIZE else captured
+                block_end_time = float(adc_start) + float(captured_frames) / self.audio_config.sample_rate
+            tracker_block = captured[-self.audio_config.block_size:] if captured.size > self.audio_config.block_size else captured
             self.beat_tracker.push_audio(tracker_block, block_end_time)
 
-            mono = np.zeros(config.BLOCK_SIZE, dtype=np.float32)
-            analysis = captured[-config.BLOCK_SIZE:]
+            mono = np.zeros(self.audio_config.block_size, dtype=np.float32)
+            analysis = captured[-self.audio_config.block_size:]
             mono[:analysis.size] = analysis
 
             windowed = mono * self._blackman_window
-            spectrum = np.abs(np.fft.rfft(windowed))[: config.BLOCK_SIZE // 2]
+            spectrum = np.abs(np.fft.rfft(windowed))[: self.audio_config.block_size // 2]
             spectrum = spectrum.astype(np.float32, copy=False)
 
             np.log1p(spectrum, out=spectrum)
@@ -238,7 +255,7 @@ class AudioEngine:
                 self._bass_avg = self._bass_avg * 0.98 + bass * 0.02
                 elapsed = block_end_time - self._envelope_time
                 if not np.isfinite(elapsed) or elapsed <= 0.0:
-                    elapsed = config.BLOCK_SIZE / config.SAMPLE_RATE
+                    elapsed = self.audio_config.block_size / self.audio_config.sample_rate
                 elapsed = min(max(float(elapsed), 1e-4), 1.0)
                 self._envelope_time = block_end_time
                 self._bass_envelope = self._follow_envelope(
@@ -259,12 +276,29 @@ class AudioEngine:
         self.stop_input_stream()
         self.beat_tracker.release()
 
+    def get_snapshot(self) -> AudioSnapshot:
+        """Copy all render-facing analysis fields under one lock."""
+        with self._lock:
+            return AudioSnapshot(
+                waveform=self._waveform.copy(),
+                fft=(self._smooth_fft.copy() if self._smooth_fft is not None
+                     else np.zeros(self.audio_config.block_size // 2, dtype=np.float32)),
+                raw_beat=self._raw_beat_energy,
+                mid_energy=self._mid_energy,
+                treble_energy=self._treble_energy,
+                bpm=self._bpm,
+                audio_time=self._audio_time,
+                generation=self._audio_generation,
+                envelopes=(self._bass_envelope, self._mid_envelope, self._treble_envelope),
+                onset_time=self._last_onset_time,
+            )
+
     def get_audio(self):
         """Return a thread-safe copy of the current audio analysis state."""
         with self._lock:
             return (
                 self._waveform.copy(),
-                self._smooth_fft.copy() if self._smooth_fft is not None else np.zeros(config.BLOCK_SIZE // 2, dtype=np.float32),
+                self._smooth_fft.copy() if self._smooth_fft is not None else np.zeros(self.audio_config.block_size // 2, dtype=np.float32),
                 self._raw_beat_energy,
                 self._mid_energy,
                 self._treble_energy,
@@ -347,9 +381,9 @@ class AudioEngine:
         stream = None
         try:
             stream = sounddevice.InputStream(
-                samplerate=config.SAMPLE_RATE,
-                blocksize=config.BLOCK_SIZE,
-                channels=config.CHANNELS,
+                samplerate=self.audio_config.sample_rate,
+                blocksize=self.audio_config.block_size,
+                channels=self.audio_config.channels,
                 device=device_idx,
                 callback=self._audio_cb,
             )

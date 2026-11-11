@@ -6,7 +6,6 @@ import subprocess
 import re as _re
 from typing import TYPE_CHECKING
 import pygame
-import config
 
 if TYPE_CHECKING:
     from gl_renderer import GLRenderer
@@ -21,7 +20,8 @@ def _load_gl_renderer():
     return mod.GLRenderer, bool(getattr(mod, "HAS_MODERNGL", False))
 
 class DisplayManager:
-    def __init__(self, args):
+    def __init__(self, args, *, window_size=(1280, 720)):
+        self.width, self.height = window_size
         self.args = args
         self._x11_err_handler_ref = None
         self._libX11 = None
@@ -165,17 +165,17 @@ class DisplayManager:
                         self._libX11.XMoveWindow(dpy, win, mx, my)
                         self._libX11.XSync(dpy, 0)
                         self._xmove_target = (dpy, win, mx, my)
-                config.WIDTH = mw
-                config.HEIGHT = mh
+                self.width = mw
+                self.height = mh
             elif fullscreen:
                 self.screen = set_mode((0, 0), flags | pygame.FULLSCREEN)
-                config.WIDTH, config.HEIGHT = self.screen.get_size()
+                self.width, self.height = self.screen.get_size()
             else:
-                # Default window size if config was 0
-                w = config.WIDTH or 1280
-                h = config.HEIGHT or 720
+                # Retain the last explicit window size, with a startup fallback
+                w = getattr(self, "width", 1280) or 1280
+                h = getattr(self, "height", 720) or 720
                 self.screen = set_mode((w, h), flags)
-                config.WIDTH, config.HEIGHT = self.screen.get_size()
+                self.width, self.height = self.screen.get_size()
         except Exception as _dm_exc:
             print(f"  ⚠️ Display init failed: {_dm_exc}", file=sys.stderr)
             # Last resort fallback: plain CPU/windowed mode. Reusing OPENGL
@@ -183,14 +183,13 @@ class DisplayManager:
             self.args.gl = False
             self.renderer = None
             self.screen = pygame.display.set_mode((1280, 720), 0)
-            config.WIDTH, config.HEIGHT = 1280, 720
+            self.width, self.height = 1280, 720
         # SDL actual window size can differ from xrandr logical geometry.
-        config.WIDTH, config.HEIGHT = self.screen.get_size()
-        config._INITIALIZED = True
+        self.width, self.height = self.screen.get_size()
         
         if self.args.gl and self._has_moderngl and self._gl_renderer_cls is not None:
             try:
-                self.renderer = self._gl_renderer_cls(config.WIDTH, config.HEIGHT)
+                self.renderer = self._gl_renderer_cls(self.width, self.height)
             except Exception as e:
                 print(f"  ⚠️ ModernGL renderer initialization failed: {e}")
                 self.renderer = None
@@ -234,7 +233,7 @@ class DisplayManager:
             str(mode_i),
             "--span-child",
         ]
-        cmd.extend(["--visual-profile", config.VISUAL_PROFILE])
+        cmd.extend(["--visual-profile", getattr(self.args, "visual_profile", None) or "auto"])
         if getattr(self.args, "low_spec", False):
             cmd.append("--low-spec")
         if self.args.gl:

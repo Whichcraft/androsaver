@@ -1,10 +1,9 @@
 import math
-import random
+from collections import OrderedDict
 
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl
 
 
@@ -14,6 +13,7 @@ class Bubbles(Effect):
     """Translucent rising bubbles — fills the full screen; size and spawn rate driven by bass."""
 
     MAX = 700
+    MAX_CACHED_SURFACES = 32
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -21,28 +21,31 @@ class Bubbles(Effect):
         self.pulse      = 0.0
         self.pvel       = 0.0
         self._bass_flash = 0.0   # spikes on strong bass, inflates rendered bubble size
-        self.pool = [self._make(y=random.uniform(0, config.HEIGHT)) for _ in range(200)]
-        self._surf_cache: dict = {}
+        self.pool = [self._make(y=self._random.uniform(0, self.frame.height)) for _ in range(200)]
+        self._surf_cache = OrderedDict()
 
-    @staticmethod
-    def _make(y=None):
-        r = random.uniform(8, 45)
+    def _make(self, y=None):
+        r = self._random.uniform(8, 45)
         return {
-            "x":      random.uniform(config.WIDTH * 0.02, config.WIDTH * 0.98),
-            "y":      float(config.HEIGHT + r) if y is None else y,
+            "x":      self._random.uniform(self.frame.width * 0.02, self.frame.width * 0.98),
+            "y":      float(self.frame.height + r) if y is None else y,
             "r":      r,
-            "vx":     random.gauss(0, 0.4),
-            "vy":    -random.uniform(1.0, 3.2),
-            "hue":    random.uniform(0, 1.0),
-            "wobble": random.uniform(0.025, 0.07),
-            "phase":  random.uniform(0, math.tau),
+            "vx":     self._random.gauss(0, 0.4),
+            "vy":    -self._random.uniform(1.0, 3.2),
+            "hue":    self._random.uniform(0, 1.0),
+            "wobble": self._random.uniform(0.025, 0.07),
+            "phase":  self._random.uniform(0, math.tau),
         }
 
     def _get_bsurf(self, size):
         s = self._surf_cache.get(size)
         if s is None:
             s = pygame.Surface((size, size), pygame.SRCALPHA)
+            if len(self._surf_cache) >= self.MAX_CACHED_SURFACES:
+                self._surf_cache.popitem(last=False)
             self._surf_cache[size] = s
+        else:
+            self._surf_cache.move_to_end(size)
         s.fill((0, 0, 0, 0))
         return s
 
@@ -53,7 +56,7 @@ class Bubbles(Effect):
             b = self._make()
             b["vy"]  *= (1 + beat_sel * 0.8)
             b["r"]   *= (1 + bass * 1.2)
-            b["hue"]  = (self.hue + random.uniform(0, hue_spread)) % 1.0
+            b["hue"]  = (self.hue + self._random.uniform(0, hue_spread)) % 1.0
             self.pool.append(b)
 
         # Mega-bubbles on strong bass hits: 1-3 extra large luminous bubbles
@@ -63,10 +66,10 @@ class Bubbles(Effect):
                     b = self._make()
                     b["r"]  *= (2.2 + bass * 2.0)
                     b["vy"] *= 1.4
-                    b["hue"] = (self.hue + random.uniform(0, 0.5)) % 1.0
+                    b["hue"] = (self.hue + self._random.uniform(0, 0.5)) % 1.0
                     self.pool.append(b)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         self.hue += 0.005
         bass = float(np.mean(fft[:6]))
         mid  = float(np.mean(fft[6:30]))
@@ -91,7 +94,7 @@ class Bubbles(Effect):
             if b["y"] + b["r"] < 0:
                 continue
 
-            life  = max(0.0, min(1.0, b["y"] / config.HEIGHT))
+            life  = max(0.0, min(1.0, b["y"] / self.frame.height))
             r     = max(2, int(b["r"] * (1 + self.pulse * 0.90 + mid * 0.15 + self._bass_flash * 0.45)))
             pad   = r + 14
             alpha = int(life * 160)
@@ -130,3 +133,8 @@ class Bubbles(Effect):
             alive.append(b)
 
         self.pool = alive[-self.MAX:]
+
+    def release(self):
+        self._surf_cache.clear()
+        self.pool.clear()
+        super().release()

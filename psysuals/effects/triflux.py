@@ -3,7 +3,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl
 
 
@@ -32,7 +31,7 @@ class Attractor(Effect):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hue        = 0.0
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self.tiles      = []
         self.filled_ids = []
         self.active_ids = []
@@ -234,7 +233,7 @@ class Attractor(Effect):
         for i in finished:
             self.active_ids.remove(i)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W,H = surf.get_size()
         if not self._built or (W,H) != (self._W,self._H):
             self._resize_grid(W,H)

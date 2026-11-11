@@ -14,7 +14,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl
 from .base import Effect
 
@@ -42,11 +41,11 @@ class Aurora(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        W = config.WIDTH
+        W = self.frame.width
         self._hue       = 0.42          # start in cyan-green range
         self._bloom     = 0.0
         self._beat_prev = 0.0
-        self._tmp       = pygame.Surface((W, config.HEIGHT))
+        self._tmp       = pygame.Surface((W, self.frame.height))
         self._xs        = np.arange(0, W, _STEP, dtype=np.float32)
 
         k_unit = math.tau / W
@@ -56,7 +55,7 @@ class Aurora(Effect):
             self._phases.append([0.0] * len(harms))
             self._ks.append([k_unit * km for km, *_ in harms])
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         if self._tmp.get_size() != (W, H):
             self._tmp = pygame.Surface((W, H))
@@ -64,7 +63,7 @@ class Aurora(Effect):
             self._ks = [[math.tau / W * km for km, *_ in harms] for _, _, harms in self._DEFS]
         bass   = float(np.mean(fft[:6])) if len(fft) else 0.0
         mid    = float(np.mean(fft[6:30])) if len(fft) > 6 else 0.0
-        treble = config.TREBLE_ENERGY
+        treble = self.frame.treble
 
         self._hue = (self._hue + 0.003 + mid * 0.002) % 1.0
 

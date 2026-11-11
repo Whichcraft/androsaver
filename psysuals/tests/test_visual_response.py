@@ -8,7 +8,7 @@ from unittest import mock
 import numpy as np
 import pygame
 
-import config
+from tests.render_host import RenderHost
 from effects.base import Effect
 from effects.aurora import Aurora
 from effects.butterflies import Butterflies
@@ -45,21 +45,22 @@ class VisualResponseTests(unittest.TestCase):
         pygame.quit()
 
     def setUp(self):
-        keys = ('WIDTH', 'HEIGHT', '_INITIALIZED', 'FRAME_DT', 'VISUAL_PROFILE',
-                'MID_ENERGY', 'TREBLE_ENERGY', 'QUALITY_SCALE', 'LOW_SPEC', 'BPM')
-        self.saved = {key: getattr(config, key) for key in keys}
-        config.WIDTH, config.HEIGHT = 320, 240
-        config._INITIALIZED = True
-        config.FRAME_DT = 1 / 60
-        config.VISUAL_PROFILE = 'laptop'
-        config.MID_ENERGY, config.TREBLE_ENERGY = .4, .6
-        config.QUALITY_SCALE, config.LOW_SPEC, config.BPM = 1., False, 0.
+        self.host = RenderHost()
+        keys = ('width', 'height', 'initialized', 'dt', 'profile',
+                'mid', 'treble', 'quality_scale', 'low_spec', 'bpm')
+        self.saved = {key: getattr(self.host, key) for key in keys}
+        self.host.width, self.host.height = 320, 240
+        self.host.initialized = True
+        self.host.dt = 1 / 60
+        self.host.profile = 'laptop'
+        self.host.mid, self.host.treble = .4, .6
+        self.host.quality_scale, self.host.low_spec, self.host.bpm = 1., False, 0.
         self.surface = pygame.Surface((320, 240))
         self.waveform, self.fft = np.zeros(1024), np.zeros(512)
 
     def tearDown(self):
         for key, value in self.saved.items():
-            setattr(config, key, value)
+            setattr(self.host, key, value)
 
     def draw(self, effect, beat=0., tick=0, surface=None):
         effect.draw(surface if surface is not None else self.surface,
@@ -68,8 +69,8 @@ class VisualResponseTests(unittest.TestCase):
     def test_smoothing_has_equal_response_after_one_second(self):
         outcomes = []
         for fps in (30, 60, 120):
-            config.FRAME_DT = 1 / fps
-            effect = Effect()
+            self.host.dt = 1 / fps
+            effect = self.host.create(Effect)
             for _ in range(fps):
                 motion, light = effect._audio_response(1.)
             outcomes.append((motion.copy(), light.copy()))
@@ -82,8 +83,8 @@ class VisualResponseTests(unittest.TestCase):
         for cls, attribute in ((Tunnel, 'time'), (Mobius, '_ry'), (Ferrofluid, '_time')):
             values = []
             for fps in (30, 60, 120):
-                config.FRAME_DT = 1 / fps
-                effect = cls()
+                self.host.dt = 1 / fps
+                effect = self.host.create(cls)
                 for tick in range(fps):
                     self.draw(effect, .6, tick)
                 values.append(getattr(effect, attribute))
@@ -91,40 +92,45 @@ class VisualResponseTests(unittest.TestCase):
 
     def test_lissajous_trail_duration_is_independent_of_fps(self):
         for fps in (30, 60, 120):
-            config.FRAME_DT = 1 / fps
-            effect = Lissajous()
+            self.host.dt = 1 / fps
+            effect = self.host.create(Lissajous)
             for tick in range(fps):
                 self.draw(effect, tick=tick)
             self.assertEqual(len(effect.hist), 60)
 
     def test_stalls_and_invalid_time_cannot_explode_motion(self):
-        effect = Effect()
+        import types
+        effect = self.host.create(Effect)
         for dt in (float('nan'), float('inf'), -1., 20.):
-            config.FRAME_DT = dt
+            if not math.isfinite(dt) or dt < 0:
+                with self.assertRaisesRegex(ValueError, 'dt'):
+                    self.host.dt = dt
+            # The private helper also defends against a legacy/non-context caller.
+            effect.set_frame_context(types.SimpleNamespace(dt=dt))
             self.assertTrue(math.isfinite(effect._frame_step()))
             self.assertGreaterEqual(effect._frame_step(), 0.)
             self.assertLessEqual(effect._frame_step(), 6.)
 
     def test_profiles_work_at_same_4k_resolution_and_change_live(self):
-        config.WIDTH, config.HEIGHT = 3840, 2160
-        effect = Lattice()
+        self.host.width, self.host.height = 3840, 2160
+        effect = self.host.create(Lattice)
         self.assertEqual(len(effect._nodes), 22 * 14)
-        config.VISUAL_PROFILE = 'tv'
+        self.host.profile = 'tv'
         self.draw(effect)
         self.assertEqual(len(effect._nodes), 14 * 9)
-        config.VISUAL_PROFILE = 'laptop'
+        self.host.profile = 'laptop'
         self.draw(effect)
         self.assertEqual(len(effect._nodes), 22 * 14)
 
     def test_gl_canvas_matches_display_even_with_quality_reduction(self):
-        app = VisualizerApp.__new__(VisualizerApp)
-        app.args = types.SimpleNamespace(gl=True)
-        app.vis = Lattice()
+        app = self.host.app()
+        app.args = types.SimpleNamespace(gl=True, low_spec=False)
+        app.vis = self.host.create(Lattice)
         app._fade_surf = None
         app.fade_alpha = 48
         app.display = types.SimpleNamespace(screen=pygame.Surface((1280, 800)), target=None)
         for quality in (1., .5):
-            config.QUALITY_SCALE = quality
+            self.host.quality_scale = quality
             app._update_target_res()
             self.assertEqual(app.display.target.get_size(), (1280, 800))
             self.assertIsNot(app.display.target, app.display.screen)
@@ -158,12 +164,12 @@ class VisualResponseTests(unittest.TestCase):
         with mock.patch('core.display_manager.pygame.display.set_mode',
                         return_value=pygame.Surface((1280, 800))):
             manager.open_display(0, True)
-        self.assertEqual((config.WIDTH, config.HEIGHT), (1280, 800))
+        self.assertEqual((manager.width, manager.height), (1280, 800))
 
     def test_cube_projection_has_same_relative_size_on_laptop_and_tv(self):
         relative = []
         for size in ((1280, 720), (3840, 2160)):
-            effect = Cube()
+            effect = self.host.create(Cube)
             effect._canvas_size = size
             x, y = effect._project(np.array([1., 1., 0.]))
             relative.append(((x - size[0]/2)/size[1], (y - size[1]/2)/size[1]))
@@ -172,7 +178,7 @@ class VisualResponseTests(unittest.TestCase):
     def test_triflux_edges_have_partial_pixel_coverage(self):
         for width in (1, 5):
             surface = pygame.Surface((80, 80))
-            effect = Attractor()
+            effect = self.host.create(Attractor)
             effect._rainbow_edges(surface, [(10, 10), (67, 29), (20, 69)], width)
             pixels = pygame.surfarray.array3d(surface)
             # An AA edge has many coverage levels, rather than three flat edge colours.
@@ -180,7 +186,7 @@ class VisualResponseTests(unittest.TestCase):
             self.assertGreater(len(colors), 30)
 
     def test_triflux_resize_replaces_old_grid(self):
-        effect = Attractor()
+        effect = self.host.create(Attractor)
         self.draw(effect)
         first = len(effect.tiles)
         self.draw(effect, surface=pygame.Surface((640, 480)))
@@ -189,7 +195,7 @@ class VisualResponseTests(unittest.TestCase):
         self.assertTrue(all(i < len(effect.tiles) for i in effect.active_ids + effect.filled_ids))
 
     def test_synapse_fades_old_node_and_grows_near_parent(self):
-        effect = Synapse()
+        effect = self.host.create(Synapse)
         self.draw(effect)
         oldest = effect._anchors[0]
         initial = effect.n_nodes
@@ -208,7 +214,7 @@ class VisualResponseTests(unittest.TestCase):
             self.assertLess(np.linalg.norm(np.array(anchor) - origin), 240 * .12)
 
     def test_hyperbolic_tiles_share_edges_and_hide_back_faces(self):
-        effect = Hyperbolic()
+        effect = self.host.create(Hyperbolic)
         edges = Counter()
         for tile in effect._tiles:
             points = [tuple(np.round(p, 8)) for p in tile]
@@ -222,10 +228,10 @@ class VisualResponseTests(unittest.TestCase):
             self.assertGreaterEqual(tile[:, 2].min(), 1 / 3.2 - 1e-12)
 
     def test_ferrofluid_resize_preserves_poles_and_has_finite_spikes(self):
-        effect = Ferrofluid()
+        effect = self.host.create(Ferrofluid)
         poles = effect._poles.copy()
         self.draw(effect, 1.)
-        config.WIDTH, config.HEIGHT = 640, 360
+        self.host.width, self.host.height = 640, 360
         self.draw(effect, 1., surface=pygame.Surface((640, 360)))
         np.testing.assert_array_equal(poles, effect._poles)
         for field in (effect._field, effect._field_dx, effect._field_dy):
@@ -234,8 +240,8 @@ class VisualResponseTests(unittest.TestCase):
         self.assertLessEqual(effect._mask.max(), 1.)
 
     def _composition_app(self, effect):
-        app = VisualizerApp.__new__(VisualizerApp)
-        app.args = types.SimpleNamespace(gl=True)
+        app = self.host.app()
+        app.args = types.SimpleNamespace(gl=True, low_spec=False)
         app.vis = effect
         app.display = types.SimpleNamespace(screen=self.surface, target=pygame.Surface((320,240), pygame.SRCALPHA))
         app.current_genre = 'detecting...'
@@ -243,6 +249,9 @@ class VisualResponseTests(unittest.TestCase):
         app.fade_alpha = 48
         app.fade = app._make_fade(48)
         app.bg_on,app.prev_surf,app.postfx_mode = False,None,0
+        app.bg_vis, app.bg_alpha = None, 102
+        app.postfx = types.SimpleNamespace(release=lambda: None, renderer=None)
+        app.effect_gain, app.cf_frames = .7, 45
         app.waveform,app.fft,app.draw_beat,app.tick = self.waveform,self.fft,0.,0
         app._ui_surface = None
         app.tap_bpm,app.show_hud = 0.,False
@@ -251,7 +260,7 @@ class VisualResponseTests(unittest.TestCase):
 
     def test_reported_cpu_effects_remain_visible_on_gl_composition(self):
         for cls in (Butterflies,Fireworks,Aurora,LiquidLight,SlimeMold):
-            effect = cls()
+            effect = self.host.create(cls)
             app = self._composition_app(effect)
             for tick in range(30):
                 app.tick,app.draw_beat = tick, .9 if tick % 15 == 0 else .1
@@ -263,25 +272,25 @@ class VisualResponseTests(unittest.TestCase):
 
     def test_fireworks_does_not_readback_gpu_during_cpu_composition(self):
         renderer = mock.Mock()
-        effect = Fireworks(renderer=renderer)
+        effect = self.host.create(Fireworks, renderer=renderer)
         self.draw(effect,1.)
         renderer.offscreen.assert_not_called()
         renderer.feedback_transform.assert_not_called()
         renderer.read_pixels.assert_not_called()
 
     def test_display_change_preserves_grown_graph_instance_and_trails(self):
-        effect = Synapse()
+        effect = self.host.create(Synapse)
         self.draw(effect)
         effect._mutate_topology(320,240,True)
         app = self._composition_app(effect)
-        app.bg_vis,app.bg_mode_i,app.VisCls = Synapse(),0,Synapse
+        app.bg_vis,app.bg_mode_i,app.VisCls = self.host.create(Synapse),0,Synapse
         app.display.renderer = None
         app.display.target.fill((20,40,80,255))
         anchors = np.array(effect._anchors)
         count = effect.n_nodes
         app._release_for_display_change()
         self.assertIs(app.vis,effect)
-        config.WIDTH,config.HEIGHT = 640,480
+        self.host.width,self.host.height = 640,480
         app.display.screen = pygame.Surface((640,480))
         app._rebuild_effects(force=True)
         self.assertIs(app.vis,effect)
@@ -291,17 +300,18 @@ class VisualResponseTests(unittest.TestCase):
         self.assertEqual(app.display.target.get_at((100,100))[:3],(20,40,80))
 
     def test_field_resize_preserves_dye(self):
-        effect=LiquidLight()
+        effect=self.host.create(LiquidLight)
         effect._dye.fill(.35)
         expected=effect._dye.copy()
-        config.WIDTH,config.HEIGHT=640,480
+        self.host.width,self.host.height=640,480
+        self.surface = pygame.Surface((640,480))
         with mock.patch.object(effect,'_render'),mock.patch.object(effect,'_inject_vortex'),mock.patch.object(effect,'_advect'):
             self.draw(effect)
         self.assertGreater(float(effect._dye.mean()),.2)
         self.assertGreater(effect._dye.shape[0],expected.shape[0])
 
     def test_effect_change_drops_previous_frame_and_clears_gl_framebuffer(self):
-        app=self._composition_app(Butterflies())
+        app=self._composition_app(self.host.create(Butterflies))
         app.display.target.fill((255,100,50,255))
         app._ui_surface=app.display.target.copy()
         app._present_surface=app.display.target
@@ -321,10 +331,10 @@ class VisualResponseTests(unittest.TestCase):
         app.postfx.release.assert_called_once()
 
     def test_phason_geometry_is_slow_and_wave_count_does_not_jump(self):
-        effect=Phason()
+        effect=self.host.create(Phason)
         previous=None
         for tick in range(40):
-            config.MID_ENERGY = 0. if tick%2 else 4.
+            self.host.mid = 0. if tick%2 else 4.
             self.draw(effect,6. if tick%2 else 0.,tick)
             if previous is not None:
                 self.assertLess(float(np.abs(effect._field-previous).max()),.02)
@@ -333,7 +343,7 @@ class VisualResponseTests(unittest.TestCase):
         self.assertLess(effect._time,.3)
 
     def test_tunnel_limited_speed_and_no_audio_camera_wobble(self):
-        effect=Tunnel()
+        effect=self.host.create(Tunnel)
         self.assertEqual(effect._path(1.,0.),effect._path(1.,6.))
         for tick in range(100):
             before=effect.time
@@ -342,7 +352,7 @@ class VisualResponseTests(unittest.TestCase):
         self.assertEqual(len({ring['id'] for ring in effect.rings}),effect.N_RINGS)
 
     def test_persistence_audio_changes_direction_colour_and_speed(self):
-        quiet=Persistence(); reactive=Persistence()
+        quiet=self.host.create(Persistence); reactive=self.host.create(Persistence)
         initial=np.array(reactive._rot_y)
         for tick in range(80):
             self.draw(quiet,0.,tick)
@@ -353,7 +363,7 @@ class VisualResponseTests(unittest.TestCase):
         self.assertEqual(len(reactive._models),5)
 
     def test_triflux_sustained_bass_activates_only_one_triangle(self):
-        effect=Attractor()
+        effect=self.host.create(Attractor)
         effect._auto_cd=10000
         for tick in range(25): self.draw(effect,1.,tick)
         self.assertEqual(len(effect.active_ids),1)
@@ -364,8 +374,8 @@ class VisualResponseTests(unittest.TestCase):
     def test_triflux_lifetime_and_rotation_follow_time(self):
         results=[]
         for fps in (30,60,120):
-            config.FRAME_DT=1/fps
-            effect=Attractor(); effect._auto_cd=10000
+            self.host.dt=1/fps
+            effect=self.host.create(Attractor); effect._auto_cd=10000
             self.draw(effect,1.)
             tile=effect.tiles[effect.active_ids[0]]
             life=tile['life']
@@ -374,25 +384,25 @@ class VisualResponseTests(unittest.TestCase):
         np.testing.assert_allclose(results,[60.,60.,60.],atol=1e-8)
 
     def test_slime_tv_quality_keeps_fine_resolution_and_resize_keeps_agents(self):
-        config.WIDTH,config.HEIGHT=3840,2160
-        config.QUALITY_SCALE=.6
-        size=object.__new__(SlimeMold)._render_size()
+        self.host.width,self.host.height=3840,2160
+        self.host.quality_scale=.6
+        size=self.host.bare(SlimeMold)._render_size()
         self.assertGreaterEqual(size[0],3264)
         self.assertGreaterEqual(size[1],1836)
-        config.WIDTH,config.HEIGHT,config.QUALITY_SCALE=320,240,1.
-        effect=SlimeMold()
+        self.host.width,self.host.height,self.host.quality_scale=320,240,1.
+        effect=self.host.create(SlimeMold)
         effect._trail.fill(.4)
         positions=effect._px.copy()
         angles=effect._ang.copy()
         old_w=effect._W
-        config.WIDTH,config.HEIGHT=640,480
+        self.host.width,self.host.height=640,480
         effect._reset_or_resize_sim()
         np.testing.assert_allclose(effect._px,positions*effect._W/old_w,rtol=1e-6)
         np.testing.assert_array_equal(effect._ang,angles)
         self.assertAlmostEqual(float(effect._trail.mean()),.4,places=5)
 
     def test_butterflies_are_visible_inside_canvas_and_keep_moving(self):
-        effect=Butterflies()
+        effect=self.host.create(Butterflies)
         for tick in range(60): self.draw(effect,.1,tick)
         before=[(b.x,b.y) for b in effect._butterflies]
         for tick in range(60,180): self.draw(effect,.1,tick)
@@ -408,25 +418,75 @@ class VisualResponseTests(unittest.TestCase):
         self.assertGreater(max(distances),h*.05)
 
     def test_plasma_audio_cannot_trigger_large_phase_or_warp_jumps(self):
-        effect=PlasmaGL()
+        effect=self.host.create(PlasmaGL)
         for tick in range(40):
             previous_time,previous_warp=effect._time,effect._warp
-            config.MID_ENERGY=6. if tick%2 else 0.
-            config.TREBLE_ENERGY=6. if tick%2 else 0.
+            self.host.mid=6. if tick%2 else 0.
+            self.host.treble=6. if tick%2 else 0.
             self.draw(effect,6. if tick%2 else 0.,tick)
             self.assertLess(effect._time-previous_time,.012)
             self.assertLess(abs(effect._warp-previous_warp),.004)
 
     def test_owned_feedback_does_not_accumulate_stale_maximum_colours(self):
-        effect=LiquidLight()
+        effect=self.host.create(LiquidLight)
         app=self._composition_app(effect)
         app.display.target.fill((255,0,0,255))
-        with mock.patch.object(effect,'draw'):
+        with mock.patch.object(effect,'render'):
             app._render()
         self.assertEqual(app.display.target.get_at((10,10))[:3],(0,0,0))
 
+    def test_hyperbolic_short_bass_pulse_has_visible_lift_and_recovers(self):
+        from dataclasses import replace
+        from core.context import EffectOptions, FrameContext
+        frame = FrameContext(320, 240, profile='laptop')
+        quiet, pulsed = [Hyperbolic(options=EffectOptions(320, 240, seed=7), frame=frame)
+                         for _ in range(2)]
+        quiet_surface, pulse_surface = pygame.Surface((320, 240)), pygame.Surface((320, 240))
+        try:
+            peak_delta = None
+            for tick in range(90):
+                quiet.render(quiet_surface, replace(frame, tick=tick))
+                pulsed.render(pulse_surface, replace(frame, tick=tick, beat=1.2 if tick < 6 else 0.))
+                delta = float(np.mean(pulsed._tile_heights - quiet._tile_heights))
+                if tick == 3:
+                    # A four-frame kick should move facets, not just animate an
+                    # already-moving idle sphere. The former response was <.001.
+                    self.assertGreater(delta, .015)
+                if tick == 5:
+                    peak_delta = delta
+                    quiet_pixels = pygame.surfarray.array3d(quiet_surface).astype(float)
+                    pulse_pixels = pygame.surfarray.array3d(pulse_surface).astype(float)
+                    self.assertGreater(np.mean(np.abs(pulse_pixels - quiet_pixels)), 15.)
+            self.assertLess(abs(delta), peak_delta * .1)
+            self.assertAlmostEqual(pulsed._angle, quiet._angle)
+        finally:
+            quiet.release()
+            pulsed.release()
+
+    def test_hyperbolic_strong_audio_keeps_caps_inside_both_profile_viewports(self):
+        from dataclasses import replace
+        from core.context import EffectOptions, FrameContext
+        for profile in ('laptop', 'tv'):
+            with self.subTest(profile=profile):
+                frame = FrameContext(320, 240, profile=profile, mid=6., treble=6.)
+                effect = Hyperbolic(options=EffectOptions(320, 240, seed=7), frame=frame)
+                try:
+                    for tick in range(120):
+                        effect.render(self.surface, replace(frame, tick=tick, beat=6.))
+                        self.assertTrue(np.isfinite(effect._tile_heights).all())
+                        self.assertGreaterEqual(effect._tile_heights.min(), -.10)
+                        self.assertLessEqual(effect._tile_heights.max(), .18)
+                        for cap in effect._projected_caps:
+                            self.assertTrue(np.isfinite(cap).all())
+                            self.assertGreaterEqual(cap[:, 0].min(), 4)
+                            self.assertLessEqual(cap[:, 0].max(), 316)
+                            self.assertGreaterEqual(cap[:, 1].min(), 4)
+                            self.assertLessEqual(cap[:, 1].max(), 236)
+                finally:
+                    effect.release()
+
     def test_hyperbolic_segments_rise_sink_and_remain_inside_viewport(self):
-        effect=Hyperbolic()
+        effect=self.host.create(Hyperbolic)
         first=None
         for tick in range(100):
             self.draw(effect,.8 if tick%30<3 else .05,tick)
@@ -443,10 +503,10 @@ class VisualResponseTests(unittest.TestCase):
             self.assertLessEqual(cap[:,1].max(),236)
 
     def test_cube_motion_stays_bounded_under_loud_alternating_audio(self):
-        effect=Cube()
+        effect=self.host.create(Cube)
         for tick in range(100):
             previous=np.array([effect.rx,effect.ry,effect.rz,effect.orb_angle])
-            config.MID_ENERGY=config.TREBLE_ENERGY=6. if tick%2 else 0.
+            self.host.mid=self.host.treble=6. if tick%2 else 0.
             self.draw(effect,6. if tick%2 else 0.,tick)
             current=np.array([effect.rx,effect.ry,effect.rz,effect.orb_angle])
             self.assertLess(np.max(np.abs(current-previous)),.012)
@@ -457,7 +517,7 @@ class VisualResponseTests(unittest.TestCase):
         self.assertEqual(settings._normalise({'visual_profile': 'tv'})['visual_profile'], 'tv')
         self.assertEqual(settings._normalise({'visual_profile': []})['visual_profile'], 'auto')
         with mock.patch('sys.argv', ['psysualizer', '--visual-profile', 'laptop']):
-            args = VisualizerApp.__new__(VisualizerApp)._parse_args()
+            args = self.host.app()._parse_args()
         self.assertEqual(args.visual_profile, 'laptop')
 
 

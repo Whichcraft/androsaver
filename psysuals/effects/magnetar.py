@@ -15,7 +15,6 @@ import numpy as np
 import pygame
 import pygame.surfarray as surfarray
 
-import config
 from .base import Effect
 from .utils import _hsl_batch
 
@@ -27,7 +26,7 @@ class Magnetar(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         self._hue   = 0.62
         self._rot   = 0.0
         self._boost = 0.0
@@ -49,18 +48,18 @@ class Magnetar(Effect):
         self._trail.fill((0, 0, 0))
         self._fade = pygame.Surface((W, H), pygame.SRCALPHA)
         self._fade.fill((0, 0, 0, self._FADE_ALPHA))
-        self._scaled = pygame.Surface((config.WIDTH, config.HEIGHT))
+        self._scaled = pygame.Surface((self.frame.width, self.frame.height))
         xs = np.linspace(-1.0, 1.0, W, dtype=np.float32)
         ys = np.linspace(-1.0, 1.0, H, dtype=np.float32)
         self._grid_x, self._grid_y = np.meshgrid(xs, ys)
+        self._grid_r2 = self._grid_x*self._grid_x + self._grid_y*self._grid_y + .04
+        self._grid_r3 = self._grid_r2*np.sqrt(self._grid_r2) + .1
         self._contour = np.zeros((H, W), dtype=np.float32)
-        self._contour_scaled = pygame.Surface((config.WIDTH, config.HEIGHT))
+        self._contour_scaled = pygame.Surface((self.frame.width, self.frame.height))
 
     def _draw_contours(self, surf, mx, my, bass, high):
         rx, ry = self._grid_x, self._grid_y
-        r2 = rx * rx + ry * ry + 0.04
-        r = np.sqrt(r2)
-        r3 = r2 * r + 0.1
+        r2, r3 = self._grid_r2, self._grid_r3
         dot = rx * mx + ry * my
         bx = (3.0 * dot * rx / r2 - mx) / r3
         by = (3.0 * dot * ry / r2 - my) / r3
@@ -82,11 +81,11 @@ class Magnetar(Effect):
         pygame.transform.scale(self._trail, surf.get_size(), self._contour_scaled)
         surf.blit(self._contour_scaled, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, RD = self._render_size()
         bass     = beat
-        mid      = config.MID_ENERGY
-        high     = config.TREBLE_ENERGY
+        mid      = self.frame.mid
+        high     = self.frame.treble
 
         if self._trail.get_width() != W or self._trail.get_height() != H:
             self._reset_particles()

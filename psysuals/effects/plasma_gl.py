@@ -41,7 +41,6 @@ except ImportError:
 if TYPE_CHECKING:
     from gl_renderer import GLRenderer
 
-import config
 from .base import Effect
 
 # ── Shaders ───────────────────────────────────────────────────────────────────
@@ -189,7 +188,7 @@ class PlasmaGL(Effect):
 
     # ── Desktop draw — same signature as all other effects ────────────────────
 
-    def draw(self, surf, waveform: np.ndarray, fft: np.ndarray,
+    def _draw(self, surf, waveform: np.ndarray, fft: np.ndarray,
              beat: float, tick: int) -> None:
         """
         Render one frame.
@@ -228,24 +227,31 @@ class PlasmaGL(Effect):
         self._ensure_fallback(w, h)
         fm = 1.0 + mid * 0.15
         t  = self._time
-        qx = self._X + self._warp * np.sin(self._Y * 0.72 + t * 0.71)
-        qy = self._Y + self._warp * np.cos(self._X * 0.61 - t * 0.53)
-        v = np.zeros_like(self._X)
-        for index in range(7):
-            angle = math.tau * index / 7.0
-            v += np.sin((qx * np.cos(angle) + qy * np.sin(angle)) * fm
-                        + t * (0.72 + index * 0.07))
-        v = v / 7.0 + np.sin(np.sqrt(qx * qx + qy * qy) * fm * 0.46 - t * 1.2) * 0.16
-        h = (v * 0.55 + 0.5 + self._hue + bass * 0.08) % 1.0
-        l = np.clip(0.28 + v * 0.22 + beat * 0.22 + high * 0.08, 0.0, 0.95)
-        rgb = _hsl_arr(h, l)
-        pygame.surfarray.blit_array(self._fallback_surf, rgb.transpose(1, 0, 2))
+        pixels = pygame.surfarray.pixels3d(self._fallback_surf)
+        try:
+            for first in range(0, self._fallback_surf.get_height(), 64):
+                last = min(first+64, self._fallback_surf.get_height())
+                X, Y = self._X[first:last], self._Y[first:last]
+                qx = X + self._warp * np.sin(Y * 0.72 + t * 0.71)
+                qy = Y + self._warp * np.cos(X * 0.61 - t * 0.53)
+                v = np.zeros_like(X)
+                for index in range(7):
+                    angle = math.tau * index / 7.0
+                    v += np.sin((qx * np.cos(angle) + qy * np.sin(angle)) * fm
+                                + t * (0.72 + index * 0.07))
+                v = v / 7.0 + np.sin(np.sqrt(qx * qx + qy * qy) * fm * 0.46 - t * 1.2) * 0.16
+                h = (v * 0.55 + 0.5 + self._hue + bass * 0.08) % 1.0
+                l = np.clip(0.28 + v * 0.22 + beat * 0.22 + high * 0.08, 0.0, 0.95)
+                rgb = _hsl_arr(h, l)
+                pixels[:, first:last] = rgb.transpose(1, 0, 2)
+        finally:
+            del pixels
         surf.blit(pygame.transform.scale(
             self._fallback_surf, surf.get_size()), (0, 0))
 
     # ── Android / offscreen API ───────────────────────────────────────────────
 
-    def draw_frame(self, width: int, height: int,
+    def _draw_frame(self, width: int, height: int,
                    waveform: np.ndarray, fft: np.ndarray,
                    beat: float, tick: int,
                    renderer: "GLRenderer | None" = None) -> np.ndarray:

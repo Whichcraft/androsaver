@@ -4,7 +4,6 @@ from collections import deque
 import numpy as np
 import pygame
 
-import config
 from .utils import hsl, _hsl_batch
 
 
@@ -38,7 +37,7 @@ class Lissajous(Effect):
         self.scale = 1.0
         self.svel  = 0.0
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         step = self._frame_step()
         W, H = surf.get_size()
         motion, light = self._audio_response(beat)
@@ -47,7 +46,7 @@ class Lissajous(Effect):
         self.hue += (0.006 + light[0] * 0.02) * step
         self.dx += (0.0003 + bass * 0.0002) * step
         self.dz += (0.0002 + high * 0.0002) * step
-        bpm_scale = max(0.7, min(1.5, config.BPM / 138.0)) if config.BPM > 60 else 1.0
+        bpm_scale = max(0.7, min(1.5, self.frame.bpm / 138.0)) if self.frame.bpm > 60 else 1.0
         speed = (0.010 + bass * 0.004 + mid * 0.002) * bpm_scale * motion_scale
         previous_t = self.t
         self.t += speed * step

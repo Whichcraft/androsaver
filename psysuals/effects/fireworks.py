@@ -12,7 +12,6 @@ import numpy as np
 import pygame
 import pygame.surfarray as surfarray
 
-import config
 from .utils import hsl
 
 
@@ -71,11 +70,11 @@ class Fireworks(Effect):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rng = np.random.default_rng(config.RNG_SEED)
+        self._rng = self.rng
         W, H, RD = self._render_size()
         self._trail   = pygame.Surface((W, H))
         self._trail.fill((0, 0, 0))
-        self._scaled = pygame.Surface((config.WIDTH, config.HEIGHT))
+        self._scaled = pygame.Surface((self.frame.width, self.frame.height))
         self._fade = pygame.Surface((W, H), pygame.SRCALPHA)
         self._fade.fill((0, 0, 0, self._FADE_ALPHA))
         self._flow_x = self._flow_y = None
@@ -169,7 +168,7 @@ class Fireworks(Effect):
     def _launch(self, res_div: int):
         if len(self._rockets) >= self._MAX_ROCKETS:
             return
-        W, H = max(1, config.WIDTH // res_div), max(1, config.HEIGHT // res_div)
+        W, H = max(1, self.frame.width // res_div), max(1, self.frame.height // res_div)
         x  = float(self._rng.uniform(W * self._LAUNCH_X_RANGE[0], W * self._LAUNCH_X_RANGE[1]))
         vy = float(self._rng.uniform(self._LAUNCH_VY_RANGE[0] * H/720, self._LAUNCH_VY_RANGE[1] * H/720))
         vx = float(self._rng.uniform(self._LAUNCH_VX_RANGE[0] * H/720, self._LAUNCH_VX_RANGE[1] * H/720))
@@ -178,7 +177,7 @@ class Fireworks(Effect):
 
     def _explode(self, x, y, hue, treble=0.0, res_div: int = 1):
         n = int(self._rng.integers(*self._EXPLODE_EMBERS) * (1.0 + treble * self._EXPLODE_TREBLE_COUNT_GAIN))
-        if getattr(config, "LOW_SPEC", False):
+        if self.options.low_spec:
             n = max(5, n // 2)
         n = min(n, max(0, self._MAX_EMBERS - len(self._embers)))
         if n <= 0:
@@ -201,11 +200,11 @@ class Fireworks(Effect):
 
     # ── main draw ─────────────────────────────────────────────────────────────
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H, RD = self._render_size()
         bass  = beat
-        mid   = config.MID_ENERGY
-        high  = config.TREBLE_ENERGY
+        mid   = self.frame.mid
+        high  = self.frame.treble
 
         if self._trail.get_width() != W or self._trail.get_height() != H:
             old_w, old_h = self._trail.get_size()
@@ -232,7 +231,7 @@ class Fireworks(Effect):
         self._beat_prev = float(beat)
 
         # Auto-launch between beats
-        gain     = max(0.1, getattr(config, 'EFFECT_GAIN', 1.0))
+        gain     = max(0.1, self.frame.gain)
         interval = int(max(self._AUTO_INTERVAL_MIN,
                            min(self._AUTO_INTERVAL_MAX, self._BASE_INTERVAL * gain)))
         self._auto_t += 1

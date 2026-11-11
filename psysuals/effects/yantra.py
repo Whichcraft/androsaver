@@ -2,7 +2,6 @@ import math
 
 import pygame
 
-import config
 from .utils import hsl
 
 
@@ -38,12 +37,12 @@ class Yantra(Effect):
                  cy + math.sin(v / n * math.tau + rot) * r)
                 for v in range(n)]
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         self.hue  += 0.005
         W, H = surf.get_size()
         bass = beat
-        mid  = config.MID_ENERGY
-        high = config.TREBLE_ENERGY
+        mid  = self.frame.mid
+        high = self.frame.treble
         
         self.time += 0.02 + mid * 0.05 + high * 0.03
 

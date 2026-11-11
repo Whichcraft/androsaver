@@ -13,7 +13,6 @@ import math
 import numpy as np
 import pygame
 
-import config
 from .base import Effect
 from .utils import hsl
 
@@ -74,7 +73,7 @@ class Mobius(Effect):
         w = v_scalar * np.sin(hu) * 0.35
         return np.stack([x, y, z, w], axis=1)
 
-    def draw(self, surf, waveform, fft, beat, tick):
+    def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         step = self._frame_step()
         motion, light = self._audio_response(beat)
