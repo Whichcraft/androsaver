@@ -1,5 +1,20 @@
 # TODO
 
+## Release identity, ordering and resumption — 2026-11-11
+
+- [x] Own version `2.12.9` / code `390` explicitly in app/build.gradle;
+  remove Git-derived counters and silent fallback versions.
+- [x] Generate the update manifest from the built APK; verify its embedded
+  package/version, SHA-256, size and pinned URL before publication and reuse.
+- [x] Reject obsolete/divergent runs and non-increasing codes before rolling
+  asset updates; retain workflow-wide serialization and use a leased tag push.
+- [x] Reuse validated published assets for the same commit, including AAB
+  integrity evidence; recover interrupted drafts/uploads/tag pushes.
+- [x] Pass 21 publication regression tests, including real-Git annotated-tag
+  checks, ShellCheck, Bash syntax, workflow YAML/shell validation and diff checks.
+- [ ] GitHub builder: build the release, confirm APK/manifest version equality,
+  and complete actual dev publication with the updated release script.
+
 ## Subtree and repeated interruption notice — 2026-11-11
 
 - [x] Fetch psysuals upstream and verify the vendored `2080070` tree exactly
@@ -8,8 +23,8 @@
   marker, retaining saved history and fatal/recoverable diagnostics.
 - [x] Add regression coverage for repeated clean restarts after an interruption
   and preserved diagnostic history/fatal/recoverable reports.
-- [ ] Run the new JVM regression in the GitHub builder; no local Android build
-  or JVM verification performed.
+- [x] Run the new JVM regression in the GitHub builder: verification and API
+  29/35 integration passed in run 43046887556; its later release-tag check failed.
 
 These items were reviewed and implemented in the current change. Android builds
 and device verification must run in GitHub CI; do not build the Android project

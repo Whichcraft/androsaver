@@ -4,29 +4,6 @@ plugins {
     id 'org.jetbrains.kotlin.kapt'
 }
 
-def gitVersionCode = {
-    try {
-        def process = 'git rev-list --count HEAD'.execute()
-        process.waitFor()
-        return process.text.trim().toInteger()
-    } catch (ignored) {
-        return 1
-    }
-}()
-
-// Anchor the patch line to the parent of the 2.12.0 release commit. Counting
-// only non-merge descendants keeps the patch at .0 when dev is merged to master.
-def versionPatchBaseCommit = '3f3cf5bc99837d00205c327866b96c1598d55d6d'
-def gitVersionPatch = {
-    try {
-        def process = "git rev-list --count --no-merges --ancestry-path ${versionPatchBaseCommit}..HEAD".execute()
-        process.waitFor()
-        return (process.text.trim().toInteger() - 1).coerceAtLeast(0)
-    } catch (ignored) {
-        return 0
-    }
-}()
-
 android {
     namespace 'com.androsaver'
     compileSdk 35
@@ -36,8 +13,10 @@ android {
         minSdk 21
         targetSdk 35
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        versionCode gitVersionCode
-        versionName "2.12.${gitVersionPatch}"
+        // Release identity is owned by source, never by Git history or CI run counts.
+        // Increase the code and version together before publishing a new commit.
+        versionCode 390
+        versionName "2.12.9"
     }
 
     signingConfigs {
