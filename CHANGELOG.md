@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- 2026-11-12: Updated psysuals v3.21.0 reference-source subtree from
+  `2080070db572a615185f069afbb16c54478702d6` to
+  `d7e9af05013fcc05e8add9f9924a5f45668c067f`; Android Kotlin code is unchanged.
+- 2026-11-12: Made project AI instructions trackable and clarified proportionate
+  planning, persistent dev worktrees, subtree provenance, safe cleanup,
+  scoped changelog maintenance, release authorization, and verification limits.
+
+### Removed
+
+- 2026-11-12: Removed fully merged local pre-2.11 checkpoint and remote
+  ChromaWeave performance branches after checking ancestry and open pull requests.
+
 All notable changes to AndroSaver are documented here.
 
 ## 2026-10-26 — psysuals v3.20 Android backport

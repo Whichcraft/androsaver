@@ -28,7 +28,8 @@ CLAUDE.md
 
 # AI Agent files
 .ai/
-AGENTS.md
+# Keep project instructions available in fresh checkouts.
+!AGENTS.md
 GEMINI.md
 CODEX.md
 ANTIGRAVITY.md
