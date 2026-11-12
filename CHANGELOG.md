@@ -4,6 +4,10 @@
 
 ### Changed
 
+- 2026-11-12: Consolidated development in the primary checkout on dev, shortened
+  project instructions, and enabled explicit legacy-changelog verification.
+- 2026-11-12: Increased dev publication identity to 2.12.10 (391).
+
 - 2026-11-12: Updated psysuals v3.21.0 reference-source subtree from
   `2080070db572a615185f069afbb16c54478702d6` to
   `d7e9af05013fcc05e8add9f9924a5f45668c067f`; Android Kotlin code is unchanged.
