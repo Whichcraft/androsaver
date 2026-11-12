@@ -24,6 +24,8 @@ precedence. Keep this file tracked and avoid duplicate instruction files.
   Fetch the intended upstream and use the existing squash-subtree workflow when
   commits are authorized. Preserve `git-subtree-dir`/`git-subtree-split` metadata.
   Without commit authorization, report an uncommitted import with provenance pending.
+- Preserve Mycelium's existing name and registry slot (zero-based index 16,
+  between Lattice and Magnetar), including both settings arrays.
 - Record previous/target SHAs and verify the complete imported tree against upstream,
   including file inventory, contents and executable modes. Preserve unrelated edits.
 - Before deleting merged topic branches, check remote state, open PRs, worktree use

@@ -4,6 +4,11 @@
 
 ### Changed
 
+- 2026-11-12: Replaced stale port-status notes with the current subtree/native
+  boundary, explicit Mycelium registry-slot preservation, and TV-stick measurement
+  guidance distinguishing the dev overlay from the short offscreen FPS survey.
+  Prepared dev publication 2.12.11 (392).
+
 - 2026-11-12: Consolidated development in the primary checkout on dev, shortened
   project instructions, and enabled explicit legacy-changelog verification.
 - 2026-11-12: Increased dev publication identity to 2.12.10 (391).
