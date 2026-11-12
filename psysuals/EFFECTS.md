@@ -1,5 +1,5 @@
 <!-- Frame/options inputs replace ambient config; effect formulas are unchanged. -->
-# psysuals — Effects Reference (3.20.0)
+# psysuals — Effects Reference (3.21.0)
 
 There are 33 registered modes. Mandelbox and Morphogenesis are removed in 3.20.0.
 
@@ -89,7 +89,7 @@ for Waterfall); the number keys directly select only modes 1–9.
 | 14 | `←` / `→` | Fireworks | Feedback zooming tunnel with fireworks |
 | 15 | `←` / `→` | Aurora | Parallel Northern Lights ribbons with additive glow |
 | 16 | `←` / `→` | Lattice | Crystal grid with zoom feedback and peak-normalization |
-| 17 | `←` / `→` | Mycelium | Multi-colony psychedelic hyphae with swirling spores |
+| 17 | `←` / `→` | Mycelium | Violet hyphal web with travelling light packets and drifting spores |
 | 18 | `←` / `→` | Magnetar | Magnetic-dipole particle field with equatorial shockwaves |
 | 19 | `←` / `→` | SlimeMold | Physarum trail simulation with self-organising veins |
 | 20 | `←` / `→` | Mobius | Rotating wireframe strip without interior cross-lines |
@@ -234,10 +234,10 @@ bounded shockwave reveal the grid without changing its Euclidean spacing.
 
 ## 17. Mycelium
 
-A bioluminescent fungal colony simulation featuring wandering colony cores with rotating satellite node rings, glowing organic root structures (hyphae), and dynamic swirling spore particles that drift according to a gravity/orbital vector field.
+A bioluminescent hyphal colony. Three glowing fruiting bodies sit on a deep indigo ground while an organic web of violet-magenta filaments grows out of them, curving, branching and tapering from thick at the bodies to fine at the frontier. Cyan light packets travel along the filaments and hand over to another filament at the junctions, and amber spores drift through the scene and take root as new growth when their life ends.
 
-- Audio: bass drives growth speed, core pulsing, and core spore releases; mid controls swirl field motion and branching spread; treble/high frequencies accelerate spore flutter, spore count, and glowing trail brightness; beat seeds new bursts across multiple colony cores.
-- Visual notes: growing hyphae tips dynamically shed glowing spores, while a bounded low-resolution reaction halo blooms around active cores and tips. The cores wander smoothly around seeded anchors and carry rotating rings of satellite nodes; hyphae draw with a soft neon bioluminescent glow.
+- Audio: beat (bass) lengthens the growth step, lights the bodies, releases a pulse wave from every body, sheds spores and rings the bodies; MID_ENERGY raises the swirl and the branching probability; TREBLE_ENERGY adds tip sparks, spore release and shimmer. The colony keeps its own slow heartbeat, so light keeps travelling even in silence.
+- Visual notes: the colony is grown, not sampled — a 45-step warm-up runs the ordinary growth rules at start-up, so the first frame already shows a curved, tapered web instead of a synthetic mesh. Filaments, tips, packets, spores, nodes and rings live in bounded pools, a resize rescales the network instead of rebuilding it, and a producer motion field is accepted when it is present and ignored when it is missing. A restrained substrate bloom sits under the web; the ground itself is opaque, so the network persists as state rather than as decaying pixels.
 
 ## 18. Magnetar
 

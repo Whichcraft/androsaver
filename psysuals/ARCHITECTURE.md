@@ -1,4 +1,4 @@
-# psysuals — Architecture (3.20.0 worktree)
+# psysuals — Architecture (3.21.0 worktree)
 
 ## Ownership
 

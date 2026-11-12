@@ -1,5 +1,4 @@
 import unittest
-from copy import deepcopy
 
 import numpy as np
 import pygame
@@ -68,17 +67,164 @@ class EffectRenderRegressionTests(unittest.TestCase):
         self.assertFalse(effect._surf_cache)
         self.assertFalse(effect.pool)
 
-    def test_mycelium_colony_presentation_does_not_advance_simulation(self):
+    def _mycelium_positions(self, effect):
+        """The live node positions of a mycelial network as an array."""
+        return np.array([node for node in effect._nodes if node is not None],
+                        dtype=float).reshape(-1, 2)
+
+    def test_mycelium_network_state_stays_bounded(self):
         effect = self.host.create(Mycelium)
-        effect.draw(self.surface, self.waveform, self.fft, .8, 0)
-        before = deepcopy((effect._cores, effect._tips, effect._segs, effect._spores,
-                           effect._phase, effect._pulse, effect._rng.bit_generator.state))
-        self.surface.fill((0, 0, 0))
-        effect._draw_colony(self.surface, .8, .6)
-        after = (effect._cores, effect._tips, effect._segs, effect._spores,
-                 effect._phase, effect._pulse, effect._rng.bit_generator.state)
-        self.assertEqual(before, after)
-        self.assertGreater(int(pygame.surfarray.array3d(self.surface).sum()), 0)
+        beats = (0.0, 3.0, 6.0) * 8
+        for tick in range(240):
+            effect.draw(self.surface, self.waveform, self.fft, beats[tick % len(beats)], tick)
+            self.assertLessEqual(len(effect._tips), effect.max_tips)
+            self.assertLessEqual(len(effect._growing), len(effect._tips))
+            self.assertLessEqual(len(effect._pulses),
+                                 min(effect.max_pulses, effect.PULSE_TARGET))
+            self.assertLessEqual(len(effect._spores), effect.max_spores)
+            self.assertLessEqual(len(effect._edges), effect.max_edges)
+            self.assertLessEqual(len(effect._nodes), effect.MAX_NODES)
+            self.assertLessEqual(len(effect._rings), effect.MAX_RINGS)
+            positions = self._mycelium_positions(effect)
+            self.assertTrue(np.isfinite(positions).all())
+            self.assertGreaterEqual(float(positions[:, 0].min()), 0.0)
+            self.assertLessEqual(float(positions[:, 0].max()), 320.0)
+            self.assertGreaterEqual(float(positions[:, 1].min()), 0.0)
+            self.assertLessEqual(float(positions[:, 1].max()), 240.0)
+            for tip in effect._tips:
+                self.assertTrue(np.isfinite(tip[1]))
+                self.assertTrue(np.isfinite(tip[4]))
+            for pulse in effect._pulses:
+                self.assertTrue(np.isfinite(pulse[1]))
+                self.assertGreaterEqual(pulse[1], 0.0)
+                self.assertLessEqual(pulse[1], 1.0)
+
+    def test_mycelium_pulses_travel_and_handover(self):
+        effect = self.host.create(Mycelium)
+        for tick in range(3):
+            effect.draw(self.surface, self.waveform, self.fft, 3.0, tick)
+        self.assertGreaterEqual(len(effect._pulses), 1)
+        pulse = effect._pulses[0]
+        edge_index, travelled = pulse[0], pulse[1]
+        effect.draw(self.surface, self.waveform, self.fft, 0.0, 3)
+        # The packet moves along its filament from frame to frame.
+        self.assertGreater(pulse[1], travelled)
+        handed_over = False
+        vanished = False
+        for tick in range(4, 304):
+            effect.draw(self.surface, self.waveform, self.fft, 0.0, tick)
+            if all(other is not pulse for other in effect._pulses):
+                vanished = True
+                break
+            if pulse[0] != edge_index:
+                handed_over = True
+                break
+        # A packet either continues on another filament or dies at a dead end.
+        self.assertTrue(handed_over or vanished)
+
+    def test_mycelium_spore_germinates_into_a_new_tip(self):
+        effect = self.host.create(Mycelium)
+        node_index = next(index for index, node in enumerate(effect._nodes)
+                          if node is not None)
+        x, y = effect._nodes[node_index]
+        spore = [x + 6.0, y + 6.0, 0.0, 0.0, 4, 4, 0.0, 2.0]
+        tips_before = len(effect._tips)
+        effect._spores.append(spore)
+        expired = False
+        for tick in range(20):
+            effect.draw(self.surface, self.waveform, self.fft, 0.0, tick)
+            if all(other is not spore for other in effect._spores):
+                expired = True
+                break
+        self.assertTrue(expired, "the spore never reached the end of its life")
+        # The spore left a node behind and a tip grew from it.
+        grown = [index for index, node in enumerate(effect._nodes)
+                 if node is not None
+                 and abs(node[0] - spore[0]) <= 4.0 and abs(node[1] - spore[1]) <= 4.0]
+        self.assertTrue(grown, "the spore did not germinate into a node")
+        anchored = {tip[0] for tip in effect._tips}
+        self.assertTrue(any(index in anchored for index in grown))
+        self.assertGreater(len(effect._tips), tips_before - 1)
+
+    def test_mycelium_constructs_and_renders_on_small_display(self):
+        old_size = (self.host.width, self.host.height)
+        try:
+            for width, height in ((100, 80), (320, 240)):
+                self.host.width, self.host.height = width, height
+                effect = self.host.create(Mycelium)
+                target = pygame.Surface((width, height))
+                effect.draw(target, self.waveform, self.fft, 0.0, 0)
+                self.assertTrue(effect._nodes)
+                positions = self._mycelium_positions(effect)
+                self.assertTrue(np.isfinite(positions).all())
+                self.assertLessEqual(float(positions[:, 0].max()), width)
+                self.assertLessEqual(float(positions[:, 1].max()), height)
+                self.assertNotEqual(target.get_bounding_rect().width, 0)
+        finally:
+            self.host.width, self.host.height = old_size
+
+    def test_mycelium_resize_preserves_the_network(self):
+        effect = self.host.create(Mycelium)
+        initial = len(self._mycelium_positions(effect))
+        for tick in range(20):
+            effect.draw(self.surface, self.waveform, self.fft, 0.0, tick)
+        before = len(self._mycelium_positions(effect))
+        target = pygame.Surface((640, 480))
+        for tick in range(20, 40):
+            effect.draw(target, self.waveform, self.fft, 0.0, tick)
+        after = len(self._mycelium_positions(effect))
+        # A resize rescales the network, it never rebuilds it.
+        self.assertGreaterEqual(after, int(before * 0.9))
+        self.assertGreaterEqual(after, int(initial * 0.9))
+        positions = self._mycelium_positions(effect)
+        self.assertTrue(np.isfinite(positions).all())
+        self.assertGreaterEqual(float(positions[:, 0].min()), 0.0)
+        self.assertLessEqual(float(positions[:, 0].max()), 640.0)
+        self.assertGreaterEqual(float(positions[:, 1].min()), 0.0)
+        self.assertLessEqual(float(positions[:, 1].max()), 480.0)
+
+    def test_mycelium_is_seeded_and_reproducible(self):
+        first = self.host.create(Mycelium)
+        second = self.host.create(Mycelium)
+        beats = (0.0, 3.0, 6.0) * 10
+        for tick, beat in enumerate(beats):
+            first.draw(self.surface, self.waveform, self.fft, beat, tick)
+            second.draw(self.surface, self.waveform, self.fft, beat, tick)
+        self.assertEqual(first._nodes, second._nodes)
+        self.assertEqual(first._edges, second._edges)
+        self.assertEqual(first._tips, second._tips)
+        self.assertEqual(first._pulses, second._pulses)
+
+    def test_mycelium_accepts_and_ignores_motion_fields(self):
+        effect = self.host.create(Mycelium)
+        effect.set_motion_field(None)
+        effect.draw(self.surface, self.waveform, self.fft, 0.0, 0)
+        field = (np.linspace(-1.0, 1.0, 64, dtype=np.float32).reshape(8, 8),
+                 np.linspace(1.0, -1.0, 64, dtype=np.float32).reshape(8, 8))
+        effect.set_motion_field(field)
+        for tick in range(20):
+            effect.draw(self.surface, self.waveform, self.fft, 0.5, tick)
+        # Anything the producer cannot supply is ignored instead of raising.
+        effect.set_motion_field(object())
+        effect.draw(self.surface, self.waveform, self.fft, 0.0, 20)
+        positions = self._mycelium_positions(effect)
+        self.assertTrue(np.isfinite(positions).all())
+        for tip in effect._tips:
+            self.assertTrue(np.isfinite(tip[1]))
+        for pulse in effect._pulses:
+            self.assertTrue(np.isfinite(pulse[1]))
+        self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
+
+    def test_mycelium_colony_spreads_across_the_frame(self):
+        effect = self.host.create(Mycelium)
+        beats = (0.0, 3.0, 6.0) * 8
+        for tick in range(900):
+            effect.draw(self.surface, self.waveform, self.fft, beats[tick % len(beats)], tick)
+        positions = self._mycelium_positions(effect)
+        span_x = float(positions[:, 0].max() - positions[:, 0].min())
+        span_y = float(positions[:, 1].max() - positions[:, 1].min())
+        self.assertGreaterEqual(span_x, 0.6 * 320)
+        self.assertGreaterEqual(span_y, 0.6 * 240)
 
     def test_slimemold_clamps_deposit_indices(self):
         effect = self.host.create(SlimeMold)
@@ -88,15 +234,6 @@ class EffectRenderRegressionTests(unittest.TestCase):
 
     def test_aurora_allocates_wave_buffer_on_first_frame(self):
         self.host.create(Aurora).draw(self.surface, self.waveform, self.fft, 0.0, 0)
-
-    def test_mycelium_constructs_on_small_display(self):
-        old_size = (self.host.width, self.host.height)
-        try:
-            self.host.width, self.host.height = 100, 80
-            effect = self.host.create(Mycelium)
-            effect.draw(pygame.Surface((100, 80)), self.waveform, self.fft, 0.0, 0)
-        finally:
-            self.host.width, self.host.height = old_size
 
     def test_synapse_grows_sheds_and_wanders_nodes(self):
         effect = self.host.create(Synapse)
@@ -164,27 +301,6 @@ class EffectRenderRegressionTests(unittest.TestCase):
         self.assertEqual(rgba.shape, (48, 64, 4))
         self.assertEqual(rgba.dtype, np.uint8)
         self.assertTrue((rgba[:, :, 3] == 255).all())
-
-    def test_mycelium_reaction_halo_stays_bounded(self):
-        effect = self.host.create(Mycelium)
-        initial_tips = effect.max_tips
-        for tick, beat in enumerate((0.0, 3.0, 6.0) * 8):
-            effect.draw(self.surface, self.waveform, self.fft, beat, tick)
-            self.assertTrue(np.isfinite(effect._halo).all())
-            self.assertGreaterEqual(float(effect._halo.min()), 0.0)
-            self.assertLessEqual(float(effect._halo.max()), 1.0)
-            self.assertLessEqual(len(effect._tips), initial_tips)
-        self.assertNotEqual(self.surface.get_bounding_rect().width, 0)
-
-    def test_mycelium_cores_wander_around_seeded_anchors(self):
-        effect = self.host.create(Mycelium)
-        initial = [(core[0], core[1]) for core in effect._cores]
-        for tick in range(60):
-            effect.draw(self.surface, self.waveform, self.fft, 0.0, tick)
-        self.assertTrue(any(
-            np.hypot(core[0] - x, core[1] - y) > 1.0
-            for core, (x, y) in zip(effect._cores, initial)
-        ))
 
     def test_fourth_dimension_projection_accents_remain_finite(self):
         mobius = self.host.create(Mobius)

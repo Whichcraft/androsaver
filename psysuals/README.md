@@ -2,10 +2,21 @@
 
 **Welcome to the super-duper greatest music visualizer ever made.** psysuals delivers uncompromising visual intensity and rock-solid performance. Whether you're blasting psytrance in a dark room or driving a multi-monitor stage setup, it is built to melt your mind with precision and style.
 
-![Version](https://img.shields.io/badge/version-3.20.0-orange)
+![Version](https://img.shields.io/badge/version-3.21.0-orange)
  ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
+
+## Version 3.21.0
+
+This release rebuilds the Mycelium effect from scratch as a violet hyphal
+network: three fruiting bodies grow an organic, tapering web of filaments on
+a deep indigo ground, cyan light packets travel the filaments and hand over at
+the junctions, and amber spores drift and germinate into new growth. Mycelium
+now renders in about 7 ms per frame at 1920x1080 and 3840x2160, against
+roughly 16.6 ms before. The mode keeps its place in the registry, so mode
+indices and saved presets stay valid; no dependency or file-format migration
+is required.
 
 ## Version 3.20.0
 
@@ -33,6 +44,21 @@ ChromaWeave sits before the final Spectrum/Waterfall pair. Their zero-based
 indices move from 30/31 to 31/32; reselect/re-save numeric presets for those two
 modes. All earlier indices stay in place. The native Android counterpart is
 prepared separately and awaits the combined GitHub/device verification batch.
+
+## Rebuilt mode: Mycelium
+
+Mycelium is now a living hyphal network instead of a colony of wandering
+cores. Three fruiting bodies sit on a deep indigo ground and grow an organic
+violet web that curves, branches and tapers from thick at the bodies to fine
+at the frontier. Cyan light packets travel the filaments and hand over to
+another filament at the junctions, and amber spores drift through the scene
+and take root as new growth. Bass swells the growth and sends a packet wave
+out of every body, mids raise the swirl and the branching, treble adds sparks
+and spores; the colony keeps its light travelling even in silence.
+
+The mode keeps its place in the registry, so mode indices and saved presets
+stay valid. See [EFFECTS.md](EFFECTS.md#17-mycelium) for the current
+behaviour.
 
 ## Maintenance pass
 
@@ -282,7 +308,9 @@ The earlier maintenance pass verified 180 unit tests and all 32 smoke effects, p
 reversed test order with config/palette restoration. Five effects matched the
 previous rendering pixel-for-pixel on CPU and real AMD EGL framebuffers
 (30 frames each). Butterflies matched 1,200 baseline frames with two resizes;
-Mycelium matched 100 baseline frames. These are scoped comparisons, not a claim
+Mycelium matched 100 baseline frames before it was rebuilt as a pulsing hyphal
+network. Its compact visual fixture still passes with the unchanged baseline.
+These are scoped comparisons, not a claim
 that every shader, resolution or device has been verified. Desktop fullscreen/
 mode-switch presentation, live audio-device switching, multi-monitor operation
 and the external Android host remain pending for this maintenance pass.

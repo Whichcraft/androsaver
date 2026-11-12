@@ -8,7 +8,7 @@ and movement.
 
 This guide draws on the established effect collection, including the stronger
 Hyperbolic bass response. Proposed directions below remain proposals; the
-ChromaWeave brief records the new implemented mode.
+ChromaWeave and Mycelium briefs record the implemented modes.
 See [EFFECTS.md](EFFECTS.md) for current behaviour and
 [ARCHITECTURE.md](ARCHITECTURE.md) for implementation contracts.
 
@@ -183,6 +183,40 @@ relationships from the reference effects.
   Desktop uses a full-size fragment shader or row-tiled NumPy fallback with
   a 640x360-equivalent sample budget and smooth scaling. Android's separate
   full-resolution GLES2 counterpart follows the same field equations.
+
+### Mycelium — implemented brief
+
+- **Identity:** a bioluminescent hyphal colony. Three fruiting bodies on a
+  deep indigo ground grow an organic violet-magenta web that curves, branches
+  and tapers, while cyan light packets travel the filaments and hand over to
+  another filament at the junctions; amber spores drift and take root.
+- **References:** Branches' recursive taper, Synapse's travelling signals and
+  Chromatic's separated bright accents, grown as one persistent network
+  instead of a sampled mesh.
+- **Colour:** dominant violet-magenta filaments inside a narrow hue band that
+  drifts slowly; cyan-white packets are the only cool accent and amber
+  sparks and spores are rare warm highlights. Filaments fade with age, the
+  ground stays near-black indigo and only packets and body cores reach
+  near-white. A restrained substrate bloom supports the web instead of
+  covering it.
+- **Movement:** filaments grow outward from the bodies along a drifting field
+  with a tangential swirl, paced per tip so the colony renews itself instead
+  of churning; packets hand over at junctions and sometimes branch; spores
+  drift with the field. The colony keeps a slow heartbeat of its own, so
+  light travels even in silence.
+- **Music:** bass (beat) lengthens the growth step, lights the bodies, sends
+  a packet wave out of every body, sheds spores and rings the bodies; mids
+  raise the swirl, the branching probability and the packet speed; treble
+  adds tip sparks, spore release and shimmer. Onsets release and ring, with
+  bounded populations and a cooldown.
+- **Composition:** the three bodies anchor the eye, the web grows away from
+  them with filaments tapering from thick at the bodies to fine at the
+  frontier, and the packet traffic keeps a clear direction of reading on a
+  laptop and from across a room.
+- **Proof:** render silence, a short kick, mid-only and treble-only input and
+  sustained full-band audio; inspect the frame time at 1920x1080 and
+  3840x2160, the bounded filament, tip, packet and spore populations, the
+  connected share of the alive nodes and the tapering of the drawn widths.
 
 Describe a proposed effect using this short template:
 

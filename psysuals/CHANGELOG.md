@@ -5,6 +5,42 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.21.0] — 2026-11-12
+
+### Changed
+- 2026-11-12: Rebuild the Mycelium effect from scratch as a violet hyphal
+  network. Three glowing fruiting bodies on a deep indigo ground grow an
+  organic, tapering web of filaments; cyan light packets travel along the
+  filaments and hand over to another filament at the junctions; amber spores
+  drift and germinate into new growth. Bass swells the growth, lights the
+  bodies and sends a packet wave out of every body, mids raise the swirl,
+  the branching rate and the packet speed, and treble adds tip sparks and
+  spore release. The colony keeps a slow heartbeat of its own, so light
+  travels even in silence. The mode keeps its place in the registry.
+- 2026-11-12: Mycelium renders in about 7 ms per frame at 1920x1080 and at
+  3840x2160, against roughly 16.6 ms before the rebuild. The low-resolution
+  reaction halo and the per-segment `colorsys` colour lookups are gone;
+  filament colours are computed with vectorized `_hsl_batch` calls, and the
+  effect draws its own opaque ground instead of relying on a fading frame
+  buffer.
+
+### Fixed
+- 2026-11-12: Mycelium keeps its filament, tip, packet and spore populations
+  inside their caps, no longer lets the tip list grow without bound, and no
+  longer silently fails to germinate a spore when the filament pool is full.
+
+### Verification
+- 225 unit tests, the headless smoke test for all 33 effects and the
+  whitespace check pass. Mycelium's compact visual fixture still matches its
+  unchanged baseline. The effect was inspected as rendered frames in silence,
+  on a beat and under sustained input.
+
+### Upgrade notes
+- No dependency, preset or file-format migration is required. Mycelium keeps
+  its registry index, so saved presets and numeric mode indices stay valid.
+
+---
+
 ## [3.20.0] — 2026-10-26
 
 ### Changed

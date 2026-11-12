@@ -1066,3 +1066,46 @@ Local verification for this exact prepared source: 221 Python tests, all 33
 smoke effects, real AMD EGL comparisons, compileall and whitespace checks passed.
 GitHub verification and AndroSaver's resulting dev APK are the next gates; do
 not substitute a local Android build. Physical TV acceptance remains separate.
+
+## Mycelium rebuild — 2026-11-12
+
+The Mycelium effect was rebuilt from scratch with the orchestrator/worker
+harness. The previous maintainability plan moved to
+docs/plans/2026-11-11-maintainability.md; PLAN.md holds the rebuild plan and
+its two correction rounds.
+
+- [x] Rewrote effects/mycelium.py as a violet hyphal network: three glowing
+  fruiting bodies on a deep indigo ground, an organic tapered filament web
+  grown by the ordinary growth rules through a 45-step warm-up, cyan light
+  packets travelling along the filaments and handing over at junctions, amber
+  spores that drift and germinate, a restrained substrate bloom and beat rings.
+- [x] Kept every population bounded (filaments, tips, packets, spores, nodes,
+  rings), kept the network across a resize, kept the seeded reproducibility
+  and kept the producer motion field optional.
+- [x] Replaced the four Mycelium tests that covered the removed internals
+  with eight tests over the new behaviour (bounds, packet travel and
+  handover, spore germination, small display, resize, reproducibility,
+  motion field, colony spread).
+- [x] Updated EFFECTS.md section 17, added the implemented brief to
+  NEWEFFECTS.md and recorded the rebuild in README.md.
+- [x] The compact visual fixture still passes with the unchanged Mycelium
+  baseline (17941, 423082).
+
+Verification: 225 unit tests, 33 smoke effects and the whitespace check pass.
+Frame cost about 7 ms per frame at 1920x1080 and at 3840x2160, against
+roughly 16.6 ms before the rebuild. The removed reaction halo and
+the per-segment colorsys lookups were the avoidable costs.
+
+Open follow-ups:
+
+- [ ] The colony occupies the central part of the frame (about 30 % of the
+  width at 960x540). The two available tunings trade against each other: a
+  curled, organic web stays narrow, while the other shoots straight rays
+  across the frame and reads as scattered lines. The extent measurement for
+  the wide variant was not reproducible across harnesses (70 % in one, about
+  31 % in the other), so the two were judged on the rendered frames. A
+  frontier that travels along a large-scale flow instead of circling its body
+  should give both the curl and the spread.
+- [ ] check-changelog still fails on the historical CHANGELOG format. The
+  new Unreleased section follows the canonical rules; migrating the released
+  sections to the same format is a separate, larger change.
