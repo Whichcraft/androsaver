@@ -12,6 +12,7 @@ class BubblesMode : BaseMode() {
 
     private companion object {
         const val MAX = 700
+        const val MAX_SWELL = 3f
         const val TAU = (Math.PI * 2).toFloat()
     }
 
@@ -71,9 +72,10 @@ class BubblesMode : BaseMode() {
         }
         init(W, H)
 
-        val beat = audio.beat
-        val bass = audio.fftMean(0, 6)
-        val mid  = audio.fftMean(6, 30)
+        // Non-finite levels read as silence; NaN would stick in the beat spring.
+        val beat = audio.beat.takeIf { it.isFinite() } ?: 0f
+        val bass = audio.fftMean(0, 6).takeIf { it.isFinite() } ?: 0f
+        val mid  = audio.fftMean(6, 30).takeIf { it.isFinite() } ?: 0f
         hue += 0.005f
 
         // beatSel: capped at 1 for count/size selectors so intensity doesn't blow up counts
@@ -116,6 +118,7 @@ class BubblesMode : BaseMode() {
         }
         bassFlash = maxOf(0f, bassFlash - 0.18f)
 
+        val maxR = maxOf(2f, minOf(W, H) / 2f)
         alive.clear()
         for (b in pool) {
             // Treble adds horizontal high-frequency wobble/jitter to bubble paths
@@ -125,7 +128,10 @@ class BubblesMode : BaseMode() {
             if (b.y + b.r < 0) continue
 
             val life  = (b.y / H).coerceIn(0f, 1f)
-            val r     = maxOf(2f, b.r * (1f + pulse * 0.90f + mid * 0.15f + bassFlash * 0.45f))
+            // Cap the swell and radius: loud beats at high gain otherwise made
+            // every bubble huge and exploded the vertex count.
+            val swell = minOf(MAX_SWELL, 1f + pulse * 0.90f + mid * 0.15f + bassFlash * 0.45f)
+            val r     = maxOf(2f, minOf(b.r * swell, maxR))
             val alpha = life * 0.63f  // matches pygame's 160/255
 
             // Multi-layer halos (outermost first)
@@ -157,7 +163,7 @@ class BubblesMode : BaseMode() {
 
             // Extra neon rings at higher intensity (beat > 1 only when beatGain > 1)
             if (beat > 1.0f) {
-                val excess = beat - 1.0f  // 0..1 extra range from intensity
+                val excess = minOf(beat - 1.0f, 1f)  // 0..1 extra range from intensity
                 val er1 = maxOf(1f, r * (1.7f + excess * 0.4f))
                 val ec1 = GLDraw.hsl((b.hue + 0.33f) % 1f, l = 0.90f)
                 draw.circle(b.x, b.y, er1, ec1[0], ec1[1], ec1[2], alpha * excess * 0.55f,

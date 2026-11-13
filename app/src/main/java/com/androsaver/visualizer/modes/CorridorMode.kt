@@ -3,7 +3,6 @@ package com.androsaver.visualizer.modes
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.EffectDynamics
 import com.androsaver.visualizer.GLDraw
-import com.androsaver.visualizer.fftMean
 import kotlin.math.*
 
 /**
@@ -102,16 +101,10 @@ class CorridorMode : BaseMode() {
     }
 
     private fun updateSpectrum(audio: AudioData, response: EffectDynamics) {
-        val n = audio.fft.size
-        var loudest = 0f
         // Squared band edges give the bass more of the corridor's near end.
-        for (k in 0..N_SEGMENTS) {
-            val lo = ((k / (N_SEGMENTS + 1f)).pow(2) * n * 0.6f).toInt()
-            val hi = maxOf(lo + 1, (((k + 1) / (N_SEGMENTS + 1f)).pow(2) * n * 0.6f).toInt())
-            val band = audio.fftMean(lo, hi)
-            zRaw[k] = if (band.isFinite()) maxOf(0f, band) else 0f
-            loudest = maxOf(loudest, zRaw[k])
-        }
+        SpectrumLevels.bands(audio.fft, zRaw)
+        var loudest = 0f
+        for (k in 0..N_SEGMENTS) loudest = maxOf(loudest, zRaw[k])
         peak = maxOf(1e-3f, response.smooth(peak, loudest, 0.01f), loudest)
         for (k in 0..N_SEGMENTS) {
             spectrum[k] = response.smooth(spectrum[k], sqrt(zRaw[k] / peak), 0.3f)

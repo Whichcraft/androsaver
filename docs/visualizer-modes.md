@@ -1,7 +1,8 @@
 # Visualizer Modes Reference
 
-The vendored reference and Kotlin/GLES backport follow psysuals v3.20.0
-(`0579390`) with 32 active modes. Morphogenesis and Mandelbox are removed.
+The vendored reference is psysuals main `40711a5` (v3.23.0 plus Caustics and
+Lanterns). The Kotlin/GLES backport follows its 36 active modes.
+Morphogenesis and Mandelbox are removed.
 See the port notes for mobile simulation limits and desktop-only differences.
 
 All modes extend `BaseMode` (`com.androsaver.visualizer.BaseMode`):
@@ -51,13 +52,17 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 28 | `PhasonMode` | Phason | Quasiperiodic wave interference field |
 | 29 | `TesseractMode` | Tesseract | Music-reactive 4-D hypercube rotating across multiple axes |
 | 30 | `FerrofluidMode` | Ferrofluid | Metallic liquid envelope and sharp magnetic peaks |
-| 31 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
-| 32 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
+| 31 | `ChromaWeaveMode` | ChromaWeave | Eightfold iridescent ribbons and breathing petals |
+| 32 | `HorizonMode` | Horizon | Spectrum-shaped mountain ridges scrolling toward a sun |
+| 33 | `CausticsMode` | Caustics | Caustic light net on the floor of a pool |
+| 34 | `LanternsMode` | Lanterns | Paper lanterns rising over a dark lake |
+| 35 | `BarsMode` | Spectrum | Log-spaced spectrum + waveform overlay |
+| 36 | `WaterfallMode` | Waterfall | Scrolling time-frequency spectrogram |
 
 Remote: **←/→** cycles modes. **↑/↓** changes intensity.
 Auto-cycle: configurable interval (Off / 1 / 2 / 5 / 10 / 15 min). It rotates
 through the enabled subset in registry order; Random mode chooses randomly
-from that same subset. The current registry contains 32 active modes. The
+from that same subset. The current registry contains 36 active modes. The
 source file `CliffordMode.kt` is intentionally dormant and is not in the
 registry.
 
@@ -197,6 +202,27 @@ Beat onsets add a brief size and brightness pulse; treble also shifts hue.
 ## FerrofluidMode
 
 A GLES metallic liquid envelope with five moving magnetic poles and a triangular lattice of sharp peaks. Analytic surface gradients drive diffuse, specular and rim lighting; geometry is smoothed and rendered at framebuffer resolution.
+
+## HorizonMode
+
+Rows of solid mountain ridges, shaped by the spectrum, scroll toward the camera
+through a valley with lane lines, toward a sun under a sky of stars. Twinkle and
+ridge glitter follow elapsed time. Spectrum sampling is shared with Corridor
+through `SpectrumLevels`, which reads non-finite bins as silence.
+
+## CausticsMode
+
+Light on the floor of a pool: a GLES2 shader evaluates five travelling waves
+plus up to six beat ripples and brightens the floor by the inverse Jacobian of
+the refracted light. Bass sharpens the net, mids drive the wind, treble adds
+glints and rising beat edges drop ripples.
+
+## LanternsMode
+
+Paper lanterns rise over a dark lake and are mirrored as shimmering strokes.
+Bass flickers the flames, mids sway them, treble sends sparks up and rising
+beat edges release new lanterns. Lanterns (42) and sparks (160) live in fixed
+pools; a slow stream continues in silence.
 
 ## BarsMode (Spectrum)
 

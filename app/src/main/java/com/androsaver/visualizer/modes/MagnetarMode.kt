@@ -28,10 +28,13 @@ class MagnetarMode : FullscreenEffectMode() {
 
     private companion object {
         const val N = 4_000
+        const val CORE = 0.16f     // respawn radius around the dipole core, in half-heights
+        const val RESEED = 0.002f  // share of particles re-seeded per frame
     }
 
-    private val px    = FloatArray(N)
-    private val py    = FloatArray(N)
+    internal val px   = FloatArray(N)
+    internal val py   = FloatArray(N)
+    private val rng   = kotlin.random.Random(0x3A67)
     private var hue   = 0.62f
     private var rot   = 0f
     private var boost = 0f
@@ -122,6 +125,8 @@ class MagnetarMode : FullscreenEffectMode() {
             py[i] = ((py[i] + vy) % H + H) % H
         }
 
+        reseedParticles(W, H, cx, cy, half)
+
         // One level: fade the retained scene toward black like upstream's
         // particle trail, then add the dipole contours and the particles into
         // that same buffer. The field is light, not a translucent plate drawn
@@ -147,6 +152,23 @@ class MagnetarMode : FullscreenEffectMode() {
             draw.particle(px[i], py[i], 1.5f, c[0], c[1], c[2], 0.7f)
         }
         draw.setNormalBlend()
+    }
+
+    /**
+     * The field lines converge on the dipole core, so particles used to collapse
+     * onto a few pixels there. Particles that reach the core, plus a small random
+     * share, start again anywhere.
+     */
+    internal fun reseedParticles(W: Float, H: Float, cx: Float, cy: Float, half: Float) {
+        val core = half * CORE
+        val core2 = core * core
+        for (i in 0 until N) {
+            val dx = px[i] - cx; val dy = py[i] - cy
+            if (dx * dx + dy * dy < core2 || rng.nextFloat() < RESEED) {
+                px[i] = rng.nextFloat() * W
+                py[i] = rng.nextFloat() * H
+            }
+        }
     }
 
     override val fragmentShader = """

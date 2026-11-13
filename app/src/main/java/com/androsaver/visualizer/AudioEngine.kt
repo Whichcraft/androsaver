@@ -23,6 +23,7 @@ class AudioEngine {
         private const val DETECT_BASS_END   = 41    // ~430-1760 Hz
         private const val DETECT_MIDS_END   = 205   // ~1760-8800 Hz
         private const val DETECT_HIGHS_END  = 461   // ~8800-19800 Hz
+        private const val DEFAULT_BLOCKS_PER_SECOND = 20f
     }
 
     private var visualizer: Visualizer? = null
@@ -34,8 +35,10 @@ class AudioEngine {
     private val genreWeights = FloatArray(FFT_BINS) { 1f }
     private val energyHistory = ArrayDeque<Float>()
     private var energySum = 0.0          // running sum for O(1) average
-    private var midAvg    = 0.1f         // warm-start to avoid first-frame spikes
-    private var trebleAvg = 0.1f         // warm-start to avoid first-frame spikes
+    // Band averages that hold through pauses (psysuals 3.23 BandLevel). They
+    // are sized for the capture rate when capture starts.
+    private var midLevel = AudioBandLevel(DEFAULT_BLOCKS_PER_SECOND)
+    private var trebleLevel = AudioBandLevel(DEFAULT_BLOCKS_PER_SECOND)
     private val snapshots = arrayOf(AudioData(), AudioData())
     private val _data = AtomicReference(snapshots[0])
     private var snapshotIndex = 0
@@ -67,6 +70,11 @@ class AudioEngine {
         captureMonitor.starting()
         try {
             val maxCap = Visualizer.getCaptureSizeRange()[1].coerceAtMost(1024)
+            val captureRate = Visualizer.getMaxCaptureRate()
+            // The rate is in millihertz; publish() runs once per capture.
+            val blocksPerSecond = (captureRate / 1000f).takeIf { it >= 1f } ?: DEFAULT_BLOCKS_PER_SECOND
+            midLevel = AudioBandLevel(blocksPerSecond)
+            trebleLevel = AudioBandLevel(blocksPerSecond)
             val v = Visualizer(0)
             try {
                 v.captureSize = maxCap
@@ -85,7 +93,7 @@ class AudioEngine {
                             publish()
                         }
                     }
-                }, Visualizer.getMaxCaptureRate(), true, true)
+                }, captureRate, true, true)
                 check(listenerStatus == Visualizer.SUCCESS) { "Audio capture listener unavailable" }
                 running = true
                 check(v.setEnabled(true) == Visualizer.SUCCESS) { "Audio capture could not be enabled" }
@@ -206,8 +214,8 @@ class AudioEngine {
             smoothFft.fill(0f)
             energyHistory.clear()
             energySum = 0.0
-            midAvg = 0.1f
-            trebleAvg = 0.1f
+            midLevel.reset()
+            trebleLevel.reset()
             firstFrame = true
             fftPrimed = false
             resetDetection()
@@ -272,21 +280,17 @@ class AudioEngine {
             }
 
             // Mid energy: bins 20–99 (~860–4300 Hz).
-            // Output is deviation above rolling average: 0 at steady-state music, positive on peaks.
-            // This matches beat's normalization so multipliers in effects work correctly at all volumes.
+            // Output is deviation above the band's running average: 0 at
+            // steady-state music, positive on peaks, at most 5. The average
+            // holds through pauses, so returning music does not spike.
             var midSum = 0f
             for (i in 20 until 100) midSum += smoothFft[i]
-            val midEnergy = midSum / 80f
-            midAvg = midAvg * 0.98f + midEnergy * 0.02f
-            val mid = maxOf(0f, midEnergy / (midAvg + 0.001f) - 1f)
+            val mid = midLevel.update(midSum / 80f)
 
-            // Treble energy: bins 100–255 (~4300–11000 Hz).
-            // Same deviation normalization as mid.
+            // Treble energy: bins 100–255 (~4300–11000 Hz). Same normalisation.
             var trebleSum = 0f
             for (i in 100 until 256) trebleSum += smoothFft[i]
-            val trebleEnergy = trebleSum / 156f
-            trebleAvg = trebleAvg * 0.98f + trebleEnergy * 0.02f
-            val treble = maxOf(0f, trebleEnergy / (trebleAvg + 0.001f) - 1f)
+            val treble = trebleLevel.update(trebleSum / 156f)
 
             val snapshot = snapshots[(snapshotIndex + 1) % snapshots.size]
             snapshotIndex = (snapshotIndex + 1) % snapshots.size

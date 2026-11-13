@@ -2,8 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- 2026-11-14: Added three effects from psysuals: Horizon, a landscape built
+  from the music with spectrum-shaped ridges scrolling toward a sun; Caustics,
+  the light net on the floor of a pool, with ripples on beats; and Lanterns,
+  paper lanterns rising over a dark lake with shimmering reflections. They
+  follow ChromaWeave; Spectrum and Waterfall stay last, and existing effect
+  selections gain the new effects automatically.
+
 ### Changed
 
+- 2026-11-14: Imported psysuals upstream `main` `40711a5` (v3.23.0 plus the
+  Caustics and Lanterns modes) into `psysuals/` as a squashed subtree.
 - 2026-11-13: Ported the psysuals 3.22 reworks of three effects. Corridor is
   rebuilt as a ride down a solid neon corridor with perspective walls, ribs,
   spectrum-driven wall bars and a pulse of light on every beat; its rounded
@@ -74,6 +85,15 @@
 
 ### Fixed
 
+- 2026-11-14: Mid and treble no longer jump when music returns after a pause.
+  Their running averages hold through pauses judged against the band's noise
+  floor, are seeded from the first second instead of a fixed value, catch up
+  quickly after silence and follow quieter passages; the level is capped.
+- 2026-11-14: Magnetar and FlowField particles no longer collapse onto a few
+  pixels over time, ChromaWeave no longer flickers after minutes of music,
+  Butterflies keep their size over resize round trips, Bubbles caps its swell
+  on loud beats, and Spectrum, Waterfall, Spiral, Bubbles, Aurora and Corridor
+  tolerate short, empty or non-finite spectra and very narrow surfaces.
 - 2026-11-13: Fixed the Mycelium packet handover. At a junction with three or
   more filaments the sibling filament was picked by an index that could turn
   negative, which aborted the colony update with an IndexOutOfBoundsException.

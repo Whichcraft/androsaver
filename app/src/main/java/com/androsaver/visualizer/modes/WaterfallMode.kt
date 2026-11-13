@@ -53,9 +53,11 @@ class WaterfallMode : BaseMode() {
         val row = buf[bufHead]
         row.fill(0f)
         var bi = 0
-        for (k in edges[0] until edges[cols]) {
+        // Short arrays read as silence past their end; non-finite bins as silence.
+        for (k in edges[0] until minOf(edges[cols], fft.size)) {
             while (bi + 1 < cols && k >= edges[bi + 1]) bi++
-            row[bi] += fft[k]
+            val v = fft[k]
+            if (v.isFinite()) row[bi] += v
         }
         for (i in 0 until cols) row[i] /= counts[i]
         val maxVal = row.max().coerceAtLeast(1e-6f)

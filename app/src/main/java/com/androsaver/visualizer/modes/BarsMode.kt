@@ -48,9 +48,11 @@ class BarsMode : BaseMode() {
         // Single-pass accumulation into bars (matches np.add.reduceat)
         heights.fill(0f)
         var bi = 0
-        for (k in edges[0] until edges[n]) {
+        // Short arrays read as silence past their end; non-finite bins as silence.
+        for (k in edges[0] until minOf(edges[n], fft.size)) {
             while (bi + 1 < n && k >= edges[bi + 1]) bi++
-            heights[bi] += fft[k]
+            val v = fft[k]
+            if (v.isFinite()) heights[bi] += v
         }
         for (i in 0 until n) heights[i] /= counts[i]
         val maxH = heights.max().coerceAtLeast(1e-6f)
@@ -90,7 +92,8 @@ class BarsMode : BaseMode() {
         if (wavePts.size < count * 2) wavePts = FloatArray(count * 2)
         for (i in 0 until count) {
             val sx = i.toFloat() * W / count
-            val sy = H / 2f + waveform[i * step] * amp
+            val sample = waveform[i * step]
+            val sy = H / 2f + (if (sample.isFinite()) sample else 0f) * amp
             wavePts[i * 2] = sx
             wavePts[i * 2 + 1] = sy
         }

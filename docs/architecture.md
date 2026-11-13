@@ -23,8 +23,8 @@
 ### Upstream visualizer source
 
 `psysuals/` is a Git subtree imported from the upstream psysuals repository.
-The source and native Kotlin/GLES backport track v3.20.0, main `0579390`.
-Both registries contain 32 effects; Morphogenesis and Mandelbox are removed.
+The source tracks main `40711a5` (v3.23.0 plus Caustics and Lanterns). Both
+registries contain 36 effects; Morphogenesis and Mandelbox are removed.
 `EffectDynamics` provides elapsed time, separate motion/light smoothing and
 saved profiles; `HyperbolicMesh` builds connected sphere geometry;
 `FullscreenEffectMode` hosts the Phason/Ferrofluid GLES shaders. Effect switches

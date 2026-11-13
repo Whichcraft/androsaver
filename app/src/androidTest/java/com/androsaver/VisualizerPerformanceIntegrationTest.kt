@@ -88,7 +88,7 @@ class VisualizerPerformanceIntegrationTest {
         withGl(1920,1080) {
             val draw=GLDraw(1920,1080);draw.onSurfaceCreated();draw.onSurfaceChanged(1920,1080)
             val modes=VisualizerRenderer(AudioEngine()).modes
-            assertEquals("Survey must cover the complete current registry",33,modes.size)
+            assertEquals("Survey must cover the complete current registry",36,modes.size)
             assertEquals("Mode names must identify unique results",modes.size,modes.map{it.name}.toSet().size)
             val audio=AudioData(mid=.4f,treble=.6f,visualProfile=profile)
             println("FPS_SURVEY renderer=${GLES20.glGetString(GLES20.GL_RENDERER)} viewport=1920x1080 modes=${modes.size} warmup=32 samples=16 profile=$profile dt=${audio.deltaSeconds} waveform=${audio.waveform.size} fft=${audio.fft.size} bloom=${draw.bloomEnabled}")

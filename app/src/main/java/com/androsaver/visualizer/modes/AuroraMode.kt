@@ -76,10 +76,11 @@ class AuroraMode : BaseMode() {
         if (W != lastW || H != lastH) {
             lastW = W
             lastH = H
-            val nPts = (W / STEP).toInt() + 1
+            // At least two samples so surfaces up to STEP px wide still get a ribbon.
+            val nPts = maxOf(2, (W / STEP).toInt() + 1)
             xs = FloatArray(nPts) { i -> minOf(i * STEP.toFloat(), W) }
 
-            val kUnit = (2f * PI_F) / W
+            val kUnit = (2f * PI_F) / maxOf(W, 1f)
             for (ri in DEFS.indices) {
                 val harms = DEFS[ri].harmonics
                 for (j in harms.indices) {

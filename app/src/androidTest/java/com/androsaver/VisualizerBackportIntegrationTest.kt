@@ -126,7 +126,7 @@ class VisualizerBackportIntegrationTest {
         var failure:Throwable?=null
         renderer.onRenderError={failure=it}
         renderer.onSurfaceCreated(null,null);renderer.onSurfaceChanged(null,320,240)
-        assertEquals(33,renderer.modes.size)
+        assertEquals(36,renderer.modes.size)
         val expected=InstrumentationRegistry.getInstrumentation().targetContext.resources.getStringArray(R.array.viz_effect_values).toList()
         assertEquals(expected,renderer.modeNames)
         for((index,mode) in renderer.modes.withIndex()) {
@@ -137,7 +137,7 @@ class VisualizerBackportIntegrationTest {
             repeat(3){renderer.onDrawFrame(null)}
             assertNull("${mode.name} failed",failure)
             assertEquals("${mode.name} GL error",GLES20.GL_NO_ERROR,GLES20.glGetError())
-            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic","ChromaWeave"))assertTrue("${mode.name} invisible",pixel().any{it>0})
+            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic","ChromaWeave","Caustics"))assertTrue("${mode.name} invisible",pixel().any{it>0})
             if(mode.name in setOf("Cymatica","LiquidLight"))assertTrue("${mode.name} invisible",anyBrightPixel())
             renderer.onSurfaceChanged(null,240,180);repeat(4){renderer.onDrawFrame(null)}
             assertNull("${mode.name} resize failed",failure)

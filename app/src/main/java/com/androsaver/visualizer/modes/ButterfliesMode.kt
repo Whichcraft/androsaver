@@ -227,6 +227,12 @@ class ButterfliesMode : BaseMode() {
         return margin+Math.random().toFloat()*(screenW-2f*margin) to margin+Math.random().toFloat()*(screenH-2f*margin)
     }
 
+    /**
+     * Size factor for a resize. The geometric mean returns to 1 over a round
+     * trip between two aspect ratios; min(sx, sy) shrank sizes by a quarter each time.
+     */
+    internal fun resizeSizeFactor(sx: Float, sy: Float): Float = sqrt(sx * sy)
+
     // ── Main effect ──────────────────────────────────────────────────────────
 
     private val pairs = ArrayList<ButterflyPair>(MAX_PAIRS)
@@ -251,7 +257,8 @@ class ButterfliesMode : BaseMode() {
         draw.fadeBlack(22f / 255f)
         if(screenW!=draw.W || screenH!=draw.H) {
             val sx=draw.W.toFloat()/screenW.coerceAtLeast(1);val sy=draw.H.toFloat()/screenH.coerceAtLeast(1)
-            for(pair in pairs){for(butterfly in listOfNotNull(pair.solo,pair.love)){butterfly.x*=sx;butterfly.y*=sy;butterfly.scale*=minOf(sx,sy)};pair.orbitR*=minOf(sx,sy)}
+            val size=resizeSizeFactor(sx,sy)
+            for(pair in pairs){for(butterfly in listOfNotNull(pair.solo,pair.love)){butterfly.x*=sx;butterfly.y*=sy;butterfly.scale*=size};pair.orbitR*=size}
         }
         screenW = draw.W; screenH = draw.H
 

@@ -70,7 +70,7 @@ class SpiralMode : BaseMode() {
         val fft = audio.fft
         var bass = 0f
         val bassBins = minOf(6, fft.size)
-        for (i in 0 until bassBins) bass += fft[i]
+        for (i in 0 until bassBins) if (fft[i].isFinite()) bass += fft[i]
         if (bassBins > 0) bass /= bassBins
 
         hue = (hue + 0.007f + beat * 0.04f) % 1f
@@ -104,7 +104,7 @@ class SpiralMode : BaseMode() {
             armPts.map { p ->
                 val nearT = maxOf(0f, 1f - p.z / Z_FAR)
                 val band = minOf((nearT * fft.size * 0.55f).toInt(), fft.size - 1)
-                val rMod = if (fft.isNotEmpty()) fft[band] * 1.5f else 0f
+                val rMod = if (fft.isNotEmpty() && fft[band].isFinite()) fft[band] * 1.5f else 0f
                 val angle = p.pt * SPIN + armIdx.toFloat() / N_ARMS * TAU
                 val (pcx, pcy) = pathXY(p.pt)
                 val r = (RADIUS + rMod) * scale

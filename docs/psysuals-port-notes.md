@@ -2,15 +2,18 @@
 
 ## Current reference and registry
 
-The `psysuals/` subtree matches upstream main v3.22.0,
-`790716ce0d6fce39b0273d59d6cd8040abb491d4`. It is reference source, not an
+The `psysuals/` subtree matches upstream main
+`40711a58911075a23c4d84be94b0fc0ea295a452` (v3.23.0 plus Caustics and
+Lanterns). It is reference source, not an
 Android runtime dependency. Importing Python does not update Kotlin effects.
 
-The Android registry contains 33 modes. Preserve Mycelium's name and existing
+The Android registry contains 36 modes. Preserve Mycelium's name and existing
 slot: zero-based index **16** (17th entry), between Lattice and Magnetar, in
 `VisualizerRenderer.modes` and both `viz_effect_entries`/`viz_effect_values`
-arrays. The 3.21 rewrite needs no new mode, reordering or preset migration.
-Spectrum and Waterfall remain last. Android effect preferences are name-based.
+arrays. Horizon, Caustics and Lanterns follow ChromaWeave as in upstream; Spectrum
+and Waterfall remain last. Android effect preferences are name-based, so the
+upstream nameless-settings migration is not needed, and `VisualizerSelection`
+adds newly known modes to a saved selection.
 
 ## Mycelium port
 
@@ -34,6 +37,30 @@ a depth-sorted, shaded ribbon that stands upright in the plane of the screen.
 Chromatic draws each ripple as six contiguous spectral bands around one shared
 outline. All three use filled quads through `GLDraw.polygon`; none allocates
 while drawing.
+
+## psysuals 3.23 and Caustics/Lanterns ports
+
+- `HorizonMode`, `CausticsMode` and `LanternsMode` are native ports. Caustics
+  evaluates the upstream height field's Hessian analytically in a GLES2 shader
+  instead of a blurred 256-wide CPU grid; Lanterns draws its gradients as
+  colour bands and its glow sprites as additive circles. All three use
+  `EffectDynamics`, elapsed time and fixed pools.
+- `SpectrumLevels` is the shared spectrum helper for Corridor and Horizon;
+  non-finite bins read as silence.
+- `AudioBandLevel` ports the 3.23 `BandLevel` mid/treble averages: seeded from
+  the first second, held through pauses judged against the noise floor, quick
+  catch-up after silence, ratio clipped to 0..6. Android still publishes the
+  deviation (ratio − 1). The NaN-sample, DC-offset, device-switch and
+  stalled-stream fixes concern desktop capture; the Visualizer API delivers
+  8-bit mix data and owns its own lifecycle.
+- Effect fixes: Magnetar and FlowField re-seed a small share of particles per
+  frame (Magnetar also those at the core); ChromaWeave accumulates its weave
+  phase; Butterflies keep their size over resize round trips; Bubbles caps
+  swell and radius; Spectrum, Waterfall, Spiral, Bubbles and Aurora tolerate
+  short, empty or non-finite input and very narrow surfaces.
+- Not applicable: the GL rotation flip, CPU trail-fade resize, preset morph
+  frames and uniform-location handling (GLES ignores location -1). FlowField's
+  GL fade already reaches black.
 
 ## Standing Android adaptations
 
@@ -107,7 +134,7 @@ smoothed average cannot establish p95 or expose every individual dropped frame.
 ### Repeatable render survey over ADB
 
 The existing `VisualizerPerformanceIntegrationTest.reportAllModeFrameTimesAt1080p`
-runs all 33 effects at 1920×1080 with synthetic audio, 32 warmup frames and 16
+runs all 36 effects at 1920×1080 with synthetic audio, 32 warmup frames and 16
 measured frames per effect. It synchronizes GL completion and reports renderer,
 profile, bloom, median/p95/max milliseconds and uncapped FPS as `FPS_SURVEY`
 lines. This is an offscreen render-throughput survey, not TV presentation FPS

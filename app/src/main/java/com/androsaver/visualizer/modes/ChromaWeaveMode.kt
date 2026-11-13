@@ -7,27 +7,32 @@ import com.androsaver.visualizer.GLDraw
 class ChromaWeaveMode : FullscreenEffectMode() {
     override val name = "ChromaWeave"
     private var time = 0f
+    // Accumulated weave phase; total time times the live mid level flickered after minutes.
+    private var weave = 0f
     private var hue = .54f
     private var turn = 0f
     private val uniforms = mapOf(
-        "u_time" to FloatArray(1), "u_hue" to FloatArray(1),
+        "u_time" to FloatArray(1), "u_weave" to FloatArray(1), "u_hue" to FloatArray(1),
         "u_turn" to FloatArray(1), "u_bass" to FloatArray(1),
         "u_mid" to FloatArray(1), "u_high" to FloatArray(1),
         "u_pulse" to FloatArray(1), "u_accent" to FloatArray(1)
     )
 
     override fun reset() {
-        time = 0f; hue = .54f; turn = 0f
+        time = 0f; weave = 0f; hue = .54f; turn = 0f
         resetDynamics()
     }
 
     private fun advance(draw: GLDraw, audio: AudioData) {
         val response = prepare(draw, audio)
         val dt = response.step / 60f
-        time += dt * (1f + response.motion[1] * .18f)
+        val elapsed = dt * (1f + response.motion[1] * .18f)
+        time += elapsed
+        weave = (weave + elapsed * (.75f + response.motion[1] * .12f)) % (2f * Math.PI.toFloat())
         turn += dt * .09f * response.motionScale
         hue = (hue + dt * .018f) % 1f
         uniforms.getValue("u_time")[0] = time
+        uniforms.getValue("u_weave")[0] = weave
         uniforms.getValue("u_hue")[0] = hue
         uniforms.getValue("u_turn")[0] = turn
         uniforms.getValue("u_bass")[0] = response.motion[0]
@@ -44,7 +49,7 @@ class ChromaWeaveMode : FullscreenEffectMode() {
 
     override val fragmentShader = """
 uniform vec2 u_resolution;
-uniform float u_time, u_hue, u_turn, u_bass, u_mid, u_high, u_pulse, u_accent;
+uniform float u_time, u_weave, u_hue, u_turn, u_bass, u_mid, u_high, u_pulse, u_accent;
 
 vec3 weaveColour(float hue) {
     return 0.5 + 0.5*cos(6.2831853*(hue + vec3(0.0,0.3333,0.6667)));
@@ -68,7 +73,7 @@ void main() {
         z+=vec2(0.15*sin(u_time*0.19+layer),0.12*cos(u_time*0.13+layer));
         z.x+=0.16*sin(z.y*5.0+u_time*0.23+layer);
         z.y+=0.12*sin(z.x*4.0-u_time*0.19);
-        float weave=sin(z.x*6.0-u_time*(0.75+u_mid*0.12)+sin(z.y*8.0+u_time*0.31))
+        float weave=sin(z.x*6.0-u_weave+sin(z.y*8.0+u_time*0.31))
                     *cos(z.y*10.0+u_time*0.4);
         float thread=exp(-90.0*weave*weave);
         float halo=exp(-8.0*abs(weave));

@@ -2,9 +2,9 @@
 
 An Android TV screensaver app for the Huawei TV Stick, Amazon Fire TV Stick, and any Android TV device. Choose between a **photo slideshow** (Google Drive, OneDrive, Dropbox, Immich, Nextcloud, Synology NAS, or device storage), a **static image**, a fullscreen **music visualizer**, or a **blank black screen**. Put on some music, let the screen go idle, and AndroSaver turns your TV into an audio-reactive light show that pulses and morphs in real time.
 
-The vendored `psysuals/` reference source is upstream `dev` **2080070**, including
-ChromaWeave and the context/performance improvements after psysuals 3.20.0.
-The native Kotlin/GLES backport follows its 33-mode registry, elapsed-time
+The vendored `psysuals/` reference source is upstream `main` **40711a5**
+(psysuals 3.23.0 plus Caustics and Lanterns).
+The native Kotlin/GLES backport follows its 36-mode registry, elapsed-time
 motion, visual profiles and effect refinements. Scene, bloom and presentation
 buffers are cleared on effect changes.
 
@@ -49,7 +49,7 @@ buffers are cleared on effect changes.
 - **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
 - **Static image mode** — choose a local or configured-source image, with independent portrait and landscape behavior settings.
 - **Adaptive unused-space background** — fitted and centered images can use an automatically derived subdued color gradient, with a manual RGB color picker fallback.
-- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.22.0 while Android-applicable fixes are backported to Kotlin. The Android port follows the upstream FFT-driven effect response, Tunnel camera tracking, Chromatic ring cap, Spiral FFT/beat response, and Persistence fourth-coordinate rotation; desktop-only Python adapters remain in the subtree.
+- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream main `40711a5` (v3.23.0 plus Caustics and Lanterns) while Android-applicable fixes are backported to Kotlin. The Android port follows the upstream FFT-driven effect response, Tunnel camera tracking, Chromatic ring cap, Spiral FFT/beat response, and Persistence fourth-coordinate rotation; desktop-only Python adapters remain in the subtree.
 
 ## What's New in v2.2
 
@@ -99,7 +99,7 @@ choose a random provider image.
 ### Music Visualizer
 Designed for listening sessions: start playing music in any app, let the screen idle, and AndroSaver takes over with a fullscreen light show that reacts to every beat.
 
-- Thirty-three audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Fireworks**, **Aurora**, **Lattice**, **Mycelium**, **Magnetar**, **SlimeMold**, **Mobius**, **Chromatic**, **Persistence**, **Synapse**, **Heartbeat**, **Hyperbolic**, **LiquidLight**, **Cymatica**, **Phason**, **Tesseract**, **Ferrofluid**, **ChromaWeave**, **Spectrum**, **Waterfall**
+- Thirty-six audio-reactive OpenGL ES 2.0 effects: **Yantra**, **Cube**, **TriFlux**, **Lissajous**, **Tunnel**, **Corridor**, **Nova**, **Spiral**, **Bubbles**, **Plasma**, **Branches**, **Butterflies**, **FlowField**, **Fireworks**, **Aurora**, **Lattice**, **Mycelium**, **Magnetar**, **SlimeMold**, **Mobius**, **Chromatic**, **Persistence**, **Synapse**, **Heartbeat**, **Hyperbolic**, **LiquidLight**, **Cymatica**, **Phason**, **Tesseract**, **Ferrofluid**, **ChromaWeave**, **Horizon**, **Caustics**, **Lanterns**, **Spectrum**, **Waterfall**
 - Reacts to system audio — works with any music or streaming app on the TV
 - **Remote control** — use the TV remote while the visualizer is running:
   - **←** / **→** — previous / next visual effect
@@ -380,7 +380,7 @@ The configured "Time per Image" is the dwell time for each displayed photo. Tran
 |---------|---------|---------|-------------|
 | **Visual Effect Cycle** | Off, On, Random | On | Off leaves the current effect until changed with the remote; On cycles through the enabled effects in registry order; Random chooses randomly |
 | **Visual Profile** | Auto / Laptop / TV | Auto | Motion/light response independently of render resolution |
-| **Active Effects** | Any combination of the 33 effects | All | Selects which effects are included when cycling is On or Random; at least one must remain selected |
+| **Active Effects** | Any combination of the 36 effects | All | Selects which effects are included when cycling is On or Random; at least one must remain selected |
 | **Effect Intensity** | Off, Low, Medium, High, Max | Low | How strongly the visuals react to the beat |
 | **Auto-cycle Interval** | Off, 1 min, 2 min, 5 min, 10 min, 15 min | 2 min | How often the screensaver switches to the next effect |
 | **Music Genre** | Auto-detect, Any, Electronic, Rock, Classical | Any | Tunes beat-detection frequency weighting; Auto-detect analyzes the spectrum every 30 seconds and can switch visualizer family when Visual Effect Cycle is On |
@@ -484,6 +484,9 @@ See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) f
 | **Tesseract** | Projected rotating 4-D hypercube wireframe |
 | **Ferrofluid** | Metallic liquid envelope with sharp magnetic peaks and surface lighting |
 | **ChromaWeave** | Eightfold iridescent ribbons and breathing petals; bass opens the weave, treble lights fine cyan glints |
+| **Horizon** | Spectrum-shaped mountain ridges scroll toward the camera through a valley, toward a sun under a starry sky |
+| **Caustics** | Light on the floor of a pool; bass sharpens the net, mids drive the wind, treble adds glints, beats drop ripples |
+| **Lanterns** | Paper lanterns rising over a dark lake with shimmering reflections; beats release new lanterns |
 | **Spectrum** | Log-spaced spectrum analyser with peak markers and waveform overlay |
 | **Waterfall** | Scrolling time-frequency spectrogram; beat flashes the leading edge |
 
@@ -507,14 +510,15 @@ ScreensaverService (DreamService)
         │   ├── AudioEngine          ← Android Visualizer API, FFT + beat detection
         │   └── VisualizerView (GLSurfaceView)
         │       └── VisualizerRenderer (OpenGL ES 2.0)
-        │           └── 32 × BaseMode  ← Yantra, Cube, TriFlux, Lissajous, Tunnel,
+        │           └── 36 × BaseMode  ← Yantra, Cube, TriFlux, Lissajous, Tunnel,
         │                                 Corridor, Nova, Spiral, Bubbles, Plasma,
         │                                 Branches, Butterflies, FlowField, Fireworks,
         │                                 Aurora, Lattice, Mycelium, Magnetar,
         │                                 SlimeMold, Mobius, Chromatic, Persistence,
         │                                 Synapse, Heartbeat, Hyperbolic,
         │                                 LiquidLight, Cymatica, Phason, Tesseract,
-        │                                 Ferrofluid, ChromaWeave, Spectrum, Waterfall
+        │                                 Ferrofluid, ChromaWeave, Horizon, Caustics,
+        │                                 Lanterns, Spectrum, Waterfall
         ├── Clock overlay            ← date/time updated every minute
         ├── WeatherFetcher           ← OpenWeatherMap, cached 30 min
         └── Schedule check          ← restricts active hours

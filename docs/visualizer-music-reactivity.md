@@ -21,7 +21,10 @@ The **Effect Intensity** setting (Off / Low / Medium / High / Max) is a multipli
 The first beat after startup or a genre change is suppressed while the rolling
 baseline is initialized. Mid and treble are deviation signals, not raw
 volume meters: steady energy trends toward zero, while transients rise above
-zero. If `RECORD_AUDIO` is denied or the Android `Visualizer` API is
+zero, capped at 5. Their running averages follow psysuals 3.23: they are seeded
+from the median of the first second, hold through pauses (judged against the
+band's noise floor), catch up quickly when music returns, and follow a quieter
+passage within seconds, so returning music no longer spikes. If `RECORD_AUDIO` is denied or the Android `Visualizer` API is
 unavailable, rendering continues with zeroed audio data.
 
 In the effect sections below, **bass** is historical psysuals terminology for
@@ -205,6 +208,9 @@ inputs rather than an API restriction.
 | Persistence | Beat raises the nested-solid boost and edge brightness | — | — | Independent 3-D orbital speeds | Solids continue slow rotation with long persistence |
 | Synapse | Strong beat adds nodes and launches signal cascades | Signal/arrival variation | — | Periodic mutation adds or sheds nodes | Graph wanders and existing signals decay |
 | Heartbeat | Beat spawns rings; low level morphs circle ↔ polygon | — | — | Ring age controls expansion and fade | Rings continue; periodic low-energy auto-spawn keeps motion alive |
+| Horizon | Low lifts the ridges and brightens the sun | Raises the ride speed | Glitter on the ridges and star twinkle | Spectrum shapes each ridge row | Ridges keep scrolling under twinkling stars |
+| Caustics | Low raises the waves and sharpens the light net; beat edges drop ripples | Wind: the waves travel faster | Glints on the brightest crossings and a cool shimmer | — | Waves keep drifting with a dim net |
+| Lanterns | Low flickers the flames and swells the glow; beat edges release new lanterns | Wind and sway | Sparks rise from the flames; reflections shimmer | — | A slow stream of lanterns keeps rising |
 
 The eight field/geometry effects added with the current upstream integration
 are documented individually below because their bounded scalar-field or

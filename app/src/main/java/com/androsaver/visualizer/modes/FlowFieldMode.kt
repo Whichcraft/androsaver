@@ -25,10 +25,13 @@ class FlowFieldMode : BaseMode() {
         const val N_MAX  = 40000
         const val FS     = 0.0022f   // spatial frequency of the noise field
         const val LAYERS = 2
+        const val RESEED = 0.003f   // share of particles re-seeded per frame
     }
 
-    private var px    = FloatArray(0)
-    private var py    = FloatArray(0)
+    internal var px   = FloatArray(0)
+        private set
+    internal var py   = FloatArray(0)
+        private set
     private val particleColour = FloatArray(4)
     private var n     = 0
     private var hue   = 0f
@@ -88,6 +91,19 @@ class FlowFieldMode : BaseMode() {
         return a * PI.toFloat() * (2.2f + bass * 1.8f)
     }
 
+    /**
+     * Particles follow a deterministic field and used to merge onto a few pixels.
+     * Re-seeding a small share every frame keeps them spread.
+     */
+    internal fun reseedParticles(W: Float, H: Float) {
+        for (i in 0 until n) {
+            if (rng.nextFloat() < RESEED) {
+                px[i] = rng.nextFloat() * W
+                py[i] = rng.nextFloat() * H
+            }
+        }
+    }
+
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
         val beat = audio.beat
@@ -113,6 +129,8 @@ class FlowFieldMode : BaseMode() {
         // The source fade is retained for parity; GLDraw applies the shared
         // minimum decay so stale pixels do not accumulate on Android TVs.
         draw.fadeBlack(8f / 255f)
+
+        reseedParticles(W, H)
 
         val spd    = 1.8f + bass * 1.6f + mid * 1.2f + boost
         val scatter = high * 3.2f
