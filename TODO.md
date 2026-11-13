@@ -419,3 +419,17 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
   covering all 33 registry modes and add Cymatica and LiquidLight visibility.
 - [ ] Run the Android JVM/device checks on GitHub for the exact commit and
   confirm the reworked effects on the target TV.
+
+## Mycelium 3.21 port — 2026-11-13
+
+- [x] Port the psysuals 3.21 colony model: bounded node, edge, tip, packet,
+  spore and body pools with a free-list allocator.
+- [x] Grow the colony from three fruiting bodies with a warm-up, tapered
+  filaments, junction loops, packet handover, spore germination and a
+  keep-alive heartbeat in silence.
+- [x] Render it natively: opaque indigo ground, body glows, tapered filament
+  glow and core lines, packet tails, spores, sparks and rings.
+- [x] Keep the colony model free of GL state and cover it with JVM checks for
+  bounded pools, packet routing, germination, silence and resize.
+- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
+  confirm the colony on the target TV.

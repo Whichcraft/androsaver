@@ -6,6 +6,12 @@
 
 - 2026-11-13: Increased dev publication identity to 2.14.0 (395) for the next
   dev-channel publication.
+- 2026-11-13: Ported the psysuals 3.21 Mycelium rewrite: three fruiting bodies
+  grow a violet hyphal web over an opaque indigo ground, cyan light packets
+  travel the filaments and hand over at the junctions, amber spores drift and
+  germinate, and the colony keeps a heartbeat of its own in silence. The model
+  holds no GL state and is covered by JVM checks for bounded pools, packet
+  routing, germination, silence and resize.
 - 2026-11-13: Increased dev publication identity to 2.13.0 (393) for the next
   dev-channel publication.
 - 2026-11-13: Reworked LiquidLight as a bounded dye simulation: a coarse

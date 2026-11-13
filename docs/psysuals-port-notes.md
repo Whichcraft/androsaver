@@ -12,25 +12,16 @@ slot: zero-based index **16** (17th entry), between Lattice and Magnetar, in
 arrays. The 3.21 rewrite needs no new mode, reordering or preset migration.
 Spectrum and Waterfall remain last. Android effect preferences are name-based.
 
-## Outstanding Mycelium port
+## Mycelium port
 
-`MyceliumMode.kt` still renders the earlier five-colony effect with rotating
-satellite rings, rainbow filaments, orbiting spores and retained trails. The
-3.21 Python rewrite has not been backported. Its native acceptance targets are:
+`MyceliumMode.kt` now renders the psysuals 3.21 hyphal web. The colony model
+lives in `MyceliumColony.kt` without any GL state, so its behaviour is checked
+in the JVM suite: three fruiting bodies, violet tapered filaments on an opaque
+indigo ground, cyan light packets that hand over at the junctions, amber spores
+that germinate, and a heartbeat that keeps light travelling in silence. Nodes,
+edges, tips, packets and spores live in bounded pools, and a resize re-lays out
+the live network instead of rebuilding it.
 
-- Three fruiting bodies, violet tapered filaments on opaque indigo ground,
-  cyan light packets and amber spores.
-- Connected filament junctions, packet handover, spore germination and ongoing
-  autonomous light waves in silence.
-- Bass-driven growth/body lighting/packet waves, mid-driven swirl/branching/packet
-  speed, and treble sparks/spore release.
-- Bounded nodes, edges, tips, packets and spores, including successful germination
-  under pool pressure. Kotlin's existing caps do not establish new-model parity.
-- Preserve and rescale live topology on viewport changes; the current native
-  implementation clears and rebuilds it.
-
-Use the Python network regression tests as behavioral references. Add focused
-native checks for routing, germination, resource bounds, silence and resizing.
 Desktop timings in the upstream changelog are not Android measurements.
 
 ## Standing Android adaptations

@@ -5,370 +5,208 @@ import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
 /**
- * Mycelium — psychedelic hyphae colonies with swirling spores.
+ * Mycelium — a violet hyphal web that carries travelling light packets.
  *
- * Active tips grow outward leaving decaying filament segments behind.
- * Rewritten in v3.9.0 to support multiple colonies (cores) with a swirling
- * growth pattern for fuller screen coverage.
- *
- * Port of psysuals `effects/mycelium.py` (v3.13.0).
+ * Three fruiting bodies grow branching filaments over an opaque indigo
+ * ground. Cyan packets travel along the filaments and hand over to a
+ * neighbouring filament at the junctions; amber spores drift, settle and
+ * germinate into new growth. The colony keeps a slow heartbeat of its own, so
+ * light travels even in silence.
  */
 class MyceliumMode : BaseMode() {
 
     override val name = "Mycelium"
 
     private companion object {
-        const val MAX_SEGS = 900
-        const val MAX_TIPS = 240
-        const val CORE_COUNT = 5
-        const val MAX_SPORES = 300
-        val PI_F = Math.PI.toFloat()
-        val TAU = (2.0 * PI).toFloat()
+        const val GROUND_R = 9f / 255f
+        const val GROUND_G = 7f / 255f
+        const val GROUND_B = 24f / 255f
+        const val PULSE_HUE = MyceliumColony.PULSE_HUE
+        const val AMBER_HUE = MyceliumColony.AMBER_HUE
     }
 
-    private data class Core(
-        val anchorX: Float, val anchorY: Float, val hOff: Float,
-        var x: Float = anchorX, var y: Float = anchorY
-    )
-
-    private data class Tip(
-        val x: Float, val y: Float, val angle: Float,
-        val depth: Int, val hueOff: Float, val coreIdx: Int
-    )
-
-    private data class Seg(
-        val x1: Float, val y1: Float, val x2: Float, val y2: Float,
-        var age: Int, val maxAge: Int, val depth: Int, val hueOff: Float
-    )
-
-    private val cores = ArrayList<Core>(CORE_COUNT)
-    private val tips = ArrayList<Tip>(MAX_TIPS)
-    private val segs = ArrayList<Seg>(MAX_SEGS)
-
-    private data class Spore(
-        var x: Float, var y: Float,
-        var vx: Float, var vy: Float,
-        val hueOff: Float,
-        var life: Int, val maxLife: Int,
-        val size: Float
-    )
-
-    private val spores = ArrayList<Spore>()
-
-    private var hue = 0f
-    private var phase = 0f
-    private var pulse = 0f
+    private var colony: MyceliumColony? = null
     private var lastW = 0
     private var lastH = 0
+    private var bassPrev = 0f
+    private val edgeLight = FloatArray(MyceliumColony.MAX_EDGES)
+    private val glowColor = FloatArray(4)
+    private val coreColor = FloatArray(4)
 
     override fun reset() {
-        cores.clear()
-        tips.clear()
-        segs.clear()
-        spores.clear()
-        hue = Math.random().toFloat()
-        phase = 0f
-        pulse = 0f
+        bassPrev = 0f
+        colony = null
         lastW = 0
         lastH = 0
     }
 
-    private fun buildCores(W: Float, H: Float) {
-        cores.clear()
-        val cx = W / 2f
-        val cy = H / 2f
-        val rad = minOf(W, H) * 0.22f
-        val base = FloatArray(CORE_COUNT) { i -> i * (TAU / CORE_COUNT) }
-        for (i in 0 until CORE_COUNT) {
-            val ang = base[i] + (Math.random().toFloat() * 0.44f - 0.22f)
-            val dist = rad * (0.55f + Math.random().toFloat() * 0.60f)
-            cores.add(
-                Core(
-                    cx + cos(ang) * dist,
-                    cy + sin(ang) * dist,
-                    i.toFloat() / CORE_COUNT * 0.45f
-                )
-            )
-        }
-    }
-
-    private fun seedTips(W: Float, H: Float, count: Int, coreIdx: Int? = null) {
-        if (cores.isEmpty()) buildCores(W, H)
-        val n = minOf(count, MAX_TIPS - tips.size)
-        if (n <= 0) return
-        val minDim = minOf(W, H)
-        for (i in 0 until n) {
-            val idx = coreIdx ?: (0 until CORE_COUNT).random()
-            val ang = Math.random().toFloat() * TAU
-            // Keep the random range valid on tiny preview/test surfaces.
-            val radiusLow = 2f
-            val radiusHigh = maxOf(radiusLow + 1f, minDim * 0.035f)
-            val radius = radiusLow + Math.random().toFloat() * (radiusHigh - radiusLow)
-            val hoff = Math.random().toFloat() * 0.15f
-            val core = cores[idx]
-            tips.add(
-                Tip(
-                    core.x + cos(ang) * radius,
-                    core.y + sin(ang) * radius,
-                    ang,
-                    0,
-                    (core.hOff + hoff) % 1f,
-                    idx
-                )
-            )
-        }
+    override fun onSurfaceCreated() {
+        super.onSurfaceCreated()
+        colony = null
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        val W = draw.W.toFloat()
-        val H = draw.H.toFloat()
-        val bass = audio.beat
-        val mid = audio.mid
-        val high = audio.treble
-
-        if (cores.isEmpty() || lastW != draw.W || lastH != draw.H) {
+        val model = colony
+        if (model == null) {
+            colony = MyceliumColony(draw.W, draw.H)
             lastW = draw.W
             lastH = draw.H
-            buildCores(W, H)
-            tips.clear()
-            segs.clear()
-            spores.clear()
-            seedTips(W, H, 28)
+        } else if (lastW != draw.W || lastH != draw.H) {
+            // A resize re-lays out the network; it never rebuilds it.
+            model.resize(draw.W, draw.H)
+            lastW = draw.W
+            lastH = draw.H
         }
+        val colony = this.colony ?: return
 
-        hue = (hue + 0.003f + mid * 0.002f) % 1f
-        phase += 0.010f + mid * 0.012f + high * 0.006f
-        pulse = maxOf(0f, pulse - 0.03f)
+        val response = prepare(draw, audio)
+        val step = response.step
+        val bass = audio.beat.coerceIn(0f, 1.5f)
+        val mid = response.motion[1].coerceIn(0f, 1.5f)
+        val treble = response.motion[2].coerceIn(0f, 1.5f)
+        val lightBass = response.light[0]
+        val onset = bassPrev < 0.5f && lightBass >= 0.5f
+        bassPrev = lightBass
 
-        // Keep each colony centered near its seed while letting its source wander.
-        val wander = minOf(W, H) * (0.035f + mid * 0.004f)
-        for (i in cores.indices) {
-            val core = cores[i]
-            core.x = core.anchorX + sin(phase * (0.42f + i * 0.035f) + i * 1.7f) * wander
-            core.y = core.anchorY + cos(phase * (0.37f + i * 0.03f) + i * 2.1f) * wander
-        }
+        colony.update(step, bass, mid, treble, lightBass, onset, false)
 
-        if (bass > 0.65f) {
-            if (tips.size < MAX_TIPS) {
-                pulse = 1f
-                val launchCycles = 1 + (bass * 2.5f).toInt()
-                repeat(launchCycles) {
-                    val seedCount = (5f + bass * 6f).toInt()
-                    seedTips(W, H, seedCount, (0 until CORE_COUNT).random())
-                }
-            }
-            for (core in cores) {
-                val count = (2..5).random()
-                repeat(count) {
-                    val ang = Math.random().toFloat() * TAU
-                    val spd = 1f + Math.random().toFloat() * 2.5f
-                    spores.add(
-                        Spore(
-                            core.x, core.y,
-                            cos(ang) * spd, sin(ang) * spd,
-                            core.hOff,
-                            (120..240).random(),
-                            240,
-                            2f + Math.random().toFloat() * 2.5f
-                        )
-                    )
-                }
-            }
-        }
+        // The ground is opaque, so the colony persists as state rather than as
+        // decaying pixels.
+        draw.setNormalBlend()
+        draw.rect(0f, 0f, draw.W.toFloat(), draw.H.toFloat(), GROUND_R, GROUND_G, GROUND_B, 1f)
 
-        val speed = 6.5f + bass * 18.0f + mid * 5.0f
-        val spread = 0.20f + mid * 0.30f + high * 0.10f
-        val branchP = 0.07f + mid * 0.10f + high * 0.08f
-        val segLife = 90 + (bass * 55f + high * 20f).toInt()
-
-        val nextTips = ArrayList<Tip>(MAX_TIPS)
-        val tipCount = tips.size
-        if (tipCount > 0) {
-            for (idx in 0 until tipCount) {
-                val tip = tips[idx]
-                if (tip.depth >= 18) continue
-
-                val core = cores[tip.coreIdx]
-                val swirl = atan2(tip.y - core.y, tip.x - core.x) + PI_F * 0.5f
-                val field = sin(tip.x * 0.013f + phase + tip.coreIdx * 0.7f) * 0.55f +
-                        cos(tip.y * 0.011f - phase * 1.2f + tip.depth * 0.25f) * 0.35f
-
-                val gauss = gaussianRandom() * spread * 0.16f
-                val ta2 = tip.angle + (swirl + field - tip.angle) * 0.22f + gauss
-
-                val lenMul = 0.72f + Math.random().toFloat() * 0.50f
-                val length = maxOf(2.5f, speed * (1.0f - tip.depth * 0.030f) * lenMul)
-
-                val ex = ((tip.x + cos(ta2) * length) % W + W) % W
-                val ey = ((tip.y + sin(ta2) * length) % H + H) % H
-
-                if (segs.size < MAX_SEGS) {
-                    val segJitter = (-16..56).random()
-                    segs.add(Seg(tip.x, tip.y, ex, ey, 0, segLife + segJitter, tip.depth, tip.hueOff))
-                }
-
-                // Tip grows, occasionally releases a spore
-                if (Math.random() < 0.12 && spores.size < MAX_SPORES) {
-                    val rx = Math.random().toFloat() - 0.5f
-                    val ry = Math.random().toFloat() - 0.5f
-                    spores.add(
-                        Spore(
-                            ex, ey,
-                            cos(ta2 + PI_F) * 0.5f + rx,
-                            sin(ta2 + PI_F) * 0.5f + ry,
-                            tip.hueOff,
-                            (80..160).random(),
-                            160,
-                            1.5f + Math.random().toFloat() * 2f
-                        )
-                    )
-                }
-
-                if (nextTips.size < MAX_TIPS) {
-                    nextTips.add(Tip(ex, ey, ta2, tip.depth + 1, tip.hueOff, tip.coreIdx))
-                }
-
-                if (Math.random() < branchP && tip.depth < 13 && nextTips.size < MAX_TIPS) {
-                    val sign = if (Math.random() < 0.5) -1f else 1f
-                    val branchAngle = 0.35f + Math.random().toFloat() * (0.60f + spread)
-                    val bAng = ta2 + sign * branchAngle
-                    val bCore = if (Math.random() > 0.18) tip.coreIdx else (0 until CORE_COUNT).random()
-                    nextTips.add(Tip(ex, ey, bAng, tip.depth + 1, (tip.hueOff + 0.10f) % 1f, bCore))
-                }
-            }
-        }
-
-        tips.clear()
-        tips.addAll(nextTips.take(MAX_TIPS))
-
-        if (tips.isEmpty()) {
-            buildCores(W, H)
-            seedTips(W, H, 28)
-        }
-
-        segs.removeAll { it.age >= it.maxAge }
-        for (s in segs) s.age++
-
-        // Update Spores
-        val nextSpores = ArrayList<Spore>()
-        for (s in spores) {
-            var nearestCore: Core? = null
-            var minD = 99999f
-            for (core in cores) {
-                val d = hypot(s.x - core.x, s.y - core.y)
-                if (d < minD) {
-                    minD = d
-                    nearestCore = core
-                }
-            }
-
-            if (nearestCore != null) {
-                val cx = nearestCore.x
-                val cy = nearestCore.y
-                val dx = s.x - cx
-                val dy = s.y - cy
-                val d = maxOf(1f, minD)
-                val ox = -dy / d
-                val oy = dx / d
-                val px = -dx / d
-                val py = -dy / d
-
-                var fOrbit = 0.4f + mid * 0.8f
-                var fPull = 0.05f + bass * 0.1f
-                if (d > 200f) {
-                    fOrbit *= 0.5f
-                    fPull *= 2f
-                } else if (d < 50f) {
-                    fOrbit *= 1.5f
-                    fPull = -0.1f
-                }
-
-                val rx = (Math.random().toFloat() * 0.3f - 0.15f)
-                val ry = (Math.random().toFloat() * 0.3f - 0.15f)
-
-                s.vx += ox * fOrbit + px * fPull + rx
-                s.vy += oy * fOrbit + py * fPull + ry
-            }
-
-            s.vx *= 0.94f
-            s.vy *= 0.94f
-
-            s.x = ((s.x + s.vx) % W + W) % W
-            s.y = ((s.y + s.vy) % H + H) % H
-
-            s.life--
-            if (s.life > 0) {
-                nextSpores.add(s)
-            }
-        }
-        spores.clear()
-        spores.addAll(if (nextSpores.size > MAX_SPORES) nextSpores.take(MAX_SPORES) else nextSpores)
-
-        // Fade trail
-        draw.fadeBlack(8f / 255f)
-
-        // Draw cores
         draw.setAdditiveBlend()
-        for (i in cores.indices) {
-            val core = cores[i]
-            val corePhase = phase * (0.7f + i * 0.08f)
-            val wobble = 10.0f + sin(corePhase) * 8.0f
-            val coreHue = (hue + core.hOff + sin(corePhase * 0.6f) * 0.05f) % 1f
-            val glow = 0.06f + pulse * 0.12f + bass * 0.05f
-
-            val cGlow = GLDraw.hsl(coreHue, l = glow * 0.35f)
-            val cCore = GLDraw.hsl(coreHue, l = glow)
-            draw.circle(core.x, core.y, 22f + wobble, cGlow[0], cGlow[1], cGlow[2], 0.85f, filled = true, segments = 16)
-            draw.circle(core.x, core.y, 7f + bass * 8f, cCore[0], cCore[1], cCore[2], 0.85f, filled = true, segments = 12)
-
-            // Rotating ring of satellite nodes around each core
-            val numDots = 6
-            val rRing = 15f + wobble * 0.5f + bass * 12f
-            for (d in 0 until numDots) {
-                val ang = phase * 0.8f + d * (TAU / numDots)
-                val dx = core.x + cos(ang) * rRing
-                val dy = core.y + sin(ang) * rRing
-                val cDot = GLDraw.hsl(coreHue, l = minOf(0.9f, glow * 1.8f))
-                draw.circle(dx, dy, 3f + bass * 2f, cDot[0], cDot[1], cDot[2], 0.85f, filled = true, segments = 8)
-            }
-        }
-
-        // Draw segments
-        for (s in segs) {
-            val fade = maxOf(0f, 1f - s.age.toFloat() / s.maxAge)
-            val segHue = (hue + s.hueOff + s.depth * 0.015f) % 1f
-            val bright = (0.22f + bass * 0.10f + high * 0.08f + pulse * 0.14f) * fade
-
-            val cGlow = GLDraw.hsl(segHue, s = 0.90f, l = bright * 0.30f)
-            val cCore = GLDraw.hsl(segHue, s = 0.40f, l = minOf(0.95f, bright * 1.5f))
-
-            draw.line(s.x1, s.y1, s.x2, s.y2, cGlow[0], cGlow[1], cGlow[2], 0.8f)
-            draw.line(s.x1, s.y1, s.x2, s.y2, cCore[0], cCore[1], cCore[2], 1.0f)
-
-            if (s.depth > 5 && s.age < s.maxAge * 0.25f && (s.depth + s.age) % 5 == 0) {
-                val cDot = GLDraw.hsl(segHue, l = bright * 0.85f)
-                val dotR = maxOf(1f, 3f - s.depth / 8f)
-                draw.circle(s.x2, s.y2, dotR, cDot[0], cDot[1], cDot[2], 0.8f, filled = true, segments = 6)
-            }
-        }
-
-        // Draw Spores
-        for (s in spores) {
-            val fade = s.life.toFloat() / s.maxLife
-            val sporeHue = (s.hueOff + hue) % 1f
-            val valL = minOf(0.95f, 0.3f + high * 0.5f) * fade
-            val r = maxOf(1f, s.size * fade * (1f + high * 0.8f))
-            val cSpore = GLDraw.hsl(sporeHue, l = valL)
-            draw.circle(s.x, s.y, r, cSpore[0], cSpore[1], cSpore[2], 0.85f, filled = true, segments = 8)
-        }
+        drawBodies(draw, colony, bass, draw.W, draw.H)
+        drawFilaments(draw, colony, draw.W, draw.H)
+        drawPulses(draw, colony)
+        drawSpores(draw, colony)
+        drawSparks(draw, colony, treble)
+        drawRings(draw, colony)
         draw.setNormalBlend()
     }
 
-    private fun gaussianRandom(): Float {
-        var u1 = 0f
-        var u2 = 0f
-        while (u1 == 0f) u1 = Math.random().toFloat()
-        while (u2 == 0f) u2 = Math.random().toFloat()
-        return sqrt(-2f * ln(u1)) * cos(TAU * u2)
+    /** A soft radial glow around every fruiting body. */
+    private fun drawBodies(draw: GLDraw, model: MyceliumColony, bass: Float, width: Int, height: Int) {
+        val radius = maxOf(8f, 0.22f * minOf(width, height))
+        for (index in 0 until model.bodyCount) {
+            val x = model.bodyX(index)
+            val y = model.bodyY(index)
+            val hue = model.bodyHue(index)
+            GLDraw.hsl(hue, 0.75f, 0.42f, 1f, glowColor)
+            for (ring in 0 until 4) {
+                val r = radius * (1f - ring * 0.22f)
+                val alpha = 0.05f * (1f - ring * 0.2f)
+                draw.circle(x, y, r, glowColor[0], glowColor[1], glowColor[2], alpha, filled = true, segments = 20)
+            }
+            GLDraw.hsl(hue, 0.80f, 0.75f, 1f, coreColor)
+            draw.circle(x, y, maxOf(1f, 5f + bass * 5f), coreColor[0], coreColor[1], coreColor[2], 0.9f, filled = true, segments = 16)
+            GLDraw.hsl(hue, 0.60f, 0.45f, 1f, glowColor)
+            draw.circle(x, y, maxOf(1f, 16f + bass * 22f), glowColor[0], glowColor[1], glowColor[2], 0.7f, filled = false, segments = 24)
+        }
+    }
+
+    /** The filaments: a tapered glow line and a brighter core line. */
+    private fun drawFilaments(draw: GLDraw, model: MyceliumColony, width: Int, height: Int) {
+        for (index in edgeLight.indices) edgeLight[index] = 0f
+        for (i in 0 until model.pulseCount) {
+            val edge = model.pulseEdge(i)
+            if (edge in edgeLight.indices) {
+                edgeLight[edge] = minOf(1f, edgeLight[edge] + model.pulseEnergy(i))
+            }
+        }
+        val span = maxOf(1f, 1.3f * minOf(width, height))
+        for (index in 0 until MyceliumColony.MAX_EDGES) {
+            if (!model.edgeAlive(index)) continue
+            val a = model.edgeStart(index)
+            val b = model.edgeEnd(index)
+            val fade = maxOf(0.25f, 1f - model.edgeAgeOf(index) / model.edgeLifetimeOf(index))
+            val lit = edgeLight[index]
+            val hue = model.edgeHueOf(index)
+            val coreHue = hue + (PULSE_HUE - hue) * 0.45f * lit
+            val glowLight = minOf(1f, 0.18f + 0.12f * fade + 0.30f * lit)
+            val coreLight = minOf(1f, 0.55f + 0.30f * fade + 0.45f * lit)
+            val taper = taper(model, index, span, width, height)
+            val depth = model.edgeDepthOf(index)
+            val glowWidth = maxOf(1f, (5f - depth / 2) * taper)
+            val coreWidth = maxOf(1f, (2f - depth / 3) * taper)
+            val ax = model.nodePosX(a)
+            val ay = model.nodePosY(a)
+            val bx = model.nodePosX(b)
+            val by = model.nodePosY(b)
+            GLDraw.hsl(hue, 0.72f, glowLight, 1f, glowColor)
+            draw.antiAliasedLine(ax, ay, bx, by, glowColor[0], glowColor[1], glowColor[2], 0.55f, glowWidth)
+            GLDraw.hsl(coreHue, 0.85f, coreLight, 1f, coreColor)
+            draw.antiAliasedLine(ax, ay, bx, by, coreColor[0], coreColor[1], coreColor[2], 0.95f, coreWidth)
+        }
+    }
+
+    /** Filaments are thick near their body and fine at the frontier. */
+    private fun taper(model: MyceliumColony, edge: Int, span: Float, width: Int, height: Int): Float {
+        val a = model.edgeStart(edge)
+        val b = model.edgeEnd(edge)
+        val bodyIndex = model.edgeBodyOf(edge)
+        val bodyX: Float
+        val bodyY: Float
+        if (bodyIndex in 0 until model.bodyCount) {
+            bodyX = model.bodyX(bodyIndex)
+            bodyY = model.bodyY(bodyIndex)
+        } else {
+            bodyX = width * 0.5f
+            bodyY = height * 0.5f
+        }
+        val midX = (model.nodePosX(a) + model.nodePosX(b)) * 0.5f
+        val midY = (model.nodePosY(a) + model.nodePosY(b)) * 0.5f
+        val distance = hypot(midX - bodyX, midY - bodyY)
+        return minOf(1f, maxOf(0.30f, 1f - distance / span))
+    }
+
+    /** The travelling packets and their tails. */
+    private fun drawPulses(draw: GLDraw, model: MyceliumColony) {
+        for (i in 0 until model.pulseCount) {
+            val edge = model.pulseEdge(i)
+            if (!model.edgeAlive(edge)) continue
+            val a = model.edgeStart(edge)
+            val b = model.edgeEnd(edge)
+            val t = model.pulseT(i)
+            val x = model.nodePosX(a) + (model.nodePosX(b) - model.nodePosX(a)) * t
+            val y = model.nodePosY(a) + (model.nodePosY(b) - model.nodePosY(a)) * t
+            val tailT = maxOf(0f, t - 0.18f)
+            val tailX = model.nodePosX(a) + (model.nodePosX(b) - model.nodePosX(a)) * tailT
+            val tailY = model.nodePosY(a) + (model.nodePosY(b) - model.nodePosY(a)) * tailT
+            GLDraw.hsl(PULSE_HUE, 0.85f, 0.72f, 1f, coreColor)
+            draw.antiAliasedLine(tailX, tailY, x, y, coreColor[0], coreColor[1], coreColor[2], 0.9f, 2f)
+            draw.circle(x, y, maxOf(1f, 2f + model.pulseEnergy(i) * 3f),
+                coreColor[0], coreColor[1], coreColor[2], 0.95f, filled = true, segments = 10)
+        }
+    }
+
+    /** Spores are violet when released and amber when they settle. */
+    private fun drawSpores(draw: GLDraw, model: MyceliumColony) {
+        for (i in 0 until model.sporeCount) {
+            val fade = maxOf(0f, model.sporeLife(i).toFloat() / maxOf(1, model.sporeMaxLife(i)))
+            val violet = model.compositeHue(model.sporeHue(i))
+            val hue = (violet + (1f - fade) * (((AMBER_HUE - violet) % 1f + 1f) % 1f)) % 1f
+            GLDraw.hsl(hue, 0.55f, 0.45f * fade + 0.30f, 1f, coreColor)
+            draw.circle(model.sporeX(i), model.sporeY(i), maxOf(1f, model.sporeSize(i) * fade),
+                coreColor[0], coreColor[1], coreColor[2], 0.9f, filled = true, segments = 8)
+        }
+    }
+
+    private fun drawSparks(draw: GLDraw, model: MyceliumColony, treble: Float) {
+        if (model.sparkCount == 0) return
+        GLDraw.hsl(AMBER_HUE, 0.85f, 0.55f + 0.25f * minOf(1f, treble), 1f, coreColor)
+        val radius = maxOf(1f, 1f + treble * 2f)
+        for (i in 0 until model.sparkCount) {
+            draw.circle(model.sparkX(i), model.sparkY(i), radius,
+                coreColor[0], coreColor[1], coreColor[2], 0.95f, filled = true, segments = 6)
+        }
+    }
+
+    private fun drawRings(draw: GLDraw, model: MyceliumColony) {
+        for (i in 0 until model.ringCount) {
+            GLDraw.hsl(model.compositeHue(0.10f), 0.70f, 0.15f + 0.35f * model.ringAlpha(i), 1f, glowColor)
+            draw.circle(model.ringX(i), model.ringY(i), maxOf(1f, model.ringRadius(i)),
+                glowColor[0], glowColor[1], glowColor[2], 0.8f, filled = false, segments = 24)
+        }
     }
 }
