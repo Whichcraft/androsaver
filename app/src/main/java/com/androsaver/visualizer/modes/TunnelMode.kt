@@ -4,7 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/** psysuals 3.20 gentle tunnel curvature, stable ring identities and bounded elapsed-time triangle spawning. */
+/** Music-driven tunnel ride: the speed, the tube width and the winding follow the music. */
 class TunnelMode : BaseMode() {
 
     override val name = "Tunnel"
@@ -38,9 +38,11 @@ class TunnelMode : BaseMode() {
     private var hue  = 0f
     private var time = 0f
     private var spawnCredit=0f
+    private var surge=0f
+    private var beatPrev=0f
 
     override fun reset() {
-        hue = 0f; time = 0f; spawnCredit=0f
+        hue = 0f; time = 0f; spawnCredit=0f; surge=0f; beatPrev=0f
         rings.clear(); tris.clear()
         val spacing = (Z_FAR - Z_NEAR) / N_RINGS
         for (i in 0 until N_RINGS) {
@@ -50,7 +52,8 @@ class TunnelMode : BaseMode() {
     }
 
     private fun path(t: Float, treble: Float = 0f, out: FloatArray = pathScratch) {
-        val scale = 1f
+        // The winding tightens with the treble, so the ride bends with the music.
+        val scale = 1f + treble * 0.35f
         out[0] = sin(t * 0.12f) * 0.35f * scale
         out[1] = cos(t * 0.09f) * 0.25f * scale
     }
@@ -74,8 +77,15 @@ class TunnelMode : BaseMode() {
         val highM = high * motion
         hue += 0.006f*step
 
-        val dt = (.008f+bassM*.0015f+midM*.0008f)*step
+        // Beats kick the ride: it surges forward and settles again.
+        if (audio.beat > 0.6f && beatPrev <= 0.6f) surge = 1f
+        beatPrev = audio.beat
+        surge = maxOf(0f, surge - 0.05f * step)
+
+        val dt = (.008f + bassM * .010f + midM * .005f + surge * .006f) * step
         time += dt
+        // The tube widens with the bass and with the beat kick.
+        val tubeR = TUBE_R * (1f + bassM * .16f + surge * .12f)
 
         // Keep the viewer centered while the tunnel path continues to curve.
         path(time + Z_NEAR, highM)
@@ -126,12 +136,12 @@ class TunnelMode : BaseMode() {
             proj(cx2, cy2, r2.z, draw.W, draw.H)
             val sx2 = projScratch[0]; val sy2 = projScratch[1]; val sc2 = projScratch[2]
 
-            val sr1 = maxOf(1f, TUBE_R * sc1)
-            val sr2 = maxOf(1f, TUBE_R * sc2)
+            val sr1 = maxOf(1f, tubeR * sc1)
+            val sr2 = maxOf(1f, tubeR * sc2)
 
             val nearT = maxOf(0f, 1f - r1.z / Z_FAR)
             val h     = (hue + nearT) % 1f
-            val bright = (0.06f + nearT * 0.60f + midM * 0.15f * nearT + response.light[0]*response.accent*nearT*.12f).coerceIn(0f, 1f)
+            val bright = (0.06f + nearT * 0.60f + midM * 0.22f * nearT + response.light[0]*response.accent*nearT*.18f + surge*nearT*.10f).coerceIn(0f, 1f)
 
             val glowColor = hsl3(h, l = bright * 0.35f)
             val hr = glowColor[0]; val hg = glowColor[1]; val hb = glowColor[2]
@@ -153,7 +163,7 @@ class TunnelMode : BaseMode() {
             // Interior rotating star polygon
             val nStar  = 3 + (r1.id % 4)
             val sDir   = if (r1.id % 2 == 0) 1f else -1f
-            val sRot   = time * 0.12f * sDir + r1.id * 0.52f
+            val sRot   = time * (0.12f + midM * 0.08f) * sDir + r1.id * 0.52f
             val sR     = maxOf(2f, sr1 * (0.24f + highM * 0.12f))
             val sH     = (h + 0.5f) % 1f
             val sL     = minOf(bright * 1.1f + midM * 0.25f + highM * 0.15f, 0.95f)

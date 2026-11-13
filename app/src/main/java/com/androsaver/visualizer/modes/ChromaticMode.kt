@@ -39,8 +39,10 @@ class ChromaticMode : BaseMode() {
 
     private fun spawn(bass: Float, W: Float, H: Float) {
         if (rings.size >= MAX_RINGS) return
-        val cx    = W / 2f + (rng.nextFloat() - 0.5f) * W / 3f
-        val cy    = H / 2f + (rng.nextFloat() - 0.5f) * H / 3f
+        // Spread the drops over the frame. Spawning them all around the centre
+        // made their prismatic outlines cross and interfere.
+        val cx    = W * (0.12f + rng.nextFloat() * 0.76f)
+        val cy    = H * (0.12f + rng.nextFloat() * 0.76f)
         val maxR  = hypot(maxOf(cx, W - cx), maxOf(cy, H - cy)) * 1.1f
         val speed = 3f + bass * 5f
         val inten = 0.5f + bass * 0.5f
@@ -99,7 +101,7 @@ class ChromaticMode : BaseMode() {
             val fade  = maxOf(0f, 1f - radius / ring.maxR)
             val bright = minOf(1f,ring.intensity*fade*(1f+response.light[0]*.35f*response.accent))
             if (bright < 0.04f) continue
-            val warp = displayScale*(2.5f + high * 11.0f + bass * 5.0f) * (0.45f + fade * 0.9f)
+            val warp = displayScale*(2.5f + high * 7.0f + bass * 5.0f) * (0.45f + fade * 0.9f)
             val baseR = maxOf(1f, radius)
 
             val mult = bright * 1.6f

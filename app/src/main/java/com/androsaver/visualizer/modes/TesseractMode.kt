@@ -5,7 +5,7 @@ import com.androsaver.visualizer.GLDraw
 import com.androsaver.visualizer.VisualizerRenderTuning
 import kotlin.math.*
 
-/** Audio-reactive wireframe projection of a rotating four-dimensional cube. */
+/** Audio-reactive wireframe projection of a rotating four-dimensional cube with a bounded geometry trail. */
 class TesseractMode : BaseMode() {
     override val name = "Tesseract"
 
@@ -17,6 +17,14 @@ class TesseractMode : BaseMode() {
     private var beatPrevious = 0f
     private var pulse = 0f
 
+    // Bounded geometry trail, as on Cube: the wireframe leaves a fading echo.
+    private companion object {
+        const val TRAIL_LEN = 12
+    }
+    private val trailPts = Array(TRAIL_LEN) { FloatArray(32) }
+    private var trailHead = 0
+    private var trailCount = 0
+
     override fun reset() {
         angleXY = 0f
         angleXW = 0f
@@ -24,6 +32,8 @@ class TesseractMode : BaseMode() {
         hue = 0f
         beatPrevious = 0f
         pulse = 0f
+        trailHead = 0
+        trailCount = 0
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
@@ -62,6 +72,30 @@ class TesseractMode : BaseMode() {
         }
 
         val color = GLDraw.hsl(hue, 0.82f, 0.62f + pulse * 0.12f)
+
+        // Store this frame in the geometry trail, then replay the older frames
+        // with a fading alpha so the wireframe leaves a trailing line.
+        val slot = trailPts[trailHead]
+        System.arraycopy(projected, 0, slot, 0, 32)
+        if (trailCount < TRAIL_LEN) trailCount++
+        trailHead = (trailHead + 1) % TRAIL_LEN
+
+        for (age in trailCount - 1 downTo 1) {
+            val frameIdx = (trailHead - 1 - age + TRAIL_LEN * 2) % TRAIL_LEN
+            val alpha = (1f - age.toFloat() / trailCount.toFloat()) * 0.55f
+            val frame = trailPts[frameIdx]
+            for (i in 0 until 16) {
+                for (bit in intArrayOf(1, 2, 4, 8)) {
+                    if (i and bit != 0) continue
+                    val j = i or bit
+                    val dimensionHue = (hue + when (bit) { 1 -> 0f; 2 -> 0.12f; 4 -> 0.25f; else -> 0.48f }) % 1f
+                    val edge = GLDraw.hsl(dimensionHue, 0.9f, 0.58f)
+                    draw.line(frame[i * 2], frame[i * 2 + 1],
+                        frame[j * 2], frame[j * 2 + 1], edge[0], edge[1], edge[2], alpha)
+                }
+            }
+        }
+
         for (i in 0 until 16) {
             for (bit in intArrayOf(1, 2, 4, 8)) {
                 if (i and bit != 0) continue
@@ -72,7 +106,7 @@ class TesseractMode : BaseMode() {
                     projected[j * 2], projected[j * 2 + 1], edge[0], edge[1], edge[2], 0.72f)
             }
         }
-        val radius = (2.2f + bass * 2.4f + pulse * 1.2f) * psysualsViewportScale(draw)
+        val radius = (2.2f + bass * 2.4f + pulse * 1.2f) * VisualizerRenderTuning.viewportScale(draw.W, draw.H)
         for (i in 0 until 16) {
             draw.circle(projected[i * 2], projected[i * 2 + 1], radius,
                 color[0], color[1], color[2], 0.9f, true, 8)

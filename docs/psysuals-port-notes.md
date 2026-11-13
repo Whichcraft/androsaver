@@ -40,11 +40,27 @@ Desktop timings in the upstream changelog are not Android measurements.
   bloom and presentation buffers; there is no outgoing-effect crossfade.
 - `EffectDynamics` supplies bounded elapsed-time response for effects that use it;
   Auto/Laptop/TV profiles remain explicit. Do not assume every effect uses it.
-- Keep the user-requested nine-ring Chromatic cap. LiquidLight retains its
-  bounded analytic-field adaptation rather than the desktop fluid solver.
-- SlimeMold uses a filtered luminance texture and a simulation capped at 1080p;
-  its 4K output does not imply full-4K simulation. Native Phason, Ferrofluid,
-  Plasma and ChromaWeave use GLES shader paths.
+- Keep the user-requested nine-ring Chromatic cap. Chromatic now spreads its
+  drops over the frame so their prismatic outlines no longer pile up in the
+  centre, and its warp answers treble less strongly.
+- LiquidLight is a native bounded dye simulation: a coarse velocity grid
+  advects dye and heat with a semi-Lagrangian backtrace, beats inject
+  vortices, and the grid is uploaded as a texture and shaded. It replaces the
+  earlier analytic field, which read like Plasma and Phason. It is not the
+  desktop fluid solver.
+- Cymatica evaluates the Chladni plate per pixel in a GLES2 shader, so the
+  nodal lines stay smooth instead of showing the shared field grid. The six
+  mode weights and the descending sand grains match upstream.
+- SlimeMold seeds its agents across the whole frame instead of a central blob,
+  and its colour cycle follows the music faster. The simulation stays capped
+  at 1080p; its 4K output does not imply full-4K simulation.
+- Ferrofluid's peaks bounce on a spring driven by the beats and its skin
+  carries a full spectrum instead of a single hue.
+- Tunnel's ride speed, tube width and winding follow the music, with a beat
+  kick that surges and settles.
+- Phason's wave directions and swell drift with the music; Tesseract keeps a
+  bounded geometry trail like Cube.
+- Persistence pulses its solids with the music and cycles its colours faster.
 - Magnetar includes its native contour field plus bounded particles. The field
   and the particles share one level: the scene fades toward black and both are
   added into that same buffer, so the contours read as light rather than as a

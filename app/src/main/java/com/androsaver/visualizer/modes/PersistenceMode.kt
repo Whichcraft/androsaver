@@ -4,7 +4,7 @@ import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
 import kotlin.math.*
 
-/** psysuals 3.20: five rigid solids with smooth axis reversals, bounded speed accents and colour drift; no fourth-coordinate deformation. */
+/** psysuals 3.20: five rigid solids with smooth axis reversals, bounded speed accents, a music-driven size pulse and stronger colour drift; no fourth-coordinate deformation. */
 private class Model(val verts: Array<FloatArray>, val edges: List<Pair<Int, Int>>)
 
 class PersistenceMode : BaseMode() {
@@ -108,6 +108,7 @@ class PersistenceMode : BaseMode() {
 
     private var hue      = 0f
     private var boost    = 0f
+    private var bump     = 0f
     private var beatPrev = 0f
     private val rotOut   = FloatArray(3)
     private val projX    = FloatArray(20)
@@ -118,7 +119,7 @@ class PersistenceMode : BaseMode() {
 
     override fun reset() {
         direction.fill(1f);directionTarget.fill(1f);directionAxis=0;directionCd=0f;colourOffset=0f
-        hue = 0f; boost = 0f; beatPrev = 0f
+        hue = 0f; boost = 0f; beatPrev = 0f; bump = 0f
         for (i in 0 until MAX_SHAPES) {
             rotX[i] = rng.nextFloat() * TAU
             rotY[i] = rng.nextFloat() * TAU
@@ -156,8 +157,10 @@ class PersistenceMode : BaseMode() {
         beatPrev=audio.beat
         for(i in 0..2) direction[i]=response.smooth(direction[i],directionTarget[i],.02f)
         boost=response.smooth(boost,0f,.025f)
-        colourOffset=response.smooth(colourOffset,mid*.18f+high*.12f,.06f)
-        hue=(hue+(.0015f+mid*.003f+response.light[0]*.004f)*step)%1f
+        // Music-driven size pulse: bass swells the solids, mids add motion.
+        bump=response.smooth(bump,bass*.6f+mid*.25f,.10f)
+        colourOffset=response.smooth(colourOffset,mid*.32f+high*.20f+bass*.10f,.09f)
+        hue=(hue+(.0018f+mid*.006f+high*.004f+response.light[0]*.006f)*step)%1f
         draw.fadeBlackTimed(65f/255f,step)
 
         val cx      = W / 2f; val cy = H / 2f
@@ -179,8 +182,11 @@ class PersistenceMode : BaseMode() {
             val az = rotZ[i]
 
             val rLocal = 0.2f + 0.8f * (i + 1) / nShapes
-            val h      = (hue + colourOffset + i.toFloat() / nShapes * 0.55f) % 1f
-            val bright = minOf(.9f,.28f+response.light[0]*.25f*response.accent+if(i==nShapes-1)response.light[2]*.12f else 0f)
+            // Per-shape phase: the solids breathe out of step with the music.
+            val bumpScale = 1f + (bump * .22f + boost * .10f) * (.75f + .35f * sin(rotW[i] * 2.3f))
+            val h      = (hue + colourOffset + i.toFloat() / nShapes * (.55f + .18f * mid)) % 1f
+            val bright = minOf(.92f,.26f+response.light[0]*.30f*response.accent+response.light[1]*.10f+
+                    response.light[2]*(if(i==nShapes-1).14f else .05f))
 
             val modelIdx = i % models.size
             val model = models[modelIdx]
@@ -210,7 +216,10 @@ class PersistenceMode : BaseMode() {
             var ex=1f;var ey=1f
             for(v in uVerts.indices){ex=maxOf(ex,abs(projX[v]-cx));ey=maxOf(ey,abs(projY[v]-cy))}
             val fit=minOf(1f,W*.46f/ex,H*.46f/ey)
-            for(v in uVerts.indices){projX[v]=cx+(projX[v]-cx)*fit;projY[v]=cy+(projY[v]-cy)*fit}
+            // Scale after the viewport fit so the pulse stays visible instead of
+            // being cancelled by the fit.
+            val scale=fit*bumpScale
+            for(v in uVerts.indices){projX[v]=cx+(projX[v]-cx)*scale;projY[v]=cy+(projY[v]-cy)*scale}
             for (edge in edges) {
                 val a = edge.first
                 val b = edge.second

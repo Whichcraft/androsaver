@@ -68,10 +68,11 @@ class SlimeMoldMode : FullscreenEffectMode() {
         } else {
             agentCount = (13_000L * newW * newH / (640 * 360)).toInt().coerceIn(5_000, MAX_AGENTS)
             trail = FloatArray(newW * newH)
-            val spread = minOf(newW, newH) * .25f * .3f
+            // Seed across the whole frame so the colony uses the full screen
+            // instead of hugging the centre.
             for (i in 0 until agentCount) {
-                px[i] = (newW * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, newW - 1f)
-                py[i] = (newH * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, newH - 1f)
+                px[i] = rng.nextFloat() * newW
+                py[i] = rng.nextFloat() * newH
                 ang[i] = rng.nextFloat() * TAU
             }
         }
@@ -88,7 +89,7 @@ class SlimeMoldMode : FullscreenEffectMode() {
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         init(draw.W, draw.H)
         val bass = audio.beat; val mid = audio.mid; val high = audio.treble
-        hue = (hue + .002f + mid * .003f) % 1f
+        hue = (hue + .004f + mid * .008f + high * .004f) % 1f
         val sa = BASE_SA + high * .40f
         val cs = cos(sa); val ss = sin(sa)
         val physicalScale = gridW.toFloat() / draw.W
@@ -97,11 +98,10 @@ class SlimeMoldMode : FullscreenEffectMode() {
         val turn = .18f + high * .15f
         val deposit = .8f + bass * .6f
         if (bass > .7f) {
-            val spread = minOf(gridW, gridH) * .20f
             repeat(agentCount / 20) {
                 val i = rng.nextInt(agentCount)
-                px[i] = (gridW * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, gridW - 1f)
-                py[i] = (gridH * .5f + rng.nextGaussian().toFloat() * spread).coerceIn(0f, gridH - 1f)
+                px[i] = rng.nextFloat() * gridW
+                py[i] = rng.nextFloat() * gridH
                 ang[i] = rng.nextFloat() * TAU
             }
         }
@@ -170,7 +170,9 @@ class SlimeMoldMode : FullscreenEffectMode() {
         uniform float u_hue;
         void main() {
             float intensity = texture2D(u_trail, vec2(vUV.x, 1.0-vUV.y)).r;
-            float hue = fract(u_hue + intensity * 0.5);
+            // Stronger coupling to the trail intensity: fresh veins change hue
+            // quickly against the older network.
+            float hue = fract(u_hue + intensity * 0.85);
             vec3 colour = (sin(6.2831853*(hue + vec3(0.0,0.333,0.667)))*127.0+128.0)/255.0;
             gl_FragColor = vec4(clamp(colour * intensity * 2.0, 0.0, 1.0), 1.0);
         }

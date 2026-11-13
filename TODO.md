@@ -401,3 +401,21 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
   confirm Cube, Spiral and Magnetar on the target TV.
 - [ ] Re-import the psysuals subtree once upstream `main` carries the Lattice
   and Magnetar changes; the vendored snapshot is still upstream 3.21.0.
+
+## Visualizer rework batch — 2026-11-13
+
+- [x] LiquidLight: replace the analytic field with a bounded dye simulation
+  (velocity grid, semi-Lagrangian advection, beat vortices, textured shading).
+- [x] Cymatica: evaluate the Chladni plate per pixel in a GLES2 shader so the
+  nodal lines are smooth instead of blocky field cells.
+- [x] Tunnel: make the ride speed, tube width and winding follow the music.
+- [x] Persistence: music-driven size pulse and faster colour cycling; the
+  upstream psysuals counterpart is pushed on its `dev` branch.
+- [x] Ferrofluid: springy beat-driven peaks and a rainbow skin.
+- [x] Chromatic: spread the drops over the frame and soften the treble warp.
+- [x] SlimeMold: seed across the whole screen and vary the colour faster.
+- [x] Phason: more music-driven movement; Tesseract: bounded geometry trail.
+- [x] Remove the now-unused shared field painter; keep the device suite
+  covering all 33 registry modes and add Cymatica and LiquidLight visibility.
+- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
+  confirm the reworked effects on the target TV.

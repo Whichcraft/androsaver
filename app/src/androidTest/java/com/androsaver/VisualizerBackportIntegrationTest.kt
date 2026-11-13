@@ -128,7 +128,7 @@ class VisualizerBackportIntegrationTest {
             repeat(3){renderer.onDrawFrame(null)}
             assertNull("${mode.name} failed",failure)
             assertEquals("${mode.name} GL error",GLES20.GL_NO_ERROR,GLES20.glGetError())
-            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic","ChromaWeave"))assertTrue("${mode.name} invisible",pixel().any{it>0})
+            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic","ChromaWeave","Cymatica","LiquidLight"))assertTrue("${mode.name} invisible",pixel().any{it>0})
             renderer.onSurfaceChanged(null,240,180);repeat(4){renderer.onDrawFrame(null)}
             assertNull("${mode.name} resize failed",failure)
             renderer.onSurfaceChanged(null,320,240)

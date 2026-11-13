@@ -4,8 +4,24 @@
 
 ### Changed
 
+- 2026-11-13: Increased dev publication identity to 2.13.1 (394) for the next
+  dev-channel publication.
 - 2026-11-13: Increased dev publication identity to 2.13.0 (393) for the next
   dev-channel publication.
+- 2026-11-13: Reworked LiquidLight as a bounded dye simulation: a coarse
+  velocity grid advects dye and heat, beats inject vortices and the field is
+  shaded from a texture. It no longer reads like Plasma or Phason.
+- 2026-11-13: Rewrote Cymatica on a GLES2 shader that evaluates the Chladni
+  plate per pixel, so the nodal lines are smooth instead of blocky cells.
+- 2026-11-13: Made Tunnel follow the music again: the ride speed, the tube
+  width and the winding answer bass and mids, with a beat kick that surges.
+- 2026-11-13: Gave Persistence a music-driven size pulse and faster colour
+  cycling, and Ferrofluid springy peaks with a rainbow skin.
+- 2026-11-13: Spread Chromatic's drops across the frame and softened its
+  treble warp so the prismatic outlines interfere less.
+- 2026-11-13: Seeded SlimeMold across the whole screen and sped up its
+  colour cycle; added a music-driven movement to Phason and a bounded
+  geometry trail to Tesseract.
 - 2026-11-13: Restored the cube's slow line afterglow: it fades the retained
   scene at the psysuals 18/255 rate instead of clearing it every frame, and
   opts out of the shared 48/255 trail floor explicitly.
