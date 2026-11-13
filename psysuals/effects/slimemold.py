@@ -69,13 +69,10 @@ class SlimeMold(Effect):
         if self.options.low_spec:
             self._n = max(2500, self._n // 2)
         cx, cy   = W / 2.0, H / 2.0
-        r_spread = min(W, H) * 0.25
-        self._px  = np.clip(
-            self._rng.normal(cx, r_spread * 0.3, self._n),
-            0, W - 1).astype(np.float32)
-        self._py  = np.clip(
-            self._rng.normal(cy, r_spread * 0.3, self._n),
-            0, H - 1).astype(np.float32)
+        # Seed across the whole frame so the colony uses the full screen
+        # instead of hugging the centre.
+        self._px  = self._rng.uniform(0, W, self._n).astype(np.float32)
+        self._py  = self._rng.uniform(0, H, self._n).astype(np.float32)
         self._ang = self._rng.uniform(0, math.tau, self._n).astype(np.float32)
         self._trail = np.zeros((H, W), dtype=np.float32)
         self._surf  = pygame.Surface((W, H))
@@ -123,7 +120,9 @@ class SlimeMold(Effect):
 
     def _palette_channels(self, intensity, phase, work):
         """Yield the original sine palette without allocating channel fields."""
-        np.multiply(intensity, .5, out=phase)
+        # Stronger coupling to the trail intensity: fresh veins change hue
+        # quickly against the older network.
+        np.multiply(intensity, .85, out=phase)
         phase += self._hue
         np.remainder(phase, 1., out=phase)
         for offset in (0., .333, .667):
@@ -188,22 +187,18 @@ class SlimeMold(Effect):
         mid  = self.frame.mid
         high = self.frame.treble
 
-        self._hue = (self._hue + 0.002 + mid * 0.003) % 1.0
+        self._hue = (self._hue + 0.004 + mid * 0.008 + high * 0.004) % 1.0
 
         sa  = _BASE_SA + high * 0.40
         sd  = _BASE_SD + bass * 5.0
         spd = 0.7 + bass * 1.5
 
-        # Beat: teleport a fraction of agents back toward center
+        # Beat: teleport a fraction of agents to fresh ground across the frame
         if bass > 0.7:
             n_tp = int(self._n * 0.05)
             idx  = self._rng.integers(0, self._n, n_tp)
-            cx, cy = W / 2.0, H / 2.0
-            r_spread = min(W, H) * 0.20
-            self._px[idx]  = np.clip(
-                self._rng.normal(cx, r_spread, n_tp), 0, W - 1).astype(np.float32)
-            self._py[idx]  = np.clip(
-                self._rng.normal(cy, r_spread, n_tp), 0, H - 1).astype(np.float32)
+            self._px[idx]  = self._rng.uniform(0, W, n_tp).astype(np.float32)
+            self._py[idx]  = self._rng.uniform(0, H, n_tp).astype(np.float32)
             self._ang[idx] = self._rng.uniform(0, math.tau, n_tp).astype(np.float32)
 
         fwd   = self._sense(0.0,  sd)

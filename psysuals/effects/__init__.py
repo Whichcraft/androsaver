@@ -29,6 +29,9 @@ from .phason import Phason
 from .tesseract import Tesseract
 from .ferrofluid import Ferrofluid
 from .chromaweave import ChromaWeave
+from .horizon import Horizon
+from .caustics import Caustics
+from .lanterns import Lanterns
 from .spectrum           import Bars
 from .waterfall   import GlowSquares
 
@@ -64,7 +67,33 @@ MODES = [
     ("Tesseract",    Tesseract),      # ←/→ only
     ("Ferrofluid",   Ferrofluid),     # ←/→ only
     ("ChromaWeave",  ChromaWeave),    # ←/→ only
+    ("Horizon",      Horizon),        # ←/→ only
+    ("Caustics",     Caustics),       # ←/→ only
+    ("Lanterns",     Lanterns),       # ←/→ only
     # ── Spectrum and Waterfall must always be the final two entries ──
     ("Spectrum",    Bars),        # ←/→ only — always second-to-last
     ("Waterfall",   GlowSquares), # ←/→ only — always last
 ]
+
+
+MODE_NAMES = [name for name, _ in MODES]
+# Registry order up to 3.22.0, before settings stored mode names. Files saved
+# without a name hold an index into this list.
+_NAMELESS_ORDER = [name for name in MODE_NAMES
+                   if name not in ("Horizon", "Caustics", "Lanterns")]
+
+
+def resolve_mode(index, name=None):
+    """Registry index for a saved mode, preferring its saved name.
+
+    Settings and presets store the mode name next to its index, so registry
+    insertions no longer move the user to a different effect. Data saved
+    without a name predates them and is mapped through the 3.22 order.
+    """
+    if isinstance(name, str):
+        if name in MODE_NAMES:
+            return MODE_NAMES.index(name)
+        return index
+    if isinstance(index, int) and 0 <= index < len(_NAMELESS_ORDER):
+        return MODE_NAMES.index(_NAMELESS_ORDER[index])
+    return index

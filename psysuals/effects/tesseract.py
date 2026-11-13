@@ -15,6 +15,8 @@ class Tesseract(Effect):
     MAX_EDGES = 220
     MAX_VERTICES = 140
     PROJECTION_DISTANCE = 4.2
+    # Bounded geometry trail, as on Cube.
+    TRAIL_FRAMES = 12
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -34,6 +36,7 @@ class Tesseract(Effect):
         self._scale_velocity = 0.0
         self._bounce_y = 0.0
         self._bounce_velocity = 0.0
+        self._trail_frames = []
 
     @staticmethod
     def _tesseract():
@@ -79,6 +82,8 @@ class Tesseract(Effect):
         self._edges = edges[:self.MAX_EDGES]
         self._rotated = np.empty_like(self._vertices)
         self._projected = np.empty((len(self._vertices), 3), dtype=np.float32)
+        # A new preset has different vertices; the old trail cannot be replayed.
+        self._trail_frames = []
 
     def _rotate(self, angle_xw, angle_yz):
         self._rotated[:] = self._vertices
@@ -130,6 +135,24 @@ class Tesseract(Effect):
             surf.get_height() * 0.5 + self._projected[:, 1] / denom3 * scale,
         )).astype(np.int32)
         order = sorted(self._edges.tolist(), key=lambda edge: float(self._projected[edge, 2].mean()))
+        # Bounded geometry trail: replay the older frames with a fading alpha so
+        # the wireframe leaves a trailing line behind it.
+        self._trail_frames.append(points.copy())
+        if len(self._trail_frames) > self.TRAIL_FRAMES + 1:
+            self._trail_frames.pop(0)
+        count = len(self._trail_frames)
+        for index in range(count - 1):
+            frame = self._trail_frames[index]
+            fade = (index + 1) / count * 0.55
+            for start, end in order:
+                p0, p1 = frame[start], frame[end]
+                if ((p0[0] < -surf.get_width() and p1[0] < -surf.get_width()) or
+                        (p0[0] > surf.get_width() * 2 and p1[0] > surf.get_width() * 2)):
+                    continue
+                depth = float((self._rotated[start, 3] + self._rotated[end, 3]) * 0.25)
+                color = hsl((self._hue + depth * 0.08) % 1.0,
+                            l=max(0.0, min(0.95, 0.58 + high * 0.08 + bass * 0.12)) * fade)
+                pygame.draw.line(surf, color, p0, p1, 1)
         for start, end in order:
             p0, p1 = points[start], points[end]
             if ((p0[0] < -surf.get_width() and p1[0] < -surf.get_width()) or
@@ -144,3 +167,4 @@ class Tesseract(Effect):
         self._edges = np.empty((0, 2), dtype=np.int32)
         self._rotated = np.empty((0, 4), dtype=np.float32)
         self._projected = np.empty((0, 3), dtype=np.float32)
+        self._trail_frames = []

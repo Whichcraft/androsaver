@@ -1,7 +1,7 @@
 import numpy as np
 import pygame
 
-from .utils import hsl
+from .utils import hsl, padded
 
 
 from .base import Effect
@@ -27,6 +27,7 @@ class Bars(Effect):
 
         self.hue += 0.003 + mid * 0.005
         bar_w   = W // self.n
+        fft     = padded(fft, int(self.edges[-1]))
         sums    = np.add.reduceat(fft[:self.edges[-1]], self.edges[:-1])
         heights = sums / np.maximum(np.diff(self.edges), 1).astype(float)
         heights = heights[:self.n]

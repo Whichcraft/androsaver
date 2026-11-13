@@ -616,7 +616,10 @@ class Mycelium(Effect):
                 if (len(candidates) > 1
                         and self.rng.random() < 0.3 + mid * 0.4
                         and len(alive) < cap):
-                    other = candidates[1 - candidates.index(chosen)]
+                    # Branch onto a sibling filament. The candidate list is
+                    # indexed from zero, so a negative offset would wrap
+                    # around and put the branch back on the chosen filament.
+                    other = candidates[1] if candidates.index(chosen) == 0 else candidates[0]
                     self._orient_edge(other, destination)
                     alive.append([other, 0.0, speed, energy * 0.75, generation + 1, hue_off])
                 continue

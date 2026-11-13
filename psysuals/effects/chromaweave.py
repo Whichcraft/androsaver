@@ -12,7 +12,7 @@ _FRAGMENT_SHADER = """
 #version 330 core
 out vec4 fragColor;
 uniform vec2 u_resolution;
-uniform float u_time, u_hue, u_turn, u_bass, u_mid, u_high, u_pulse, u_accent;
+uniform float u_time, u_weave, u_hue, u_turn, u_bass, u_mid, u_high, u_pulse, u_accent;
 
 vec3 weaveColour(float hue) {
     return 0.5 + 0.5*cos(6.2831853*(hue + vec3(0.0,0.3333,0.6667)));
@@ -36,7 +36,7 @@ void main() {
         z+=vec2(0.15*sin(u_time*0.19+layer),0.12*cos(u_time*0.13+layer));
         z.x+=0.16*sin(z.y*5.0+u_time*0.23+layer);
         z.y+=0.12*sin(z.x*4.0-u_time*0.19);
-        float weave=sin(z.x*6.0-u_time*(0.75+u_mid*0.12)+sin(z.y*8.0+u_time*0.31))
+        float weave=sin(z.x*6.0-u_weave+sin(z.y*8.0+u_time*0.31))
                     *cos(z.y*10.0+u_time*0.4);
         float thread=exp(-90.0*weave*weave);
         float halo=exp(-8.0*abs(weave));
@@ -75,7 +75,7 @@ def _weave_rgb(x, y, uniforms):
         zy = qy*(1.+layer*.38)+.12*math.cos(time*.13+layer)
         zx += .16*np.sin(zy*5.+time*.23+layer)
         zy += .12*np.sin(zx*4.-time*.19)
-        weave = np.sin(zx*6.-time*(.75+uniforms['u_mid']*.12)+np.sin(zy*8.+time*.31))*np.cos(zy*10.+time*.4)
+        weave = np.sin(zx*6.-uniforms['u_weave']+np.sin(zy*8.+time*.31))*np.cos(zy*10.+time*.4)
         thread = np.exp(-90.*weave*weave)
         halo = np.exp(-8.*np.abs(weave))
         over = .5+.5*np.sin(zx*7.+zy*5.-time*.42)
@@ -104,6 +104,10 @@ class ChromaWeave(Effect):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._time = 0.
+        # Weave phase, accumulated and wrapped. It used to be total time times
+        # the live mid level, so every change in mid moved the pattern by an
+        # amount that grew with uptime and it flickered after a few minutes.
+        self._weave = 0.
         self._hue = .54
         self._turn = 0.
         self._gl_field = FullscreenField(_FRAGMENT_SHADER)
@@ -114,10 +118,12 @@ class ChromaWeave(Effect):
         motion, light = self._audio_response(beat)
         dt = self._frame_step()/60.
         motion_scale, accent = self._profile_response()
-        self._time += dt*(1.+float(motion[1])*.18)
+        advance = dt*(1.+float(motion[1])*.18)
+        self._time += advance
+        self._weave = (self._weave + advance*(.75+float(motion[1])*.12)) % math.tau
         self._turn += dt*.09*motion_scale
         self._hue = (self._hue+dt*.018) % 1.
-        return dict(u_time=self._time, u_hue=self._hue, u_turn=self._turn,
+        return dict(u_time=self._time, u_weave=self._weave, u_hue=self._hue, u_turn=self._turn,
                     u_bass=float(motion[0]), u_mid=float(motion[1]),
                     u_high=float(light[2]), u_pulse=float(light[0]), u_accent=accent)
 

@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pygame
 
-from .utils import hsl, _hsl_batch
+from .utils import hsl, _hsl_batch, padded
 
 
 from .base import Effect
@@ -13,6 +13,10 @@ class Spiral(Effect):
     breathing, two-pass neon glow on arm lines, and cross-ring connections between
     arms at regular depth intervals.  Beat spring explodes the whole structure
     outward and snaps the hue palette."""
+
+    # Shorter trails than the default 48: the arms stay crisp instead of
+    # smearing into each other.
+    TRAIL_ALPHA = 72
 
     N_ARMS    = 6
     N_PTS     = 80
@@ -48,6 +52,7 @@ class Spiral(Effect):
                 fov / z)
 
     def _draw(self, surf, waveform, fft, beat, tick):
+        fft = padded(fft, 6)
         self.hue  += 0.007 + beat * 0.04
         bass       = float(np.mean(fft[:6]))
         dt         = 0.038 + bass * 0.10 + beat * 0.18
@@ -116,8 +121,9 @@ class Spiral(Effect):
                     if j < len(a_segs):
                         sx, sy, h, bright, sc, near_t = a_segs[j]
                         rp      = rot(sx, sy)
-                        r_dot   = max(1, min(int(sc * 0.006), 2))
+                        # The cross-ring points read as distinct bubbles.
+                        r_dot   = max(1, min(int(sc * 0.006), 4))
                         c_halo  = hsl(h, l=bright * 0.35)
                         c_core  = hsl(h, l=min(bright * 0.85 + 0.10, 0.92))
-                        pygame.draw.circle(surf, c_halo, rp, r_dot * 2)
-                        pygame.draw.circle(surf, c_core, rp, r_dot + 1)
+                        pygame.draw.circle(surf, c_halo, rp, r_dot * 3)
+                        pygame.draw.circle(surf, c_core, rp, r_dot + 2)

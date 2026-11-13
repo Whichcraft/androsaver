@@ -1,6 +1,8 @@
 """Lattice — crystal grid of glowing nodes and beam lines with feedback.
 
 A 22×14 laptop grid (14×9 on large outputs) of nodes glows according to their assigned FFT frequency bin.
+Columns are assigned centre-out, so the bass drives the middle of the grid and
+neither edge owns the low bands.
 This version uses a rotozoom feedback loop to create a trailing 'tunnel' effect.
 """
 import math
@@ -82,7 +84,11 @@ class Lattice(Effect):
         end = min(fft_len - 1, int(fft_len * _FFT_USE))
         if end <= start:
             return 0
-        return start + int(col / (self._cols - 1) * (end - start))
+        # Centre-out assignment: the middle columns carry the low bands and the
+        # outer columns the high ones, so the bass no longer drives one edge.
+        centre = (self._cols - 1) / 2.0
+        normalised = abs(col - centre) / max(centre, 1.0)
+        return start + int(normalised * (end - start))
 
     def _draw(self, surf, waveform, fft, beat, tick):
         W, H, _ = self._render_size()

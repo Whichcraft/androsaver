@@ -95,6 +95,9 @@ class GLRenderer:
         out vec2 v_uv;
         void main() {
             v_uv = in_vert * 0.5 + 0.5;
+            // Uploaded surfaces store their top row first; sample like the
+            // blit shader so the read-back frame is not upside down.
+            v_uv.y = 1.0 - v_uv.y;
             gl_Position = vec4(in_vert, 0.0, 1.0);
         }
         """

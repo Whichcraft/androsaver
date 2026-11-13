@@ -41,7 +41,10 @@ class FullscreenField:
                 size = renderer.ctx.screen.size
             uniforms["u_resolution"] = tuple(map(float, size))
         for name, value in uniforms.items():
-            uniform = self._program[name]
+            try:
+                uniform = self._program[name]
+            except KeyError:
+                continue        # the compiler drops uniforms the shader does not use
             if isinstance(value, np.ndarray):
                 uniform.write(value.astype("f4", copy=False).tobytes())
             else:

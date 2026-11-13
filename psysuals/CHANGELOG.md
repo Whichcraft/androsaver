@@ -5,6 +5,168 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- 2026-11-14: Caustics, a new mode: light on the floor of a pool, a shifting
+  net of bright lines cast through moving water. Bass sharpens the net, mids
+  drive the wind, treble adds glints, beats drop ripples.
+- 2026-11-14: Lanterns, a new mode: paper lanterns rising over a dark lake,
+  mirrored in shimmering reflections. Bass flickers the flames, mids sway
+  them, treble sends sparks up, beats release new lanterns. Both new modes
+  sit after Horizon; Spectrum and Waterfall move to zero-based indices
+  34/35.
+
+### Changed
+
+- 2026-11-14: Settings and presets saved without effect names are mapped
+  through the 3.22 registry order, so any number of later insertions keeps
+  old selections on the same effect.
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+---
+
+## [3.23.0] — 2026-11-14
+
+### Added
+
+- 2026-11-13: Horizon, a new mode: a landscape built from the music. Rows of
+  solid mountain ridges shaped by the spectrum scroll toward the camera
+  through a valley with lane lines, toward a sun under a sky of stars. It sits
+  after ChromaWeave; Spectrum and Waterfall move to zero-based indices 32/33.
+
+### Changed
+
+- 2026-11-13: Spiral fades its trails faster, so the arms stay crisp instead
+  of smearing into each other, and draws its periodic cross-rings as larger
+  bubbles. This matches the AndroSaver port.
+- 2026-11-13: Corridor and Horizon share one spectrum-level helper in
+  `effects/utils.py`, which treats infinite FFT values as silence.
+
+### Fixed
+
+- 2026-11-13: With `--gl`, the rotation post-effect no longer shows the
+  picture upside down; its shader now samples uploaded frames like the blit
+  shader.
+- 2026-11-13: Mid and treble levels no longer jump to about forty times their
+  normal value when music returns after a pause. Their running averages hold
+  while the band falls below a tenth of them, catch up quickly after a silent
+  start, and are seeded from the first measured block instead of a fixed 0.1,
+  so treble also reacts during the first minute. Published levels are clipped
+  to 0..6 like the envelopes. Tuned on a laptop microphone with music playing
+  and paused.
+- 2026-11-13: One NaN or infinite input sample no longer turns the whole
+  audio analysis into NaN for the rest of the session; such samples read as
+  silence.
+- 2026-11-13: The mid and treble averages tell a pause from a quieter
+  passage by the room's noise floor (the 20th percentile of the last second,
+  remembered for minutes) and judge pauses on the median of the last second.
+  A pause holds the average for as long as it lasts, even with quiet music
+  where room noise reaches 30 % of the music level; a quieter passage above
+  the noise is followed within seconds instead of about three minutes.
+- 2026-11-13: Switching the input device resets the level averages, the DC
+  offset, the tempo history and the beat tracker's buffered audio, so a
+  quieter new device is no longer muted by the old one's levels.
+- 2026-11-13: An input stream that stops delivering audio (an unplugged
+  device, an aborted stream) is closed after two seconds, the published audio
+  is cleared to silence, and the saved device is reopened by the regular
+  retry. The last block no longer stays on screen forever.
+- 2026-11-13: Magnetar and FlowField re-seed a small share of their particles
+  every frame (Magnetar also those reaching the dipole core). Their particles
+  used to merge onto a handful of pixels within seconds to a minute.
+- 2026-11-13: ChromaWeave accumulates its weave phase instead of multiplying
+  total running time by the live mid level, which made the pattern flicker
+  after a few minutes of music. The GL and CPU paths share the change.
+- 2026-11-13: Butterflies keep their size over resize round trips between
+  different aspect ratios; each round trip shrank them by a quarter.
+- 2026-11-13: FlowField's trail fades fully to black instead of leaving a
+  dark-grey residue.
+- 2026-11-13: GL fields skip uniforms the shader compiler optimised away
+  instead of raising.
+- 2026-11-13: The audio engine removes a constant DC offset from the input
+  before analysis. A laptop microphone delivered +0.20, which kept the RMS
+  silence gate from ever engaging, made auto-gain turn effects down and
+  shifted drawn waveforms off centre.
+- 2026-11-13: Bubbles caps its swell and bubble radius, so loud beats at high
+  effect gain no longer stall frames for hundreds of milliseconds.
+- 2026-11-13: In CPU mode the trail fade follows a resized screen, so trails
+  outside the old area fade again.
+- 2026-11-13: A preset morph stores the crossfade length as whole frames, so
+  it survives the next start instead of resetting to 45.
+- 2026-11-13: Settings and presets store the effect name next to its index.
+  Files saved without names are moved past Horizon's slot on load, so a
+  saved Spectrum or Waterfall no longer opens as Horizon or Spectrum.
+- 2026-11-13: Horizon's star twinkle and ridge glitter follow elapsed time
+  instead of the frame count.
+- 2026-11-13: Spectrum, Waterfall, Spiral and Bubbles render short or empty
+  spectra from external hosts instead of raising, and Aurora renders on
+  surfaces five pixels wide or less.
+
+---
+
+## [3.22.0] — 2026-11-13
+
+### Changed
+
+- 2026-11-13: Corridor is rebuilt from scratch as a ride down a solid neon
+  corridor: perspective wall, floor and ceiling panels, neon ribs and gates,
+  wall light bars that follow the spectrum, a ceiling light strip, floor lane
+  lines, fog and a glowing doorway. Each beat sends a pulse of light down the
+  corridor. The rounded frames, sparks and trails are gone.
+- 2026-11-13: Mobius is a solid, shaded ribbon instead of a wireframe, so its
+  lines no longer cross into noise. It stands upright in the plane of the
+  screen, spins in that plane and never turns edge-on.
+- 2026-11-13: Chromatic draws each ripple as one spectral band of parallel
+  strokes instead of three independently warped RGB outlines. Drops stay
+  local and land away from each other.
+- 2026-11-13: Lattice assigns its FFT bins centre-out, so the low bands drive
+  the middle of the grid and neither edge owns the bass.
+- 2026-11-13: Magnetar's background contour layer drifts slowly and answers
+  bass only slightly, so it shimmers as a backdrop instead of pulsing.
+- 2026-11-13: Persistence pulses its solids with the music: the five shapes
+  breathe out of step with the bass and mids, and their colours cycle faster
+  and spread further apart with the mids. The pulse is applied after the
+  viewport fit, so it stays visible instead of being cancelled by it.
+- 2026-11-13: Tunnel follows the music again: the ride speeds up with bass
+  and mids, the tube widens, the rings brighten and the interior stars spin
+  faster. A beat kicks the ride so it surges and settles. The camera path
+  stays independent of the audio, and the ride speed stays inside the existing
+  limit.
+- 2026-11-13: Phason evolves faster with the music. Its wave directions and
+  swell stay independent of fast audio changes, so the field never jumps.
+- 2026-11-13: Ferrofluid's peaks bounce on a spring kicked by the beats and
+  its skin carries a full spectrum instead of a single hue.
+- 2026-11-13: Chromatic spreads its drops over the frame and answers treble
+  less strongly, so the prismatic outlines interfere less.
+- 2026-11-13: SlimeMold seeds its agents across the whole frame instead of a
+  central blob, and its colour cycle follows the music faster.
+- 2026-11-13: Tesseract keeps a bounded geometry trail, like Cube, so the
+  wireframe leaves a fading echo behind it.
+
+### Fixed
+
+- 2026-11-13: Lattice's column activity is balanced across the grid. The
+  leftmost column is no longer the liveliest line on the laptop grid.
+- 2026-11-13: Chromatic's trail fades fully to black. The multiplicative fade
+  stopped a few levels above black and left faint ghost rings behind.
+- 2026-11-13: Mobius no longer collapses into a thin sliver: the
+  fourth-coordinate rotation rocks instead of turning fully, and its
+  perspective scales the whole strip rather than one axis.
+- 2026-11-13: Mycelium's branching packet now takes a sibling filament. The
+  candidate list was indexed with a negative offset, which Python wrapped
+  around, so a packet could branch back onto the filament it had just
+  arrived on instead of a neighbour.
+
+---
+
 ## [3.21.0] — 2026-11-12
 
 ### Changed

@@ -29,6 +29,8 @@ class Tunnel(Effect):
         self._rng = self.rng
         self.hue  = 0.0
         self.time = 0.0
+        self._surge = 0.0
+        self._beat_prev = 0.0
         self._audio = np.zeros(3)
         spacing = (self.Z_FAR - self.Z_NEAR) / self.N_RINGS
         self.rings = [
@@ -69,8 +71,16 @@ class Tunnel(Effect):
         mid_m      = mid * motion
         high_m     = high * motion
 
-        dt         = (0.008 + bass_m * 0.0015 + mid_m * 0.0008) * step
+        # Beats kick the ride: it surges forward and settles again.
+        if beat > 0.6 and self._beat_prev <= 0.6:
+            self._surge = 1.0
+        self._beat_prev = beat
+        self._surge = max(0.0, self._surge - 0.05 * step)
+
+        dt         = (0.006 + bass_m * 0.003 + mid_m * 0.0015 + self._surge * 0.002) * step
         self.time += dt
+        # The tube widens with the bass and with the beat kick.
+        tube_r = self.TUBE_R * (1.0 + bass_m * 0.16 + self._surge * 0.12)
 
         # Follow the tube's current path position so the viewer remains at
         # the center of the tunnel while the distant rings still curve away.
@@ -115,12 +125,12 @@ class Tunnel(Effect):
             sx1, sy1, sc1 = self._proj(cx1, cy1, r1["z"], W, H)
             sx2, sy2, sc2 = self._proj(cx2, cy2, r2["z"], W, H)
 
-            sr1 = max(1, int(self.TUBE_R * sc1))
-            sr2 = max(1, int(self.TUBE_R * sc2))
+            sr1 = max(1, int(tube_r * sc1))
+            sr2 = max(1, int(tube_r * sc2))
 
             near_t = max(0.0, 1.0 - r1["z"] / self.Z_FAR)
             h      = (self.hue + near_t) % 1.0
-            bright = 0.06 + near_t * 0.60 + mid_m * 0.15 * near_t + light_bass * near_t * 0.12
+            bright = 0.06 + near_t * 0.60 + mid_m * 0.22 * near_t + light_bass * near_t * 0.18 + self._surge * near_t * 0.10
             lw     = max(1, int(1 + bass_m * 2.5 * near_t + high_m * 1.5 * near_t))
 
             pygame.draw.circle(surf, hsl(h, l=bright * 0.35), (sx1, sy1), sr1 + 4, lw + 3)
@@ -137,7 +147,7 @@ class Tunnel(Effect):
 
             n_star  = 3 + (r1["id"] % 4)
             s_dir   = 1 if r1["id"] % 2 == 0 else -1
-            s_rot   = self.time * 0.12 * s_dir + r1["id"] * 0.52
+            s_rot   = self.time * (0.12 + mid_m * 0.08) * s_dir + r1["id"] * 0.52
             s_r     = max(2, int(sr1 * (0.24 + high_m * 0.12)))
             s_h     = (h + 0.5) % 1.0
             s_l     = min(bright * 1.1 + mid_m * 0.25 + high_m * 0.15, 0.95)

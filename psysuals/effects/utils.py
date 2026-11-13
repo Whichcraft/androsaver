@@ -25,3 +25,46 @@ def _hsl_batch(h, s=np.float32(1.0), l=0.5):
         np.clip(g * 255, 0, 255).astype(np.uint8),
         np.clip(b * 255, 0, 255).astype(np.uint8),
     ], axis=-1)
+
+
+def spectrum_bands(fft, count):
+    """Mean FFT magnitude in ``count`` bands with squared edge spacing.
+
+    The squared spacing gives the low end more bands. Non-finite input reads
+    and infinite input reads as silence, and a spectrum too short to split
+    returns zeros.
+    """
+    bands = np.zeros(count)
+    n = len(fft)
+    if n >= 8:
+        edges = np.unique((np.linspace(0.0, 1.0, count + 1) ** 2 * n * 0.6).astype(int))
+        values = np.abs(np.asarray(fft[:edges[-1]], dtype=np.float64))
+        values[~np.isfinite(values)] = 0.0
+        means = np.add.reduceat(values, edges[:-1]) / np.diff(edges)
+        bands[:] = np.interp(np.linspace(0, len(means) - 1, count), np.arange(len(means)), means)
+    return bands
+
+
+def track_levels(levels, peak, fft, smooth):
+    """Advance peak-normalised spectrum levels; returns ``(levels, peak)``.
+
+    The peak follows loud passages at once and decays slowly, so the levels
+    stay in 0..1 whatever the input gain. ``smooth`` is ``Effect._smooth``.
+    """
+    bands = spectrum_bands(fft, len(levels))
+    loudest = float(bands.max())
+    peak = max(1e-3, smooth(peak, loudest, 0.01), loudest)
+    return smooth(levels, np.sqrt(bands / peak), 0.3), peak
+
+
+def padded(fft, length):
+    """Return ``fft`` with at least ``length`` bins, zero-padding the top.
+
+    Effects that index fixed bins stay safe when a host passes a short or
+    empty spectrum; full-length input is returned unchanged.
+    """
+    if len(fft) >= length:
+        return fft
+    out = np.zeros(length, dtype=np.float32)
+    out[:len(fft)] = fft
+    return out

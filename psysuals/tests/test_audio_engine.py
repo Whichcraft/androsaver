@@ -32,6 +32,9 @@ class AudioEngineTests(unittest.TestCase):
             def push_audio(inner, block, end_time):
                 self.pushed.append((block.copy(), end_time))
 
+            def reset(inner):
+                pass
+
             def release(inner):
                 self.released = True
 
@@ -52,7 +55,8 @@ class AudioEngineTests(unittest.TestCase):
         self.assertFalse(second.fft.any())
 
     def test_snapshot_contains_one_callback_publication(self):
-        block = np.ones((1024, 1), dtype=np.float32)
+        # A real tone: the engine removes constant (DC) input before analysis.
+        block = np.sin(np.arange(1024, dtype=np.float32) * 0.3)[:, None].astype(np.float32)
         self.engine._audio_cb(block, 1024, types.SimpleNamespace(currentTime=3.), None)
         snapshot = self.engine.get_snapshot()
         self.assertEqual(snapshot.generation, 1)
@@ -68,7 +72,7 @@ class AudioEngineTests(unittest.TestCase):
                               types.SimpleNamespace(currentTime=4.), None)
         self.assertEqual(snapshot.generation, 1)
         self.assertEqual(snapshot.audio_time, 3.)
-        self.assertTrue((snapshot.waveform == 1).all())
+        np.testing.assert_allclose(snapshot.waveform, block[:, 0] - block[:, 0].mean(), atol=1e-6)
 
     def test_genre_warmup_and_reset(self):
         self.assertIsNone(self.engine.detect_genre())
@@ -97,7 +101,9 @@ class AudioEngineTests(unittest.TestCase):
         self.engine._audio_cb(block, block.shape[0], time_info, None)
 
         self.assertEqual(self.pushed[0][0].shape, (self.engine.audio_config.block_size,))
-        np.testing.assert_array_equal(self.pushed[0][0], block[-self.engine.audio_config.block_size:, 0])
+        # The first block's DC offset (its mean) is removed before pushing.
+        np.testing.assert_allclose(self.pushed[0][0],
+                                   block[-self.engine.audio_config.block_size:, 0] - block[:, 0].mean(), atol=1e-3)
 
     def test_audio_callback_uses_adc_end_time_when_available(self):
         time_info = types.SimpleNamespace(currentTime=20.0, inputBufferAdcTime=12.0)
@@ -111,7 +117,7 @@ class AudioEngineTests(unittest.TestCase):
 
     def test_band_envelopes_attack_and_release(self):
         time_info = types.SimpleNamespace(currentTime=1.0)
-        tone = np.ones((self.engine.audio_config.block_size, 1), dtype=np.float32)
+        tone = np.sin(np.arange(self.engine.audio_config.block_size, dtype=np.float32) * 0.3)[:, None].astype(np.float32)
         silence = np.zeros_like(tone)
         self.engine._audio_cb(tone, tone.shape[0], time_info, None)
         attack = self.engine.get_envelopes()
@@ -126,7 +132,9 @@ class AudioEngineTests(unittest.TestCase):
     def test_identical_consecutive_blocks_have_no_flux(self):
         time_info = types.SimpleNamespace(currentTime=1.0)
         silence = np.zeros((self.engine.audio_config.block_size, 1), dtype=np.float32)
-        tone = np.ones((self.engine.audio_config.block_size, 1), dtype=np.float32)
+        # Whole periods: a zero-mean tone leaves the tracked DC offset unchanged.
+        size = self.engine.audio_config.block_size
+        tone = np.sin(2 * np.pi * 16 * np.arange(size) / size)[:, None].astype(np.float32)
 
         self.engine._audio_cb(silence, silence.shape[0], time_info, None)
         time_info.currentTime = 2.0
@@ -138,7 +146,7 @@ class AudioEngineTests(unittest.TestCase):
 
     def test_genre_weight_change_resets_flux_baseline(self):
         time_info = types.SimpleNamespace(currentTime=1.0)
-        tone = np.ones((self.engine.audio_config.block_size, 1), dtype=np.float32)
+        tone = np.sin(np.arange(self.engine.audio_config.block_size, dtype=np.float32) * 0.3)[:, None].astype(np.float32)
 
         self.engine._audio_cb(tone, tone.shape[0], time_info, None)
         self.engine.apply_genre_weights("electronic")

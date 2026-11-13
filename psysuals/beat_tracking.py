@@ -63,6 +63,7 @@ class LibrosaBeatTracker:
         self._bpm = 0.0
         self._analysis_running = False
         self._released = False
+        self._epoch = 0
         self._executor = ThreadPoolExecutor(max_workers=1)
 
     def release(self) -> None:
@@ -85,6 +86,22 @@ class LibrosaBeatTracker:
             self._blocks.append(chunk)
             self._block_end_time = float(end_time)
 
+    def reset(self) -> None:
+        """Drop buffered audio and the beat grid, e.g. after a device switch.
+
+        An analysis already running belongs to the old input; its result is
+        discarded when it finishes.
+        """
+        with self._lock:
+            self._blocks.clear()
+            self._block_end_time = 0.0
+            self._last_beat_time = None
+            self._beat_interval = None
+            self._last_onset_time = None
+            self._last_onset_strength = 0.0
+            self._bpm = 0.0
+            self._epoch += 1
+
     def analyze(self, fallback_bpm: float = 0.0) -> float:
         with self._lock:
             if self._released:
@@ -105,29 +122,30 @@ class LibrosaBeatTracker:
                 return self._bpm or fallback_bpm
             blocks = tuple(self._blocks)
             block_end_time = self._block_end_time
+            epoch = self._epoch
             self._last_analysis = now
             self._analysis_running = True
 
         try:
             self._executor.submit(
                 self._run_analysis,
-                blocks, block_end_time, fallback_bpm,
+                blocks, block_end_time, fallback_bpm, epoch,
             )
         except RuntimeError:
             with self._lock:
                 self._analysis_running = False
         return self._bpm or fallback_bpm
 
-    def _run_analysis(self, blocks, block_end_time: float, fallback_bpm: float) -> None:
+    def _run_analysis(self, blocks, block_end_time: float, fallback_bpm: float, epoch: int = 0) -> None:
         try:
-            self._analyze_blocks(blocks, block_end_time, fallback_bpm)
+            self._analyze_blocks(blocks, block_end_time, fallback_bpm, epoch)
         except Exception as exc:
             print(f"BeatTracking: analysis worker failed: {exc}", file=sys.stderr)
         finally:
             with self._lock:
                 self._analysis_running = False
 
-    def _analyze_blocks(self, blocks, block_end_time: float, fallback_bpm: float) -> None:
+    def _analyze_blocks(self, blocks, block_end_time: float, fallback_bpm: float, epoch: int | None = None) -> None:
         librosa = _get_librosa()
         if librosa is None:
             return
@@ -202,6 +220,8 @@ class LibrosaBeatTracker:
             bpm = max(60.0, min(200.0, 60.0 / beat_interval))
 
         with self._lock:
+            if epoch is not None and epoch != self._epoch:
+                return          # analysed audio from an input that was reset
             if bpm:
                 self._bpm = bpm
             if last_beat_time is not None and beat_interval and 0.30 <= beat_interval <= 1.0:
