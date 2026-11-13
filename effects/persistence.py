@@ -57,6 +57,7 @@ class Persistence(Effect):
         self._speeds_z = [0.015 * (1 + i * 0.15) for i in range(_MAX_SHAPES)]
         
         self._boost = 0.0
+        self._pulse = 0.0
         self._direction = np.ones(3)
         self._direction_target = np.ones(3)
         self._direction_axis = 0
@@ -149,8 +150,11 @@ class Persistence(Effect):
         self._beat_prev = beat
         self._direction = self._smooth(self._direction, self._direction_target, .02)
         self._boost = self._smooth(self._boost, 0., .025)
-        self._colour_offset = self._smooth(self._colour_offset, mid*.18 + high*.12, .06)
-        self._hue = (self._hue + (.0015 + mid*.003 + light[0]*.004) * step) % 1
+        # Music-driven size pulse and a stronger colour response.
+        self._pulse = self._smooth(self._pulse, bass * 0.6 + mid * 0.25, 0.10)
+        self._colour_offset = self._smooth(self._colour_offset,
+                                           mid * 0.32 + high * 0.20 + bass * 0.10, 0.09)
+        self._hue = (self._hue + (0.0018 + mid * 0.006 + high * 0.004 + light[0] * 0.006) * step) % 1
 
         cx, cy = W // 2, H // 2
         # This is the camera focal scale, not the model radius. A 0.40*H
@@ -172,8 +176,9 @@ class Persistence(Effect):
 
             ax, ay, az = self._rot_x[i], self._rot_y[i], self._rot_z[i]
             r = 0.2 + 0.8 * (i + 1) / n_shapes
-            h = (self._hue + self._colour_offset + i / n_shapes * 0.55) % 1.0
-            bright = min(0.9, 0.28 + light[0] * 0.25 * accent + (light[2] * 0.12 if i == n_shapes - 1 else 0))
+            h = (self._hue + self._colour_offset + i / n_shapes * (0.55 + 0.18 * mid)) % 1.0
+            bright = min(0.92, 0.26 + light[0] * 0.30 * accent + light[1] * 0.10 +
+                         light[2] * (0.14 if i == n_shapes - 1 else 0.05))
 
             # Get the model and apply rotations
             model_idx = i % len(self._models)
@@ -192,12 +197,18 @@ class Persistence(Effect):
                 depth = cam_z + v[2]
                 if depth <= 0.1:
                     depth = 0.1
-                sx = cx + int(v[0] * fov / depth)
-                sy = cy + int(v[1] * fov / depth)
+                sx = cx + v[0] * fov / depth
+                sy = cy + v[1] * fov / depth
                 projected.append((sx, sy))
                 depths.append(v[2])
 
-            projected = self._fit_viewport(projected, W, H).astype(int).tolist()
+            # Fit the solid to the viewport, then apply the music-driven size
+            # pulse: the pulse would otherwise be cancelled by the fit.
+            fitted = self._fit_viewport(projected, W, H)
+            bump_scale = 1.0 + (self._pulse * 0.22 + self._boost * 0.10) * \
+                (0.75 + 0.35 * math.sin(self._rot_w[i] * 2.3))
+            centre = np.array([cx, cy], dtype=float)
+            projected = (centre + (fitted - centre) * bump_scale).astype(int).tolist()
 
             # Draw edge segments with depth fading
             for edge_idx, (a, b) in enumerate(edges):

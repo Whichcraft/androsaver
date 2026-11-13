@@ -23,6 +23,8 @@ void main() {
     float v = 0.0;
     for (int i=0; i<11; ++i) {
         if (i >= u_waves) break;
+        // The wave directions stay independent of fast audio changes; only the
+        // clock drives the pattern, so the field never jumps.
         float a = 6.2831853*float(i)/float(u_waves) + sin(u_time*0.13+float(i))*0.16;
         vec2 k = vec2(cos(a),sin(a));
         v += cos(dot(p,k)*(0.82+u_mid*0.035) + u_time*(0.30+float(i)*0.047));
@@ -154,7 +156,7 @@ class Phason(Effect):
         motion, light = self._audio_response(beat)
         bass,mid,high = motion
         step = self._frame_step()
-        self._time += (.004 + mid*.001) * step
+        self._time += (.004 + mid*.0024 + bass*.0014) * step
         self._hue = (self._hue + (.00025 + mid*.0002) * step) % 1
         self._pulse = self._smooth(self._pulse, min(.12, bass*.08), .025)
         return bass,mid,high

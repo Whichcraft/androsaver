@@ -14,6 +14,7 @@ _LAYERS = 2
 
 class FlowField(Effect):
     TRAIL_ALPHA = 0 # we manage the surface
+    _RESEED = 0.003 # share of particles re-seeded per frame
     RES_DIV = 3 # 2 levels faster than default 1
 
     def __init__(self, **kwargs):
@@ -112,8 +113,19 @@ class FlowField(Effect):
             self._px = (self._px + (dx / dist) * push) % W
             self._py = (self._py + (dy / dist) * push) % H
 
-        # Decay trail (RGB mult is fast on 24-bit)
+        # Particles follow a deterministic field and used to merge onto a few
+        # pixels within a minute. Re-seeding a small share every frame keeps
+        # them spread; each particle lives about six seconds on average.
+        reseed = self._rng.random(self._n) < self._RESEED
+        count = int(reseed.sum())
+        if count:
+            self._px[reseed] = self._rng.uniform(0, W, count)
+            self._py[reseed] = self._rng.uniform(0, H, count)
+
+        # Decay trail (RGB mult is fast on 24-bit). Integer multiplication
+        # stops a few levels above black; clear that residue.
         self._trail.fill((214, 214, 214), special_flags=pygame.BLEND_RGB_MULT)
+        self._trail.fill((2, 2, 2), special_flags=pygame.BLEND_RGB_SUB)
 
         # Fast color calc
         hx = (self._hue + self._px / W * 0.30) % 1.0

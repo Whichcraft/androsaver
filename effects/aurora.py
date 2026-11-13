@@ -46,7 +46,7 @@ class Aurora(Effect):
         self._bloom     = 0.0
         self._beat_prev = 0.0
         self._tmp       = pygame.Surface((W, self.frame.height))
-        self._xs        = np.arange(0, W, _STEP, dtype=np.float32)
+        self._xs        = self._samples(W)
 
         k_unit = math.tau / W
         self._phases: list[list[float]] = []
@@ -55,11 +55,17 @@ class Aurora(Effect):
             self._phases.append([0.0] * len(harms))
             self._ks.append([k_unit * km for km, *_ in harms])
 
+    @staticmethod
+    def _samples(W):
+        """Ribbon sample positions; at least two, so polygons stay valid."""
+        xs = np.arange(0, W, _STEP, dtype=np.float32)
+        return xs if len(xs) >= 2 else np.array([0.0, max(1.0, W - 1.0)], dtype=np.float32)
+
     def _draw(self, surf, waveform, fft, beat, tick):
         W, H = surf.get_size()
         if self._tmp.get_size() != (W, H):
             self._tmp = pygame.Surface((W, H))
-            self._xs = np.arange(0, W, _STEP, dtype=np.float32)
+            self._xs = self._samples(W)
             self._ks = [[math.tau / W * km for km, *_ in harms] for _, _, harms in self._DEFS]
         bass   = float(np.mean(fft[:6])) if len(fft) else 0.0
         mid    = float(np.mean(fft[6:30])) if len(fft) > 6 else 0.0

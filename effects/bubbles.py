@@ -4,7 +4,7 @@ from collections import OrderedDict
 import numpy as np
 import pygame
 
-from .utils import hsl
+from .utils import hsl, padded
 
 
 from .base import Effect
@@ -70,6 +70,7 @@ class Bubbles(Effect):
                     self.pool.append(b)
 
     def _draw(self, surf, waveform, fft, beat, tick):
+        fft = padded(fft, 30)
         self.hue += 0.005
         bass = float(np.mean(fft[:6]))
         mid  = float(np.mean(fft[6:30]))
@@ -86,6 +87,7 @@ class Bubbles(Effect):
 
         self._spawn(beat, bass)
 
+        max_r = max(2, min(self.frame.width, self.frame.height) // 2)
         alive = []
         for b in self.pool:
             b["x"]   += b["vx"] + math.sin(tick * b["wobble"] + b["phase"]) * 0.9
@@ -95,7 +97,10 @@ class Bubbles(Effect):
                 continue
 
             life  = max(0.0, min(1.0, b["y"] / self.frame.height))
-            r     = max(2, int(b["r"] * (1 + self.pulse * 0.90 + mid * 0.15 + self._bass_flash * 0.45)))
+            # Cap the swell: loud beats at high gain drove the pulse so far that
+            # every bubble needed a huge glow surface and frames stalled.
+            swell = min(3.0, 1 + self.pulse * 0.90 + mid * 0.15 + self._bass_flash * 0.45)
+            r     = max(2, min(int(b["r"] * swell), max_r))
             pad   = r + 14
             alpha = int(life * 160)
             bsurf = self._get_bsurf(pad * 2)

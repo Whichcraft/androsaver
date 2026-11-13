@@ -39,6 +39,9 @@ class FrameComposer:
     def update_target(self, display, use_gl):
         if not use_gl:
             display.target = display.screen
+            # The trail fade must cover the whole new screen after a resize.
+            if self.fade is None or self.fade.get_size() != display.screen.get_size():
+                self.fade = self.make_fade(display.target, self.fade_alpha)
             return
         size = display.screen.get_size()
         if (display.target is display.screen or display.target is None

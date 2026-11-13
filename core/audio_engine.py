@@ -36,6 +36,82 @@ def _get_sounddevice():
             thread.start()
     return sd
 
+class BandLevel:
+    """Running average of one band and its level relative to that average.
+
+    The average must hold through a pause, or the first block of returning
+    music reads about forty times its normal level, but it must follow a
+    genuinely quieter passage. A fixed ratio cannot tell the two apart: with
+    quiet music through a laptop microphone, room noise (0.002-0.005) sat at
+    10-30 % of the music's average (0.015-0.02).
+
+    So the room's noise floor is tracked too: the 20th percentile of the
+    last second, remembered as its minimum and allowed to rise only over
+    minutes. Single blocks of room noise vary too much to judge, so a pause
+    is judged on the median of the last second: it starts within
+    ``PAUSE_ENTER`` times the floor and lasts until the median is clearly
+    above the noise (``PAUSE_EXIT``). The average holds throughout. A level
+    below 30 % of the average but above the noise is held for at most
+    ``HOLD_SECONDS`` and then followed; this also bridges the first second
+    of a pause, before the window has seen it. When the band jumps far above the
+    average (music after a pause or a silent start) the average catches up
+    quickly. The level is clipped like the envelopes.
+    """
+
+    HOLD_SECONDS = 5.0
+    PAUSE_ENTER = 3.0            # median within this factor of the floor
+    PAUSE_EXIT = 5.0             # ... and clearly above it again
+    FLOOR_RISE = 1.00005         # per block: the floor doubles in about 5 minutes
+
+    def __init__(self, blocks_per_second: float):
+        self.max_held = max(1, int(round(self.HOLD_SECONDS * blocks_per_second)))
+        self.window = deque(maxlen=max(4, int(round(blocks_per_second))))
+        self.reset()
+
+    def reset(self) -> None:
+        self.average = None
+        self.floor = None
+        self.held = 0
+        self.paused = False
+        self.window.clear()
+
+    def update(self, value: float) -> float:
+        self.window.append(value)
+        if self.average is None:
+            # The first blocks of a new stream carry a start-up transient
+            # (measured at about 30x the room level); seeding the average from
+            # it kept every later level far too low. Seed it from the median
+            # of the first second instead and report nothing until then.
+            if len(self.window) < self.window.maxlen:
+                return 0.0
+            self.average = max(float(np.median(self.window)), 1e-4)
+        if len(self.window) == self.window.maxlen:
+            recent = np.asarray(self.window)
+            low = max(float(np.percentile(recent, 20)), 1e-6)
+            self.floor = low if self.floor is None else min(self.floor * self.FLOOR_RISE, low)
+            median = float(np.median(recent))
+            if self.paused:
+                self.paused = median < self.PAUSE_EXIT * self.floor
+            else:
+                # Only a floor well below the average is a real noise floor;
+                # a start in the middle of music seeds it at the music level.
+                self.paused = (self.floor < 0.3 * self.average
+                               and median < self.PAUSE_ENTER * self.floor
+                               and median < 0.3 * self.average)
+        if self.paused:
+            self.held = 0                        # hold for as long as it lasts
+        elif value < 0.3 * self.average and self.held < self.max_held:
+            self.held += 1                       # much quieter: hold briefly
+        else:
+            if value >= 0.3 * self.average:
+                self.held = 0
+            if value > 3.0 * self.average:
+                self.average = self.average * 0.8 + value * 0.2
+            else:
+                self.average = max(self.average * 0.98 + value * 0.02, 1e-6)
+        return float(np.clip(value / (self.average + 1e-6), 0.0, 6.0))
+
+
 @dataclass(frozen=True)
 class AudioSnapshot:
     """One callback publication; array copies are owned by the reader."""
@@ -72,8 +148,9 @@ class AudioEngine:
 
         self._prev_spectrum = np.zeros(self.audio_config.block_size // 2, dtype=np.float32)
         self._flux_avg = 0.01
-        self._mid_avg = 0.1
-        self._treble_avg = 0.1
+        self._mid_level = BandLevel(self.audio_config.sample_rate / self.audio_config.block_size)
+        self._treble_level = BandLevel(self.audio_config.sample_rate / self.audio_config.block_size)
+        self._dc_offset = None    # input DC offset, tracked per block
         self._prev_beat_energy = 0.0
         self._first_frame = True
 
@@ -179,6 +256,18 @@ class AudioEngine:
             captured = np.asarray(indata[:, 0], dtype=np.float32).reshape(-1)
             captured_frames = min(max(int(frames), 0), captured.size)
             captured = captured[:captured_frames]
+            if not np.isfinite(captured).all():
+                # One NaN or inf sample used to turn every running average
+                # into NaN for the rest of the session.
+                captured = np.nan_to_num(captured, nan=0.0, posinf=0.0, neginf=0.0)
+            if captured.size:
+                # Some microphones deliver a constant DC offset (a laptop mic
+                # measured +0.20). It hid every pause from the RMS silence
+                # gate, misled auto-gain and shifted drawn waveforms, so a
+                # slowly tracked offset is removed before any analysis.
+                block_dc = float(captured.mean())
+                self._dc_offset = block_dc if self._dc_offset is None else self._dc_offset * 0.9 + block_dc * 0.1
+                captured = captured - np.float32(self._dc_offset)
             adc_start = getattr(time_info, "inputBufferAdcTime", None)
             if adc_start is None:
                 block_end_time = float(time_info.currentTime)
@@ -245,12 +334,10 @@ class AudioEngine:
                 self._prev_spectrum[:beat_end] = weighted
 
                 mid = self._band_mean(self._smooth_fft, 0.04, 0.20)
-                self._mid_avg = self._mid_avg * 0.98 + mid * 0.02
-                self._mid_energy = mid / (self._mid_avg + 1e-6)
+                self._mid_energy = self._mid_level.update(mid)
 
                 treble = self._band_mean(self._smooth_fft, 0.20, 0.50)
-                self._treble_avg = self._treble_avg * 0.98 + treble * 0.02
-                self._treble_energy = treble / (self._treble_avg + 1e-6)
+                self._treble_energy = self._treble_level.update(treble)
                 bass = self._band_mean(self._smooth_fft, 0.0, 0.04)
                 self._bass_avg = self._bass_avg * 0.98 + bass * 0.02
                 elapsed = block_end_time - self._envelope_time
@@ -398,6 +485,10 @@ class AudioEngine:
                 except Exception as exc:
                     self.last_error = exc
             self.stream = stream
+            if device_idx != old_dev:
+                # A different device has its own level, offset and tempo;
+                # the old device's state muted a quieter one for minutes.
+                self.reset_analysis()
             self.active_dev = device_idx
             self.last_error = None
             return self.stream
@@ -411,6 +502,39 @@ class AudioEngine:
                 except Exception as close_exc:
                     self.last_error = close_exc
             return None
+
+    def reset_analysis(self) -> None:
+        """Forget everything learned from the previous input."""
+        with self._lock:
+            self._mid_level.reset()
+            self._treble_level.reset()
+            self._dc_offset = None
+            self._smooth_fft = None
+            self._first_frame = True
+            self._flux_avg = 0.01
+            self._bass_avg = 0.1
+            self._raw_beat_energy = self._prev_beat_energy = 0.0
+            self._mid_energy = self._treble_energy = 0.0
+            self._bass_envelope = self._mid_envelope = self._treble_envelope = 0.0
+            self._beat_times.clear()
+            self._last_onset_time = 0.0
+            self._bpm = 0.0
+            self._detect_accum[:] = 0.0
+            self._detect_frames = 0
+            self._waveform[:] = 0.0
+            self._prev_spectrum[:] = 0.0
+            self._audio_generation += 1
+        self.beat_tracker.reset()
+
+    def mark_stream_lost(self) -> None:
+        """Close a stream that stopped delivering audio and retry later.
+
+        The published audio is cleared, so effects and the silence gate see
+        silence instead of the last block repeated forever.
+        """
+        self.stop_input_stream()
+        self.reset_analysis()
+        self._initial_stream_pending = True
 
     def stop_input_stream(self) -> None:
         stream = self.stream

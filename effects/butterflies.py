@@ -142,15 +142,19 @@ class Butterflies(Effect):
         elif self._trail.get_size() != (w, h):
             old_w, old_h = self._trail.get_size()
             sx, sy = (w / old_w, h / old_h)
+            # Size scales with the geometric mean, which a round trip between
+            # two aspect ratios returns to 1; min(sx, sy) shrank the
+            # long-lived butterflies by a quarter on every round trip.
+            size = math.sqrt(sx * sy)
             self._trail = pygame.transform.smoothscale(self._trail, (w, h))
             for butterfly in self._butterflies:
                 butterfly.x *= sx
                 butterfly.y *= sy
                 butterfly.vx *= sx
                 butterfly.vy *= sy
-                butterfly.scale *= min(sx, sy)
+                butterfly.scale *= size
             for pair in self._pairs:
-                pair.radius *= min(sx, sy)
+                pair.radius *= size
         if self._scaled is None or self._scaled.get_size() != (dw, dh):
             self._scaled = pygame.Surface((dw, dh))
 

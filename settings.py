@@ -22,6 +22,8 @@ _DEFAULTS = {
     "effect_gain": 0.7,
     "visual_profile": "auto",
     "postfx_mode": 0,
+    "mode_name": None,
+    "bg_mode_name": None,
 }
 
 
@@ -60,6 +62,9 @@ def _normalise(data: object) -> dict:
     for key in ("show_hud", "auto_gain", "bg_on"):
         if not isinstance(result[key], bool):
             result[key] = _DEFAULTS[key]
+    for key in ("mode_name", "bg_mode_name"):
+        if not isinstance(result[key], str):
+            result[key] = None
     return result
 
 
@@ -118,6 +123,9 @@ def load_presets() -> list:
                 item["intensity"] = max(0.0, min(2.0, float(gain)))
             else:
                 item["intensity"] = _DEFAULTS["effect_gain"]
+            for key in ("mode_name", "bg_mode_name"):
+                if not isinstance(item.get(key), str):
+                    item.pop(key, None)
             item["bg_on"] = item.get("bg_on", False) if isinstance(item.get("bg_on", False), bool) else False
             bg_mode = item.get("bg_mode_i", 0)
             item["bg_mode_i"] = max(0, bg_mode) if isinstance(bg_mode, int) and not isinstance(bg_mode, bool) else 0

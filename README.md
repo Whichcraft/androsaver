@@ -2,10 +2,49 @@
 
 **Welcome to the super-duper greatest music visualizer ever made.** psysuals delivers uncompromising visual intensity and rock-solid performance. Whether you're blasting psytrance in a dark room or driving a multi-monitor stage setup, it is built to melt your mind with precision and style.
 
-![Version](https://img.shields.io/badge/version-3.21.0-orange)
+![Version](https://img.shields.io/badge/version-3.23.0-orange)
  ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
+
+## New modes: Caustics and Lanterns
+
+**Caustics** is light on the floor of a pool: a shifting net of bright lines
+on sand, cast by sunlight through moving water. Bass raises the waves and
+sharpens the net, mids drive the wind, treble adds glints and a cool shimmer,
+and each beat drops a ripple that rings outward. **Lanterns** shows paper
+lanterns rising over a dark lake into a starry night, each mirrored in a
+shimmering column of light on the water. Bass makes the flames flicker and
+glow, mids sway them in the wind, treble sends sparks up from them, and each
+beat releases new lanterns. Both sit after Horizon (`--mode 32` and
+`--mode 33`); Spectrum and Waterfall move to 34/35, and saved settings and
+presets follow them by name. Not yet in a release.
+
+## Version 3.23.0
+
+This release adds Horizon, a landscape built from the music, and fixes a long
+list of bugs found in three review passes and live tests with a microphone.
+Mid and treble now hold through a pause and resume without a spike, a
+microphone's DC offset is removed, one bad audio sample can no longer break
+the session, and a lost or switched input device recovers cleanly. Magnetar
+and FlowField keep their particles spread out, ChromaWeave no longer
+flickers after a few minutes, Bubbles no longer stalls on loud beats, and
+the GL rotation post-effect is no longer upside down. Settings and presets
+now store effect names, so Horizon's insertion does not move saved
+Spectrum or Waterfall selections. No dependency or file-format migration is
+required.
+
+## Version 3.22.0
+
+This release reworks three effects and retunes several more. Corridor is
+rebuilt from scratch as a ride down a solid neon corridor with ribs, wall
+light bars that follow the spectrum, and a pulse of light on every beat.
+Mobius is a solid, shaded ribbon that stands upright in the plane of the
+screen, and Chromatic draws each ripple as one clean spectral band; neither
+shows crossing lines any more. Tunnel, Phason, Ferrofluid, Persistence,
+SlimeMold, Tesseract, Lattice and Magnetar follow the music more clearly.
+All modes keep their place in the registry, so mode indices and saved presets
+stay valid; no dependency or file-format migration is required.
 
 ## Version 3.21.0
 
@@ -30,6 +69,23 @@ Mandelbox and Morphogenesis are removed. There are now 33 modes and four layered
 recipes. Because saved presets store numeric mode indices, reselect/re-save
 presets for effects after Heartbeat when upgrading. No dependency or file-format
 migration is required.
+
+## New mode: Horizon
+
+A landscape built from the music. Rows of solid mountain ridges scroll toward
+the camera; each row is a snapshot of the spectrum taken when it appeared on
+the horizon, so the music's recent past rolls by as terrain. A flat valley
+with lane lines runs down the middle toward a sun under a sky of stars. Bass
+speeds the ride and swells the near ridges, treble makes the stars and far
+ridge lines glitter, and a beat flares the sun and every ridge line. A quiet
+landscape of resting hills keeps travelling in silence. Select it with
+`--mode 31` or the arrow keys.
+
+Horizon sits after ChromaWeave and before the final Spectrum/Waterfall pair.
+Their zero-based indices move from 31/32 to 32/33. Settings and presets now
+store the effect name next to its index, and files saved without names are
+moved past the new slot on load, so a saved Spectrum or Waterfall still opens
+as itself. All earlier indices stay in place.
 
 ## New mode: ChromaWeave
 
@@ -100,8 +156,8 @@ selection is saved on exit. Auto uses output width as a fallback (TV from 2560
 pixels), so choose a profile explicitly for a 4K laptop or 1080p TV.
 
 Laptop keeps camera motion gentle and uses a 22×14 Lattice grid. TV uses a 14×9
-grid and stronger light accents. Both retain slow geometry transitions. The fourteen
-retuned effects (Cube, TriFlux, Lissajous, Tunnel, Plasma, Lattice, Mobius,
+grid and stronger light accents. Both retain slow geometry transitions. The fifteen
+retuned effects (Cube, TriFlux, Lissajous, Tunnel, Corridor, Plasma, Lattice, Mobius,
 Chromatic, Persistence, Synapse, Hyperbolic, Cymatica, Phason and Ferrofluid)
 use elapsed time for motion rather than render-frame counts. External hosts supply FrameContext.dt in seconds per frame; its default is
 1/60 and consumed motion steps remain capped at 0.1 seconds.
@@ -125,7 +181,7 @@ gradually rather than immediately dropping to half size.
 - **🏗️ Modular Object-Oriented Architecture** — Re-written from a monolithic script into a sleek, professional engine. Specialized `AudioEngine`, `DisplayManager`, and `UIManager` classes ensure a clean, maintainable, and high-performance foundation.
 - **🖥️ Ultimate Multi-Monitor "Span Mode"** — Gone are the days of fixed dual-screen limits. The app scales dynamically, spawning child processes for every monitor you own, with synchronized mode switching across the entire span.
 - **🔊 Resilient Audio Pipeline** — Tolerant audio capture with a no-input fallback, silence-aware idle motion, live device switching, and spectral-flux beat detection.
-- **⚖️ Built-in Benchmarking & Regression Checks** — Measure speed with `benchmarks.py`; the smoke test validates registry order and instantiates all 33 registered effects, with focused tests for audio timing, display lifecycle, and effect safety bounds.
+- **⚖️ Built-in Benchmarking & Regression Checks** — Measure speed with `benchmarks.py`; the smoke test validates registry order and instantiates all 36 registered effects, with focused tests for audio timing, display lifecycle, and effect safety bounds.
 
 ---
 
@@ -233,7 +289,7 @@ Run on low-spec/low-power systems (caps framerate to 30 FPS and scales down simu
 
 The app restores the last saved display index on startup. Use `--display N` to
 override that for a single launch. Use `--mode N` to select the starting effect
-by its zero-based index from the 33-effect registry (`0`–`32`).
+by its zero-based index from the 36-effect registry (`0`–`35`).
 
 ### Controls
 
@@ -381,7 +437,7 @@ psysuals/
 │   ├── base.py               # Effect base class and contract
 │   ├── utils.py              # Shared colour helpers
 │   ├── palette.py            # Shared colour palette
-│   └── *.py                   # 33 registered visual implementations and helpers
+│   └── *.py                   # 36 registered visual implementations and helpers
 ├── ARCHITECTURE.md           # Code structure and extension guide
 ├── EFFECTS.md                # Full parameter reference for all effects
 ├── tests/                    # Automated settings, audio, graphics, and cleanup tests
@@ -476,7 +532,7 @@ RGBA frames matched the pre-change source. Resolution, populations and visual
 baseline tolerances were retained. The temporary pre-change reference is not a
 versioned benchmark artifact; this table records a one-off paired experiment.
 
-Run the reproducible current-state survey, including all 33 registered effects:
+Run the reproducible current-state survey, including all 36 registered effects:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python tests/diagnostics/fps_survey.py --backend egl --json-output /tmp/psysuals-fps.json

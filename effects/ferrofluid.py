@@ -13,7 +13,7 @@ _FRAGMENT_SHADER = """
 #version 330 core
 out vec4 fragColor;
 uniform vec2 u_resolution, u_p0, u_p1, u_p2, u_p3, u_p4;
-uniform float u_time, u_hue, u_bass, u_high;
+uniform float u_time, u_hue, u_bass, u_high, u_bounce;
 void main() {
     vec2 p = (gl_FragCoord.xy/u_resolution-0.5)*2.0;
     p.y = -p.y;
@@ -40,7 +40,7 @@ void main() {
                  -k*0.8660254*(sin(b)-sin(c))/3.0);
     dg=mat2(ca,-sa,sa,ca)*dg;
     float peak=exp((lattice-1.0)*8.0);
-    float amplitude=0.18+u_bass*0.04;
+    float amplitude=0.18+u_bass*0.04+u_bounce*0.09;
     gradient=gradient*0.15+amplitude*(envelopeGradient*peak+envelope*peak*8.0*dg);
     float mask=smoothstep(0.06,0.4,height);
     height=height*0.15+amplitude*envelope*peak;
@@ -49,8 +49,10 @@ void main() {
     float diffuse=max(dot(normal,light),0.0);
     float spec=pow(max(dot(reflect(-light,normal),vec3(0,0,1)),0.0),40.0);
     float rim=pow(1.0-normal.z,3.0);
-    vec3 tint=0.5+0.5*cos(6.2831853*(u_hue+height*0.08+vec3(0,0.3333,0.6667)));
-    vec3 color=vec3(0.008,0.01,0.018)+mask*(tint*(0.035+diffuse*0.18+rim*0.4)+vec3(spec)*(0.8+u_high*0.08));
+    // Rainbow skin: hue follows the spike height and the radius of the droplet.
+    float rainbow=fract(u_hue+height*0.55+length(p)*0.35+u_high*0.05);
+    vec3 tint=0.5+0.5*cos(6.2831853*(rainbow+vec3(0,0.3333,0.6667)));
+    vec3 color=vec3(0.006,0.008,0.014)+mask*(tint*(0.05+diffuse*0.30+rim*0.55)+vec3(spec)*(0.8+u_high*0.08));
     fragColor=vec4(clamp(color,0.0,1.0),1.0);
 }
 """
@@ -80,6 +82,9 @@ class Ferrofluid(Effect):
         self._gl_field = FullscreenField(_FRAGMENT_SHADER)
         self._audio = np.zeros(3)
         self._time = 0.0
+        self._bounce = 0.0
+        self._bounce_vel = 0.0
+        self._beat_prev = 0.0
         self._reset_state()
 
     def _reset_state(self):
@@ -106,11 +111,12 @@ class Ferrofluid(Effect):
         diffuse = np.maximum(nx * light[0] + ny * light[1] + nz * light[2], 0.0)
         spec = np.maximum(2 * diffuse * nz - light[2], 0.0) ** 40
         rim = (1 - nz) ** 3
-        hue = self._hue + self._field[region] * 0.08
+        radius = np.sqrt(self._x[region] ** 2 + self._y[region] ** 2)
+        hue = self._hue + self._field[region] * 0.55 + radius * 0.35 + high * 0.05
         tint = np.stack([0.5 + 0.5 * np.cos(math.tau * (hue + offset))
                          for offset in (0, 0.3333, 0.6667)], axis=-1)
-        colors = (np.array([0.008, 0.01, 0.018]) + self._mask[region][..., None] *
-                  (tint * (0.035 + diffuse * 0.18 + rim * 0.4)[..., None] +
+        colors = (np.array([0.006, 0.008, 0.014]) + self._mask[region][..., None] *
+                  (tint * (0.05 + diffuse * 0.30 + rim * 0.55)[..., None] +
                    spec[..., None] * (0.8 + high * 0.08)))
         colors = (np.clip(colors, 0, 1) * 255).astype(np.uint8)
         return colors
@@ -176,7 +182,7 @@ class Ferrofluid(Effect):
         gy = -k * .8660254 * (np.sin(b) - np.sin(c)) / 3
         gx, gy = ca*gx + sa*gy, -sa*gx + ca*gy
         peak = np.exp((lattice - 1) * 8)
-        amplitude = .18 + bass * .04
+        amplitude = .18 + bass * .04 + self._bounce * .09
         dx_field[:] = dx_field*.15 + amplitude*(ex*peak + envelope*peak*8*gx)
         dy_field[:] = dy_field*.15 + amplitude*(ey*peak + envelope*peak*8*gy)
         field[:] = pool*.15 + amplitude*envelope*peak
@@ -189,6 +195,13 @@ class Ferrofluid(Effect):
         step = self._frame_step()
         self._time += (0.008 + mid * 0.002) * step * self._profile_response()[0]
         self._hue = (self._hue + (0.001 + high * 0.0008) * step) % 1.0
+        # Springy peaks: every beat kicks the droplet, it overshoots and rings down.
+        if bass > .65 and self._beat_prev <= .65:
+            self._bounce_vel += 1.1
+        self._beat_prev = bass
+        accel = -self._bounce * .22 - self._bounce_vel * .30
+        self._bounce_vel += accel * step
+        self._bounce = max(-.5, min(1.5, self._bounce + self._bounce_vel * step))
         high = float(light[2]) * self._profile_response()[1]
         return bass, mid, high
 
@@ -198,6 +211,7 @@ class Ferrofluid(Effect):
         result = {
             "u_resolution": tuple(map(float, size)), "u_time": self._time,
             "u_hue": self._hue, "u_bass": bass, "u_high": high,
+            "u_bounce": self._bounce,
         }
         for index, (x, y) in enumerate(self._poles):
             result[f"u_p{index}"] = (float(x*c-y*s), float(x*s+y*c))

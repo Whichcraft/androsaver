@@ -4,6 +4,7 @@ import numpy as np
 import pygame
 
 from .base import Effect
+from .utils import padded
 
 def _row_colours(hues, lightness):
     """Vectorized colorsys HLS(s=1), retaining its arithmetic/evaluation order."""
@@ -48,6 +49,7 @@ class GlowSquares(Effect):
         high = self.frame.treble
 
         self.hue += 0.003 + bass * 0.015 + mid * 0.008
+        fft  = padded(fft, int(self.edges[-1]))
         sums = np.add.reduceat(fft[:self.edges[-1]], self.edges[:-1])
         row  = sums / self._bin_counts
         row  = row[:self.cols]

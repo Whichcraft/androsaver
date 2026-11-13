@@ -96,7 +96,9 @@ def handle_events(app, events, entry_script, background_modes=9):
                         app._start_preset_morph(p)
                 else:
                     preset_name = f"Preset {len(app.presets) + 1}"
-                    entry = {"mode_idx": app.mode_idx, "intensity": app.effect_gain,
+                    entry = {"mode_idx": app.mode_idx, "mode_name": MODES[app.mode_idx % len(MODES)][0],
+                             "bg_mode_name": MODES[app.bg_mode_i % len(MODES)][0],
+                             "intensity": app.effect_gain,
                              "bg_on": app.bg_on, "bg_mode_i": app.bg_mode_i,
                              "bg_alpha": app.bg_alpha, "cf_frames": app.cf_frames,
                              "postfx_mode": app.postfx_mode}

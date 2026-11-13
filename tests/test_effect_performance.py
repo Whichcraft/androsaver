@@ -80,7 +80,7 @@ class EffectPerformanceContracts(unittest.TestCase):
                     effect._trail[:] = field
                     effect._hue = hue
                     intensity = np.clip(field/5., 0., 1.)
-                    phase = (hue + intensity*.5) % 1.
+                    phase = (hue + intensity*.85) % 1.
                     expected = np.stack([
                         np.clip((np.sin((phase+offset)*np.pi*2)*127+128)*intensity*2, 0, 255).astype(np.uint8)
                         for offset in (0., .333, .667)], axis=-1)

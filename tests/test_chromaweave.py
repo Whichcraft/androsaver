@@ -26,7 +26,7 @@ class ChromaWeaveTests(unittest.TestCase):
 
     def test_registry_keeps_existing_visual_indices_and_diagnostics_last(self):
         names = [name for name, _ in MODES]
-        self.assertEqual(names[29:], ['Ferrofluid', 'ChromaWeave', 'Spectrum', 'Waterfall'])
+        self.assertEqual(names[29:], ['Ferrofluid', 'ChromaWeave', 'Horizon', 'Caustics', 'Lanterns', 'Spectrum', 'Waterfall'])
         self.assertEqual(len(names), len(set(names)))
 
     def test_silent_weave_has_colour_shadow_and_continuing_motion(self):
@@ -75,7 +75,7 @@ class ChromaWeaveTests(unittest.TestCase):
         effect, frame = self.make_effect(97, 65, mid=.4, treble=.6)
         self.render_cpu(effect, replace(frame, beat=.8))
         size = effect._surface.get_size()
-        uniforms = dict(u_time=effect._time, u_hue=effect._hue, u_turn=effect._turn,
+        uniforms = dict(u_time=effect._time, u_weave=effect._weave, u_hue=effect._hue, u_turn=effect._turn,
                         u_bass=float(effect._motion_audio[0]), u_mid=float(effect._motion_audio[1]),
                         u_high=float(effect._light_audio[2]), u_pulse=float(effect._light_audio[0]), u_accent=1.)
         expected = _weave_rgb(effect._x[None, :], effect._y[:, None], uniforms)

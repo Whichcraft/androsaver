@@ -25,7 +25,7 @@ Controls:
 
 from __future__ import annotations
 
-__version__ = "3.21.0"
+__version__ = "3.23.0"
 
 import atexit
 import os
@@ -49,7 +49,7 @@ from core.silence import SilenceGate, SilenceThresholds
 from core.audio_engine import AudioEngine
 from core.display_manager import DisplayManager
 from core.ui_manager import UIManager, HUDState
-from effects import MODES
+from effects import MODES, resolve_mode
 from effects.palette import ColorPalette
 from core.quality import QualityGovernor
 from core.postprocess import PostProcessChain
@@ -118,7 +118,8 @@ class VisualizerApp:
         self.ui = UIManager(self.frame.width)
         self._init_audio()
         
-        self.mode_idx = max(0, min(self.settings.get("mode_idx", 0), len(MODES) - 1))
+        self.mode_idx = max(0, min(resolve_mode(self.settings.get("mode_idx", 0),
+                                                self.settings.get("mode_name")), len(MODES) - 1))
         if self.args.mode is not None:
             self.mode_idx = self.args.mode % len(MODES)
         
@@ -133,7 +134,8 @@ class VisualizerApp:
         self._update_target_res()
         
         self.bg_on = self.settings.get("bg_on", False)
-        self.bg_mode_i = self.settings.get("bg_mode_i", 0) % len(MODES)
+        self.bg_mode_i = resolve_mode(self.settings.get("bg_mode_i", 0),
+                                      self.settings.get("bg_mode_name")) % len(MODES)
         self.bg_name, self.bg_cls = MODES[self.bg_mode_i]
         self.bg_vis = self._create_effect(self.bg_cls)
         self.bg_surf = pygame.Surface((self.frame.width, self.frame.height))
@@ -274,8 +276,8 @@ class VisualizerApp:
             duration = 4.0 * self.fps
         self._preset_morph = PresetTransition(
             start=self.tick, duration=max(1, int(round(duration))),
-            mode_idx=int(preset.get("mode_idx", self.mode_idx)),
-            bg_mode_i=int(preset.get("bg_mode_i", self.bg_mode_i)),
+            mode_idx=resolve_mode(int(preset.get("mode_idx", self.mode_idx)), preset.get("mode_name")),
+            bg_mode_i=resolve_mode(int(preset.get("bg_mode_i", self.bg_mode_i)), preset.get("bg_mode_name")),
             bg_on=bool(preset.get("bg_on", self.bg_on)),
             from_gain=float(self.effect_gain), to_gain=float(preset.get("intensity", self.effect_gain)),
             from_alpha=float(self.bg_alpha), to_alpha=float(preset.get("bg_alpha", self.bg_alpha)),
@@ -295,7 +297,8 @@ class VisualizerApp:
         # Apply after switching: _switch_mode resets gain to its default.
         self.effect_gain = values.gain
         self.bg_alpha = values.alpha
-        self.cf_frames = values.cf_frames
+        # Settings and presets store whole frames; a float would be rejected.
+        self.cf_frames = int(round(values.cf_frames))
         if values.complete:
             self._preset_morph = None
 
@@ -348,10 +351,12 @@ class VisualizerApp:
         sett.save({
             "active_dev": self.audio.active_dev,
             "mode_idx": self.mode_idx,
+            "mode_name": self.name,
             "show_hud": self.show_hud,
             "auto_gain": self.auto_gain,
             "bg_on": self.bg_on,
             "bg_mode_i": self.bg_mode_i,
+            "bg_mode_name": self.bg_name,
             "display_idx": self.display.display_idx,
             "bg_alpha": self.bg_alpha,
             "cf_frames": self.cf_frames,
@@ -516,6 +521,7 @@ class VisualizerApp:
         self._update_genre()
             
         snapshot = self.audio.get_snapshot()
+        self._watch_audio_stream(snapshot.generation, _time.monotonic())
         self.waveform, self.fft = snapshot.waveform, snapshot.fft
         if self.audio.beat_tracker.enabled:
             snapshot = replace(
@@ -563,6 +569,33 @@ class VisualizerApp:
         # backend has finished loading.
         if self.audio.stream is None and self.audio.initial_stream_pending and self.tick % 30 == 0:
             self.audio.open_input_stream(self.settings.get("active_dev"), None)
+
+    _STREAM_TIMEOUT = 2.0
+
+    def _watch_audio_stream(self, generation, now):
+        """Treat an input stream that stopped delivering audio as lost.
+
+        An unplugged device or an aborted PortAudio stream used to leave the
+        last block on screen forever. The stream is closed, the published
+        audio cleared, and the regular retry reopens the saved device.
+        """
+        stream = self.audio.stream
+        if stream is None:
+            self._audio_seen = (generation, now)
+            return
+        seen = getattr(self, "_audio_seen", None)
+        if seen is None:
+            self._audio_seen = (generation, now)
+            return
+        last_generation, last_change = seen
+        if generation != last_generation:
+            self._audio_seen = (generation, now)
+            return
+        inactive = getattr(stream, "active", True) is False
+        if inactive or now - last_change > self._STREAM_TIMEOUT:
+            print("  Audio input stopped delivering; reopening...", file=sys.stderr)
+            self.audio.mark_stream_lost()
+            self._audio_seen = (None, now)
 
     def _prepare_present_surface(self, target):
         return self._frames.prepare_present_surface(target, self.display.screen, self.args.gl)
