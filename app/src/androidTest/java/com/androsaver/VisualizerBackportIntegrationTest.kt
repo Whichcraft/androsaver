@@ -30,6 +30,15 @@ class VisualizerBackportIntegrationTest {
         GLES20.glReadPixels(x,y,1,1,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,bytes)
         return (0..2).map{bytes.get(it).toInt() and 255}
     }
+    /** Scan the frame for any lit pixel; effects like Cymatica leave the centre dark. */
+    private fun anyBrightPixel():Boolean {
+        val bytes=ByteBuffer.allocateDirect(4)
+        for(y in 0 until 240 step 16)for(x in 0 until 320 step 16) {
+            GLES20.glReadPixels(x,y,1,1,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,bytes)
+            if((0..2).any{bytes.get(it).toInt() and 255}>3})return true
+        }
+        return false
+    }
     @Test fun clearingAnEffectRemovesSceneBloomAndDisplayPixels() = withGl {
         val draw=GLDraw(320,240);draw.onSurfaceCreated();draw.onSurfaceChanged(320,240)
         for(bloom in listOf(true,false)) {
@@ -128,7 +137,8 @@ class VisualizerBackportIntegrationTest {
             repeat(3){renderer.onDrawFrame(null)}
             assertNull("${mode.name} failed",failure)
             assertEquals("${mode.name} GL error",GLES20.GL_NO_ERROR,GLES20.glGetError())
-            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic","ChromaWeave","Cymatica","LiquidLight"))assertTrue("${mode.name} invisible",pixel().any{it>0})
+            if(mode.name in setOf("Ferrofluid","Phason","Hyperbolic","ChromaWeave"))assertTrue("${mode.name} invisible",pixel().any{it>0})
+            if(mode.name in setOf("Cymatica","LiquidLight"))assertTrue("${mode.name} invisible",anyBrightPixel())
             renderer.onSurfaceChanged(null,240,180);repeat(4){renderer.onDrawFrame(null)}
             assertNull("${mode.name} resize failed",failure)
             renderer.onSurfaceChanged(null,320,240)

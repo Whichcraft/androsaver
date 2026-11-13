@@ -26,20 +26,18 @@ class VisualizerPerformanceContractsTest {
         assertEquals(480,field("gridW"));assertEquals(854,field("gridH"))
     }
 
-    @Test fun cymaticaCachedBasisMatchesAnalyticModesAndSurvivesReset() {
+    @Test fun cymaticaKeepsTheAnalyticModePairsWithoutACachedBasis() {
         val mode=CymaticaMode()
-        val field=CymaticaMode::class.java.getDeclaredField("modeFields").apply{isAccessible=true}
-        @Suppress("UNCHECKED_CAST")
-        val fields=field.get(mode) as Array<FloatArray>
-        val modes=listOf(1 to 2,2 to 3,3 to 4,4 to 5,2 to 5,3 to 6)
-        for(i in modes.indices)for(y in 0 until 36)for(x in 0 until 64) {
-            val px=x/(64-1f)*2f-1f;val py=y/(36-1f)*2f-1f
-            val expected=kotlin.math.cos(kotlin.math.PI.toFloat()*modes[i].first*px)*
-                kotlin.math.cos(kotlin.math.PI.toFloat()*modes[i].second*py)
-            assertEquals(expected,fields[i][y*64+x],0f)
-        }
+        val m=mode.javaClass.getDeclaredField("modeM").apply{isAccessible=true}.get(mode) as IntArray
+        val n=mode.javaClass.getDeclaredField("modeN").apply{isAccessible=true}.get(mode) as IntArray
+        assertEquals(listOf(1,2,3,4,2,3),m.toList())
+        assertEquals(listOf(2,3,4,5,5,6),n.toList())
+        // The plate is evaluated per pixel in the shader, so no cached basis is kept.
+        assertTrue(mode.javaClass.declaredFields.none{it.name=="modeFields"})
+        val weights=mode.javaClass.getDeclaredField("weights").apply{isAccessible=true}.get(mode) as FloatArray
         mode.reset()
-        assertSame(fields,field.get(mode))
+        assertEquals(1f,weights[0],0f)
+        assertTrue(weights.drop(1).all{it==0f})
     }
 
     @Test fun branchesRetainsBothNeonPassesForEveryRecursiveSegment() {

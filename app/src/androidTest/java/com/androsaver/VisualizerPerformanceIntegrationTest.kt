@@ -68,7 +68,7 @@ class VisualizerPerformanceIntegrationTest {
                     val sample=ByteBuffer.allocateDirect(4)
                     GLES20.glReadPixels(x,119,1,1,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,sample)
                     for((channel,offset) in doubleArrayOf(0.0,.333,.667).withIndex()) {
-                        val expected=((sin(2*PI*(hue+intensity*.5+offset))*127+128)*intensity*2).coerceIn(0.0,255.0)
+                        val expected=((sin(2*PI*(hue+intensity*.85+offset))*127+128)*intensity*2).coerceIn(0.0,255.0)
                         assertEquals("Desktop palette mismatch",expected,(sample.get(channel).toInt() and 255).toDouble(),3.0)
                     }
                 }

@@ -669,11 +669,11 @@ class MyceliumColony(
         if (nearest < 0) return
         val node = allocNode(x, y)
         if (node < 0) return
-        val hue = ((hueOff + SPORE_HUE_STEP) % 1f + 1f) % 1f
+        val sporeHue = ((hueOff + SPORE_HUE_STEP) % 1f + 1f) % 1f
         if (freeEdges.isEmpty() && liveEdgeCount() >= maxEdges) {
             retireOldestEdge(nearest, node)
         }
-        val edge = allocEdge(nearest, node, hue, 0, bodyIndex)
+        val edge = allocEdge(nearest, node, sporeHue, 0, bodyIndex)
         if (edge < 0 || !nodeAlive[nearest]) {
             if (edge >= 0) freeEdge(edge)
             freeNode(node)
@@ -683,7 +683,7 @@ class MyceliumColony(
         if (tips.size < maxTips) {
             val angle = rng.nextFloat() * (2.0 * PI).toFloat()
             val cadence = cadence(0f)
-            tips.add(Tip(node, angle, 0, hue, 1f, bodyIndex, cadence, rng.nextInt(maxOf(1, cadence))))
+            tips.add(Tip(node, angle, 0, sporeHue, 1f, bodyIndex, cadence, rng.nextInt(maxOf(1, cadence))))
         }
     }
 
