@@ -5,7 +5,7 @@ import com.androsaver.visualizer.GLDraw
 import com.androsaver.visualizer.fftMean
 import kotlin.math.*
 
-/** Dual fitted wireframe cubes and independent satellites with psysuals 3.20 smoothed motion, restrained scale and separate light accents. Android retains bounded geometry trails. */
+/** Dual fitted wireframe cubes and independent satellites with psysuals 3.20 smoothed motion, restrained scale and separate light accents. Android keeps the upstream 18/255 trail fade, so the cube lines leave a glow on screen. */
 class CubeMode : BaseMode() {
 
     override val name = "Cube"
@@ -64,11 +64,11 @@ class CubeMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        // These geometry ring buffers already contain the intended trails.
-        // Clear the retained FBO before replaying them so old frames cannot
-        // accumulate into a permanent web of lines.
-        draw.fadeBlack(1f)
         val response=prepare(draw,audio); val step=response.step
+        // psysuals 3.20 keeps the cube's own TRAIL_ALPHA at 18/255, so the cube
+        // lines leave a glow on screen. The shared 48/255 floor is tuned for the
+        // other effects, so Cube opts into the slower fade explicitly.
+        draw.fadeBlackTimed(18f/255f, step, minFade = 0f)
         if(lastW>0 && (lastW!=draw.W || lastH!=draw.H)) {
             val sx=draw.W.toFloat()/lastW;val sy=draw.H.toFloat()/lastH
             for(frames in listOf(trailProj,satTrailProj)) for(frame in frames) for(p in frame) for(i in 0..7){p[i*2]*=sx;p[i*2+1]*=sy}

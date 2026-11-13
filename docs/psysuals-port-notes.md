@@ -45,12 +45,18 @@ Desktop timings in the upstream changelog are not Android measurements.
 - SlimeMold uses a filtered luminance texture and a simulation capped at 1080p;
   its 4K output does not imply full-4K simulation. Native Phason, Ferrofluid,
   Plasma and ChromaWeave use GLES shader paths.
-- Magnetar includes its native contour field plus bounded particles. Circle,
-  field, palette and geometry caches are native implementation details; Python
-  vectorization improvements are not instructions to reproduce NumPy in Kotlin.
+- Magnetar includes its native contour field plus bounded particles. The field
+  and the particles share one level: the scene fades toward black and both are
+  added into that same buffer, so the contours read as light rather than as a
+  translucent plate over the scene. The band drift matches the calmer upstream
+  value; the field is scaled down natively because the retained buffer
+  accumulates it.
 - Retain documented host tuning: Corridor's separate spark history, FlowField's
   attraction/scatter, Fireworks' gain-aware launches and Lattice's center-out
   frequency assignment. Match behavior without discarding deliberate native limits.
+  Lattice's center-out assignment was Android-only while the vendored upstream
+  snapshot mapped bins from the left edge; upstream psysuals adopted the same
+  mapping on its `dev` branch after 3.21.0.
 - Kotlin and NumPy random sequences and rasterization need not match pixel for
   pixel. Desktop window controls, overlays, recipes and BPM adapters are separate
   from Android settings, audio permissions and lifecycle handling.

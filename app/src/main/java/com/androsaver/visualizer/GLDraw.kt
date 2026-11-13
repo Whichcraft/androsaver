@@ -250,8 +250,14 @@ open class GLDraw(var W: Int, var H: Int) {
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA,GLES20.GL_ONE_MINUS_SRC_ALPHA)
     }
 
-    fun fadeBlackTimed(alpha:Float,step:Float) {
-        val base=alpha.coerceIn(VisualizerRenderTuning.MIN_TRAIL_FADE,1f)
+    /**
+     * Fade the retained scene toward black by [alpha] per 60 Hz frame, corrected
+     * for the elapsed [step]. [minFade] is the per-effect floor: the shared
+     * default clears most effects quickly, while effects that need longer
+     * trails may opt into a slower fade.
+     */
+    fun fadeBlackTimed(alpha:Float,step:Float, minFade:Float = VisualizerRenderTuning.MIN_TRAIL_FADE) {
+        val base=alpha.coerceIn(minFade.coerceIn(0f,1f),1f)
         val decay=1f-kotlin.math.exp(kotlin.math.ln((1f-base).coerceAtLeast(1e-8f))*step.coerceIn(0f,6f))
         rect(0f,0f,W.toFloat(),H.toFloat(),0f,0f,0f,decay)
     }

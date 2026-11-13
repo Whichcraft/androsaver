@@ -58,7 +58,10 @@ class SpiralMode : BaseMode() {
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        draw.fadeBlack(0.11f)
+        val step = prepare(draw, audio).step
+        // Shorter trails than the shared 48/255 floor gives: the arms stay
+        // crisp instead of smearing into each other.
+        draw.fadeBlackTimed(0.28f, step)
 
         val beat = audio.beat
         val W    = draw.W
@@ -162,14 +165,14 @@ class SpiralMode : BaseMode() {
                     if (j < aSegs.size) {
                         val pp = aSegs[j]
                         val (rx, ry) = rot(pp.sx, pp.sy)
-                        val rDot = maxOf(1f, minOf(pp.sc * 0.022f, 7f))
+                        val rDot = maxOf(1f, minOf(pp.sc * 0.022f, 12f))
 
                         val cHalo = GLDraw.hsl(pp.h, 1f, pp.bright * 0.35f)
-                        draw.circle(rx, ry, rDot * 3f,
+                        draw.circle(rx, ry, rDot * 4f,
                             cHalo[0], cHalo[1], cHalo[2], cHalo[3], filled = true)
 
                         val cCore = GLDraw.hsl(pp.h, 1f, minOf(pp.bright * 0.85f + 0.10f, 0.92f))
-                        draw.circle(rx, ry, rDot + 1f,
+                        draw.circle(rx, ry, rDot + 2f,
                             cCore[0], cCore[1], cCore[2], cCore[3], filled = true)
                     }
                 }

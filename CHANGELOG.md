@@ -6,6 +6,15 @@
 
 - 2026-11-13: Increased dev publication identity to 2.13.0 (393) for the next
   dev-channel publication.
+- 2026-11-13: Restored the cube's slow line afterglow: it fades the retained
+  scene at the psysuals 18/255 rate instead of clearing it every frame, and
+  opts out of the shared 48/255 trail floor explicitly.
+- 2026-11-13: Shortened the spiral's trails and enlarged its ring bubbles, so
+  the arms stay crisp and the periodic cross-rings read as distinct bubbles.
+- 2026-11-13: Reworked Magnetar onto one level: the scene fades toward black
+  and the dipole contours are added into the same buffer as the particles, so
+  no translucent background plate remains; the contour bands drift slowly and
+  answer bass only slightly.
 - 2026-11-13: Closed the release-publication checklist item: dev 2.12.11 (392)
   was built and published in run 43314405018 with APK and manifest version,
   checksum and size agreeing.

@@ -384,3 +384,20 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
   separate; existing default CI skips the optional survey.
 - No local Android build. Recovery stash and pre-import files are retained
   outside the source batch; no main/master changes are authorized.
+
+## Cube, Spiral and Magnetar look rework — 2026-11-13
+
+- [x] Restore the cube's slow line afterglow with the upstream 18/255 trail
+  fade, opting out of the shared 48/255 floor per effect.
+- [x] Shorten the spiral's trails and enlarge its periodic ring bubbles.
+- [x] Composite Magnetar on one level: black trail fade, additive contours and
+  particles in the same buffer, slower band drift, weaker bass response.
+- [x] Add a JVM regression for the cube and spiral trail fades, including the
+  frame-rate correction; keep the magnetar covered by the device suites.
+- [x] Push the matching upstream psysuals changes: Lattice assigns its FFT bins
+  centre-out so the bass no longer drives the leftmost column, and Magnetar's
+  contour layer drifts slowly with a weaker bass response.
+- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
+  confirm Cube, Spiral and Magnetar on the target TV.
+- [ ] Re-import the psysuals subtree once upstream `main` carries the Lattice
+  and Magnetar changes; the vendored snapshot is still upstream 3.21.0.

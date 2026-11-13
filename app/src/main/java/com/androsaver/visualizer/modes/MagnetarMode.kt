@@ -2,7 +2,6 @@ package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
 import com.androsaver.visualizer.GLDraw
-import com.androsaver.visualizer.VisualizerRenderTuning
 import kotlin.math.*
 
 /**
@@ -20,7 +19,8 @@ import kotlin.math.*
  * Particle port with the psysuals 3.20 dipole-contour layer restored.
  * surfarray replaced: each particle drawn as a tiny circle with additive blend.
  * Particle count reduced from 6 000 to 4 000 for Android performance.
- * The upstream 24/255 trail value is clamped by GLDraw to 48/255 on Android.
+ * Field and particles share one level: the scene fades toward black and both
+ * the contours and the particles are added into that same buffer.
  */
 class MagnetarMode : FullscreenEffectMode() {
 
@@ -51,7 +51,7 @@ class MagnetarMode : FullscreenEffectMode() {
         "u_hue" to contourHue,
         "u_bass" to contourBass,
         "u_high" to contourHigh,
-        "u_decay" to floatArrayOf(VisualizerRenderTuning.MIN_TRAIL_FADE)
+        "u_intensity" to floatArrayOf(0.10f)
     )
 
     override fun onSurfaceCreated() {
@@ -66,6 +66,7 @@ class MagnetarMode : FullscreenEffectMode() {
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
         val W = draw.W.toFloat(); val H = draw.H.toFloat()
+        val step = prepare(draw, audio).step
         val bass = audio.beat
         val mid  = audio.mid
         val high = audio.treble
@@ -121,18 +122,19 @@ class MagnetarMode : FullscreenEffectMode() {
             py[i] = ((py[i] + vy) % H + H) % H
         }
 
-        // Replace the black trail fade with a fade toward the magnetic field.
-        // Normal alpha blending keeps the contours coloured instead of adding
-        // the same field until it clips to white; particle trails still decay.
+        // One level: fade the retained scene toward black like upstream's
+        // particle trail, then add the dipole contours and the particles into
+        // that same buffer. The field is light, not a translucent plate drawn
+        // over the scene, so nothing reads as a separate background image.
+        draw.fadeBlackTimed(48f / 255f, step)
         contourAxis[0] = mx; contourAxis[1] = my
         contourRotation[0] = rot
         contourHue[0] = hue
         contourBass[0] = bass
         contourHigh[0] = high
-        draw.setNormalBlend()
+        draw.setAdditiveBlend()
         renderField(draw, contourUniforms)
 
-        draw.setAdditiveBlend()
         for (i in 0 until N) {
             // Colour by angle to dipole axis
             val rx = (px[i] - cx) / half
@@ -149,7 +151,7 @@ class MagnetarMode : FullscreenEffectMode() {
 
     override val fragmentShader = """
         uniform vec2 u_resolution, u_axis;
-        uniform float u_rotation, u_hue, u_bass, u_high, u_decay;
+        uniform float u_rotation, u_hue, u_bass, u_high, u_intensity;
 
         void main() {
             // Match upstream's independent [-1,1] contour grid on each axis.
@@ -161,11 +163,12 @@ class MagnetarMode : FullscreenEffectMode() {
             // tanh(0.20 * |B|), expressed in GLES2 without positive exp overflow.
             float e = exp(-0.40 * length(field));
             float contour = (1.0 - e) / (1.0 + e);
-            float bands = abs(sin(contour * 6.0 + u_rotation * 0.2));
+            // Slow band drift: the background field only shimmers slightly.
+            float bands = abs(sin(contour * 6.0 + u_rotation * 0.05));
             float h = fract(u_hue + contour * 0.18 + u_high * 0.03);
-            float glow = clamp(bands * (0.20 + u_bass * 0.10), 0.0, 1.0);
+            float glow = clamp(bands * (0.20 + u_bass * 0.05), 0.0, 1.0);
             vec3 colour = (sin(6.2831853 * (h + vec3(0.0, 0.333, 0.667))) * 127.0 + 128.0) / 255.0;
-            gl_FragColor = vec4(clamp(colour * glow, 0.0, 1.0), u_decay);
+            gl_FragColor = vec4(clamp(colour * glow, 0.0, 1.0), u_intensity);
         }
     """.trimIndent()
 }
