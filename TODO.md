@@ -397,8 +397,9 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
 - [x] Push the matching upstream psysuals changes: Lattice assigns its FFT bins
   centre-out so the bass no longer drives the leftmost column, and Magnetar's
   contour layer drifts slowly with a weaker bass response.
-- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
-  confirm Cube, Spiral and Magnetar on the target TV.
+- [x] Run the Android JVM/device checks on GitHub for commit `1c4554c`:
+  verify and both device suites pass, and dev 2.14.0 (395) is published.
+- [ ] Confirm Cube, Spiral and Magnetar on the target TV.
 - [ ] Re-import the psysuals subtree once upstream `main` carries the Lattice
   and Magnetar changes; the vendored snapshot is still upstream 3.21.0.
 
@@ -417,8 +418,9 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
 - [x] Phason: more music-driven movement; Tesseract: bounded geometry trail.
 - [x] Remove the now-unused shared field painter; keep the device suite
   covering all 33 registry modes and add Cymatica and LiquidLight visibility.
-- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
-  confirm the reworked effects on the target TV.
+- [x] Run the Android JVM/device checks on GitHub for commit `1c4554c`:
+  verify and both device suites pass, and dev 2.14.0 (395) is published.
+- [ ] Confirm the reworked effects on the target TV.
 
 ## Mycelium 3.21 port — 2026-11-13
 
@@ -431,8 +433,9 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
   glow and core lines, packet tails, spores, sparks and rings.
 - [x] Keep the colony model free of GL state and cover it with JVM checks for
   bounded pools, packet routing, germination, silence and resize.
-- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
-  confirm the colony on the target TV.
+- [x] Run the Android JVM/device checks on GitHub for commit `1c4554c`:
+  verify and both device suites pass, and dev 2.14.0 (395) is published.
+- [ ] Confirm the colony on the target TV.
 
 ## Visualizer memory on 16 MiB devices — 2026-11-13
 
@@ -441,5 +444,8 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
   reworked effects in the 16 MiB heap of an API 29 device.
 - [x] Fix the Mycelium packet handover at junctions with three or more
   filaments, which indexed a negative sibling and aborted the colony update.
-- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
-  confirm the colony and the reworked effects on the target TV.
+  The same rule was fixed upstream in psysuals.
+- [x] Run the Android JVM and device checks on GitHub for commit `1c4554c`:
+  verify, Device integration (API 29) and Device integration (API 35) pass,
+  and dev 2.14.0 (395) is published with a matching manifest checksum.
+- [ ] Confirm the colony and the reworked effects on the target TV.
