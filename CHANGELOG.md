@@ -14,14 +14,16 @@
 - 2026-11-13: Rewrote Cymatica on a GLES2 shader that evaluates the Chladni
   plate per pixel, so the nodal lines are smooth instead of blocky cells.
 - 2026-11-13: Made Tunnel follow the music again: the ride speed, the tube
-  width and the winding answer bass and mids, with a beat kick that surges.
+  width and the ring brightness answer bass and mids, with a beat kick that
+  surges and settles. The camera path stays independent of the audio.
 - 2026-11-13: Gave Persistence a music-driven size pulse and faster colour
   cycling, and Ferrofluid springy peaks with a rainbow skin.
 - 2026-11-13: Spread Chromatic's drops across the frame and softened its
   treble warp so the prismatic outlines interfere less.
 - 2026-11-13: Seeded SlimeMold across the whole screen and sped up its
-  colour cycle; added a music-driven movement to Phason and a bounded
-  geometry trail to Tesseract.
+  colour cycle; made Phason evolve faster with the music while keeping its
+  wave directions audio-independent, and added a bounded geometry trail to
+  Tesseract.
 - 2026-11-13: Restored the cube's slow line afterglow: it fades the retained
   scene at the psysuals 18/255 rate instead of clearing it every frame, and
   opts out of the shared 48/255 trail floor explicitly.

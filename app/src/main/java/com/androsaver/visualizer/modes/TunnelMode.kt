@@ -52,8 +52,8 @@ class TunnelMode : BaseMode() {
     }
 
     private fun path(t: Float, treble: Float = 0f, out: FloatArray = pathScratch) {
-        // The winding tightens with the treble, so the ride bends with the music.
-        val scale = 1f + treble * 0.35f
+        // Camera curvature stays independent of fast audio changes.
+        val scale = 1f
         out[0] = sin(t * 0.12f) * 0.35f * scale
         out[1] = cos(t * 0.09f) * 0.25f * scale
     }
@@ -82,7 +82,7 @@ class TunnelMode : BaseMode() {
         beatPrev = audio.beat
         surge = maxOf(0f, surge - 0.05f * step)
 
-        val dt = (.008f + bassM * .010f + midM * .005f + surge * .006f) * step
+        val dt = (.006f + bassM * .003f + midM * .0015f + surge * .002f) * step
         time += dt
         // The tube widens with the bass and with the beat kick.
         val tubeR = TUBE_R * (1f + bassM * .16f + surge * .12f)
