@@ -18,7 +18,7 @@ class CircleGeometryTest {
                     val count=countField.getInt(draw)
                     assertEquals((pass+1)*segments.coerceAtLeast(0)*(if(filled)3 else 2),count)
                     val storage=GLDraw::class.java.getDeclaredField("vertexStorage").apply{isAccessible=true}.get(draw) as VertexBatchStorage
-                    val actual=if(count>0)storage.values else FloatArray(0)
+                    val actual=if(count>0)storage.snapshot(count*6) else FloatArray(0)
                     var offset=pass*segments.coerceAtLeast(0)*(if(filled)3 else 2)*6
                     fun vertex(x:Float,y:Float) {
                         for(value in floatArrayOf(x,y,.1f,.2f,.3f,.4f))assertEquals(value,actual[offset++],0f)

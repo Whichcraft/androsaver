@@ -35,7 +35,7 @@ class VisualizerBackportIntegrationTest {
         val bytes=ByteBuffer.allocateDirect(4)
         for(y in 0 until 240 step 16)for(x in 0 until 320 step 16) {
             GLES20.glReadPixels(x,y,1,1,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,bytes)
-            if((0..2).any{bytes.get(it).toInt() and 255}>3})return true
+            if((0..2).any{ (bytes.get(it).toInt() and 255) > 3 })return true
         }
         return false
     }

@@ -6,7 +6,6 @@ import android.util.Log
 import com.androsaver.BuildConfig
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.FloatBuffer
 import kotlin.math.*
 
 /**
@@ -156,11 +155,9 @@ open class GLDraw(var W: Int, var H: Int) {
     private val STRIDE    = 6           // floats per vertex: x, y, r, g, b, a
     private val MAX_VERTS = 262144
     // Switching primitive type flushes the preceding batch, so only one
-    // primitive's staging data can be live. Share both heap and upload storage.
+    // primitive's staging data can be live. Share a single upload buffer.
     private val vertexStorage = VertexBatchStorage(MAX_VERTS, STRIDE)
     val vertexStagingBytes: Int get() = vertexStorage.allocatedBytes
-    private val triVerts get() = vertexStorage.values
-    private val lineVerts get() = vertexStorage.values
     private var triCount  = 0
     private var lineCount = 0
     // 1 = triangles, 2 = lines. Switching type flushes the preceding run so
@@ -168,8 +165,8 @@ open class GLDraw(var W: Int, var H: Int) {
     private var batchType = 0
     private var overflowLogged = false
 
-    // Allocated on first use, then retained across frames (12 MiB total at
-    // the unchanged 256K-vertex limit, rather than two pairs totalling 24 MiB).
+    // The staging buffer is native memory, allocated on first use and retained
+    // across frames. It never touches the managed heap, which the effects need.
     private val triFloatBuf get() = vertexStorage.upload
     private val lineFloatBuf get() = vertexStorage.upload
 
@@ -438,15 +435,14 @@ open class GLDraw(var W: Int, var H: Int) {
         GLES20.glUseProgram(program)
         GLES20.glUniformMatrix4fv(uProj, 1, false, projMatrix, 0)
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo)
-        if (triCount  > 0) flushBatch(triVerts,  triFloatBuf,  triCount,  GLES20.GL_TRIANGLES)
-        if (lineCount > 0) flushBatch(lineVerts, lineFloatBuf, lineCount, GLES20.GL_LINES)
+        if (triCount  > 0) flushBatch(triCount,  GLES20.GL_TRIANGLES)
+        if (lineCount > 0) flushBatch(lineCount, GLES20.GL_LINES)
     }
 
-    private fun flushBatch(verts: FloatArray, buf: FloatBuffer, count: Int, mode: Int) {
+    private fun flushBatch(count: Int, mode: Int) {
         lastSubmittedVertices += count
         val floatCount = count * STRIDE
-        buf.position(0)
-        buf.put(verts, 0, floatCount)
+        val buf = vertexStorage.upload
         buf.position(0)
 
         GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, floatCount * 4, buf, GLES20.GL_DYNAMIC_DRAW)
@@ -639,8 +635,9 @@ open class GLDraw(var W: Int, var H: Int) {
             return
         }
         val i = triCount * STRIDE
-        triVerts[i] = x;  triVerts[i+1] = y
-        triVerts[i+2] = r; triVerts[i+3] = g; triVerts[i+4] = b; triVerts[i+5] = a
+        val verts = triFloatBuf
+        verts.put(i, x);  verts.put(i + 1, y)
+        verts.put(i + 2, r); verts.put(i + 3, g); verts.put(i + 4, b); verts.put(i + 5, a)
         triCount++
     }
 
@@ -664,11 +661,12 @@ open class GLDraw(var W: Int, var H: Int) {
             return
         }
         val i = lineCount * STRIDE
-        lineVerts[i]   = x1; lineVerts[i+1] = y1
-        lineVerts[i+2] = r;  lineVerts[i+3] = g; lineVerts[i+4] = b; lineVerts[i+5] = a
+        val verts = lineFloatBuf
+        verts.put(i,   x1); verts.put(i + 1, y1)
+        verts.put(i + 2, r);  verts.put(i + 3, g); verts.put(i + 4, b); verts.put(i + 5, a)
         val j = (lineCount + 1) * STRIDE
-        lineVerts[j]   = x2; lineVerts[j+1] = y2
-        lineVerts[j+2] = r;  lineVerts[j+3] = g; lineVerts[j+4] = b; lineVerts[j+5] = a
+        verts.put(j,   x2); verts.put(j + 1, y2)
+        verts.put(j + 2, r);  verts.put(j + 3, g); verts.put(j + 4, b); verts.put(j + 5, a)
         lineCount += 2
     }
 
@@ -687,11 +685,12 @@ open class GLDraw(var W: Int, var H: Int) {
             return
         }
         val i = lineCount * STRIDE
-        lineVerts[i]   = x1; lineVerts[i+1] = y1
-        lineVerts[i+2] = r1; lineVerts[i+3] = g1; lineVerts[i+4] = b1; lineVerts[i+5] = a1
+        val verts = lineFloatBuf
+        verts.put(i,   x1); verts.put(i + 1, y1)
+        verts.put(i + 2, r1); verts.put(i + 3, g1); verts.put(i + 4, b1); verts.put(i + 5, a1)
         val j = (lineCount + 1) * STRIDE
-        lineVerts[j]   = x2; lineVerts[j+1] = y2
-        lineVerts[j+2] = r2; lineVerts[j+3] = g2; lineVerts[j+4] = b2; lineVerts[j+5] = a2
+        verts.put(j,   x2); verts.put(j + 1, y2)
+        verts.put(j + 2, r2); verts.put(j + 3, g2); verts.put(j + 4, b2); verts.put(j + 5, a2)
         lineCount += 2
     }
 

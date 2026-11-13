@@ -302,13 +302,15 @@ its temporary file. A later request for the same artifact reuses it after
 checking bytes, checksum, package version and signing identity again; it does
 not overwrite an APK that the package installer may still be reading.
 
-`VertexBatchStorage` lazily allocates a single heap vertex array and a single
-direct upload buffer. GLDraw flushes before switching triangle/line primitives,
-so the two primitive types share this storage. The unchanged 262,144-vertex,
-six-float budget requires 12 MiB of staging instead of 24 MiB. This excludes GPU
-VBOs, framebuffers, textures and effect state; actual device memory/performance
-still needs profiling. The pure storage tests check lazy allocation, reuse and
-the full capacity budget without invoking Android GL APIs.
+`VertexBatchStorage` lazily allocates a single direct upload buffer. GLDraw
+flushes before switching triangle/line primitives, so the two primitive types
+share this storage, and the vertices are written straight into the buffer. The
+262,144-vertex, six-float budget needs 6 MiB of staging, and because a direct
+buffer lives outside the managed heap the effects keep the whole 16 MiB heap
+budget of an API 29 device. This excludes GPU VBOs, framebuffers, textures and
+effect state; actual device memory/performance still needs profiling. The pure
+storage tests check lazy allocation, reuse, read-back and the full capacity
+budget without invoking Android GL APIs.
 
 ### Update staging retention
 

@@ -603,7 +603,8 @@ class MyceliumColony(
                 pulse.energy *= 0.92f
                 alive.add(pulse)
                 if (candidates.size > 1 && rng.nextFloat() < 0.3f + mid * 0.4f && alive.size < cap) {
-                    val other = candidates[1 - candidates.indexOf(chosen)]
+                    // Branch into a sibling filament — never the one we came from.
+                    val other = candidates[if (candidates.indexOf(chosen) == 0) 1 else 0]
                     orientEdge(other, destination)
                     alive.add(Pulse(other, 0f, pulse.speed, pulse.energy * 0.75f, pulse.generation + 1, pulse.hueOff))
                 }

@@ -433,3 +433,13 @@ restored all 21 native files byte-for-byte from the reviewed external backup.
   bounded pools, packet routing, germination, silence and resize.
 - [ ] Run the Android JVM/device checks on GitHub for the exact commit and
   confirm the colony on the target TV.
+
+## Visualizer memory on 16 MiB devices — 2026-11-13
+
+- [x] Move the GLDraw vertex staging out of the managed heap: the 256K-vertex
+  batch was mirrored in a 6 MiB float array that no longer fitted beside the
+  reworked effects in the 16 MiB heap of an API 29 device.
+- [x] Fix the Mycelium packet handover at junctions with three or more
+  filaments, which indexed a negative sibling and aborted the colony update.
+- [ ] Run the Android JVM/device checks on GitHub for the exact commit and
+  confirm the colony and the reworked effects on the target TV.

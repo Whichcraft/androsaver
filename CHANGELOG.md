@@ -63,6 +63,19 @@
 - 2026-11-12: Removed fully merged local pre-2.11 checkpoint and remote
   ChromaWeave performance branches after checking ancestry and open pull requests.
 
+### Fixed
+
+- 2026-11-13: Fixed the Mycelium packet handover. At a junction with three or
+  more filaments the sibling filament was picked by an index that could turn
+  negative, which aborted the colony update with an IndexOutOfBoundsException.
+- 2026-11-13: Moved the visualizer's vertex staging out of the managed heap.
+  The 256K-vertex batch was mirrored in a 6 MiB float array beside the upload
+  buffer, which no longer fitted the 16 MiB heap of an API 29 device once the
+  reworked effects were resident. Vertices are now written straight into the
+  direct upload buffer, which also drops the per-frame copy.
+- 2026-11-13: Repaired the frame-wide brightness scan in the device suite,
+  whose misplaced brace kept the Android test sources from compiling.
+
 All notable changes to AndroSaver are documented here.
 
 ## 2026-10-26 — psysuals v3.20 Android backport
