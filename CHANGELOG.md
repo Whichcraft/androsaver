@@ -4,7 +4,7 @@
 
 ### Changed
 
-- 2026-11-13: Increased dev publication identity to 2.13.1 (394) for the next
+- 2026-11-13: Increased dev publication identity to 2.14.0 (395) for the next
   dev-channel publication.
 - 2026-11-13: Increased dev publication identity to 2.13.0 (393) for the next
   dev-channel publication.
