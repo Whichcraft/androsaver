@@ -26,7 +26,7 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 3 | `TriFluxMode` | TriFlux | Triangle mosaic wall — tiles pop to foreground on beat |
 | 4 | `LissajousMode` | Lissajous | 3D trefoil knot, neon glow |
 | 5 | `TunnelMode` | Tunnel | Gentle curved tunnel with stable ring stars and bounded triangle spawning |
-| 6 | `CorridorMode` | Corridor | First-person neon rounded-rectangle corridor + sparks |
+| 6 | `CorridorMode` | Corridor | First-person ride down a solid neon corridor with ribs, light bars and beat pulses |
 | 7 | `NovaMode` | Nova | 7-fold mirror kaleidoscope waveform |
 | 8 | `SpiralMode` | Spiral | 6-arm neon helix |
 | 9 | `BubblesMode` | Bubbles | Rising translucent bubbles |
@@ -40,8 +40,8 @@ Audio pipeline: Android `Visualizer` API → `AudioEngine` → 512-bin FFT → b
 | 17 | `MyceliumMode` | Mycelium | Wandering multi-colony fungal network with spores and rotating satellite rings |
 | 18 | `MagnetarMode` | Magnetar | Rotating magnetic dipole field with 4 000 particles |
 | 19 | `SlimeMoldMode` | SlimeMold | Physarum-style agent simulation with adaptive-grid trail diffusion |
-| 20 | `MobiusMode` | Mobius | 3-D wireframe Mobius strip |
-| 21 | `ChromaticMode` | Chromatic | RGB-split ripple rings |
+| 20 | `MobiusMode` | Mobius | Solid shaded Mobius ribbon, upright in the screen plane |
+| 21 | `ChromaticMode` | Chromatic | Raindrop ripples with clean spectral rims |
 | 22 | `PersistenceMode` | Persistence | Five rigid solids with smooth axis reversals and colour drift |
 | 23 | `SynapseMode` | Synapse | Living 28–90-node graph with safe rewiring and traveling signals |
 | 24 | `HeartbeatMode` | Heartbeat | Expanding morphing neon rings |
@@ -89,7 +89,7 @@ A stable 3:2:5 3-D knot with smoothed rotation/scale, 60 Hz trail sampling and b
 
 ## CorridorMode
 
-First-person ride through a neon rainbow corridor. 28 rounded-rectangle frames scroll toward the camera; hue sweeps from far (dark) to near (bright) across the full rainbow. Bass drives scroll speed. Beat flares nearest frames and continuously spawns glowing spark particles that streak toward the camera along a gently curving path. Silence: slow scroll, dim frames, few sparks.
+First-person ride down a solid neon corridor. Wall, floor and ceiling panels are drawn in true perspective and painted far to near; neon ribs with wider gates are set into the walls, and between them run light bars on both walls, a broken ceiling light strip and two floor lane lines. The passage bends gently, fades into fog and ends in a glowing doorway. Bass and mid raise the ride speed and glow; the spectrum lights the wall bars by depth (bass near, treble far); each beat sends a pulse of light down the corridor. Every frame is fully repainted, so there are no trails. Silence: slow ride, dim bars, no pulses.
 
 ## NovaMode
 
@@ -152,11 +152,11 @@ Strange attractor (Clifford map). 7 000 walkers iterate `x' = sin(a·y) - cos(b�
 
 ## MobiusMode
 
-A slowly rotating projected strip with separate light shiver. The whole strip is fitted together with a glow margin rather than clipping individual points.
+A solid, shaded Mobius ribbon drawn as depth-sorted filled bands with a bright rim along its single edge, so the near side hides the far side and no lines cross. The strip stands upright in the plane of the screen and spins in that plane with a small wobble, so it never turns edge-on. The whole strip is fitted together with a glow margin rather than clipping individual points.
 
 ## ChromaticMode
 
-Up to nine prismatic RGB-separated ripple rings. Radius, phase and decay follow elapsed time; split/warp scale with viewport size and existing rings survive resize.
+Up to nine raindrop ripples whose rims split into a clean spectral band: six contiguous bands from red to violet share one gently wobbling outline, followed by a fainter ripple inside it. Drops stay local and land where the frame is emptiest. Radius, phase and decay follow elapsed time; band width scales with viewport size and treble, and existing rings survive resize.
 
 ## PersistenceMode
 

@@ -4,6 +4,13 @@
 
 ### Changed
 
+- 2026-11-13: Ported the psysuals 3.22 reworks of three effects. Corridor is
+  rebuilt as a ride down a solid neon corridor with perspective walls, ribs,
+  spectrum-driven wall bars and a pulse of light on every beat; its rounded
+  frames and spark history are gone. Mobius is a solid, shaded ribbon that
+  stands upright in the plane of the screen instead of a wireframe whose
+  lines crossed into noise. Chromatic draws each ripple as one clean spectral
+  band and keeps its drops apart; the nine-ring cap stays.
 - 2026-11-13: Increased dev publication identity to 2.14.1 (396) for the next
   dev-channel publication.
 - 2026-11-13: Increased dev publication identity to 2.14.0 (395) for the next

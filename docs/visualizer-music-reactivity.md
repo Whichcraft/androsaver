@@ -190,7 +190,7 @@ inputs rather than an API restriction.
 | Effect | Low / beat response | Mid response | Treble response | Other input | Silence behavior |
 |---|---|---|---|---|---|
 | TriFlux | Rising beat edge activates one tile with cooldown; low changes the pop target | Sweep speed and pop target gain | Rainbow edge/detail modulation | — | Sweeps, hue drift and occasional automatic pops continue |
-| Corridor | Low drives frame travel speed; beat flares near frames | Adds frame/spark brightness and spawn energy | Spark radius and near-frame detail | — | Slow corridor motion and sparse/dim sparks |
+| Corridor | Low raises ride speed and wall/doorway glow; beat edges send a light pulse down the corridor | Raises ride speed and hue drift | Small ride-speed contribution | Spectrum lights the wall bars by depth, bass near and treble far | Slow ride, dim bars, no pulses |
 | Branches | Low changes trunk length; beat adds arms and a brightness burst | Three sine fields twist branch angles | Segment/core line weight | — | Arms contract with minimal jitter |
 | Butterflies | Low controls wing flap and pair motion; beat emits sparkles | — | — | Pair state controls pursuit/wander phases | Pairs continue bounded motion; no new beat sparkles |
 | FlowField | Low attracts particles toward the center | — | Per-particle scatter force | Beat jumps the field phase | Particles drift in the base field without gravity/scatter |
@@ -200,8 +200,8 @@ inputs rather than an API restriction.
 | Mycelium | Beat blooms a colony, seeds tips, and releases spores | — | Spore/filament color and motion detail | Colony growth state | Tips and spores continue slow bounded growth/decay |
 | Magnetar | Beat creates an equatorial shockwave and vertical scatter | — | Particle color/glow detail | Dipole rotation state | Particles orbit slowly along field lines |
 | SlimeMold | Low controls agent speed; beat returns a fraction toward center | — | — | Diffusing trail buffer | Agents continue slow motion while trails decay |
-| Mobius | Smoothed low gently changes twist; fast response adds light shiver | — | Gentle rotation contribution and light accents | 3-D projection and hue drift | Strip rotates at its base speed |
-| Chromatic | Low/beat drives ripple warp and ring spawning | — | RGB split radius and halo separation | Ring age controls expansion/fade | Existing rings expand and expire; no new rings |
+| Mobius | Smoothed low raises spin, wobble and twist; fast response flares ribbon and rim | Spin contribution and hue drift | Spin contribution | Upright solid ribbon, depth-sorted shading | Strip spins at its base speed |
+| Chromatic | Low drives expansion and drop strength; beat edges spawn drops | Hue drift and idle drops | Width of the spectral band | Ring age controls expansion/fade | Existing rings expand and expire; idle drops only |
 | Persistence | Beat raises the nested-solid boost and edge brightness | — | — | Independent 3-D orbital speeds | Solids continue slow rotation with long persistence |
 | Synapse | Strong beat adds nodes and launches signal cascades | Signal/arrival variation | — | Periodic mutation adds or sheds nodes | Graph wanders and existing signals decay |
 | Heartbeat | Beat spawns rings; low level morphs circle ↔ polygon | — | — | Ring age controls expansion and fade | Rings continue; periodic low-energy auto-spawn keeps motion alive |

@@ -1,214 +1,248 @@
 package com.androsaver.visualizer.modes
 
 import com.androsaver.visualizer.AudioData
+import com.androsaver.visualizer.EffectDynamics
 import com.androsaver.visualizer.GLDraw
+import com.androsaver.visualizer.fftMean
 import kotlin.math.*
 
 /**
- * CorridorMode — first-person neon rainbow corridor.
- * Concentric rounded-rectangle frames fly toward the camera with a full rainbow
- * sweep across depth; beat flares nearest frames and spawns glowing sparks.
- * Port of psysuals `Corridor` class (v3.13.0).
+ * CorridorMode — a first-person ride down a solid neon corridor.
+ * Port of the psysuals 3.22 `Corridor` rebuild.
  *
- * Spark trailing: psysuals uses a dedicated spark_surf faded at alpha=10/255 per frame,
- * giving ~25 frames persistence.  Android has one framebuffer, so we maintain a
- * SPARK_HIST_LEN-frame ring buffer of spark screen snapshots and replay them with
- * additive blend at decreasing alpha — equivalent to _SPARK_FADE=10 in psysuals.
+ * Wall, floor and ceiling panels are drawn in true perspective and painted far
+ * to near, so the walls close the view. Neon ribs are set into the walls;
+ * between them run light bars on both walls, a broken light strip along the
+ * ceiling and two lane lines along the floor. The passage bends gently, fades
+ * into fog and ends in a glowing doorway.
+ *
+ *   Bass     → ride speed, wall and doorway glow
+ *   Mid      → ride speed, hue drift
+ *   Spectrum → wall light bars by depth: bass near the camera, treble far away
+ *   Beat     → a pulse of light shoots down the corridor, flaring each rib
+ *
+ * Every frame is fully repainted, so the mode keeps no trails.
  */
 class CorridorMode : BaseMode() {
 
     override val name = "Corridor"
 
     private companion object {
-        const val N_FRAMES       = 28
-        const val Z_FAR          = 12f
-        const val Z_NEAR         = 0.06f
-        const val WORLD_H        = 2.0f
-        const val ASPECT         = 1.65f
-        const val MAX_SPARKS     = 100
-        const val TAU            = (Math.PI * 2).toFloat()
-        // psysuals _SPARK_FADE=10 → ~255/10 = 25 frames persistence
-        const val SPARK_HIST_LEN = 25
-        // floats per spark snapshot: sx, sy, r, h, bright  (5 fields)
-        const val SPARK_FIELDS   = 5
+        const val N_SEGMENTS = 32
+        const val Z_FAR      = 13f
+        const val Z_NEAR     = 0.42f
+        const val HALF_W     = 1.7f
+        const val HALF_H     = 1.0f
+        const val RIB_DEPTH  = 0.10f   // depth of a neon rib, in world units
+        const val RIB_EVERY  = 2       // segments per rib
+        const val GATE_EVERY = 8       // segments per wider, brighter gate
+        const val MAX_PULSES = 3
+        const val SPACING    = Z_FAR / N_SEGMENTS
+
+        // Cross-section points as fractions of the half extents (y down):
+        // corners TL TR BR BL, ceiling light strip, floor lane lines, wall bars.
+        const val POINTS = 14
+        val SECTION_X = floatArrayOf(-1f, 1f, 1f, -1f, -0.20f, 0.20f,
+            -0.58f, -0.52f, 0.52f, 0.58f, -1f, -1f, 1f, 1f)
+        val SECTION_Y = floatArrayOf(-1f, -1f, 1f, 1f, -1f, -1f,
+            1f, 1f, 1f, 1f, -0.16f, 0.16f, -0.16f, 0.16f)
     }
 
-    private data class Frame(var z: Float)
-    // pt dropped — sparks evaluate path centre with time at draw time
-    private data class Spark(var z: Float, val hue: Float, val ox: Float, val oy: Float)
-
-    private val frames = ArrayList<Frame>(N_FRAMES)
-    private val sparks = ArrayList<Spark>(MAX_SPARKS * 2)
     private var hue  = 0f
-    private var time = 0f
+    private var time = 0.0          // distance travelled, in world units
+    private var beatPrev = 0f
+    private var peak = 1e-3f
+    private val spectrum = FloatArray(N_SEGMENTS + 1)
 
-    // Spark history ring buffer — each slot is a FloatArray of SPARK_FIELDS*N packed values
-    private val sparkHist     = Array<FloatArray?>(SPARK_HIST_LEN) { null }
-    private val sparkHistSize = IntArray(SPARK_HIST_LEN)   // actual spark count in each slot
-    private var sparkHistHead = 0
+    // Beat pulses running away from the camera.
+    private val pulseZ = FloatArray(MAX_PULSES)
+    private val pulseStrength = FloatArray(MAX_PULSES)
+    private var pulseCount = 0
+
+    // Scratch storage; nothing is allocated while drawing.
+    private val zRaw  = FloatArray(N_SEGMENTS + 1)
+    private val zs    = FloatArray(N_SEGMENTS + 1)
+    private val ribZ  = FloatArray(N_SEGMENTS + 1)
+    private val pts   = FloatArray((N_SEGMENTS + 1) * POINTS * 2)
+    private val rib   = FloatArray((N_SEGMENTS + 1) * 4 * 2)
+    private val quad  = FloatArray(8)
+    private val col   = FloatArray(4)
 
     override fun reset() {
-        hue = 0f; time = 0f
-        frames.clear(); sparks.clear()
-        val spacing = (Z_FAR - Z_NEAR) / N_FRAMES
-        for (i in 0 until N_FRAMES) frames.add(Frame(Z_NEAR + i * spacing))
-        for (i in 0 until SPARK_HIST_LEN) { sparkHist[i] = null; sparkHistSize[i] = 0 }
-        sparkHistHead = 0
+        hue = 0f; time = 0.0; beatPrev = 0f; peak = 1e-3f
+        spectrum.fill(0f); pulseCount = 0
     }
 
-    private fun path(t: Float, mid: Float = 0f): Pair<Float, Float> {
-        val scale = 1f + mid * 0.50f
-        return sin(t * 0.19f) * 0.5f * scale to cos(t * 0.14f) * 0.35f * scale
-    }
+    /** Distance travelled by the camera; exposed for JVM contract checks. */
+    internal val travelled: Double get() = time
+    internal val activePulses: Int get() = pulseCount
+
+    private fun pathX(s: Double): Double = 2.0 * sin(s * 0.10) + 0.35 * sin(s * 0.23 + 1.0)
+    private fun pathY(s: Double): Double = 0.7 * sin(s * 0.13 + 2.0)
 
     /**
-     * Build a closed polygon (flat x0,y0,x1,y1,... array) tracing a rounded rectangle
-     * centered at (cx,cy) with half-extents (hw, hh) and corner radius r.
-     * Each corner arc uses [segs] segments.
+     * Project the first [count] cross-section points at depth [z] into [out].
+     * The offset is relative to the camera with the local heading removed, so
+     * the view always looks along the corridor and bends appear ahead.
      */
-    private fun roundedRectPts(cx: Float, cy: Float, hw: Float, hh: Float,
-                                r: Float, segs: Int = 6): FloatArray {
-        val pts = FloatArray((segs + 1) * 4 * 2)
-        var idx = 0
-        val corners = floatArrayOf(
-            cx + hw - r, cy + hh - r, 0f,            // bottom-right: arc 0→90°
-            cx - hw + r, cy + hh - r, TAU * 0.25f,   // bottom-left:  arc 90→180°
-            cx - hw + r, cy - hh + r, TAU * 0.50f,   // top-left:     arc 180→270°
-            cx + hw - r, cy - hh + r, TAU * 0.75f,   // top-right:    arc 270→360°
-        )
-        for (ci in 0 until 4) {
-            val ox = corners[ci * 3];  val oy = corners[ci * 3 + 1]
-            val startAngle = corners[ci * 3 + 2]
-            for (s in 0..segs) {
-                val a = startAngle + s.toFloat() / segs * TAU * 0.25f
-                pts[idx++] = ox + cos(a) * r
-                pts[idx++] = oy + sin(a) * r
-            }
+    private fun project(z: Float, out: FloatArray, offset: Int, count: Int,
+                        W: Float, H: Float, cosRoll: Float, sinRoll: Float) {
+        val s = time
+        val headingX = 0.2 * cos(s * 0.10) + 0.0805 * cos(s * 0.23 + 1.0)
+        val headingY = 0.091 * cos(s * 0.13 + 2.0)
+        val ox = (pathX(s + z) - pathX(s) - headingX * z).toFloat()
+        val oy = (pathY(s + z) - pathY(s) - headingY * z).toFloat()
+        val scale = minOf(W, H) * 0.74f / z
+        for (i in 0 until count) {
+            val x = SECTION_X[i] * HALF_W + ox
+            val y = SECTION_Y[i] * HALF_H + oy
+            out[offset + i * 2]     = (x * cosRoll - y * sinRoll) * scale + W / 2f
+            out[offset + i * 2 + 1] = (x * sinRoll + y * cosRoll) * scale + H / 2f
         }
-        return pts
+    }
+
+    private fun updateSpectrum(audio: AudioData, response: EffectDynamics) {
+        val n = audio.fft.size
+        var loudest = 0f
+        // Squared band edges give the bass more of the corridor's near end.
+        for (k in 0..N_SEGMENTS) {
+            val lo = ((k / (N_SEGMENTS + 1f)).pow(2) * n * 0.6f).toInt()
+            val hi = maxOf(lo + 1, (((k + 1) / (N_SEGMENTS + 1f)).pow(2) * n * 0.6f).toInt())
+            val band = audio.fftMean(lo, hi)
+            zRaw[k] = if (band.isFinite()) maxOf(0f, band) else 0f
+            loudest = maxOf(loudest, zRaw[k])
+        }
+        peak = maxOf(1e-3f, response.smooth(peak, loudest, 0.01f), loudest)
+        for (k in 0..N_SEGMENTS) {
+            spectrum[k] = response.smooth(spectrum[k], sqrt(zRaw[k] / peak), 0.3f)
+        }
+    }
+
+    private fun colour(h: Float, s: Float, l: Float) {
+        GLDraw.hsl(h, s, l.coerceIn(0f, 1f), 1f, col)
+    }
+
+    /** Fill the quad spanned by points [i] and [j] of a near and a far slice. */
+    private fun span(draw: GLDraw, near: FloatArray, nearBase: Int,
+                     far: FloatArray, farBase: Int, i: Int, j: Int) {
+        quad[0] = near[nearBase + i * 2]; quad[1] = near[nearBase + i * 2 + 1]
+        quad[2] = near[nearBase + j * 2]; quad[3] = near[nearBase + j * 2 + 1]
+        quad[4] = far[farBase + j * 2];   quad[5] = far[farBase + j * 2 + 1]
+        quad[6] = far[farBase + i * 2];   quad[7] = far[farBase + i * 2 + 1]
+        draw.polygon(quad, 4, col[0], col[1], col[2], 1f, true)
     }
 
     override fun draw(draw: GLDraw, audio: AudioData, tick: Int) {
-        val beat = audio.beat
-        val bass = beat
-        val mid  = audio.mid
-        val high = audio.treble
-        val motion = prepare(draw,audio).motionScale
-        val bassM = bass * motion
-        val midM = mid * motion
-        val highM = high * motion
-        val W = draw.W; val H = draw.H
+        val W = draw.W.toFloat(); val H = draw.H.toFloat()
+        val response = prepare(draw, audio); val step = response.step
+        val bass = response.motion[0]; val mid = response.motion[1]; val high = response.motion[2]
+        val flash = response.light[0] * response.accent
 
-        hue  += 0.005f
-        val dt   = 0.022f + bassM * 0.08f + midM * 0.06f + highM * 0.04f
-        time    += dt
+        hue = (hue + (0.0012f + mid * 0.0015f) * step) % 1f
+        time += ((0.045f + bass * 0.05f + mid * 0.03f + high * 0.01f) * step * response.motionScale).toDouble()
+        updateSpectrum(audio, response)
 
-        val fov = minOf(W, H) * 0.72f
-
-        // ── Spawn sparks — driven by treble transients and bass ───────────────
-        val spawnN = (bassM * 4f + highM * 6f).toInt()
-        repeat(spawnN) {
-            if (sparks.size < MAX_SPARKS * 2) {
-                val z = Z_FAR * (0.55f + Math.random().toFloat() * 0.37f)
-                sparks.add(Spark(
-                    z   = z,
-                    hue = (hue + Math.random().toFloat() * 0.6f) % 1f,
-                    ox  = (Math.random().toFloat() * 2f - 1f) * WORLD_H * ASPECT * 0.85f,
-                    oy  = (Math.random().toFloat() * 2f - 1f) * WORLD_H * 0.85f
-                ))
+        if (audio.beat > 0.60f && beatPrev <= 0.60f && pulseCount < MAX_PULSES) {
+            pulseZ[pulseCount] = 0f
+            pulseStrength[pulseCount] = minOf(1.5f, audio.beat)
+            pulseCount++
+        }
+        beatPrev = audio.beat
+        var kept = 0
+        for (i in 0 until pulseCount) {
+            val z = pulseZ[i] + 0.45f * step
+            if (z < Z_FAR + 2f) {
+                pulseZ[kept] = z; pulseStrength[kept] = pulseStrength[i]; kept++
             }
         }
+        pulseCount = kept
 
-        // ── Advance frames ────────────────────────────────────────────────────
-        for (f in frames) {
-            f.z -= dt
-            if (f.z < Z_NEAR) f.z += Z_FAR
+        // Slice k sits at the camera-side edge of segment k.
+        val first = floor(time / SPACING).toLong()
+        val offset = (time - first * SPACING.toDouble()).toFloat()
+        val roll = 0.09f * sin(time * 0.07).toFloat()
+        val cosRoll = cos(roll); val sinRoll = sin(roll)
+        for (k in 0..N_SEGMENTS) {
+            zRaw[k] = k * SPACING - offset
+            zs[k] = maxOf(zRaw[k], Z_NEAR)
+            val gate = (first + k) % GATE_EVERY == 0L
+            ribZ[k] = zRaw[k] + (if (gate) 2.2f else 1f) * RIB_DEPTH
+            project(zs[k], pts, k * POINTS * 2, POINTS, W, H, cosRoll, sinRoll)
+            project(maxOf(ribZ[k], Z_NEAR), rib, k * 8, 4, W, H, cosRoll, sinRoll)
         }
 
-        // ── Advance sparks, drop expired ──────────────────────────────────────
-        val live = ArrayList<Spark>(sparks.size)
-        for (sp in sparks) {
-            sp.z -= dt
-            if (sp.z >= Z_NEAR) live.add(sp)
-        }
-        sparks.clear()
-        sparks.addAll(if (live.size > MAX_SPARKS) live.takeLast(MAX_SPARKS) else live)
+        val glow = 1f + flash * 0.5f + bass * 0.4f
 
-        draw.fadeBlack(0.11f)
+        // The whole frame is repainted; clear whatever the last mode left.
+        draw.rect(0f, 0f, W, H, 0f, 0f, 0f, 1f)
 
-        // ── Draw frames (back to front, normal blend) ─────────────────────────
-        // Sparks drawn after (additive blend) so they are always on top of frames.
-        for (f in frames.sortedByDescending { it.z }) {
-            val z     = maxOf(f.z, 0.01f)
-            val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - z * 0.5f, mid = midM)
-            val cxS = pcx * fov / z + W / 2f
-            val cyS = pcy * fov / z + H / 2f
-
-            val h      = (hue + nearT) % 1f
-            val bright = (0.06f + nearT * 0.70f + midM * 0.15f * nearT + bassM * nearT * 0.50f)
-                            .coerceIn(0f, 1f)
-
-            val halfH = WORLD_H * fov / z
-            val halfW = WORLD_H * ASPECT * fov / z
-            if (halfW < 3f || halfH < 3f) continue
-
-            val radius = maxOf(2f, minOf(halfW / 3f, halfH / 3f, halfW - 1f, halfH - 1f))
-
-            val infl  = 4f + mid * 8f
-            val glR   = (radius + infl / 2f).coerceAtMost(minOf(halfW + infl, halfH + infl) - 1f)
-            val glPts = roundedRectPts(cxS, cyS, halfW + infl, halfH + infl, maxOf(2f, glR))
-            val gc    = GLDraw.hsl(h, l = bright * 0.22f)
-            draw.polygon(glPts, gc[0], gc[1], gc[2], 0.7f)
-
-            val mainPts = roundedRectPts(cxS, cyS, halfW, halfH, radius)
-            val mc      = GLDraw.hsl(h, l = bright)
-            draw.polygon(mainPts, mc[0], mc[1], mc[2], 1f)
+        // The doorway at the far end, glowing with the bass.
+        val farBase = N_SEGMENTS * POINTS * 2
+        var doorX = 0f; var doorY = 0f
+        for (i in 0 until 4) { doorX += pts[farBase + i * 2]; doorY += pts[farBase + i * 2 + 1] }
+        doorX /= 4f; doorY /= 4f
+        val doorHue = hue + ((first + N_SEGMENTS) % 2000L) * 0.035f + 0.5f
+        val doorL = minOf(0.6f, 0.22f + bass * 0.25f + flash * 0.15f)
+        for (layer in 0 until 3) {
+            val shrink = 1f - layer * 0.28f
+            for (i in 0 until 4) {
+                quad[i * 2]     = doorX + (pts[farBase + i * 2] - doorX) * shrink
+                quad[i * 2 + 1] = doorY + (pts[farBase + i * 2 + 1] - doorY) * shrink
+            }
+            colour(doorHue, 0.75f, doorL + layer * 0.15f)
+            draw.polygon(quad, 4, col[0], col[1], col[2], 1f, true)
         }
 
-        // ── Compute current-frame spark screen positions ───────────────────────
-        val curCount = sparks.size
-        val needed   = curCount * SPARK_FIELDS
-        var curBuf   = sparkHist[sparkHistHead]
-        if (curBuf == null || curBuf.size < needed) {
-            curBuf = FloatArray(maxOf(needed, MAX_SPARKS * SPARK_FIELDS))
-        }
-        var bi = 0
-        for (sp in sparks) {
-            val z     = maxOf(sp.z, 0.01f)
-            val nearT = maxOf(0f, 1f - z / Z_FAR)
-            val (pcx, pcy) = path(time - sp.z * 0.5f, mid = midM)
-            curBuf[bi++] = (pcx + sp.ox) * fov / z + W / 2f         // sx
-            curBuf[bi++] = (pcy + sp.oy) * fov / z + H / 2f         // sy
-            curBuf[bi++] = maxOf(2f, fov / z * 0.05f * (1f + highM * 1.5f)) // r scales with treble
-            curBuf[bi++] = (sp.hue + nearT * 0.35f) % 1f             // h
-            curBuf[bi++] = 0.35f + nearT * 0.60f + highM * 0.25f     // bright
-        }
-        sparkHist[sparkHistHead]     = curBuf
-        sparkHistSize[sparkHistHead] = curCount
-        sparkHistHead = (sparkHistHead + 1) % SPARK_HIST_LEN
+        for (k in N_SEGMENTS - 1 downTo 0) {
+            if (zs[k + 1] <= Z_NEAR) continue
+            val id = first + k
+            val a = k * POINTS * 2            // near edge of the segment
+            val b = (k + 1) * POINTS * 2      // far edge of the segment
+            val fog = (1f - zs[k] / Z_FAR).coerceIn(0f, 1f).pow(1.6f)
+            val stripe = if ((id / RIB_EVERY) % 2 == 0L) 1f else 0.6f
+            val h = hue + (id % 2000L) * 0.035f
+            val level = spectrum[k]
+            var pulse = 0f
+            for (i in 0 until pulseCount) {
+                val d = (zs[k] - pulseZ[i]) / 0.8f
+                pulse += pulseStrength[i] * exp(-d * d)
+            }
+            pulse = minOf(pulse, 1.5f) * (0.35f + 0.65f * fog)
 
-        // ── Draw spark ring buffer (oldest→newest) + current frame, additive ──
-        // Simulates psysuals _SPARK_FADE=10: ~25-frame persistence on spark_surf.
-        draw.setAdditiveBlend()
-        for (age in SPARK_HIST_LEN - 1 downTo 0) {
-            val slotIdx = (sparkHistHead - 1 - age + SPARK_HIST_LEN * 2) % SPARK_HIST_LEN
-            val buf     = sparkHist[slotIdx] ?: continue
-            val cnt     = sparkHistSize[slotIdx]
-            if (cnt == 0) continue
-            // alpha decays linearly: oldest frame gets ~10/255, newest gets full
-            val ageFrac = age.toFloat() / SPARK_HIST_LEN.toFloat()
-            val aMul    = 1f - ageFrac   // 0 (oldest) → 1 (current)
-            var p = 0
-            repeat(cnt) {
-                val sx     = buf[p++]; val sy     = buf[p++]
-                val r      = buf[p++]; val h      = buf[p++]; val bright = buf[p++]
-                val hc = GLDraw.hsl(h, l = bright * 0.25f)
-                draw.circle(sx, sy, r + 4f, hc[0], hc[1], hc[2], 0.6f * aMul, filled = true, segments = 10)
-                val bc = GLDraw.hsl(h, l = bright)
-                draw.circle(sx, sy, maxOf(1f, r), bc[0], bc[1], bc[2], aMul, filled = true, segments = 10)
+            colour(h - 0.04f, 0.8f, fog * stripe * 0.035f * glow)
+            span(draw, pts, a, pts, b, 0, 1)                         // ceiling
+            colour(h + 0.04f, 0.8f, fog * stripe * (0.04f + 0.05f * level) * glow)
+            span(draw, pts, a, pts, b, 3, 2)                         // floor
+            colour(h, 0.85f, fog * stripe * 0.075f * glow)
+            span(draw, pts, a, pts, b, 0, 3)                         // left wall
+            span(draw, pts, a, pts, b, 1, 2)                         // right wall
+
+            if (id % RIB_EVERY == 1L) {                              // lit segment
+                colour(h, 0.35f, minOf(fog * 0.70f + pulse * 0.2f, 0.95f))
+                span(draw, pts, a, pts, b, 4, 5)                     // ceiling lamp
+                colour(h + 0.12f, 1f, minOf(fog * (0.10f + 0.55f * level) * glow + pulse * 0.25f, 0.85f))
+                span(draw, pts, a, pts, b, 10, 11)                   // wall bars
+                span(draw, pts, a, pts, b, 12, 13)
+            }
+            colour(h + 0.5f, 0.9f, fog * 0.34f * glow)
+            span(draw, pts, a, pts, b, 6, 7)                         // lane lines
+            span(draw, pts, a, pts, b, 8, 9)
+
+            // The neon rib set into this segment's camera-side edge.
+            if (id % RIB_EVERY == 0L && ribZ[k] > Z_NEAR) {
+                val gate = id % GATE_EVERY == 0L
+                colour(h, 1f, minOf(fog * (if (gate) 0.52f else 0.30f) * (1f + flash * 0.3f) + pulse * 0.4f, 0.9f))
+                val r = k * 8
+                for (i in 0 until 4) span(draw, pts, a, rib, r, i, (i + 1) % 4)
+                // A hairline keeps distant gates visible once they get thin.
+                if (gate) {
+                    for (i in 0 until 4) {
+                        val j = (i + 1) % 4
+                        draw.antiAliasedLine(rib[r + i * 2], rib[r + i * 2 + 1],
+                            rib[r + j * 2], rib[r + j * 2 + 1], col[0], col[1], col[2], 1f, 1f)
+                    }
+                }
             }
         }
-        draw.setNormalBlend()
     }
 }

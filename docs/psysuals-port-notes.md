@@ -2,8 +2,8 @@
 
 ## Current reference and registry
 
-The `psysuals/` subtree matches upstream main v3.21.0,
-`d7e9af05013fcc05e8add9f9924a5f45668c067f`. It is reference source, not an
+The `psysuals/` subtree matches upstream main v3.22.0,
+`790716ce0d6fce39b0273d59d6cd8040abb491d4`. It is reference source, not an
 Android runtime dependency. Importing Python does not update Kotlin effects.
 
 The Android registry contains 33 modes. Preserve Mycelium's name and existing
@@ -24,6 +24,17 @@ the live network instead of rebuilding it.
 
 Desktop timings in the upstream changelog are not Android measurements.
 
+## Corridor, Mobius and Chromatic ports
+
+`CorridorMode.kt`, `MobiusMode.kt` and `ChromaticMode.kt` follow the psysuals
+3.22 reworks. Corridor is a solid corridor of perspective panels painted far to
+near, with ribs, gates, spectrum-driven wall bars, a ceiling strip, lane lines
+and beat pulses; it repaints every frame and keeps no spark history. Mobius is
+a depth-sorted, shaded ribbon that stands upright in the plane of the screen.
+Chromatic draws each ripple as six contiguous spectral bands around one shared
+outline. All three use filled quads through `GLDraw.polygon`; none allocates
+while drawing.
+
 ## Standing Android adaptations
 
 - GLES2 shaders, bloom and geometry replace pygame/ModernGL integration. Normal
@@ -31,9 +42,9 @@ Desktop timings in the upstream changelog are not Android measurements.
   bloom and presentation buffers; there is no outgoing-effect crossfade.
 - `EffectDynamics` supplies bounded elapsed-time response for effects that use it;
   Auto/Laptop/TV profiles remain explicit. Do not assume every effect uses it.
-- Keep the user-requested nine-ring Chromatic cap. Chromatic now spreads its
-  drops over the frame so their prismatic outlines no longer pile up in the
-  centre, and its warp answers treble less strongly.
+- Keep the user-requested nine-ring Chromatic cap; upstream keeps five. Drops
+  stay local and land where the frame is emptiest. Android uses 60 outline
+  steps per ripple instead of 96 to bound the vertex count.
 - LiquidLight is a native bounded dye simulation: a coarse velocity grid
   advects dye and heat with a semi-Lagrangian backtrace, beats inject
   vortices, and the grid is uploaded as a texture and shaded. It replaces the
@@ -58,7 +69,7 @@ Desktop timings in the upstream changelog are not Android measurements.
   translucent plate over the scene. The band drift matches the calmer upstream
   value; the field is scaled down natively because the retained buffer
   accumulates it.
-- Retain documented host tuning: Corridor's separate spark history, FlowField's
+- Retain documented host tuning: FlowField's
   attraction/scatter, Fireworks' gain-aware launches and Lattice's center-out
   frequency assignment. Match behavior without discarding deliberate native limits.
   Lattice's center-out assignment was Android-only while the vendored upstream

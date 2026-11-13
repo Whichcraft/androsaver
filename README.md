@@ -49,7 +49,7 @@ buffers are cleared on effect changes.
 - **Runtime hardening** — recent backports also improved resize safety, GL/audio lifecycle handling, small-display safety, isolated random state, and per-mode viewport handling. Synapse now grows, sheds, and wanders live nodes; high-energy Cube/Tunnel/Corridor motion scales with display size.
 - **Static image mode** — choose a local or configured-source image, with independent portrait and landscape behavior settings.
 - **Adaptive unused-space background** — fitted and centered images can use an automatically derived subdued color gradient, with a manual RGB color picker fallback.
-- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.19.0 while Android-applicable fixes are backported to Kotlin. The Android port follows the upstream FFT-driven effect response, Tunnel camera tracking, Chromatic ring cap, Spiral FFT/beat response, and Persistence fourth-coordinate rotation; desktop-only Python adapters remain in the subtree.
+- **psysuals integration** — the upstream source is maintained as a Git subtree at `psysuals/`, pinned to upstream v3.22.0 while Android-applicable fixes are backported to Kotlin. The Android port follows the upstream FFT-driven effect response, Tunnel camera tracking, Chromatic ring cap, Spiral FFT/beat response, and Persistence fourth-coordinate rotation; desktop-only Python adapters remain in the subtree.
 
 ## What's New in v2.2
 
@@ -458,7 +458,7 @@ See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) f
 | **TriFlux** ✨ | Antialiased triangle mosaic with two rainbow sweeps; a beat edge activates a fitted foreground tile, which returns through elapsed-time spring motion |
 | **Lissajous** | Stable 3:2:5 knot with time-sampled trails and smooth bounded motion |
 | **Tunnel** | Gentle audio-independent camera curvature and stable ring stars |
-| **Corridor** ✨ | Infinite neon rainbow corridor — 28 luminous frames rush toward you; hue sweeps full spectrum far-to-near; bass drives speed; beats fire glowing spark particles that streak outward |
+| **Corridor** ✨ | First-person ride down a solid neon corridor — perspective walls, neon ribs and gates, wall light bars that follow the spectrum; bass drives speed; every beat sends a pulse of light down the corridor |
 | **Nova** | Waveform kaleidoscope with 7-fold mirror symmetry across 4 spinning layers |
 | **Spiral** | Neon helix vortex with 6 arms, audio-reactive radius breathing, cross-ring connections |
 | **Bubbles** | Translucent full-screen rising bubbles driven by bass energy; synchronised beat pulse |
@@ -472,8 +472,8 @@ See [docs/visualizer-music-reactivity.md](docs/visualizer-music-reactivity.md) f
 | **Mycelium** | Multi-colony fungal growth with bioluminescent filament trails, orbiting spores, and beat-driven bloom bursts |
 | **Magnetar** | 4 000 particles riding a rotating magnetic dipole field with equatorial shockwave bursts on beats |
 | **SlimeMold** | Physarum-style agent simulation with trail diffusion and a finer TV-size grid; beats teleport part of the colony back toward center |
-| **Mobius** | Whole-viewport-fitted Mobius strip with slow smoothed geometry and light shiver |
-| **Chromatic** | Prismatic ripple rings with RGB-separated outlines and treble-controlled chromatic split |
+| **Mobius** | Solid shaded Mobius ribbon standing upright in the screen plane, fitted to the viewport, with a light shiver on beats |
+| **Chromatic** | Raindrop ripples whose rims split into a clean spectral band; treble widens the band |
 | **Persistence** | Five rigid solids with smooth axis reversals, speed accents and colour drift |
 | **Synapse** | Gradual branch births and oldest-node retirement with surviving signals |
 | **Heartbeat** | Expanding morphing rings that swing between circular and polygonal forms and pulse in layered neon glows |

@@ -85,7 +85,7 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `TriFluxMode.kt` | TriFlux | Antialiased triangle mosaic with beat-edge activation and substepped springs |
 | `LissajousMode.kt` | Lissajous | 3D trefoil knot with neon glow; treble brightens glow |
 | `TunnelMode.kt` | Tunnel | First-person tunnel; slow camera curvature, stable ring stars and bounded elapsed-time triangle spawning |
-| `CorridorMode.kt` | Corridor | First-person neon rainbow corridor + spark particles |
+| `CorridorMode.kt` | Corridor | First-person ride down a solid neon corridor with beat pulses |
 | `NovaMode.kt` | Nova | 7-fold mirror kaleidoscope waveform |
 | `SpiralMode.kt` | Spiral | 6-arm neon helix vortex |
 | `BubblesMode.kt` | Bubbles | Rising translucent bubbles; bass-flash inflation + mega-bubble spawns |
@@ -99,8 +99,8 @@ See `docs/image-sources.md` for detailed auth patterns.
 | `MyceliumMode.kt` | Mycelium | Swirling fungal network with multi-colony cores |
 | `MagnetarMode.kt` | Magnetar | 4 000 particles riding a rotating magnetic dipole field |
 | `SlimeMoldMode.kt` | SlimeMold | Physarum 2 500-agent trail simulation with adaptive-grid diffusion |
-| `MobiusMode.kt` | Mobius | 3-D wireframe Möbius strip (latitude lines only) |
-| `ChromaticMode.kt` | Chromatic | Prismatic raindrop ripples with RGB-separated outlines |
+| `MobiusMode.kt` | Mobius | Solid shaded Möbius ribbon, upright in the screen plane |
+| `ChromaticMode.kt` | Chromatic | Raindrop ripples with clean spectral rims |
 | `PersistenceMode.kt` | Persistence | Nested rotating 3D Platonic solids wireframes with perspective and depth-fading |
 | `SynapseMode.kt` | Synapse | Living 28–90-node neural graph with safe nearest-neighbour rewiring |
 | `HeartbeatMode.kt` | Heartbeat | Expanding polygon rings with beat-driven morphing |
