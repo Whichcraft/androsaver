@@ -13,6 +13,8 @@
 
 ### Changed
 
+- 2026-11-14: Increased dev publication identity to 2.15.0 (397) for the next
+  dev-channel publication.
 - 2026-11-14: Imported psysuals upstream `main` `40711a5` (v3.23.0 plus the
   Caustics and Lanterns modes) into `psysuals/` as a squashed subtree.
 - 2026-11-13: Ported the psysuals 3.22 reworks of three effects. Corridor is
