@@ -4,6 +4,8 @@
 
 ### Changed
 
+- 2026-11-13: Increased dev publication identity to 2.14.1 (396) for the next
+  dev-channel publication.
 - 2026-11-13: Increased dev publication identity to 2.14.0 (395) for the next
   dev-channel publication.
 - 2026-11-13: Ported the psysuals 3.21 Mycelium rewrite: three fruiting bodies
