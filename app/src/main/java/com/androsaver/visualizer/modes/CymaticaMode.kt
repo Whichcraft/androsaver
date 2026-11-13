@@ -26,7 +26,7 @@ class CymaticaMode : FullscreenEffectMode() {
     private val modeN = intArrayOf(2, 3, 4, 5, 5, 6)
     private val weights = FloatArray(6)
     private val energies = FloatArray(6)
-    private val weightUniform = FloatArray(6)
+    private val weightUniforms = FloatArray(6) { FloatArray(1) }
     private val particleX = FloatArray(MAX_PARTICLES) { kotlin.random.Random(0xC7A + it).nextFloat() * 2f - 1f }
     private val particleY = FloatArray(MAX_PARTICLES) { kotlin.random.Random(0xD11 + it).nextFloat() * 2f - 1f }
     private val hueUniform = FloatArray(1)
@@ -56,7 +56,7 @@ class CymaticaMode : FullscreenEffectMode() {
         }
         val sum = energies.sum()
         for (i in weights.indices) weights[i] = response.smooth(weights[i], energies[i] / sum, 0.003f)
-        for (i in weights.indices) weightUniform[i] = weights[i]
+        for (i in weights.indices) weightUniforms[i][0] = weights[i]
 
         hueUniform[0] = hue
         highUniform[0] = high
@@ -68,7 +68,12 @@ class CymaticaMode : FullscreenEffectMode() {
         renderField(draw, mapOf(
             "u_hue" to hueUniform,
             "u_high" to highUniform,
-            "u_weights" to weightUniform
+            "u_w0" to weightUniforms[0],
+            "u_w1" to weightUniforms[1],
+            "u_w2" to weightUniforms[2],
+            "u_w3" to weightUniforms[3],
+            "u_w4" to weightUniforms[4],
+            "u_w5" to weightUniforms[5]
         ))
 
         // Sand grains descend the plate amplitude and settle on the nodes.
@@ -100,7 +105,7 @@ class CymaticaMode : FullscreenEffectMode() {
     override val fragmentShader = """
         uniform vec2 u_resolution;
         uniform float u_hue, u_high;
-        uniform float u_weights[6];
+        uniform float u_w0, u_w1, u_w2, u_w3, u_w4, u_w5;
 
         #define PI 3.14159265
 
@@ -114,12 +119,12 @@ class CymaticaMode : FullscreenEffectMode() {
             p.y = -p.y;
             // The plate amplitude: the six weighted basis fields.
             float field = 0.0;
-            field += u_weights[0]*mode(1.0,2.0,p);
-            field += u_weights[1]*mode(2.0,3.0,p);
-            field += u_weights[2]*mode(3.0,4.0,p);
-            field += u_weights[3]*mode(4.0,5.0,p);
-            field += u_weights[4]*mode(2.0,5.0,p);
-            field += u_weights[5]*mode(3.0,6.0,p);
+            field += u_w0*mode(1.0,2.0,p);
+            field += u_w1*mode(2.0,3.0,p);
+            field += u_w2*mode(3.0,4.0,p);
+            field += u_w3*mode(4.0,5.0,p);
+            field += u_w4*mode(2.0,5.0,p);
+            field += u_w5*mode(3.0,6.0,p);
             // Nodal lines where the plate amplitude crosses zero.
             float line = clamp(exp(-abs(field)*(12.0-u_high*1.5)),0.0,1.0);
             float hue = fract(u_hue + line*0.72);

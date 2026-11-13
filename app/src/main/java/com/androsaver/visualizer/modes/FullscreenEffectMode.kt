@@ -51,7 +51,7 @@ abstract class FullscreenEffectMode : BaseMode() {
         val values = uniforms + ("u_resolution" to floatArrayOf(draw.W.toFloat(),draw.H.toFloat()))
         for ((key,value) in values) {
             val loc = locations.getOrPut(key) { GLES20.glGetUniformLocation(program,key) }
-            when(value.size) { 1 -> GLES20.glUniform1f(loc,value[0]); 2 -> GLES20.glUniform2f(loc,value[0],value[1]); 3 -> GLES20.glUniform3f(loc,value[0],value[1],value[2]); else -> GLES20.glUniform1fv(loc,value,0,value.size) }
+            when(value.size) { 1 -> GLES20.glUniform1f(loc,value[0]); 2 -> GLES20.glUniform2f(loc,value[0],value[1]); 3 -> GLES20.glUniform3f(loc,value[0],value[1],value[2]) }
         }
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES,0,6)
         GLES20.glDisableVertexAttribArray(position); GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER,0)
