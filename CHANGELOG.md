@@ -4,6 +4,11 @@
 
 ### Changed
 
+- 2026-11-13: Increased dev publication identity to 2.13.0 (393) for the next
+  dev-channel publication.
+- 2026-11-13: Closed the release-publication checklist item: dev 2.12.11 (392)
+  was built and published in run 43314405018 with APK and manifest version,
+  checksum and size agreeing.
 - 2026-11-12: Replaced stale port-status notes with the current subtree/native
   boundary, explicit Mycelium registry-slot preservation, and TV-stick measurement
   guidance distinguishing the dev overlay from the short offscreen FPS survey.

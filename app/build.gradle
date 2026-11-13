@@ -15,8 +15,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Release identity is owned by source, never by Git history or CI run counts.
         // Increase the code and version together before publishing a new commit.
-        versionCode 392
-        versionName "2.12.11"
+        versionCode 393
+        versionName "2.13.0"
     }
 
     signingConfigs {

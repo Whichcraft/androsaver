@@ -12,8 +12,10 @@
   integrity evidence; recover interrupted drafts/uploads/tag pushes.
 - [x] Pass 21 publication regression tests, including real-Git annotated-tag
   checks, ShellCheck, Bash syntax, workflow YAML/shell validation and diff checks.
-- [ ] GitHub builder: build the release, confirm APK/manifest version equality,
-  and complete actual dev publication with the updated release script.
+- [x] GitHub builder: build the release, confirm APK/manifest version equality,
+  and complete actual dev publication with the updated release script; dev
+  2.12.11 (code 392) published in run 43314405018 with manifest and APK
+  checksums matching.
 
 ## Subtree and repeated interruption notice — 2026-11-11
 
