@@ -26,7 +26,7 @@ class CymaticaMode : FullscreenEffectMode() {
     private val modeN = intArrayOf(2, 3, 4, 5, 5, 6)
     private val weights = FloatArray(6)
     private val energies = FloatArray(6)
-    private val weightUniforms = FloatArray(6) { FloatArray(1) }
+    private val weightUniforms = Array(6) { FloatArray(1) }
     private val particleX = FloatArray(MAX_PARTICLES) { kotlin.random.Random(0xC7A + it).nextFloat() * 2f - 1f }
     private val particleY = FloatArray(MAX_PARTICLES) { kotlin.random.Random(0xD11 + it).nextFloat() * 2f - 1f }
     private val hueUniform = FloatArray(1)
